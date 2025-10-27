@@ -4,8 +4,8 @@
  * @author 山内陽
  * @date 2025
  * @version 5.0
- * 
- * @details 
+ *
+ * @details
  * DirectX11の初期化、デバイス・コンテキストの管理、描画フレームの制御を行います。
  */
 #pragma once
@@ -20,22 +20,23 @@
 
 #ifdef _DEBUG
 #include <dxgidebug.h>
+#pragma comment(lib, "dxguid.lib")
 #endif
 
 /**
  * @class GfxDevice
  * @brief DirectX11デバイス管理クラス
- * 
- * @details 
+ *
+ * @details
  * DirectX11のデバイス、スワップチェイン、レンダーターゲット、深度バッファなどを管理し、
  * 描画フレームの開始・終了を制御します。
- * 
+ *
  * ### 主な機能:
  * - DirectX11デバイスの初期化
  * - スワップチェインの作成
  * - レンダーターゲットビューと深度ステンシルビューの管理
  * - フレームの開始・終了処理
- * 
+ *
  * @par 使用例
  * @code
  * GfxDevice gfx;
@@ -43,17 +44,17 @@
  *     // 初期化失敗
  *     return false;
  * }
- * 
+ *
  * // メインループ
  * while (running) {
  *     gfx.BeginFrame(0.1f, 0.1f, 0.12f); // ダークブルーでクリア
- *     
+ *
  *     // 描画処理
- *     
+ *
  *     gfx.EndFrame();
  * }
  * @endcode
- * 
+ *
  * @author 山内陽
  */
 class GfxDevice {
@@ -64,7 +65,7 @@ public:
      * @param[in] w 幅(ピクセル単位)
      * @param[in] h 高さ(ピクセル単位)
      * @return bool 初期化が成功した場合は true
-     * 
+     *
      * @details
      * DirectX11デバイス、スワップチェイン、レンダーターゲット、
      * 深度バッファを作成します。
@@ -99,21 +100,26 @@ public:
             device_.ReleaseAndGetAddressOf(),
             &fl,
             context_.ReleaseAndGetAddressOf());
-        
+
         if (FAILED(hr)) {
             // エラーの詳細をログ出力
             char errorMsg[256];
-            sprintf_s(errorMsg, 
+            sprintf_s(errorMsg,
                 "Failed to create D3D11 device.\nHRESULT: 0x%08X\n"
                 "Please check:\n"
                 "- DirectX 11 is installed\n"
-                "- Graphics drivers are up to date", 
+                "- Graphics drivers are up to date",
                 hr);
             MessageBoxA(nullptr, errorMsg, "DirectX Error", MB_OK | MB_ICONERROR);
             return false;
         }
 
         bool ok = createBackbufferResources();
+
+#ifdef _DEBUG
+        // GPUタイムスタンプクエリ（デバッグ時のみ）
+        initGpuTimestampQueries();
+#endif
 
         // 追加: アダプタ/機能レベル/フォーマット/SwapEffect/VSYNC情報をログ
         logEnvironment(fl, sd);
@@ -126,7 +132,7 @@ public:
      * @param[in] g 緑成分(デフォルト: 0.1f)
      * @param[in] b 青成分(デフォルト: 0.12f)
      * @param[in] a アルファ成分(デフォルト: 1.0f)
-     * 
+     *
      * @details
      * レンダーターゲットと深度バッファをクリアし、ビューポートを設定します。
      * すべての描画処理の前に呼び出してください。
@@ -149,7 +155,7 @@ public:
 
     /**
      * @brief フレーム終了(画面表示)
-     * 
+     *
      * @details
      * バックバッファをフロントバッファに切り替え、画面に表示します。
      * すべての描画処理の後に呼び出してください。
@@ -162,16 +168,16 @@ public:
     /**
      * @brief デバイスアクセス
      * @return ID3D11Device* デバイスポインタ
-     * 
+     *
      * @details
      * リソース(テクスチャ、バッファなど)を作成する際に使用します。
      */
     ID3D11Device* Dev() const { return device_.Get(); }
-    
+
     /**
      * @brief デバイスコンテキストアクセス
      * @return ID3D11DeviceContext* デバイスコンテキストのポインタ
-     * 
+     *
      * @details
      * 描画コマンドの発行やリソースの設定に使用します。
      */
@@ -182,16 +188,67 @@ public:
      * @return uint32_t 幅(ピクセル単位)
      */
     uint32_t Width() const { return width_; }
-    
+
     /**
      * @brief 高さを取得
      * @return uint32_t 高さ(ピクセル単位)
      */
     uint32_t Height() const { return height_; }
-    
+
+#ifdef _DEBUG
+    /**
+     * @brief GPUタイムスタンプ計測開始
+     */
+    void BeginGpuTiming() {
+        if (context_ && tsDisjoint_ && tsStart_) {
+            context_->Begin(tsDisjoint_.Get());
+            context_->End(tsStart_.Get());
+        }
+    }
+
+    /**
+     * @brief GPUタイムスタンプ計測終了
+     */
+    void EndGpuTiming() {
+        if (context_ && tsDisjoint_ && tsEnd_) {
+            context_->End(tsEnd_.Get());
+            context_->End(tsDisjoint_.Get());
+        }
+    }
+
+    /**
+     * @brief 直近のGPU時間(ms)を解決
+     * @param[out] outMs 計測結果(ms)
+     * @return 取得に成功したらtrue
+     */
+    bool ResolveGpuTiming(double& outMs) {
+        if (!context_ || !tsDisjoint_ || !tsStart_ || !tsEnd_) return false;
+
+        D3D11_QUERY_DATA_TIMESTAMP_DISJOINT disjoint{};
+        // ポーリング（デバッグ用途なのでブロック許容）
+        HRESULT hr = S_FALSE;
+        while ((hr = context_->GetData(tsDisjoint_.Get(), &disjoint, sizeof(disjoint), 0)) == S_FALSE) {}
+        if (FAILED(hr) || disjoint.Disjoint) return false;
+
+        UINT64 startTs = 0, endTs = 0;
+        while (context_->GetData(tsStart_.Get(), &startTs, sizeof(startTs), 0) == S_FALSE) {}
+        while (context_->GetData(tsEnd_.Get(), &endTs, sizeof(endTs), 0) == S_FALSE) {}
+        if (endTs <= startTs || disjoint.Frequency == 0) return false;
+
+        outMs = (static_cast<double>(endTs - startTs) / static_cast<double>(disjoint.Frequency)) * 1000.0;
+        lastGpuTimeMs_ = outMs;
+        return true;
+    }
+
+    /**
+     * @brief 直近のGPU時間(ms)を取得（未解決時は負）
+     */
+    double GetLastGpuTimeMs() const { return lastGpuTimeMs_; }
+#endif
+
     /**
      * @brief リソースの明示的解放
-     * 
+     *
      * @details
      * DirectX11リソースを明示的に解放します。
      * デストラクタからも呼ばれますが、順序制御のため明示的に呼び出すことを推奨します。
@@ -199,26 +256,26 @@ public:
     void Shutdown() {
         if (isShutdown_) return; // 冪等性
         DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "GfxDevice::Shutdown() - リソースを解放中");
-        
+
         // P2: コンテキストの状態をクリアしてFlush
         if (context_) {
             DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "ID3D11DeviceContext::ClearState() を呼び出し");
             context_->ClearState();
-            
+
             DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "ID3D11DeviceContext::Flush() を呼び出し");
             context_->Flush();
         }
-        
+
         // リソース解放カウンタ
         int releasedCount = 0;
-        
+
         // Live Objects用に参照カウントを収集
         long dsvRefForReport = -1;
         long rtvRefForReport = -1;
         long swapRefForReport = -1;
         long ctxRefForReport = -1;
         long devRefForReport = -1;
-        
+
         if (dsv_) {
             ULONG refCount = dsv_.Get()->AddRef() - 1;
             dsv_.Get()->Release();
@@ -227,7 +284,7 @@ public:
             dsv_.Reset();
             releasedCount++;
         }
-        
+
         if (rtv_) {
             ULONG refCount = rtv_.Get()->AddRef() - 1;
             rtv_.Get()->Release();
@@ -236,7 +293,7 @@ public:
             rtv_.Reset();
             releasedCount++;
         }
-        
+
         if (swap_) {
             ULONG refCount = swap_.Get()->AddRef() - 1;
             swap_.Get()->Release();
@@ -245,7 +302,7 @@ public:
             swap_.Reset();
             releasedCount++;
         }
-        
+
         if (context_) {
             ULONG refCount = context_.Get()->AddRef() - 1;
             context_.Get()->Release();
@@ -254,45 +311,56 @@ public:
             context_.Reset();
             releasedCount++;
         }
-        
+
 #ifdef _DEBUG
-        // デバッグビルド: VS出力を使わず、アプリのログに参照カウント要約を出力
+        // デバッグビルド: 公式のLive Objectsレポートを最後に実行
         if (device_) {
-            Microsoft::WRL::ComPtr<ID3D11Debug> debug;
-            if (SUCCEEDED(device_.As(&debug))) {
-                DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "========================================");
-                DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "D3D11デバッグレイヤー: Live Objectsレポート(アプリログ)開始");
-                DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "========================================");
+            // 参照要約（自前）
+            ULONG deviceRefCount = device_.Get()->AddRef() - 1;
+            device_.Get()->Release();
+            devRefForReport = static_cast<long>(deviceRefCount);
 
-                // Visual Studio出力は呼ばない
-                // 参照カウント測定前に debug を明示的に解放して自己参照を除去
-                debug.Reset();
+            DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "========================================");
+            DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "D3D11デバッグレイヤー: Live Objectsレポート(公式)開始");
+            DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "========================================");
 
-                // デバイスの参照カウントをチェック（測定専用）
-                ULONG deviceRefCount = device_.Get()->AddRef() - 1;
-                device_.Get()->Release();
-                devRefForReport = static_cast<long>(deviceRefCount);
+            // D3D11側のLive Device Objectsを詳細で出力（VS出力ウィンドウに出る）
+            Microsoft::WRL::ComPtr<ID3D11Debug> d3dDebug;
+            if (SUCCEEDED(device_.As(&d3dDebug)) && d3dDebug) {
+                d3dDebug->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
+            }
 
-                // ログに要約を出力
-                DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "--- Live Objects要約 (参照カウント) ---");
-                DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "DSV RefCount: " + std::to_string(dsvRefForReport));
-                DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "RTV RefCount: " + std::to_string(rtvRefForReport));
-                DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "SwapChain RefCount: " + std::to_string(swapRefForReport));
-                DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "DeviceContext RefCount: " + std::to_string(ctxRefForReport));
-                DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "Device RefCount: " + std::to_string(devRefForReport));
-                DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "========================================");
-
-                if (deviceRefCount > 1) {
-                    DEBUGLOG_WARNING("デバイスの参照カウントが 1 より大きい: " + std::to_string(deviceRefCount) + " (リーク可能性)");
-                } else {
-                    DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "デバイスの参照カウント: " + std::to_string(deviceRefCount) + " (正常)");
+            // DXGI側のLive Objectsも詳細で出力（動的ロードでSDK差異に対応）
+            HMODULE hDxgiDebug = LoadLibraryA("dxgidebug.dll");
+            if (hDxgiDebug) {
+                typedef HRESULT (WINAPI *PFN_DXGIGetDebugInterface)(REFIID, void**);
+                auto pGetDbg = reinterpret_cast<PFN_DXGIGetDebugInterface>(GetProcAddress(hDxgiDebug, "DXGIGetDebugInterface"));
+                if (pGetDbg) {
+                    Microsoft::WRL::ComPtr<IDXGIDebug> dxgiDebug;
+                    if (SUCCEEDED(pGetDbg(IID_PPV_ARGS(dxgiDebug.GetAddressOf()))) && dxgiDebug) {
+                        dxgiDebug->ReportLiveObjects(DXGI_DEBUG_ALL, DXGI_DEBUG_RLO_DETAIL);
+                    }
                 }
+                FreeLibrary(hDxgiDebug);
+            }
+
+            // アプリ側の要約ログ（参考）
+            DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "--- Live Objects要約 (参照カウント) ---");
+            DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "DSV RefCount: " + std::to_string(dsvRefForReport));
+            DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "RTV RefCount: " + std::to_string(rtvRefForReport));
+            DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "SwapChain RefCount: " + std::to_string(swapRefForReport));
+            DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "DeviceContext RefCount: " + std::to_string(ctxRefForReport));
+            DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "Device RefCount: " + std::to_string(devRefForReport));
+            DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "========================================");
+
+            if (deviceRefCount > 1) {
+                DEBUGLOG_WARNING("デバイスの参照カウントが 1 より大きい: " + std::to_string(deviceRefCount) + " (リーク可能性)");
             } else {
-                DEBUGLOG_WARNING("D3D11デバッグレイヤーが利用できません (デバッグフラグで作成されていない可能性)");
+                DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "デバイスの参照カウント: " + std::to_string(deviceRefCount) + " (正常)");
             }
         }
 #endif
-        
+
         if (device_) {
             ULONG refCount = device_.Get()->AddRef() - 1;
             device_.Get()->Release();
@@ -300,14 +368,14 @@ public:
             device_.Reset();
             releasedCount++;
         }
-        
+
         isShutdown_ = true;
         DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "GfxDevice::Shutdown() 完了 (解放リソース数: " + std::to_string(releasedCount) + ")");
     }
 
     /**
      * @brief デストラクタでリソースを明示的に解放
-     * 
+     *
      * @details
      * ComPtrは自動で解放されますが、念のため明示的にリセットします。
      */
@@ -320,7 +388,7 @@ private:
     /**
      * @brief バックバッファリソースの作成
      * @return bool 作成が成功した場合は true
-     * 
+     *
      * @details
      * スワップチェインからバックバッファを取得し、
      * レンダーターゲットビューと深度ステンシルビューを作成します。
@@ -332,7 +400,7 @@ private:
             MessageBoxA(nullptr, "Failed to get back buffer", "DirectX Error", MB_OK | MB_ICONERROR);
             return false;
         }
-        
+
         hr = device_->CreateRenderTargetView(back.Get(), nullptr, rtv_.ReleaseAndGetAddressOf());
         if (FAILED(hr)) {
             MessageBoxA(nullptr, "Failed to create render target view", "DirectX Error", MB_OK | MB_ICONERROR);
@@ -356,7 +424,7 @@ private:
             MessageBoxA(nullptr, "Failed to create depth stencil texture", "DirectX Error", MB_OK | MB_ICONERROR);
             return false;
         }
-        
+
         hr = device_->CreateDepthStencilView(depth.Get(), nullptr, dsv_.ReleaseAndGetAddressOf());
         if (FAILED(hr)) {
             MessageBoxA(nullptr, "Failed to create depth stencil view", "DirectX Error", MB_OK | MB_ICONERROR);
@@ -370,7 +438,7 @@ private:
      * @brief 環境メトリクスのログ出力
      * @param fl 機能レベル
      * @param sd スワップチェインの設定
-     * 
+     *
      * @details
      * 初期化時に取得したアダプタ名、機能レベル、スワップ効果、バックバッファフォーマット、
      * VSync設定などの情報をログに出力します。
@@ -418,6 +486,27 @@ private:
 
 #ifdef _DEBUG
     /**
+     * @brief GPUタイムスタンプ用クエリの初期化
+     */
+    void initGpuTimestampQueries() {
+        // すでに作成済みならスキップ
+        if (tsDisjoint_) return;
+        D3D11_QUERY_DESC qd{};
+        qd.MiscFlags = 0;
+
+        qd.Query = D3D11_QUERY_TIMESTAMP_DISJOINT;
+        if (FAILED(device_->CreateQuery(&qd, tsDisjoint_.ReleaseAndGetAddressOf()))) {
+            // 失敗しても致命的ではない
+            return;
+        }
+        qd.Query = D3D11_QUERY_TIMESTAMP;
+        device_->CreateQuery(&qd, tsStart_.ReleaseAndGetAddressOf());
+        device_->CreateQuery(&qd, tsEnd_.ReleaseAndGetAddressOf());
+    }
+#endif
+
+#ifdef _DEBUG
+    /**
      * @brief 旧仕様の互換ダミー
      */
     void ReportLiveObjects() {}
@@ -432,4 +521,12 @@ private:
     Microsoft::WRL::ComPtr<ID3D11RenderTargetView> rtv_;    ///< レンダーターゲットビュー
     Microsoft::WRL::ComPtr<ID3D11DepthStencilView> dsv_;    ///< 深度ステンシルビュー
     bool isShutdown_ = false; ///< シャットダウン済みフラグ
+
+#ifdef _DEBUG
+    // GPUタイムスタンプ用
+    Microsoft::WRL::ComPtr<ID3D11Query> tsDisjoint_;
+    Microsoft::WRL::ComPtr<ID3D11Query> tsStart_;
+    Microsoft::WRL::ComPtr<ID3D11Query> tsEnd_;
+    double lastGpuTimeMs_ = -1.0;
+#endif
 };

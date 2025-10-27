@@ -1,6 +1,6 @@
 ﻿/**
  * @file RenderSystem.h
- * @brief テクスチャ・複数形状対応レンダリングシステム
+ * @briefテクスチャ・複数形状対応レンダリングシステム
  * @author 山内陽
  * @date 2025
  * @version 6.0
@@ -18,13 +18,14 @@
 #include "components/MeshRenderer.h"
 #include "graphics/TextureManager.h"
 #include "app/DebugLog.h"
+#include "components/WringDeformer.h"
 #include <d3dcompiler.h>
 #include <DirectXMath.h>
 #include <wrl/client.h>
 #include <cstring>
 #include <cstdio>
 #include <string>
-#include <vector>  // std::vectorのために追加
+#include <vector>
 
 #pragma comment(lib, "d3dcompiler.lib")
 
@@ -37,26 +38,13 @@
  * 自動的に描画します。単色描画とテクスチャ描画の両方に対応し、
  * 立方体、球体、円柱、円錐、平面、カプセルなどの基本形状をサポートします。
  *
- * ### レンダリングパイプライン:
+ * レンダリングパイプラインの流れ:
  * 1. Transform から World 行列を計算
  * 2. Camera から View・Projection 行列を取得
  * 3. MeshRenderer の色・テクスチャ・形状設定を適用
  * 4. 指定された形状のメッシュを描画
  *
- * @par 使用例
- * @code
- * RenderSystem renderer;
- * renderer.Init(gfx, texManager);
- *
- * // 毎フレーム
- * gfx.BeginFrame();
- * renderer.Render(gfx, world, camera);
- * gfx.EndFrame();
- * @endcode
- *
  * @note Transform と MeshRenderer の両方を持つエンティティのみ描画されます
- *
- * @author 山内陽
  */
 struct RenderSystem {
     // パイプラインオブジェクト
@@ -89,6 +77,15 @@ struct RenderSystem {
     struct VSConstants {
         DirectX::XMMATRIX WVP;  ///< World * View * Projection 行列
         DirectX::XMFLOAT4 uvTransform;  ///< xy=offset, zw=scale
+        // 雑巾絞りデフォーム用パラメータ群
+        // deform0: x=twistAmount, y=squeezeAmount, z=gripRange, w=pivotY
+        DirectX::XMFLOAT4 deform0;
+        // deform1: x=halfHeight, y=useDeform(0/1), z=axisCompress, w=twistFalloff
+        DirectX::XMFLOAT4 deform1;
+        // deform2: x=uvTwistEnabled(0/1), y=uvTwistScale, z=uvCenterX, w=uvCenterY
+        DirectX::XMFLOAT4 deform2;
+        // deform3: x=squeezeFalloff, y=baseRadius, z=lobeCount, w=bulgeAmpBase
+        DirectX::XMFLOAT4 deform3;
     };
 
     /**
@@ -184,54 +181,227 @@ struct RenderSystem {
     }
 
     /**
-     * @brief 立方体メッシュの作成
+     * @brief 立方体メッシュの作成（完全対称・CCW統一版）
+     * @details
+     * FrontCounterClockwise=TRUE のラスタライザ設定に合わせ、外向きが反時計回り(CCW)となるよう
+     * 各面の頂点配置とインデックス順を調整しています。
      */
     bool CreateCubeMesh(GfxDevice& gfx) {
         struct V { DirectX::XMFLOAT3 pos; DirectX::XMFLOAT2 tex; };
-        const float c = 0.5f;
-        V verts[] = {
-            // 背面
-            {{-c,-c,-c}, {0,1}}, {{-c,+c,-c}, {0,0}}, {{+c,+c,-c}, {1,0}}, {{+c,-c,-c}, {1,1}},
-            // 前面
-            {{-c,-c,+c}, {1,1}}, {{-c,+c,+c}, {1,0}}, {{+c,+c,+c}, {0,0}}, {{+c,-c,+c}, {0,1}},
-        };
-        uint16_t idx[] = {
-            0,1,2, 0,2,3,  // 背面
-            4,6,5, 4,7,6,  // 前面
-            4,5,1, 4,1,0,  // 左
-            3,2,6, 3,6,7,  // 右
-            1,5,6, 1,6,2,  // 上
-            4,0,3, 4,3,7   // 下
-        };
+        std::vector<V> verts;
+        std::vector<uint16_t> idx;
 
+        const float size = 0.5f;
+        const int subdiv = 24;  // 各面を 24x24 分割
+
+        // 前面（Z+）: CCW
+        {
+            int base = (int)verts.size();
+            for (int row = 0; row <= subdiv; ++row) {
+                for (int col = 0; col <= subdiv; ++col) {
+                    float u = (float)col / (float)subdiv;
+                    float v = (float)row / (float)subdiv;
+                    float x = -size + u * size * 2.0f;
+                    float y = -size + v * size * 2.0f;
+                    verts.push_back({ {x, y, size}, {u, v} });
+                }
+            }
+            for (int row = 0; row < subdiv; ++row) {
+                for (int col = 0; col < subdiv; ++col) {
+                    int i0 = base + row * (subdiv + 1) + col;
+                    int i1 = i0 + 1;
+                    int i2 = i0 + (subdiv + 1);
+                    int i3 = i2 + 1;
+                    // CCW: i0→i1→i3, i0→i3→i2
+                    idx.push_back((uint16_t)i0);
+                    idx.push_back((uint16_t)i1);
+                    idx.push_back((uint16_t)i3);
+                    idx.push_back((uint16_t)i0);
+                    idx.push_back((uint16_t)i3);
+                    idx.push_back((uint16_t)i2);
+                }
+            }
+        }
+
+        // 背面（Z-）: 外向きをCCWにするため X座標反転 + インデックス調整
+        {
+            int base = (int)verts.size();
+            for (int row = 0; row <= subdiv; ++row) {
+                for (int col = 0; col <= subdiv; ++col) {
+                    float u = (float)col / (float)subdiv;
+                    float v = (float)row / (float)subdiv;
+                    float x = size - u * size * 2.0f;   // X反転
+                    float y = -size + v * size * 2.0f;
+                    verts.push_back({ {x, y, -size}, {u, v} });
+                }
+            }
+            for (int row = 0; row < subdiv; ++row) {
+                for (int col = 0; col < subdiv; ++col) {
+                    int i0 = base + row * (subdiv + 1) + col;
+                    int i1 = i0 + 1;
+                    int i2 = i0 + (subdiv + 1);
+                    int i3 = i2 + 1;
+                    // CCW: i0→i3→i1, i0→i2→i3
+                    idx.push_back((uint16_t)i0);
+                    idx.push_back((uint16_t)i3);
+                    idx.push_back((uint16_t)i1);
+                    idx.push_back((uint16_t)i0);
+                    idx.push_back((uint16_t)i2);
+                    idx.push_back((uint16_t)i3);
+                }
+            }
+        }
+
+        // 右面（X+）: CCW
+        {
+            int base = (int)verts.size();
+            for (int row = 0; row <= subdiv; ++row) {
+                for (int col = 0; col <= subdiv; ++col) {
+                    float u = (float)col / (float)subdiv;
+                    float v = (float)row / (float)subdiv;
+                    float z = -size + u * size * 2.0f;
+                    float y = -size + v * size * 2.0f;
+                    verts.push_back({ {size, y, z}, {u, v} });
+                }
+            }
+            for (int row = 0; row < subdiv; ++row) {
+                for (int col = 0; col < subdiv; ++col) {
+                    int i0 = base + row * (subdiv + 1) + col;
+                    int i1 = i0 + 1;
+                    int i2 = i0 + (subdiv + 1);
+                    int i3 = i2 + 1;
+                    // CCW: i0→i1→i3, i0→i3→i2
+                    idx.push_back((uint16_t)i0);
+                    idx.push_back((uint16_t)i1);
+                    idx.push_back((uint16_t)i3);
+                    idx.push_back((uint16_t)i0);
+                    idx.push_back((uint16_t)i3);
+                    idx.push_back((uint16_t)i2);
+                }
+            }
+        }
+
+        // 左面（X-）: 外向きをCCWにするため Z座標反転 + インデックス調整
+        {
+            int base = (int)verts.size();
+            for (int row = 0; row <= subdiv; ++row) {
+                for (int col = 0; col <= subdiv; ++col) {
+                    float u = (float)col / (float)subdiv;
+                    float v = (float)row / (float)subdiv;
+                    float z = size - u * size * 2.0f;   // Z反転
+                    float y = -size + v * size * 2.0f;
+                    verts.push_back({ {-size, y, z}, {u, v} });
+                }
+            }
+            for (int row = 0; row < subdiv; ++row) {
+                for (int col = 0; col < subdiv; ++col) {
+                    int i0 = base + row * (subdiv + 1) + col;
+                    int i1 = i0 + 1;
+                    int i2 = i0 + (subdiv + 1);
+                    int i3 = i2 + 1;
+                    // CCW: i0→i3→i1, i0→i2→i3
+                    idx.push_back((uint16_t)i0);
+                    idx.push_back((uint16_t)i3);
+                    idx.push_back((uint16_t)i1);
+                    idx.push_back((uint16_t)i0);
+                    idx.push_back((uint16_t)i2);
+                    idx.push_back((uint16_t)i3);
+                }
+            }
+        }
+
+        // 上面（Y+）: CCW
+        {
+            int base = (int)verts.size();
+            for (int row = 0; row <= subdiv; ++row) {
+                for (int col = 0; col <= subdiv; ++col) {
+                    float u = (float)col / (float)subdiv;
+                    float v = (float)row / (float)subdiv;
+                    float x = -size + u * size * 2.0f;
+                    float z = -size + v * size * 2.0f;
+                    verts.push_back({ {x, size, z}, {u, v} });
+                }
+            }
+            for (int row = 0; row < subdiv; ++row) {
+                for (int col = 0; col < subdiv; ++col) {
+                    int i0 = base + row * (subdiv + 1) + col;
+                    int i1 = i0 + 1;
+                    int i2 = i0 + (subdiv + 1);
+                    int i3 = i2 + 1;
+                    // CCW: i0→i1→i3, i0→i3→i2
+                    idx.push_back((uint16_t)i0);
+                    idx.push_back((uint16_t)i1);
+                    idx.push_back((uint16_t)i3);
+                    idx.push_back((uint16_t)i0);
+                    idx.push_back((uint16_t)i3);
+                    idx.push_back((uint16_t)i2);
+                }
+            }
+        }
+
+        // 下面（Y-）: 下側から見て外向きがCCWになるようインデックス調整
+        {
+            int base = (int)verts.size();
+            for (int row = 0; row <= subdiv; ++row) {
+                for (int col = 0; col <= subdiv; ++col) {
+                    float u = (float)col / (float)subdiv;
+                    float v = (float)row / (float)subdiv;
+                    float x = -size + u * size * 2.0f;
+                    float z = size - v * size * 2.0f;   // Z反転
+                    verts.push_back({ {x, -size, z}, {u, v} });
+                }
+            }
+            for (int row = 0; row < subdiv; ++row) {
+                for (int col = 0; col < subdiv; ++col) {
+                    int i0 = base + row * (subdiv + 1) + col;
+                    int i1 = i0 + 1;
+                    int i2 = i0 + (subdiv + 1);
+                    int i3 = i2 + 1;
+                    // CCW: i0→i3→i1, i0→i2→i3
+                    idx.push_back((uint16_t)i0);
+                    idx.push_back((uint16_t)i3);
+                    idx.push_back((uint16_t)i1);
+                    idx.push_back((uint16_t)i0);
+                    idx.push_back((uint16_t)i2);
+                    idx.push_back((uint16_t)i3);
+                }
+            }
+        }
+
+        DEBUGLOG("立方体メッシュ生成: " + std::to_string(verts.size()) + " 頂点, " + std::to_string(idx.size()) + " インデックス");
+
+        // バッファ作成
         D3D11_BUFFER_DESC vbd{};
-        vbd.ByteWidth = (UINT)sizeof(verts);
+        vbd.ByteWidth = (UINT)(verts.size() * sizeof(V));
         vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
         vbd.Usage = D3D11_USAGE_IMMUTABLE;
-        D3D11_SUBRESOURCE_DATA vinit{ verts, 0, 0 };
+        D3D11_SUBRESOURCE_DATA vinit{ verts.data(), 0, 0 };
         if (FAILED(gfx.Dev()->CreateBuffer(&vbd, &vinit, meshes_[(int)MeshType::Cube].vb.GetAddressOf()))) {
+            DEBUGLOG_ERROR("立方体の頂点バッファ作成失敗");
             return false;
         }
 
         D3D11_BUFFER_DESC ibd{};
-        ibd.ByteWidth = (UINT)sizeof(idx);
+        ibd.ByteWidth = (UINT)(idx.size() * sizeof(uint16_t));
         ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;
         ibd.Usage = D3D11_USAGE_IMMUTABLE;
-        D3D11_SUBRESOURCE_DATA iinit{ idx, 0, 0 };
+        D3D11_SUBRESOURCE_DATA iinit{ idx.data(), 0, 0 };
         if (FAILED(gfx.Dev()->CreateBuffer(&ibd, &iinit, meshes_[(int)MeshType::Cube].ib.GetAddressOf()))) {
+            DEBUGLOG_ERROR("立方体のインデックスバッファ作成失敗");
             return false;
         }
 
-        meshes_[(int)MeshType::Cube].indexCount = (UINT)(sizeof(idx) / sizeof(idx[0]));
+        meshes_[(int)MeshType::Cube].indexCount = (UINT)idx.size();
+        DEBUGLOG("立方体メッシュ作成完了 (インデックス数: " + std::to_string(meshes_[(int)MeshType::Cube].indexCount) + ")");
         return true;
     }
 
     /**
      * @brief 球体メッシュの作成
      * @param[in] gfx グラフィックスデバイス
-     * @param[in] segments 緯度・経度の分割数(デフォルト:16)
+     * @param[in] segments 緯度・経度の分割数(デフォルト:64)
      */
-    bool CreateSphereMesh(GfxDevice& gfx, int segments = 16) {
+    bool CreateSphereMesh(GfxDevice& gfx, int segments = 64) {
         struct V { DirectX::XMFLOAT3 pos; DirectX::XMFLOAT2 tex; };
         std::vector<V> verts;
         std::vector<uint16_t> idx;
@@ -300,40 +470,51 @@ struct RenderSystem {
     /**
      * @brief 円柱メッシュの作成
      * @param[in] gfx グラフィックスデバイス
-     * @param[in] segments 円周の分割数(デフォルト:16)
+     * @param[in] segments 円周の分割数(デフォルト:64)
+     * @param[in] stacks   高さ方向の分割数(デフォルト:48)
      */
-    bool CreateCylinderMesh(GfxDevice& gfx, int segments = 16) {
+    bool CreateCylinderMesh(GfxDevice& gfx, int segments = 64, int stacks = 48) {
         struct V { DirectX::XMFLOAT3 pos; DirectX::XMFLOAT2 tex; };
         std::vector<V> verts;
         std::vector<uint16_t> idx;
+
+        if (segments < 3) segments = 3;
+        if (stacks < 1) stacks = 1;
 
         const float radius = 0.5f;
         const float height = 1.0f;
         const float halfHeight = height * 0.5f;
 
-        // 側面の頂点
-        for (int i = 0; i <= segments; ++i) {
-            float angle = 2.0f * DirectX::XM_PI * (float)i / (float)segments;
-            float x = radius * cosf(angle);
-            float z = radius * sinf(angle);
-            float u = (float)i / (float)segments;
-
-            // 上部
-            verts.push_back({ {x, halfHeight, z}, {u, 0.0f} });
-            // 下部
-            verts.push_back({ {x, -halfHeight, z}, {u, 1.0f} });
+        // 側面の頂点（stacks+1 段, 各段に segments+1 頂点でシームを閉じる）
+        int rowVerts = segments + 1;
+        for (int s = 0; s <= stacks; ++s) {
+            float t = (float)s / (float)stacks;          // 0..1 (上->下)
+            float y = halfHeight * (1.0f - 2.0f * t);    // +half -> -half
+            float v = t;                                 // 縦UV
+            for (int i = 0; i <= segments; ++i) {
+                float angle = 2.0f * DirectX::XM_PI * (float)i / (float)segments;
+                float x = radius * cosf(angle);
+                float z = radius * sinf(angle);
+                float u = (float)i / (float)segments;
+                verts.push_back({ {x, y, z}, {u, v} });
+            }
         }
 
         // 側面のインデックス
-        for (int i = 0; i < segments; ++i) {
-            int base = i * 2;
-            idx.push_back((uint16_t)base);
-            idx.push_back((uint16_t)(base + 1));
-            idx.push_back((uint16_t)(base + 2));
-
-            idx.push_back((uint16_t)(base + 1));
-            idx.push_back((uint16_t)(base + 3));
-            idx.push_back((uint16_t)(base + 2));
+        for (int s = 0; s < stacks; ++s) {
+            int base = s * rowVerts;
+            for (int i = 0; i < segments; ++i) {
+                int a = base + i;
+                int b = base + i + rowVerts;
+                int c = base + i + 1;
+                int d = base + i + rowVerts + 1;
+                idx.push_back((uint16_t)a);
+                idx.push_back((uint16_t)b);
+                idx.push_back((uint16_t)c);
+                idx.push_back((uint16_t)c);
+                idx.push_back((uint16_t)b);
+                idx.push_back((uint16_t)d);
+            }
         }
 
         // 上面・下面の中心点
@@ -342,10 +523,8 @@ struct RenderSystem {
         int bottomCenterIdx = (int)verts.size();
         verts.push_back({ {0, -halfHeight, 0}, {0.5f, 0.5f} });
 
-        // 上面・下面の周回頂点の開始位置（top, bottom を交互に追加していく）
+        // 上面・下面の周回頂点
         int ringStart = (int)verts.size();
-
-        // 上面・下面の頂点とインデックス
         for (int i = 0; i < segments; ++i) {
             float angle = 2.0f * DirectX::XM_PI * (float)i / (float)segments;
             float x = radius * cosf(angle);
@@ -358,16 +537,13 @@ struct RenderSystem {
             int bottomIdx = (int)verts.size();
             verts.push_back({ {x, -halfHeight, z}, {u, v} });
 
-            // 次の頂点（ラップ考慮）
             int nextTop = (i == segments - 1) ? ringStart : topIdx + 2;
             int nextBottom = (i == segments - 1) ? ringStart + 1 : bottomIdx + 2;
 
-            // 上面（CW）
             idx.push_back((uint16_t)topCenterIdx);
             idx.push_back((uint16_t)topIdx);
             idx.push_back((uint16_t)nextTop);
 
-            // 下面（CW）
             idx.push_back((uint16_t)bottomCenterIdx);
             idx.push_back((uint16_t)nextBottom);
             idx.push_back((uint16_t)bottomIdx);
@@ -398,9 +574,9 @@ struct RenderSystem {
     /**
      * @brief 円錐メッシュの作成
      * @param[in] gfx グラフィックスデバイス
-     * @param[in] segments 円周の分割数(デフォルト:16)
+     * @param[in] segments 円周の分割数(デフォルト:64)
      */
-    bool CreateConeMesh(GfxDevice& gfx, int segments = 16) {
+    bool CreateConeMesh(GfxDevice& gfx, int segments = 64) {
         struct V { DirectX::XMFLOAT3 pos; DirectX::XMFLOAT2 tex; };
         std::vector<V> verts;
         std::vector<uint16_t> idx;
@@ -408,36 +584,49 @@ struct RenderSystem {
         const float radius = 0.5f;
         const float height = 1.0f;
         const float halfHeight = height * 0.5f;
+        const int stacks = 32;  // 側面の高さ分割数
 
-        // 頂点(先端)
-        int apexIdx = (int)verts.size();
-        verts.push_back({ {0, halfHeight, 0}, {0.5f, 0.0f} });
+        // 側面を段階的に分割（頂点から底面へ）
+        for (int s = 0; s <= stacks; ++s) {
+            float t = (float)s / (float)stacks;  // 0(頂点)..1(底面)
+            float y = halfHeight * (1.0f - 2.0f * t);  // +half -> -half
+            float r = radius * t;  // 0(頂点) -> radius(底面)
+            float v = t;
+
+            for (int i = 0; i <= segments; ++i) {
+                float angle = 2.0f * DirectX::XM_PI * (float)i / (float)segments;
+                float x = r * cosf(angle);
+                float z = r * sinf(angle);
+                float u = (float)i / (float)segments;
+                verts.push_back({ {x, y, z}, {u, v} });
+            }
+        }
+
+        // 側面のインデックス
+        for (int s = 0; s < stacks; ++s) {
+            int base = s * (segments + 1);
+            for (int i = 0; i < segments; ++i) {
+                int a = base + i;
+                int b = base + i + segments + 1;
+                int c = base + i + 1;
+                int d = base + i + segments + 2;
+
+                idx.push_back((uint16_t)a);
+                idx.push_back((uint16_t)b);
+                idx.push_back((uint16_t)c);
+
+                idx.push_back((uint16_t)c);
+                idx.push_back((uint16_t)b);
+                idx.push_back((uint16_t)d);
+            }
+        }
 
         // 底面の中心
         int baseCenterIdx = (int)verts.size();
         verts.push_back({ {0, -halfHeight, 0}, {0.5f, 0.5f} });
 
-        // 側面のリング（segments+1 で閉ループ）
-        for (int i = 0; i <= segments; ++i) {
-            float angle = 2.0f * DirectX::XM_PI * (float)i / (float)segments;
-            float x = radius * cosf(angle);
-            float z = radius * sinf(angle);
-            float u = (float)i / (float)segments;
-
-            // 側面用
-            verts.push_back({ {x, -halfHeight, z}, {u, 1.0f} });
-        }
-
-        // 側面のインデックス
-        for (int i = 0; i < segments; ++i) {
-            idx.push_back((uint16_t)apexIdx);
-            idx.push_back((uint16_t)(2 + i));
-            idx.push_back((uint16_t)(2 + i + 1));
-        }
-
-        // 底面のリング開始位置
-        int baseStart = (int)verts.size();
         // 底面の頂点（ディスクUV）
+        int baseStart = (int)verts.size();
         for (int i = 0; i < segments; ++i) {
             float angle = 2.0f * DirectX::XM_PI * (float)i / (float)segments;
             float x = radius * cosf(angle);
@@ -447,7 +636,7 @@ struct RenderSystem {
 
             verts.push_back({ {x, -halfHeight, z}, {u, v} });
         }
-        // 底面のインデックス（CW）
+        // 底面のインデックス
         for (int i = 0; i < segments; ++i) {
             int curr = baseStart + i;
             int next = (i == segments - 1) ? baseStart : baseStart + i + 1;
@@ -517,19 +706,19 @@ struct RenderSystem {
     /**
      * @brief カプセルメッシュの作成
      * @param[in] gfx グラフィックスデバイス
-     * @param[in] segments 分割数(デフォルト:16)
+     * @param[in] segments 分割数(デフォルト:48)
      */
-    bool CreateCapsuleMesh(GfxDevice& gfx, int segments = 16) {
+    bool CreateCapsuleMesh(GfxDevice& gfx, int segments = 48) {
         struct V { DirectX::XMFLOAT3 pos; DirectX::XMFLOAT2 tex; };
         std::vector<V> verts;
         std::vector<uint16_t> idx;
 
-        // 安全策：偶数を強制（奇数だと上下の分割で段差が出る）
+        // 偶数分割に調整（上下の分割で段差が出ないようにする）
         if (segments < 4) segments = 4;
         if (segments & 1) segments += 1; // 偶数化
 
         const float radius = 0.5f;
-        const float cylinderHeight = 0.5f; // 必要に応じて調整
+        const float cylinderHeight = 0.5f; // 円柱部の高さ
         const float halfCylinderHeight = cylinderHeight * 0.5f;
 
         const int hemiLat = segments / 2; // 半球の緯度分割
@@ -551,7 +740,7 @@ struct RenderSystem {
         // 下半球（yは -halfCylinderHeight 偏移）
         const int lowerStart = (int)verts.size();
         for (int lat = 0; lat <= hemiLat; ++lat) {
-            float theta = (DirectX::XM_PI * 0.5f) * (float)lat / (float)hemiLat; // 0 -> π/2（下→赤道）
+            float theta = (DirectX::XM_PI * 0.5f) * (float)lat / (float)hemiLat; // 0 -> π/2
             float sT = sinf(theta), cT = cosf(theta);
             for (int lon = 0; lon <= segments; ++lon) {
                 float phi = 2.0f * DirectX::XM_PI * (float)lon / (float)segments;
@@ -563,13 +752,12 @@ struct RenderSystem {
             }
         }
 
-        // 上半球インデックス（CW）
+        // 上半球インデックス（CW: FrontCounterClockwise=TRUEに合わせた面向き）
         for (int lat = 0; lat < hemiLat; ++lat) {
             for (int lon = 0; lon < segments; ++lon) {
                 int first = lat * (segments + 1) + lon;
                 int second = (lat + 1) * (segments + 1) + lon;
 
-                // CW: first, second, first+1 / second, second+1, first+1
                 idx.push_back((uint16_t)first);
                 idx.push_back((uint16_t)second);
                 idx.push_back((uint16_t)(first + 1));
@@ -580,14 +768,12 @@ struct RenderSystem {
             }
         }
 
-        // 下半球インデックス
+        // 下半球インデックス（CW）
         for (int lat = 0; lat < hemiLat; ++lat) {
             for (int lon = 0; lon < segments; ++lon) {
                 int first = lowerStart + lat * (segments + 1) + lon;
                 int second = lowerStart + (lat + 1) * (segments + 1) + lon;
 
-                // CWに統一（上半球の並びとは**逆**にするのがポイント）
-                // CW: first, first+1, second / first+1, second+1, second
                 idx.push_back((uint16_t)first);
                 idx.push_back((uint16_t)(first + 1));
                 idx.push_back((uint16_t)second);
@@ -607,7 +793,7 @@ struct RenderSystem {
             int c = lowerEq + lon;       // 下 今
             int d = lowerEq + lon + 1;   // 下 次
 
-            // 上三角: a, c, b（CW） / 下三角: b, c, d（CW）
+            // 上三角: a, c, b / 下三角: b, c, d（CW）
             idx.push_back((uint16_t)a);
             idx.push_back((uint16_t)c);
             idx.push_back((uint16_t)b);
@@ -617,22 +803,23 @@ struct RenderSystem {
             idx.push_back((uint16_t)d);
         }
 
-        // バッファ作成はそのまま
         D3D11_BUFFER_DESC vbd{};
         vbd.ByteWidth = (UINT)(verts.size() * sizeof(V));
         vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
         vbd.Usage = D3D11_USAGE_IMMUTABLE;
         D3D11_SUBRESOURCE_DATA vinit{ verts.data(), 0, 0 };
-        if (FAILED(gfx.Dev()->CreateBuffer(&vbd, &vinit, meshes_[(int)MeshType::Capsule].vb.GetAddressOf())))
+        if (FAILED(gfx.Dev()->CreateBuffer(&vbd, &vinit, meshes_[(int)MeshType::Capsule].vb.GetAddressOf()))) {
             return false;
+        }
 
         D3D11_BUFFER_DESC ibd{};
         ibd.ByteWidth = (UINT)(idx.size() * sizeof(uint16_t));
         ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;
         ibd.Usage = D3D11_USAGE_IMMUTABLE;
         D3D11_SUBRESOURCE_DATA iinit{ idx.data(), 0, 0 };
-        if (FAILED(gfx.Dev()->CreateBuffer(&ibd, &iinit, meshes_[(int)MeshType::Capsule].ib.GetAddressOf())))
+        if (FAILED(gfx.Dev()->CreateBuffer(&ibd, &iinit, meshes_[(int)MeshType::Capsule].ib.GetAddressOf()))) {
             return false;
+        }
 
         meshes_[(int)MeshType::Capsule].indexCount = (UINT)idx.size();
         return true;
@@ -652,11 +839,16 @@ struct RenderSystem {
         texManager_ = &texMgr;
         isShutdown_ = false;
 
-        // テクスチャ対応シェーダー
+        // テクスチャ対応シェーダー + ねじり/絞りデフォーム（高品質版 + ローブ生成）
         const char* VS = R"(
             cbuffer CB : register(b0) {
                 float4x4 gWVP;
                 float4 gUVTransform; // xy=offset, zw=scale
+                // 雑巾絞りデフォーム用パラメータ
+                float4 gDeform0;     // x=twistAmount, y=squeezeAmount, z=gripRange, w=pivotY
+                float4 gDeform1;     // x=halfHeight, y=useDeform, z=axisCompress, w=twistFalloff
+                float4 gDeform2;     // x=uvTwistEnabled, y=uvTwistScale, z=uvCenterX, w=uvCenterY
+                float4 gDeform3;     // x=squeezeFalloff, y=baseRadius(既定0.5), z=lobeCount(2~3), w=bulgeAmpBase
             };
             struct VSIn {
                 float3 pos : POSITION;
@@ -666,10 +858,111 @@ struct RenderSystem {
                 float4 pos : SV_POSITION;
                 float2 tex : TEXCOORD;
             };
+            float2x2 rot2(float a){
+                float s=sin(a), c=cos(a);
+                return float2x2(c,-s,s,c);
+            }
+
+            // スムーズステップ（C2連続）
+            float smoother01(float x) {
+                // x in [0,1]
+                x = saturate(x);
+                return x*x*x*(x*(x*6.0 - 15.0) + 10.0);
+            }
+
             VSOut main(VSIn i){
                 VSOut o;
-                o.pos = mul(float4(i.pos,1), gWVP);
-                o.tex = i.tex * gUVTransform.zw + gUVTransform.xy;
+                float3 p = i.pos;
+                float theta = 0.0;
+                float2 uv = i.tex * gUVTransform.zw + gUVTransform.xy;
+
+                if (gDeform1.y > 0.5) {
+                    // ねじり/絞り/軸圧縮の複合変形 + ローブ（膨らみ）
+
+                    // 基準Yからの相対位置
+                    float yRel = p.y - gDeform0.w;
+                    float halfH = max(gDeform1.x, 1e-6);  // 極小値を回避
+                    float yN = clamp(yRel / halfH, -1.0, 1.0);  // -1..1
+
+                    // 握っている範囲（変形しない領域）
+                    float gripRange = clamp(gDeform0.z, 0.0, 0.5);  // 0..0.5
+                    float absY = abs(yN);
+
+                    // アクティブゾーンのウェイト（端を保護、中央は1）
+                    float endDist = 1.0 - absY; // 端からの距離
+                    float activeWeight = smoother01(saturate(endDist / max(gripRange, 1e-6)));
+
+                    // ねじりの減衰カーブ（端で0、中央で1）
+                    float twistFalloff = max(gDeform1.w, 1.0);
+                    float twistCurve = (1.0 - pow(absY, twistFalloff)) * activeWeight;
+
+                    // 絞りの減衰カーブ（端で0、中央で1）
+                    float squeezeFalloff = max(gDeform3.x, 1.0);
+                    float squeezeCurve = (1.0 - pow(absY, squeezeFalloff)) * activeWeight;
+
+                    // ねじり（XZ平面回転）
+                    float twistAmount = gDeform0.x;  // 回転数
+                    theta = twistAmount * 6.283185307179586 * yN * twistCurve;
+                    float2 xz = mul(rot2(theta), p.xz);
+                    p.x = xz.x;
+                    p.z = xz.y;
+
+                    // ねじり勾配（おおよそ）: dθ/dy ≈ (2π*twistAmount/halfH) * twistCurve
+                    float twistGrad = abs(6.283185307179586 * twistAmount / halfH * twistCurve);
+                    twistGrad = min(twistGrad, 8.0); // 過大抑制
+
+                    // 絞り（半径減衰と下限クランプ） + ローブ（膨らみ）
+                    float squeezeAmount = gDeform0.y;  // 0..1
+                    float r0 = length(p.xz);
+                    float baseR = max(gDeform3.y, 1e-6); // baseRadius
+                    float radialFalloff = 1.0 - saturate(r0 / baseR);
+                    float squeezeFall = 1.0 - pow(absY, max(gDeform3.x, 1.0));
+                    squeezeFall *= activeWeight;
+                    float squeezeFactor = 1.0 - squeezeAmount * squeezeFall * radialFalloff;
+                    squeezeFactor = clamp(squeezeFactor, 0.2, 1.0);
+
+                    // ローブ（乗算式 + 中央寄与 + 半径依存）
+                    float phi = atan2(p.z, p.x);
+                    float m = max(gDeform3.z, 1.0);           // lobeCount
+                    float k = 6.283185307179586 * twistAmount; // 軸方向進行の係数（ねじり量に比例）
+                    float bulgeAmpBase = gDeform3.w;           // 基本振幅
+                    float bulgeAmp = bulgeAmpBase * squeezeAmount * twistGrad * radialFalloff * squeezeFall; // 勾配×絞り量に比例
+                    // クリップ（過肥大抑制）
+                    bulgeAmp = min(bulgeAmp, 0.25);
+                    float bulge = bulgeAmp * squeezeCurve * cos(m * (phi + k * yN));
+
+                    float rNew = r0 * squeezeFactor + bulge;
+                    // 最終半径制限（ベース半径の上限内に抑える）
+                    rNew = min(rNew, baseR * 1.1);
+
+                    // 見かけの体積保存（軸圧縮が大きいほど少し太らせる）
+                    float axisCompress = saturate(gDeform1.z);
+                    float volComp = 1.0 + 0.5 * axisCompress * squeezeCurve;
+                    rNew *= volComp;
+
+                    // 半径を適用（方向保持、ゼロ除算回避）
+                    if (r0 > 1e-6) {
+                        float2 dir = p.xz / r0;
+                        rNew = max(rNew, 0.01);
+                        p.xz = dir * rNew;
+                    }
+
+                    // 軸圧縮（中央強調、端は0）
+                    float compCurve = squeezeFall * squeezeFall; // 中央をより圧縮
+                    float comp = 1.0 - axisCompress * compCurve;
+                    p.y = gDeform0.w + yRel * comp;
+
+                    // UVねじり
+                    if (gDeform2.x > 0.5) {
+                        float2 cuv = uv - gDeform2.zw;  // 中心基準
+                        float uvTheta = theta * gDeform2.y;  // 倍率適用
+                        cuv = mul(rot2(uvTheta), cuv);
+                        uv = cuv + gDeform2.zw;
+                    }
+                }
+
+                o.pos = mul(float4(p,1), gWVP);
+                o.tex = uv;
                 return o;
             }
         )";
@@ -761,11 +1054,11 @@ struct RenderSystem {
             return false;
         }
 
-        // ラスタライザステート
+        // ラスタライザステート（裏面カリング有効）
         D3D11_RASTERIZER_DESC rsd{};
         rsd.FillMode = D3D11_FILL_SOLID;
-        rsd.CullMode = D3D11_CULL_BACK;
-        rsd.FrontCounterClockwise = FALSE;
+        rsd.CullMode = D3D11_CULL_BACK;  // 裏面をカリング
+        rsd.FrontCounterClockwise = TRUE;  // CCWを表面として扱う
         rsd.DepthClipEnable = TRUE;
         if (FAILED(gfx.Dev()->CreateRasterizerState(&rsd, rasterState_.GetAddressOf()))) {
             return false;
@@ -846,13 +1139,49 @@ struct RenderSystem {
                 DirectX::XMConvertToRadians(t->rotation.x),
                 DirectX::XMConvertToRadians(t->rotation.y),
                 DirectX::XMConvertToRadians(t->rotation.z));
-            DirectX::XMMATRIX T = DirectX::XMMatrixTranslation(t->position.x, t->position.y, t->position.z);
-            DirectX::XMMATRIX W = S * R * T;
+            DirectX::XMMATRIX Tm = DirectX::XMMatrixTranslation(t->position.x, t->position.y, t->position.z);
+            DirectX::XMMATRIX W = S * R * Tm;
 
             // VS定数バッファ
             VSConstants vsCbuf;
             vsCbuf.WVP = DirectX::XMMatrixTranspose(W * cam.View * cam.Proj);
             vsCbuf.uvTransform = DirectX::XMFLOAT4{ mr.uvOffset.x, mr.uvOffset.y, mr.uvScale.x, mr.uvScale.y };
+
+            // デフォームの既定値（無効）
+            vsCbuf.deform0 = DirectX::XMFLOAT4{ 0.0f, 0.0f, 0.0f, 0.0f };
+            vsCbuf.deform1 = DirectX::XMFLOAT4{ 1.0f, 0.0f, 0.0f, 1.0f };
+            vsCbuf.deform2 = DirectX::XMFLOAT4{ 0.0f, 1.0f, 0.5f, 0.5f };
+            vsCbuf.deform3 = DirectX::XMFLOAT4{ 2.5f, 0.5f, 3.0f, 0.25f }; // defaults
+
+            if (auto* d = w.TryGet<WringDeformer>(e)) {
+                if (d->enabled) {
+                    float halfH = (d->halfHeight > 1e-4f) ? d->halfHeight : 1.0f;
+
+                    // 雑巾絞りデフォームの設定
+                    vsCbuf.deform0 = DirectX::XMFLOAT4{
+                        d->twistAmount,      // ねじり量（回転数）
+                        d->squeezeAmount,    // 絞り量（0..1）
+                        d->gripRange,        // 握り範囲（0..0.5）
+                        d->pivotY            // 基準Y座標
+                    };
+                    vsCbuf.deform1 = DirectX::XMFLOAT4{
+                        halfH,               // 正規化範囲
+                        1.0f,                // デフォーム有効
+                        d->axisCompress,     // 軸圧縮量（0..1）
+                        d->twistFalloff      // ねじり減衰カーブ
+                    };
+                    vsCbuf.deform2 = DirectX::XMFLOAT4{
+                        d->twistUV ? 1.0f : 0.0f,  // UVねじり有効
+                        d->uvTwistScale,           // UVねじり倍率
+                        d->uvCenter.x,             // UV中心X
+                        d->uvCenter.y              // UV中心Y
+                    };
+                    vsCbuf.deform3 = DirectX::XMFLOAT4{
+                        d->squeezeFalloff, d->baseRadius, d->lobeCount, d->bulgeAmp
+                    };
+                }
+            }
+
             gfx.Ctx()->UpdateSubresource(cb_.Get(), 0, nullptr, &vsCbuf, 0, 0);
 
             // PS定数バッファ

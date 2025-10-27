@@ -1,222 +1,259 @@
 ﻿========================================
 デバッグログ開始
 ========================================
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] ========================================
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] App::Init() 開始
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] ウィンドウサイズ: 1280x720
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] COMライブラリを初期化 (モード: COINIT_MULTITHREADED, HRESULT: 0x0)
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] CreateAppWindow() 開始
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] ウィンドウクラスを正常に登録
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] ウィンドウサイズを調整: 1296x759
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] WM_NCCREATE: Appインスタンスをウィンドウに関連付け
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] ウィンドウ作成成功 (HWND: 0x7607218)
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] ウィンドウを表示
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] CreateAppWindow() 正常に完了
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] InitializeGraphics() 開始
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] アダプタ: NVIDIA GeForce RTX 4070 Laptop GPU
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] 機能レベル: 11.0
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] スワップ効果: FLIP_DISCARD (推奨)
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] バックバッファフォーマット: RGBA8_UNORM
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] 垂直同期: ON (Present(1)) - ディスプレイのリフレッシュレートに同期
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] GfxDeviceを正常に初期化
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] TextureManagerを正常に初期化
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] RenderSystem initialized with all mesh types
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] RenderSystemを正常に初期化
-2025-10-24 13:52:59 [F#0] [TID:58104] [Input] [INFO] InputSystem::Init() - 初期化開始
-2025-10-24 13:52:59 [F#0] [TID:58104] [Input] [INFO] InputSystem::Init() - 初期化完了
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] InputSystemを初期化
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] DebugDrawを初期化中 (DEBUGビルド)
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] DebugDraw::Init() 開始
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] 頂点シェーダーのコンパイル成功
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] ピクセルシェーダーのコンパイル成功
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] 頂点シェーダーを作成
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] ピクセルシェーダーを作成
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] 入力レイアウトを作成
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] 定数バッファを作成
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] 頂点バッファを作成 (最大線数: 10000)
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] DebugDraw::Init() 正常に完了
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] DebugDrawを正常に初期化
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] InitializeGraphics() 正常に完了
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] SetupCamera() 開始
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] アスペクト比: 1.777778
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] カメラ設定完了 (位置: 0, 0, -20 | ターゲット: 0, 0, 0)
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] InitializeGame() 開始
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] GameSceneインスタンスを作成
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] GameSceneをSceneManagerに登録
-2025-10-24 13:52:59 [F#0] [TID:58104] [System] [INFO] Randomのシード設定： 2164126016
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] エンティティ作成 (新規ID: 1)
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] コンポーネント struct Transform をエンティティ 1 に追加
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] コンポーネント struct MeshRenderer をエンティティ 1 に追加
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] エンティティ作成 (新規ID: 2)
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] コンポーネント struct Transform をエンティティ 2 に追加
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] コンポーネント struct MeshRenderer をエンティティ 2 に追加
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] コンポーネント struct Player をエンティティ 2 に追加
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] コンポーネント struct PlayerMovement をエンティティ 2 に追加
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] SceneManagerをGameSceneで初期化
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] InitializeGame() 正常に完了
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] App::Init() 正常に完了
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] ========================================
-2025-10-24 13:52:59 [F#0] [TID:58104] [General] [INFO] App::Run() - メインループ開始
-2025-10-24 13:52:59 [F#1] [TID:58104] [General] [INFO] ビヘイビア開始: struct PlayerMovement on Entity 2 (gen 1) 原因=SceneInit
-2025-10-24 13:52:59 [F#1] [TID:58104] [General] [INFO] 1 個の新しいビヘイビアを開始
-2025-10-24 13:53:00 [F#60] [TID:58104] [General] [INFO] エンティティ作成 (新規ID: 3)
-2025-10-24 13:53:00 [F#60] [TID:58104] [General] [INFO] コンポーネント struct Transform をエンティティ 3 に追加
-2025-10-24 13:53:00 [F#60] [TID:58104] [General] [INFO] コンポーネント struct MeshRenderer をエンティティ 3 に追加
-2025-10-24 13:53:00 [F#60] [TID:58104] [General] [INFO] コンポーネント struct Enemy をエンティティ 3 に追加
-2025-10-24 13:53:00 [F#60] [TID:58104] [General] [INFO] コンポーネント struct EnemyMovement をエンティティ 3 に追加
-2025-10-24 13:53:00 [F#60] [TID:58104] [General] [INFO] コンポーネント struct Rotator をエンティティ 3 に追加
-2025-10-24 13:53:00 [F#61] [TID:58104] [General] [INFO] ビヘイビア開始: struct EnemyMovement on Entity 3 (gen 1) 原因=WaveTimer
-2025-10-24 13:53:00 [F#61] [TID:58104] [General] [INFO] ビヘイビア開始: struct Rotator on Entity 3 (gen 1) 原因=WaveTimer
-2025-10-24 13:53:00 [F#61] [TID:58104] [General] [INFO] 2 個の新しいビヘイビアを開始
-2025-10-24 13:53:01 [F#119] [TID:58104] [General] [INFO] エンティティ作成 (新規ID: 4)
-2025-10-24 13:53:01 [F#119] [TID:58104] [General] [INFO] コンポーネント struct Transform をエンティティ 4 に追加
-2025-10-24 13:53:01 [F#119] [TID:58104] [General] [INFO] コンポーネント struct MeshRenderer をエンティティ 4 に追加
-2025-10-24 13:53:01 [F#119] [TID:58104] [General] [INFO] コンポーネント struct Bullet をエンティティ 4 に追加
-2025-10-24 13:53:01 [F#119] [TID:58104] [General] [INFO] コンポーネント struct BulletMovement をエンティティ 4 に追加
-2025-10-24 13:53:01 [F#120] [TID:58104] [General] [INFO] ビヘイビア開始: struct BulletMovement on Entity 4 (gen 1) 原因=Spawner
-2025-10-24 13:53:01 [F#120] [TID:58104] [General] [INFO] 1 個の新しいビヘイビアを開始
-2025-10-24 13:53:01 [F#121] [TID:58104] [General] [INFO] エンティティ作成 (新規ID: 5)
-2025-10-24 13:53:01 [F#121] [TID:58104] [General] [INFO] コンポーネント struct Transform をエンティティ 5 に追加
-2025-10-24 13:53:01 [F#121] [TID:58104] [General] [INFO] コンポーネント struct MeshRenderer をエンティティ 5 に追加
-2025-10-24 13:53:01 [F#121] [TID:58104] [General] [INFO] コンポーネント struct Enemy をエンティティ 5 に追加
-2025-10-24 13:53:01 [F#121] [TID:58104] [General] [INFO] コンポーネント struct EnemyMovement をエンティティ 5 に追加
-2025-10-24 13:53:01 [F#121] [TID:58104] [General] [INFO] コンポーネント struct Rotator をエンティティ 5 に追加
-2025-10-24 13:53:01 [F#122] [TID:58104] [General] [INFO] ビヘイビア開始: struct EnemyMovement on Entity 5 (gen 1) 原因=WaveTimer
-2025-10-24 13:53:01 [F#122] [TID:58104] [General] [INFO] ビヘイビア開始: struct Rotator on Entity 5 (gen 1) 原因=WaveTimer
-2025-10-24 13:53:01 [F#122] [TID:58104] [General] [INFO] 2 個の新しいビヘイビアを開始
-2025-10-24 13:53:02 [F#151] [TID:58104] [General] [INFO] 破棄をキューに追加 (ID: 4, 原因=Collision)
-2025-10-24 13:53:02 [F#151] [TID:58104] [General] [INFO] 破棄をキューに追加 (ID: 3, 原因=Collision)
-2025-10-24 13:53:02 [F#152] [TID:58104] [General] [INFO] エンティティ破棄中 (ID: 4, 原因=Collision)
-2025-10-24 13:53:02 [F#152] [TID:58104] [General] [INFO] エンティティ 4 から 1 個のビヘイビアを削除
-2025-10-24 13:53:02 [F#152] [TID:58104] [General] [INFO] エンティティ破棄成功 (ID: 4, 総生存数: 4)
-2025-10-24 13:53:02 [F#152] [TID:58104] [General] [INFO] エンティティ破棄中 (ID: 3, 原因=Collision)
-2025-10-24 13:53:02 [F#152] [TID:58104] [General] [INFO] エンティティ 3 から 2 個のビヘイビアを削除
-2025-10-24 13:53:02 [F#152] [TID:58104] [General] [INFO] エンティティ破棄成功 (ID: 3, 総生存数: 3)
-2025-10-24 13:53:02 [F#152] [TID:58104] [General] [INFO] 破棄キューをフラッシュ: 2 個のエンティティ
-2025-10-24 13:53:02 [F#181] [TID:58104] [General] [INFO] エンティティ作成 (再利用ID: 3)
-2025-10-24 13:53:02 [F#181] [TID:58104] [General] [INFO] コンポーネント struct Transform をエンティティ 3 に追加
-2025-10-24 13:53:02 [F#181] [TID:58104] [General] [INFO] コンポーネント struct MeshRenderer をエンティティ 3 に追加
-2025-10-24 13:53:02 [F#181] [TID:58104] [General] [INFO] コンポーネント struct Enemy をエンティティ 3 に追加
-2025-10-24 13:53:02 [F#181] [TID:58104] [General] [INFO] コンポーネント struct EnemyMovement をエンティティ 3 に追加
-2025-10-24 13:53:02 [F#181] [TID:58104] [General] [INFO] コンポーネント struct Rotator をエンティティ 3 に追加
-2025-10-24 13:53:02 [F#182] [TID:58104] [General] [INFO] ビヘイビア開始: struct EnemyMovement on Entity 3 (gen 2) 原因=WaveTimer
-2025-10-24 13:53:02 [F#182] [TID:58104] [General] [INFO] ビヘイビア開始: struct Rotator on Entity 3 (gen 2) 原因=WaveTimer
-2025-10-24 13:53:02 [F#182] [TID:58104] [General] [INFO] 2 個の新しいビヘイビアを開始
-2025-10-24 13:53:03 [F#203] [TID:58104] [System] [INFO] WM_CLOSEを受信 - ユーザーによるウィンドウ閉じる操作
-2025-10-24 13:53:03 [F#203] [TID:58104] [System] [INFO] WM_DESTROYを受信 - 終了メッセージを投稿
-2025-10-24 13:53:03 [F#203] [TID:58104] [General] [INFO] App::Run() - メインループ終了 (総フレーム数: 203)
-2025-10-24 13:53:03 [F#203] [TID:58104] [General] [INFO] App::~App() - デストラクタ呼び出し
-2025-10-24 13:53:03 [F#203] [TID:58104] [System] [INFO] ========================================
-2025-10-24 13:53:03 [F#203] [TID:58104] [System] [INFO] フレーム統計サマリ (サンプル数: 203)
-2025-10-24 13:53:03 [F#203] [TID:58104] [System] [INFO] ========================================
-2025-10-24 13:53:03 [F#203] [TID:58104] [System] [INFO] フレーム合計時間 (外れ値除外後サンプル数: 199): 平均=15.97ms, 最小=8.01ms, 1%タイル=10.87ms, 中央値=16.41ms, 99%タイル=16.88ms, 最大=16.88ms
-2025-10-24 13:53:03 [F#203] [TID:58104] [System] [INFO] Update時間 (外れ値除外後サンプル数: 199): 平均=1.68ms, 最小=0.27ms, 1%タイル=0.27ms, 中央値=0.54ms, 99%タイル=9.12ms, 最大=9.16ms
-2025-10-24 13:53:03 [F#203] [TID:58104] [System] [INFO] Render時間 (外れ値除外後サンプル数: 199): 平均=0.15ms, 最小=0.12ms, 1%タイル=0.12ms, 中央値=0.14ms, 99%タイル=0.39ms, 最大=0.56ms
-2025-10-24 13:53:03 [F#203] [TID:58104] [System] [INFO] Present時間 (外れ値除外後サンプル数: 199): 平均=14.12ms, 最小=1.60ms, 1%タイル=3.07ms, 中央値=15.31ms, 99%タイル=16.34ms, 最大=16.36ms
-2025-10-24 13:53:03 [F#203] [TID:58104] [System] [INFO] FPS (外れ値除外後サンプル数: 199): 平均=63.03, 最小=59.24, 1%タイル=59.26, 中央値=60.92, 99%タイル=92.01, 最大=124.88
-2025-10-24 13:53:03 [F#203] [TID:58104] [System] [INFO] ========================================
-2025-10-24 13:53:03 [F#203] [TID:58104] [System] [INFO] App::Shutdown() - クリーンアップ開始
-2025-10-24 13:53:03 [F#203] [TID:58104] [System] [INFO] Phase 0: すべてのシステムを停止（新規Spawn無効化）
-2025-10-24 13:53:03 [F#203] [TID:58104] [ECS] [INFO] World::StopAllSystems() - すべてのシステムを停止
-2025-10-24 13:53:03 [F#203] [TID:58104] [ECS] [INFO] 新規Spawnが無効化されました
-2025-10-24 13:53:03 [F#203] [TID:58104] [System] [INFO] Phase 1: SceneManagerのシャットダウン
-2025-10-24 13:53:03 [F#203] [TID:58104] [Scene] [INFO] SceneManager::Shutdown() 呼び出し
-2025-10-24 13:53:03 [F#203] [TID:58104] [Scene] [INFO] 現在のシーンを終了中
-2025-10-24 13:53:03 [F#203] [TID:58104] [General] [INFO] 破棄をキューに追加 (ID: 1, 原因=SceneUnload)
-2025-10-24 13:53:03 [F#203] [TID:58104] [General] [INFO] 破棄をキューに追加 (ID: 2, 原因=SceneUnload)
-2025-10-24 13:53:03 [F#203] [TID:58104] [General] [INFO] 破棄をキューに追加 (ID: 5, 原因=SceneUnload)
-2025-10-24 13:53:03 [F#203] [TID:58104] [General] [INFO] 破棄をキューに追加 (ID: 3, 原因=SceneUnload)
-2025-10-24 13:53:03 [F#203] [TID:58104] [Scene] [INFO] 1 個のシーンを削除中
-2025-10-24 13:53:03 [F#203] [TID:58104] [Scene] [INFO] シーン削除: Game
-2025-10-24 13:53:03 [F#203] [TID:58104] [Scene] [INFO] SceneManager::Shutdown() 完了
-2025-10-24 13:53:03 [F#203] [TID:58104] [System] [INFO] Phase 2: Worldキューをフラッシュ (エンティティ数: 4)
-2025-10-24 13:53:03 [F#203] [TID:58104] [General] [INFO] エンティティ破棄中 (ID: 1, 原因=SceneUnload)
-2025-10-24 13:53:03 [F#203] [TID:58104] [General] [INFO] エンティティ破棄成功 (ID: 1, 総生存数: 3)
-2025-10-24 13:53:03 [F#203] [TID:58104] [General] [INFO] エンティティ破棄中 (ID: 2, 原因=SceneUnload)
-2025-10-24 13:53:03 [F#203] [TID:58104] [General] [INFO] エンティティ 2 から 1 個のビヘイビアを削除
-2025-10-24 13:53:03 [F#203] [TID:58104] [General] [INFO] エンティティ破棄成功 (ID: 2, 総生存数: 2)
-2025-10-24 13:53:03 [F#203] [TID:58104] [General] [INFO] エンティティ破棄中 (ID: 5, 原因=SceneUnload)
-2025-10-24 13:53:03 [F#203] [TID:58104] [General] [INFO] エンティティ 5 から 2 個のビヘイビアを削除
-2025-10-24 13:53:03 [F#203] [TID:58104] [General] [INFO] エンティティ破棄成功 (ID: 5, 総生存数: 1)
-2025-10-24 13:53:03 [F#203] [TID:58104] [General] [INFO] エンティティ破棄中 (ID: 3, 原因=SceneUnload)
-2025-10-24 13:53:03 [F#203] [TID:58104] [General] [INFO] エンティティ 3 から 2 個のビヘイビアを削除
-2025-10-24 13:53:03 [F#203] [TID:58104] [General] [INFO] エンティティ破棄成功 (ID: 3, 総生存数: 0)
-2025-10-24 13:53:03 [F#203] [TID:58104] [General] [INFO] 破棄キューをフラッシュ: 4 個のエンティティ
-2025-10-24 13:53:03 [F#203] [TID:58104] [System] [INFO] Phase 3: World破棄前の残存エンティティチェック
-2025-10-24 13:53:03 [F#203] [TID:58104] [System] [INFO] Phase 3: すべてのエンティティが正常に破棄されました
-2025-10-24 13:53:03 [F#203] [TID:58104] [System] [INFO] Phase 4: DebugDrawを解放
-2025-10-24 13:53:03 [F#203] [TID:58104] [Graphics] [INFO] DebugDraw::Shutdown() - リソースを解放中
-2025-10-24 13:53:03 [F#203] [TID:58104] [Graphics] [INFO] 頂点シェーダーを解放 (DebugDraw)
-2025-10-24 13:53:03 [F#203] [TID:58104] [Graphics] [INFO] ピクセルシェーダーを解放 (DebugDraw)
-2025-10-24 13:53:03 [F#203] [TID:58104] [Graphics] [INFO] 入力レイアウトを解放 (DebugDraw)
-2025-10-24 13:53:03 [F#203] [TID:58104] [Graphics] [INFO] 定数バッファを解放 (DebugDraw)
-2025-10-24 13:53:03 [F#203] [TID:58104] [Graphics] [INFO] 頂点バッファを解放 (DebugDraw, 最大線数: 10000)
-2025-10-24 13:53:03 [F#203] [TID:58104] [Graphics] [INFO] DebugDraw::Shutdown() 完了 (解放リソース数: 5)
-2025-10-24 13:53:03 [F#203] [TID:58104] [System] [INFO] Phase 5: RenderSystemを解放
-2025-10-24 13:53:03 [F#203] [TID:58104] [Render] [INFO] RenderSystem::Shutdown() - リソースを解放中
-2025-10-24 13:53:03 [F#203] [TID:58104] [Render] [INFO] 頂点シェーダーを解放
-2025-10-24 13:53:03 [F#203] [TID:58104] [Render] [INFO] ピクセルシェーダーを解放
-2025-10-24 13:53:03 [F#203] [TID:58104] [Render] [INFO] 入力レイアウトを解放
-2025-10-24 13:53:03 [F#203] [TID:58104] [Render] [INFO] VS定数バッファを解放
-2025-10-24 13:53:03 [F#203] [TID:58104] [Render] [INFO] PS定数バッファを解放
-2025-10-24 13:53:03 [F#203] [TID:58104] [Render] [INFO] ラスタライザステートを解放
-2025-10-24 13:53:03 [F#203] [TID:58104] [Render] [INFO] サンプラーステートを解放
-2025-10-24 13:53:03 [F#203] [TID:58104] [Render] [INFO] メッシュ(vb)を解放
-2025-10-24 13:53:03 [F#203] [TID:58104] [Render] [INFO] メッシュ(ib)を解放
-2025-10-24 13:53:03 [F#203] [TID:58104] [Render] [INFO] メッシュ(vb)を解放
-2025-10-24 13:53:03 [F#203] [TID:58104] [Render] [INFO] メッシュ(ib)を解放
-2025-10-24 13:53:03 [F#203] [TID:58104] [Render] [INFO] メッシュ(vb)を解放
-2025-10-24 13:53:03 [F#203] [TID:58104] [Render] [INFO] メッシュ(ib)を解放
-2025-10-24 13:53:03 [F#203] [TID:58104] [Render] [INFO] メッシュ(vb)を解放
-2025-10-24 13:53:03 [F#203] [TID:58104] [Render] [INFO] メッシュ(ib)を解放
-2025-10-24 13:53:03 [F#203] [TID:58104] [Render] [INFO] メッシュ(vb)を解放
-2025-10-24 13:53:03 [F#203] [TID:58104] [Render] [INFO] メッシュ(ib)を解放
-2025-10-24 13:53:03 [F#203] [TID:58104] [Render] [INFO] メッシュ(vb)を解放
-2025-10-24 13:53:03 [F#203] [TID:58104] [Render] [INFO] メッシュ(ib)を解放
-2025-10-24 13:53:03 [F#203] [TID:58104] [Render] [INFO] RenderSystem::Shutdown() 完了 (解放リソース数: 19)
-2025-10-24 13:53:03 [F#203] [TID:58104] [System] [INFO] Phase 6: TextureManagerを解放
-2025-10-24 13:53:03 [F#203] [TID:58104] [Graphics] [INFO] TextureManager::Shutdown() - 1 個のテクスチャを解放中
-2025-10-24 13:53:03 [F#203] [TID:58104] [Graphics] [INFO] テクスチャ2D: 1 個
-2025-10-24 13:53:03 [F#203] [TID:58104] [Graphics] [INFO] シェーダーリソースビュー: 1 個
-2025-10-24 13:53:03 [F#203] [TID:58104] [Graphics] [INFO] TextureManager::Shutdown() 完了
-2025-10-24 13:53:03 [F#203] [TID:58104] [System] [INFO] Phase 7: InputSystemを解放
-2025-10-24 13:53:03 [F#203] [TID:58104] [Input] [INFO] InputSystem::Shutdown() - シャットダウン中
-2025-10-24 13:53:03 [F#203] [TID:58104] [Input] [INFO] InputSystem::Shutdown() - 完了
-2025-10-24 13:53:03 [F#203] [TID:58104] [System] [INFO] Phase 8: GfxDeviceを解放
-2025-10-24 13:53:03 [F#203] [TID:58104] [Graphics] [INFO] GfxDevice::Shutdown() - リソースを解放中
-2025-10-24 13:53:03 [F#203] [TID:58104] [Graphics] [INFO] ID3D11DeviceContext::ClearState() を呼び出し
-2025-10-24 13:53:03 [F#203] [TID:58104] [Graphics] [INFO] ID3D11DeviceContext::Flush() を呼び出し
-2025-10-24 13:53:03 [F#203] [TID:58104] [Graphics] [INFO] 深度ステンシルビューを解放 (ULONG RefCount: 1)
-2025-10-24 13:53:03 [F#203] [TID:58104] [Graphics] [INFO] レンダーターゲットビューを解放 (ULONG RefCount: 1)
-2025-10-24 13:53:03 [F#203] [TID:58104] [Graphics] [INFO] スワップチェインを解放 (ULONG RefCount: 1)
-2025-10-24 13:53:03 [F#203] [TID:58104] [Graphics] [INFO] デバイスコンテキストを解放 (ULONG RefCount: 1)
-2025-10-24 13:53:03 [F#203] [TID:58104] [Graphics] [INFO] ========================================
-2025-10-24 13:53:03 [F#203] [TID:58104] [Graphics] [INFO] D3D11デバッグレイヤー: リークレポート開始
-2025-10-24 13:53:03 [F#203] [TID:58104] [Graphics] [INFO] ========================================
-2025-10-24 13:53:03 [F#203] [TID:58104] [Graphics] [INFO] --- Live Objects要約 (自前ログ) ---
-2025-10-24 13:53:03 [F#203] [TID:58104] [Graphics] [INFO] DXGI Live Objectsレポート完了 (DXGI_DEBUG_RLO_SUMMARY)
-2025-10-24 13:53:03 [F#203] [TID:58104] [Graphics] [INFO] D3D11 Live Objectsレポート完了 (DXGI_DEBUG_RLO_DETAIL)
-2025-10-24 13:53:03 [F#203] [TID:58104] [Graphics] [INFO] --- Live Objects要約終了 ---
-2025-10-24 13:53:03 [F#203] [TID:58104] [Graphics] [INFO] ========================================
-2025-10-24 13:53:03 [F#203] [TID:58104] [Graphics] [INFO] D3D11デバッグレイヤー: リークレポート完了
-2025-10-24 13:53:03 [F#203] [TID:58104] [Graphics] [INFO] 詳細はVisual Studioの出力ウィンドウを確認してください
-2025-10-24 13:53:03 [F#203] [TID:58104] [Graphics] [INFO] ========================================
-2025-10-24 13:53:03 [F#203] [TID:58104] [General] [WARNING] デバイスの参照カウントが 1 より大きい: 2 (リーク可能性)
-2025-10-24 13:53:03 [F#203] [TID:58104] [Graphics] [INFO] デバイスを解放 (ULONG RefCount: 1)
-2025-10-24 13:53:03 [F#203] [TID:58104] [Graphics] [INFO] GfxDevice::Shutdown() 完了 (解放リソース数: 5)
-2025-10-24 13:53:03 [F#203] [TID:58104] [System] [INFO] Phase 9: COMを終了
-2025-10-24 13:53:03 [F#203] [TID:58104] [System] [INFO] App::Shutdown() 正常に完了
-2025-10-24 13:53:03 [F#203] [TID:58104] [General] [INFO] App 正常に破棄
-2025-10-24 13:53:03 [F#203] [TID:58104] [General] [INFO] DebugDraw::~DebugDraw() - デストラクタ呼び出し
-2025-10-24 13:53:03 [F#203] [TID:58104] [General] [INFO] SceneManager::~SceneManager() - クリーンアップ中
-2025-10-24 13:53:03 [F#203] [TID:58104] [General] [INFO] SceneManager破棄完了
-2025-10-24 13:53:03 [F#203] [TID:58104] [General] [INFO] World::~World() - World破棄中
-2025-10-24 13:53:03 [F#203] [TID:58104] [General] [INFO] アクティブエンティティ: 0
-2025-10-24 13:53:03 [F#203] [TID:58104] [General] [INFO] アクティブビヘイビア: 0
-2025-10-24 13:53:03 [F#203] [TID:58104] [General] [INFO] World破棄完了
-2025-10-24 13:53:03 [F#203] [TID:58104] [General] [INFO] TextureManager::~TextureManager() - デストラクタ呼び出し
-2025-10-24 13:53:03 [F#203] [TID:58104] [General] [INFO] RenderSystem::~RenderSystem() - デストラクタ呼び出し
-2025-10-24 13:53:03 [F#203] [TID:58104] [General] [INFO] GfxDevice::~GfxDevice() - デストラクタ呼び出し
+2025-10-25 13:37:32 [F#0] [TID:58780] [General] [INFO] ========================================
+2025-10-25 13:37:32 [F#0] [TID:58780] [General] [INFO] App::Init() 開始
+2025-10-25 13:37:32 [F#0] [TID:58780] [General] [INFO] ウィンドウサイズ: 1280x720
+2025-10-25 13:37:32 [F#0] [TID:58780] [General] [INFO] COMライブラリを初期化 (モード: COINIT_MULTITHREADED, HRESULT: 0x0)
+2025-10-25 13:37:32 [F#0] [TID:58780] [General] [INFO] CreateAppWindow() 開始
+2025-10-25 13:37:32 [F#0] [TID:58780] [General] [INFO] ウィンドウクラスを正常に登録
+2025-10-25 13:37:32 [F#0] [TID:58780] [General] [INFO] ウィンドウサイズを調整: 1296x759
+2025-10-25 13:37:32 [F#0] [TID:58780] [General] [INFO] WM_NCCREATE: Appインスタンスをウィンドウに関連付け
+2025-10-25 13:37:32 [F#0] [TID:58780] [General] [INFO] ウィンドウ作成成功 (HWND: 0x30937898)
+2025-10-25 13:37:32 [F#0] [TID:58780] [General] [INFO] ウィンドウを表示
+2025-10-25 13:37:32 [F#0] [TID:58780] [General] [INFO] CreateAppWindow() 正常に完了
+2025-10-25 13:37:32 [F#0] [TID:58780] [General] [INFO] InitializeGraphics() 開始
+2025-10-25 13:37:32 [F#0] [TID:58780] [General] [INFO] アダプタ: NVIDIA GeForce RTX 4070 Laptop GPU
+2025-10-25 13:37:32 [F#0] [TID:58780] [General] [INFO] 機能レベル: 11.0
+2025-10-25 13:37:32 [F#0] [TID:58780] [General] [INFO] スワップ効果: FLIP_DISCARD (推奨)
+2025-10-25 13:37:32 [F#0] [TID:58780] [General] [INFO] バックバッファフォーマット: RGBA8_UNORM
+2025-10-25 13:37:32 [F#0] [TID:58780] [General] [INFO] 垂直同期: ON (Present(1)) - ディスプレイのリフレッシュレートに同期
+2025-10-25 13:37:32 [F#0] [TID:58780] [General] [INFO] GfxDeviceを正常に初期化
+2025-10-25 13:37:32 [F#0] [TID:58780] [General] [INFO] TextureManagerを正常に初期化
+2025-10-25 13:37:32 [F#0] [TID:58780] [General] [INFO] 立方体メッシュ生成: 3750 頂点, 20736 インデックス
+2025-10-25 13:37:32 [F#0] [TID:58780] [General] [INFO] 立方体メッシュ作成完了 (インデックス数: 20736)
+2025-10-25 13:37:32 [F#0] [TID:58780] [General] [INFO] RenderSystem initialized with all mesh types
+2025-10-25 13:37:32 [F#0] [TID:58780] [General] [INFO] RenderSystemを正常に初期化
+2025-10-25 13:37:32 [F#0] [TID:58780] [Input] [INFO] InputSystem::Init() - 初期化開始
+2025-10-25 13:37:32 [F#0] [TID:58780] [Input] [INFO] InputSystem::Init() - 初期化完了
+2025-10-25 13:37:32 [F#0] [TID:58780] [General] [INFO] InputSystemを初期化
+2025-10-25 13:37:32 [F#0] [TID:58780] [General] [INFO] DebugDrawを初期化中 (DEBUGビルド)
+2025-10-25 13:37:32 [F#0] [TID:58780] [General] [INFO] DebugDraw::Init() 開始
+2025-10-25 13:37:33 [F#0] [TID:58780] [General] [INFO] 頂点シェーダーのコンパイル成功
+2025-10-25 13:37:33 [F#0] [TID:58780] [General] [INFO] ピクセルシェーダーのコンパイル成功
+2025-10-25 13:37:33 [F#0] [TID:58780] [General] [INFO] 頂点シェーダーを作成
+2025-10-25 13:37:33 [F#0] [TID:58780] [General] [INFO] ピクセルシェーダーを作成
+2025-10-25 13:37:33 [F#0] [TID:58780] [General] [INFO] 入力レイアウトを作成
+2025-10-25 13:37:33 [F#0] [TID:58780] [General] [INFO] 定数バッファを作成
+2025-10-25 13:37:33 [F#0] [TID:58780] [General] [INFO] 頂点バッファを作成 (最大線数: 10000)
+2025-10-25 13:37:33 [F#0] [TID:58780] [General] [INFO] DebugDraw::Init() 正常に完了
+2025-10-25 13:37:33 [F#0] [TID:58780] [General] [INFO] DebugDrawを正常に初期化
+2025-10-25 13:37:33 [F#0] [TID:58780] [General] [INFO] InitializeGraphics() 正常に完了
+2025-10-25 13:37:33 [F#0] [TID:58780] [General] [INFO] SetupCamera() 開始
+2025-10-25 13:37:33 [F#0] [TID:58780] [General] [INFO] アスペクト比: 1.777778
+2025-10-25 13:37:33 [F#0] [TID:58780] [General] [INFO] カメラ設定完了 (位置: 0, 0, -20 | ターゲット: 0, 0, 0)
+2025-10-25 13:37:33 [F#0] [TID:58780] [General] [INFO] InitializeGame() 開始
+2025-10-25 13:37:33 [F#0] [TID:58780] [General] [INFO] GameSceneインスタンスを作成
+2025-10-25 13:37:33 [F#0] [TID:58780] [General] [INFO] GameSceneをSceneManagerに登録
+2025-10-25 13:37:33 [F#0] [TID:58780] [System] [INFO] Randomのシード設定： 824225020
+2025-10-25 13:37:33 [F#0] [TID:58780] [General] [INFO] エンティティ作成 (新規ID: 1)
+2025-10-25 13:37:33 [F#0] [TID:58780] [General] [INFO] コンポーネント struct Transform をエンティティ 1 に追加
+2025-10-25 13:37:33 [F#0] [TID:58780] [General] [INFO] コンポーネント struct MeshRenderer をエンティティ 1 に追加
+2025-10-25 13:37:33 [F#0] [TID:58780] [General] [INFO] エンティティ作成 (新規ID: 2)
+2025-10-25 13:37:33 [F#0] [TID:58780] [General] [INFO] コンポーネント struct Transform をエンティティ 2 に追加
+2025-10-25 13:37:33 [F#0] [TID:58780] [General] [INFO] コンポーネント struct MeshRenderer をエンティティ 2 に追加
+2025-10-25 13:37:33 [F#0] [TID:58780] [General] [INFO] コンポーネント struct Player をエンティティ 2 に追加
+2025-10-25 13:37:33 [F#0] [TID:58780] [General] [INFO] コンポーネント struct PlayerMovement をエンティティ 2 に追加
+2025-10-25 13:37:33 [F#0] [TID:58780] [General] [INFO] SceneManagerをGameSceneで初期化
+2025-10-25 13:37:33 [F#0] [TID:58780] [General] [INFO] InitializeGame() 正常に完了
+2025-10-25 13:37:33 [F#0] [TID:58780] [General] [INFO] App::Init() 正常に完了
+2025-10-25 13:37:33 [F#0] [TID:58780] [General] [INFO] ========================================
+2025-10-25 13:37:33 [F#0] [TID:58780] [General] [INFO] App::Run() - メインループ開始
+2025-10-25 13:37:33 [F#1] [TID:58780] [General] [INFO] ビヘイビア開始: struct PlayerMovement on Entity 2 (gen 1) 原因=SceneInit
+2025-10-25 13:37:33 [F#1] [TID:58780] [General] [INFO] 1 個の新しいビヘイビアを開始
+2025-10-25 13:37:34 [F#59] [TID:58780] [General] [INFO] エンティティ作成 (新規ID: 3)
+2025-10-25 13:37:34 [F#59] [TID:58780] [General] [INFO] コンポーネント struct Transform をエンティティ 3 に追加
+2025-10-25 13:37:34 [F#59] [TID:58780] [General] [INFO] コンポーネント struct MeshRenderer をエンティティ 3 に追加
+2025-10-25 13:37:34 [F#59] [TID:58780] [General] [INFO] コンポーネント struct Enemy をエンティティ 3 に追加
+2025-10-25 13:37:34 [F#59] [TID:58780] [General] [INFO] コンポーネント struct EnemyMovement をエンティティ 3 に追加
+2025-10-25 13:37:34 [F#59] [TID:58780] [General] [INFO] コンポーネント struct WringDeformer をエンティティ 3 に追加
+2025-10-25 13:37:34 [F#60] [TID:58780] [General] [INFO] ビヘイビア開始: struct EnemyMovement on Entity 3 (gen 1) 原因=WaveTimer
+2025-10-25 13:37:34 [F#60] [TID:58780] [General] [INFO] 1 個の新しいビヘイビアを開始
+2025-10-25 13:37:35 [F#117] [TID:58780] [General] [INFO] エンティティ作成 (新規ID: 4)
+2025-10-25 13:37:35 [F#117] [TID:58780] [General] [INFO] コンポーネント struct Transform をエンティティ 4 に追加
+2025-10-25 13:37:35 [F#117] [TID:58780] [General] [INFO] コンポーネント struct MeshRenderer をエンティティ 4 に追加
+2025-10-25 13:37:35 [F#117] [TID:58780] [General] [INFO] コンポーネント struct Enemy をエンティティ 4 に追加
+2025-10-25 13:37:35 [F#117] [TID:58780] [General] [INFO] コンポーネント struct EnemyMovement をエンティティ 4 に追加
+2025-10-25 13:37:35 [F#117] [TID:58780] [General] [INFO] コンポーネント struct WringDeformer をエンティティ 4 に追加
+2025-10-25 13:37:35 [F#118] [TID:58780] [General] [INFO] ビヘイビア開始: struct EnemyMovement on Entity 4 (gen 1) 原因=WaveTimer
+2025-10-25 13:37:35 [F#118] [TID:58780] [General] [INFO] 1 個の新しいビヘイビアを開始
+2025-10-25 13:37:36 [F#177] [TID:58780] [General] [INFO] エンティティ作成 (新規ID: 5)
+2025-10-25 13:37:36 [F#177] [TID:58780] [General] [INFO] コンポーネント struct Transform をエンティティ 5 に追加
+2025-10-25 13:37:36 [F#177] [TID:58780] [General] [INFO] コンポーネント struct MeshRenderer をエンティティ 5 に追加
+2025-10-25 13:37:36 [F#177] [TID:58780] [General] [INFO] コンポーネント struct Enemy をエンティティ 5 に追加
+2025-10-25 13:37:36 [F#177] [TID:58780] [General] [INFO] コンポーネント struct EnemyMovement をエンティティ 5 に追加
+2025-10-25 13:37:36 [F#177] [TID:58780] [General] [INFO] コンポーネント struct WringDeformer をエンティティ 5 に追加
+2025-10-25 13:37:36 [F#178] [TID:58780] [General] [INFO] ビヘイビア開始: struct EnemyMovement on Entity 5 (gen 1) 原因=WaveTimer
+2025-10-25 13:37:36 [F#178] [TID:58780] [General] [INFO] 1 個の新しいビヘイビアを開始
+2025-10-25 13:37:37 [F#238] [TID:58780] [General] [INFO] エンティティ作成 (新規ID: 6)
+2025-10-25 13:37:37 [F#238] [TID:58780] [General] [INFO] コンポーネント struct Transform をエンティティ 6 に追加
+2025-10-25 13:37:37 [F#238] [TID:58780] [General] [INFO] コンポーネント struct MeshRenderer をエンティティ 6 に追加
+2025-10-25 13:37:37 [F#238] [TID:58780] [General] [INFO] コンポーネント struct Enemy をエンティティ 6 に追加
+2025-10-25 13:37:37 [F#238] [TID:58780] [General] [INFO] コンポーネント struct EnemyMovement をエンティティ 6 に追加
+2025-10-25 13:37:37 [F#238] [TID:58780] [General] [INFO] コンポーネント struct WringDeformer をエンティティ 6 に追加
+2025-10-25 13:37:37 [F#239] [TID:58780] [General] [INFO] ビヘイビア開始: struct EnemyMovement on Entity 6 (gen 1) 原因=WaveTimer
+2025-10-25 13:37:37 [F#239] [TID:58780] [General] [INFO] 1 個の新しいビヘイビアを開始
+2025-10-25 13:37:38 [F#298] [TID:58780] [General] [INFO] エンティティ作成 (新規ID: 7)
+2025-10-25 13:37:38 [F#298] [TID:58780] [General] [INFO] コンポーネント struct Transform をエンティティ 7 に追加
+2025-10-25 13:37:38 [F#298] [TID:58780] [General] [INFO] コンポーネント struct MeshRenderer をエンティティ 7 に追加
+2025-10-25 13:37:38 [F#298] [TID:58780] [General] [INFO] コンポーネント struct Enemy をエンティティ 7 に追加
+2025-10-25 13:37:38 [F#298] [TID:58780] [General] [INFO] コンポーネント struct EnemyMovement をエンティティ 7 に追加
+2025-10-25 13:37:38 [F#298] [TID:58780] [General] [INFO] コンポーネント struct WringDeformer をエンティティ 7 に追加
+2025-10-25 13:37:38 [F#299] [TID:58780] [General] [INFO] ビヘイビア開始: struct EnemyMovement on Entity 7 (gen 1) 原因=WaveTimer
+2025-10-25 13:37:38 [F#299] [TID:58780] [General] [INFO] 1 個の新しいビヘイビアを開始
+2025-10-25 13:37:39 [F#358] [TID:58780] [General] [INFO] エンティティ作成 (新規ID: 8)
+2025-10-25 13:37:39 [F#358] [TID:58780] [General] [INFO] コンポーネント struct Transform をエンティティ 8 に追加
+2025-10-25 13:37:39 [F#358] [TID:58780] [General] [INFO] コンポーネント struct MeshRenderer をエンティティ 8 に追加
+2025-10-25 13:37:39 [F#358] [TID:58780] [General] [INFO] コンポーネント struct Enemy をエンティティ 8 に追加
+2025-10-25 13:37:39 [F#358] [TID:58780] [General] [INFO] コンポーネント struct EnemyMovement をエンティティ 8 に追加
+2025-10-25 13:37:39 [F#358] [TID:58780] [General] [INFO] コンポーネント struct WringDeformer をエンティティ 8 に追加
+2025-10-25 13:37:39 [F#359] [TID:58780] [General] [INFO] ビヘイビア開始: struct EnemyMovement on Entity 8 (gen 1) 原因=WaveTimer
+2025-10-25 13:37:39 [F#359] [TID:58780] [General] [INFO] 1 個の新しいビヘイビアを開始
+2025-10-25 13:37:39 [F#375] [TID:58780] [General] [INFO] 破棄をキューに追加 (ID: 3, 原因=LifetimeExpired)
+2025-10-25 13:37:39 [F#375] [TID:58780] [General] [INFO] エンティティ破棄中 (ID: 3, 原因=LifetimeExpired)
+2025-10-25 13:37:39 [F#375] [TID:58780] [General] [INFO] エンティティ 3 から 1 個のビヘイビアを削除
+2025-10-25 13:37:39 [F#375] [TID:58780] [General] [INFO] エンティティ破棄成功 (ID: 3, 総生存数: 7)
+2025-10-25 13:37:39 [F#375] [TID:58780] [General] [INFO] 破棄キューをフラッシュ: 1 個のエンティティ
+2025-10-25 13:37:40 [F#419] [TID:58780] [General] [INFO] エンティティ作成 (再利用ID: 3)
+2025-10-25 13:37:40 [F#419] [TID:58780] [General] [INFO] コンポーネント struct Transform をエンティティ 3 に追加
+2025-10-25 13:37:40 [F#419] [TID:58780] [General] [INFO] コンポーネント struct MeshRenderer をエンティティ 3 に追加
+2025-10-25 13:37:40 [F#419] [TID:58780] [General] [INFO] コンポーネント struct Enemy をエンティティ 3 に追加
+2025-10-25 13:37:40 [F#419] [TID:58780] [General] [INFO] コンポーネント struct EnemyMovement をエンティティ 3 に追加
+2025-10-25 13:37:40 [F#419] [TID:58780] [General] [INFO] コンポーネント struct WringDeformer をエンティティ 3 に追加
+2025-10-25 13:37:40 [F#420] [TID:58780] [General] [INFO] ビヘイビア開始: struct EnemyMovement on Entity 3 (gen 2) 原因=WaveTimer
+2025-10-25 13:37:40 [F#420] [TID:58780] [General] [INFO] 1 個の新しいビヘイビアを開始
+2025-10-25 13:37:40 [F#436] [TID:58780] [General] [INFO] 破棄をキューに追加 (ID: 4, 原因=LifetimeExpired)
+2025-10-25 13:37:40 [F#436] [TID:58780] [General] [INFO] エンティティ破棄中 (ID: 4, 原因=LifetimeExpired)
+2025-10-25 13:37:40 [F#436] [TID:58780] [General] [INFO] エンティティ 4 から 1 個のビヘイビアを削除
+2025-10-25 13:37:40 [F#436] [TID:58780] [General] [INFO] エンティティ破棄成功 (ID: 4, 総生存数: 7)
+2025-10-25 13:37:40 [F#436] [TID:58780] [General] [INFO] 破棄キューをフラッシュ: 1 個のエンティティ
+2025-10-25 13:37:41 [F#475] [TID:58780] [System] [INFO] WM_CLOSEを受信 - ユーザーによるウィンドウ閉じる操作
+2025-10-25 13:37:41 [F#475] [TID:58780] [System] [INFO] WM_DESTROYを受信 - 終了メッセージを投稿
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] App::Run() - メインループ終了 (総フレーム数: 475)
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] App::~App() - デストラクタ呼び出し
+2025-10-25 13:37:41 [F#475] [TID:58780] [System] [INFO] ========================================
+2025-10-25 13:37:41 [F#475] [TID:58780] [System] [INFO] フレーム統計サマリ (サンプル数: 475)
+2025-10-25 13:37:41 [F#475] [TID:58780] [System] [INFO] ========================================
+2025-10-25 13:37:41 [F#475] [TID:58780] [System] [INFO] フレーム合計時間 (外れ値除外後サンプル数: 467): 平均=2.77ms, 最小=0.50ms, 1%タイル=0.50ms, 中央値=2.59ms, 99%タイル=9.00ms, 最大=11.43ms
+2025-10-25 13:37:41 [F#475] [TID:58780] [System] [INFO] Update時間 (外れ値除外後サンプル数: 467): 平均=2.48ms, 最小=0.26ms, 1%タイル=0.27ms, 中央値=2.32ms, 99%タイル=8.64ms, 最大=11.16ms
+2025-10-25 13:37:41 [F#475] [TID:58780] [System] [INFO] Render時間 (外れ値除外後サンプル数: 467): 平均=0.19ms, 最小=0.11ms, 1%タイル=0.13ms, 中央値=0.18ms, 99%タイル=0.31ms, 最大=0.51ms
+2025-10-25 13:37:41 [F#475] [TID:58780] [System] [INFO] Present時間 (外れ値除外後サンプル数: 467): 平均=0.10ms, 最小=0.07ms, 1%タイル=0.07ms, 中央値=0.09ms, 99%タイル=0.20ms, 最大=1.42ms
+2025-10-25 13:37:41 [F#475] [TID:58780] [System] [INFO] FPS (外れ値除外後サンプル数: 467): 平均=641.01, 最小=87.46, 1%タイル=111.09, 中央値=385.71, 99%タイル=1986.49, 最大=2013.29
+2025-10-25 13:37:41 [F#475] [TID:58780] [System] [INFO] GPU時間 (外れ値除外後サンプル数: 475): 平均=29.99ms, 最小=2.05ms, 1%タイル=2.05ms, 中央値=30.72ms, 99%タイル=57.34ms, 最大=70.66ms
+2025-10-25 13:37:41 [F#475] [TID:58780] [System] [INFO] ========================================
+2025-10-25 13:37:41 [F#475] [TID:58780] [System] [INFO] App::Shutdown() - クリーンアップ開始
+2025-10-25 13:37:41 [F#475] [TID:58780] [System] [INFO] Phase 0: すべてのシステムを停止（新規Spawn無効化）
+2025-10-25 13:37:41 [F#475] [TID:58780] [ECS] [INFO] World::StopAllSystems() - すべてのシステムを停止
+2025-10-25 13:37:41 [F#475] [TID:58780] [ECS] [INFO] 新規Spawnが無効化されました
+2025-10-25 13:37:41 [F#475] [TID:58780] [System] [INFO] Phase 1: SceneManagerのシャットダウン
+2025-10-25 13:37:41 [F#475] [TID:58780] [Scene] [INFO] SceneManager::Shutdown() 呼び出し
+2025-10-25 13:37:41 [F#475] [TID:58780] [Scene] [INFO] 現在のシーンを終了中
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] 破棄をキューに追加 (ID: 1, 原因=SceneUnload)
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] 破棄をキューに追加 (ID: 2, 原因=SceneUnload)
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] 破棄をキューに追加 (ID: 5, 原因=SceneUnload)
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] 破棄をキューに追加 (ID: 6, 原因=SceneUnload)
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] 破棄をキューに追加 (ID: 7, 原因=SceneUnload)
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] 破棄をキューに追加 (ID: 8, 原因=SceneUnload)
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] 破棄をキューに追加 (ID: 3, 原因=SceneUnload)
+2025-10-25 13:37:41 [F#475] [TID:58780] [Scene] [INFO] 1 個のシーンを削除中
+2025-10-25 13:37:41 [F#475] [TID:58780] [Scene] [INFO] シーン削除: Game
+2025-10-25 13:37:41 [F#475] [TID:58780] [Scene] [INFO] SceneManager::Shutdown() 完了
+2025-10-25 13:37:41 [F#475] [TID:58780] [System] [INFO] Phase 2: Worldキューをフラッシュ (エンティティ数: 7)
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] エンティティ破棄中 (ID: 1, 原因=SceneUnload)
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] エンティティ破棄成功 (ID: 1, 総生存数: 6)
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] エンティティ破棄中 (ID: 2, 原因=SceneUnload)
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] エンティティ 2 から 1 個のビヘイビアを削除
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] エンティティ破棄成功 (ID: 2, 総生存数: 5)
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] エンティティ破棄中 (ID: 5, 原因=SceneUnload)
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] エンティティ 5 から 1 個のビヘイビアを削除
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] エンティティ破棄成功 (ID: 5, 総生存数: 4)
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] エンティティ破棄中 (ID: 6, 原因=SceneUnload)
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] エンティティ 6 から 1 個のビヘイビアを削除
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] エンティティ破棄成功 (ID: 6, 総生存数: 3)
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] エンティティ破棄中 (ID: 7, 原因=SceneUnload)
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] エンティティ 7 から 1 個のビヘイビアを削除
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] エンティティ破棄成功 (ID: 7, 総生存数: 2)
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] エンティティ破棄中 (ID: 8, 原因=SceneUnload)
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] エンティティ 8 から 1 個のビヘイビアを削除
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] エンティティ破棄成功 (ID: 8, 総生存数: 1)
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] エンティティ破棄中 (ID: 3, 原因=SceneUnload)
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] エンティティ 3 から 1 個のビヘイビアを削除
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] エンティティ破棄成功 (ID: 3, 総生存数: 0)
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] 破棄キューをフラッシュ: 7 個のエンティティ
+2025-10-25 13:37:41 [F#475] [TID:58780] [System] [INFO] Phase 3: World破棄前の残存エンティティチェック
+2025-10-25 13:37:41 [F#475] [TID:58780] [System] [INFO] Phase 3: すべてのエンティティが正常に破棄されました
+2025-10-25 13:37:41 [F#475] [TID:58780] [System] [INFO] Phase 4: DebugDrawを解放
+2025-10-25 13:37:41 [F#475] [TID:58780] [Graphics] [INFO] DebugDraw::Shutdown() - リソースを解放中
+2025-10-25 13:37:41 [F#475] [TID:58780] [Graphics] [INFO] 頂点シェーダーを解放 (DebugDraw)
+2025-10-25 13:37:41 [F#475] [TID:58780] [Graphics] [INFO] ピクセルシェーダーを解放 (DebugDraw)
+2025-10-25 13:37:41 [F#475] [TID:58780] [Graphics] [INFO] 入力レイアウトを解放 (DebugDraw)
+2025-10-25 13:37:41 [F#475] [TID:58780] [Graphics] [INFO] 定数バッファを解放 (DebugDraw)
+2025-10-25 13:37:41 [F#475] [TID:58780] [Graphics] [INFO] 頂点バッファを解放 (DebugDraw, 最大線数: 10000)
+2025-10-25 13:37:41 [F#475] [TID:58780] [Graphics] [INFO] DebugDraw::Shutdown() 完了 (解放リソース数: 5)
+2025-10-25 13:37:41 [F#475] [TID:58780] [System] [INFO] Phase 5: RenderSystemを解放
+2025-10-25 13:37:41 [F#475] [TID:58780] [Render] [INFO] RenderSystem::Shutdown() - リソースを解放中
+2025-10-25 13:37:41 [F#475] [TID:58780] [Render] [INFO] 頂点シェーダーを解放
+2025-10-25 13:37:41 [F#475] [TID:58780] [Render] [INFO] ピクセルシェーダーを解放
+2025-10-25 13:37:41 [F#475] [TID:58780] [Render] [INFO] 入力レイアウトを解放
+2025-10-25 13:37:41 [F#475] [TID:58780] [Render] [INFO] VS定数バッファを解放
+2025-10-25 13:37:41 [F#475] [TID:58780] [Render] [INFO] PS定数バッファを解放
+2025-10-25 13:37:41 [F#475] [TID:58780] [Render] [INFO] ラスタライザステートを解放
+2025-10-25 13:37:41 [F#475] [TID:58780] [Render] [INFO] サンプラーステートを解放
+2025-10-25 13:37:41 [F#475] [TID:58780] [Render] [INFO] メッシュ(vb)を解放
+2025-10-25 13:37:41 [F#475] [TID:58780] [Render] [INFO] メッシュ(ib)を解放
+2025-10-25 13:37:41 [F#475] [TID:58780] [Render] [INFO] メッシュ(vb)を解放
+2025-10-25 13:37:41 [F#475] [TID:58780] [Render] [INFO] メッシュ(ib)を解放
+2025-10-25 13:37:41 [F#475] [TID:58780] [Render] [INFO] メッシュ(vb)を解放
+2025-10-25 13:37:41 [F#475] [TID:58780] [Render] [INFO] メッシュ(ib)を解放
+2025-10-25 13:37:41 [F#475] [TID:58780] [Render] [INFO] メッシュ(vb)を解放
+2025-10-25 13:37:41 [F#475] [TID:58780] [Render] [INFO] メッシュ(ib)を解放
+2025-10-25 13:37:41 [F#475] [TID:58780] [Render] [INFO] メッシュ(vb)を解放
+2025-10-25 13:37:41 [F#475] [TID:58780] [Render] [INFO] メッシュ(ib)を解放
+2025-10-25 13:37:41 [F#475] [TID:58780] [Render] [INFO] メッシュ(vb)を解放
+2025-10-25 13:37:41 [F#475] [TID:58780] [Render] [INFO] メッシュ(ib)を解放
+2025-10-25 13:37:41 [F#475] [TID:58780] [Render] [INFO] RenderSystem::Shutdown() 完了 (解放リソース数: 19)
+2025-10-25 13:37:41 [F#475] [TID:58780] [System] [INFO] Phase 6: TextureManagerを解放
+2025-10-25 13:37:41 [F#475] [TID:58780] [Graphics] [INFO] TextureManager::Shutdown() - 8 個のテクスチャを解放中
+2025-10-25 13:37:41 [F#475] [TID:58780] [Graphics] [INFO] テクスチャ2D: 8 個
+2025-10-25 13:37:41 [F#475] [TID:58780] [Graphics] [INFO] シェーダーリソースビュー: 8 個
+2025-10-25 13:37:41 [F#475] [TID:58780] [Graphics] [INFO] TextureManager::Shutdown() 完了
+2025-10-25 13:37:41 [F#475] [TID:58780] [System] [INFO] Phase 7: InputSystemを解放
+2025-10-25 13:37:41 [F#475] [TID:58780] [Input] [INFO] InputSystem::Shutdown() - シャットダウン中
+2025-10-25 13:37:41 [F#475] [TID:58780] [Input] [INFO] InputSystem::Shutdown() - 完了
+2025-10-25 13:37:41 [F#475] [TID:58780] [System] [INFO] Phase 8: GfxDeviceを解放
+2025-10-25 13:37:41 [F#475] [TID:58780] [Graphics] [INFO] GfxDevice::Shutdown() - リソースを解放中
+2025-10-25 13:37:41 [F#475] [TID:58780] [Graphics] [INFO] ID3D11DeviceContext::ClearState() を呼び出し
+2025-10-25 13:37:41 [F#475] [TID:58780] [Graphics] [INFO] ID3D11DeviceContext::Flush() を呼び出し
+2025-10-25 13:37:41 [F#475] [TID:58780] [Graphics] [INFO] 深度ステンシルビューを解放 (ULONG RefCount: 1)
+2025-10-25 13:37:41 [F#475] [TID:58780] [Graphics] [INFO] レンダーターゲットビューを解放 (ULONG RefCount: 1)
+2025-10-25 13:37:41 [F#475] [TID:58780] [Graphics] [INFO] スワップチェインを解放 (ULONG RefCount: 1)
+2025-10-25 13:37:41 [F#475] [TID:58780] [Graphics] [INFO] デバイスコンテキストを解放 (ULONG RefCount: 1)
+2025-10-25 13:37:41 [F#475] [TID:58780] [Graphics] [INFO] ========================================
+2025-10-25 13:37:41 [F#475] [TID:58780] [Graphics] [INFO] D3D11デバッグレイヤー: Live Objectsレポート(公式)開始
+2025-10-25 13:37:41 [F#475] [TID:58780] [Graphics] [INFO] ========================================
+2025-10-25 13:37:41 [F#475] [TID:58780] [Graphics] [INFO] --- Live Objects要約 (参照カウント) ---
+2025-10-25 13:37:41 [F#475] [TID:58780] [Graphics] [INFO] DSV RefCount: 1
+2025-10-25 13:37:41 [F#475] [TID:58780] [Graphics] [INFO] RTV RefCount: 1
+2025-10-25 13:37:41 [F#475] [TID:58780] [Graphics] [INFO] SwapChain RefCount: 1
+2025-10-25 13:37:41 [F#475] [TID:58780] [Graphics] [INFO] DeviceContext RefCount: 1
+2025-10-25 13:37:41 [F#475] [TID:58780] [Graphics] [INFO] Device RefCount: 4
+2025-10-25 13:37:41 [F#475] [TID:58780] [Graphics] [INFO] ========================================
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [WARNING] デバイスの参照カウントが 1 より大きい: 4 (リーク可能性)
+2025-10-25 13:37:41 [F#475] [TID:58780] [Graphics] [INFO] デバイスを解放 (ULONG RefCount: 4)
+2025-10-25 13:37:41 [F#475] [TID:58780] [Graphics] [INFO] GfxDevice::Shutdown() 完了 (解放リソース数: 5)
+2025-10-25 13:37:41 [F#475] [TID:58780] [System] [INFO] Phase 9: COMを終了
+2025-10-25 13:37:41 [F#475] [TID:58780] [System] [INFO] App::Shutdown() 正常に完了
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] App 正常に破棄
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] DebugDraw::~DebugDraw() - デストラクタ呼び出し
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] SceneManager::~SceneManager() - クリーンアップ中
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] SceneManager破棄完了
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] World::~World() - World破棄中
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] アクティブエンティティ: 0
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] アクティブビヘイビア: 0
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] World破棄完了
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] TextureManager::~TextureManager() - デストラクタ呼び出し
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] RenderSystem::~RenderSystem() - デストラクタ呼び出し
+2025-10-25 13:37:41 [F#475] [TID:58780] [General] [INFO] GfxDevice::~GfxDevice() - デストラクタ呼び出し
 ========================================
 デバッグログ終了
 ========================================

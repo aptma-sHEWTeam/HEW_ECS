@@ -94,6 +94,9 @@ struct App {
     std::vector<float> updateSamples_;     ///< Update時間のサンプル
     std::vector<float> renderSamples_;     ///< Render時間のサンプル
     std::vector<float> presentSamples_;    ///< Present時間のサンプル
+#ifdef _DEBUG
+    std::vector<float> gpuSamples_;        ///< GPUレンダ時間のサンプル(ms)
+#endif
     
     const int maxSamples_ = 1000;          ///< 最大サンプル数
     bool metricsCollecting_ = true;        ///< メトリクス収集中フラグ
@@ -210,6 +213,11 @@ struct App {
             
             // BeginFrameとレンダリング処理
             gfx_.BeginFrame();
+
+#ifdef _DEBUG
+            // GPUタイムスタンプ: 描画区間を計測
+            gfx_.BeginGpuTiming();
+#endif
             
 #ifdef _DEBUG
             DrawDebugInfo();
@@ -219,6 +227,8 @@ struct App {
             
 #ifdef _DEBUG
             debugDraw_.Render(gfx_, camera_);
+            // GPUタイミング終了（Presentの前）
+            gfx_.EndGpuTiming();
 #endif
             
             auto renderEndTime = std::chrono::high_resolution_clock::now();
@@ -235,7 +245,17 @@ struct App {
             std::chrono::duration<float> presentDuration = presentEndTime - presentStartTime;
             currentMetrics_.presentTime = presentDuration.count();
             
-            // フレーム合計時間
+#ifdef _DEBUG
+            // GPU時間を解決（ms）
+            double gpuMs = -1.0;
+            if (gfx_.ResolveGpuTiming(gpuMs)) {
+                if (metricsCollecting_ && gpuSamples_.size() < maxSamples_) {
+                    gpuSamples_.push_back(static_cast<float>(gpuMs));
+                }
+            }
+#endif
+
+            // フレーム合計時間（Update+Render+Presentを包含）
             std::chrono::duration<float> frameDuration = presentEndTime - frameStartTime;
             currentMetrics_.totalTime = frameDuration.count();
             
@@ -473,7 +493,7 @@ private:
         DEBUGLOG("InitializeGame() 開始");
         
         // ゲームシーンを作成
-        gameScene_ = new GameScene();
+        gameScene_ = new GameScene(texManager_);
         DEBUGLOG("GameSceneインスタンスを作成");
         
         // シーンマネージャーに登録
@@ -544,7 +564,17 @@ private:
                << L" | FPS: " << static_cast<int>(fps)
                << L" (U:" << std::fixed << std::setprecision(1) << avgUpdate
                << L"ms R:" << avgRender
-               << L"ms P:" << avgPresent << L"ms)";
+               << L"ms P:" << avgPresent << L"ms";
+#ifdef _DEBUG
+            if (!gpuSamples_.empty()) {
+                // 直近GPU平均
+                float gpuAvg = 0.0f;
+                for (float v : gpuSamples_) gpuAvg += v;
+                gpuAvg = gpuAvg / static_cast<float>(gpuSamples_.size());
+                ss << L" G:" << std::fixed << std::setprecision(2) << gpuAvg << L"ms";
+            }
+#endif
+            ss << L")";
             SetWindowTextW(hwnd_, ss.str().c_str());
         }
     }
@@ -569,6 +599,7 @@ private:
      * @details
      * アプリケーション終了時に、収集したフレームメトリクスの統計
      * （平均、最小、最大、99%タイル）をログに出力します。
+     * すべてのメトリクスで同一の外れ値除外マスク（FrameTotalベース）を適用します。
      */
     void OutputFrameStatistics() {
         if (frameTotalSamples_.empty()) {
@@ -580,21 +611,52 @@ private:
         DEBUGLOG_CATEGORY(DebugLog::Category::System, "フレーム統計サマリ (サンプル数: " + std::to_string(frameTotalSamples_.size()) + ")");
         DEBUGLOG_CATEGORY(DebugLog::Category::System, "========================================");
         
-        // 各メトリクスの統計を計算
-        OutputMetricStatistics("フレーム合計時間", frameTotalSamples_, "ms");
-        OutputMetricStatistics("Update時間", updateSamples_, "ms");
-        OutputMetricStatistics("Render時間", renderSamples_, "ms");
-        OutputMetricStatistics("Present時間", presentSamples_, "ms");
+        // 共通の外れ値除外インデックス（FrameTotalベース）を作成
+        const size_t N = frameTotalSamples_.size();
+        std::vector<size_t> indices(N);
+        for (size_t i = 0; i < N; ++i) indices[i] = i;
+        std::sort(indices.begin(), indices.end(), [this](size_t a, size_t b){ return frameTotalSamples_[a] < frameTotalSamples_[b]; });
         
-        // FPS統計
-        std::vector<float> fpsSamples;
-        fpsSamples.reserve(frameTotalSamples_.size());
-        for (float t : frameTotalSamples_) {
-            if (t > 0.0f) {
-                fpsSamples.push_back(1.0f / t);
-            }
+        size_t removeCount = static_cast<size_t>(static_cast<double>(N) * 0.01);
+        size_t beginKeep = (removeCount * 2 < N) ? removeCount : 0;
+        size_t endKeep = (removeCount * 2 < N) ? (N - removeCount) : N;
+        
+        std::vector<size_t> kept;
+        kept.reserve(N);
+        for (size_t i = beginKeep; i < endKeep; ++i) kept.push_back(indices[i]);
+        if (kept.empty()) {
+            DEBUGLOG_WARNING("外れ値除外後にサンプルが空になりました（共通マスク）");
+            return;
         }
-        OutputMetricStatistics("FPS", fpsSamples, "");
+        
+        // 各メトリクスを共通マスクで抽出
+        auto extract = [&kept](const std::vector<float>& src){
+            std::vector<float> out; out.reserve(kept.size());
+            for (size_t idx : kept) out.push_back(src[idx]);
+            return out;
+        };
+        std::vector<float> keptTotal = extract(frameTotalSamples_);
+        std::vector<float> keptUpdate = extract(updateSamples_);
+        std::vector<float> keptRender = extract(renderSamples_);
+        std::vector<float> keptPresent = extract(presentSamples_);
+        
+        // 統計出力
+        OutputMetricStatistics("フレーム合計時間", keptTotal, "ms", true);
+        OutputMetricStatistics("Update時間", keptUpdate, "ms", true);
+        OutputMetricStatistics("Render時間", keptRender, "ms", true);
+        OutputMetricStatistics("Present時間", keptPresent, "ms", true);
+        
+        // FPSはFrameTotalから算出（同一マスク）
+        std::vector<float> fpsSamples;
+        fpsSamples.reserve(keptTotal.size());
+        for (float t : keptTotal) if (t > 0.0f) fpsSamples.push_back(1.0f / t);
+        OutputMetricStatistics("FPS", fpsSamples, "", false);
+#ifdef _DEBUG
+        // GPU時間（ms）も統計（同一マスクは適用不能のため参考値として単独出力）
+        if (!gpuSamples_.empty()) {
+            OutputMetricStatistics("GPU時間", gpuSamples_, "ms", true);
+        }
+#endif
         
         DEBUGLOG_CATEGORY(DebugLog::Category::System, "========================================");
     }
@@ -603,56 +665,41 @@ private:
      * @brief メトリクス統計を出力する
      * @param name メトリクス名
      * @param samples サンプルデータ
-     * @param unit 単位
+     * @param unit 単位（"ms" or ""）
+     * @param toMs trueなら値をms表示（内部秒→ms換算）、falseならそのまま
      */
-    void OutputMetricStatistics(const std::string& name, std::vector<float> samples, const std::string& unit) {
+    void OutputMetricStatistics(const std::string& name, std::vector<float> samples, const std::string& unit, bool toMs) {
         if (samples.empty()) return;
         
-        // 外れ値フィルタリング（上位1%と下位1%を除外）
         std::sort(samples.begin(), samples.end());
         
-        size_t removeCount = static_cast<size_t>(samples.size() * 0.01);
-        if (removeCount > 0 && samples.size() > removeCount * 2) {
-            samples.erase(samples.begin(), samples.begin() + removeCount); // 下位1%を除外
-            samples.erase(samples.end() - removeCount, samples.end());     // 上位1%を除外
-        }
-        
-        if (samples.empty()) {
-            DEBUGLOG_WARNING(name + ": 外れ値除外後にサンプルが空になりました");
-            return;
-        }
-        
-        // 統計計算
+        // 基本統計
         float sum = 0.0f;
         for (float s : samples) sum += s;
         float avg = sum / samples.size();
         float min = samples.front();
         float max = samples.back();
         
-        // 99%タイル（上位1%を除外）
+        // パーセンタイル
         size_t p99Index = static_cast<size_t>(samples.size() * 0.99);
         if (p99Index >= samples.size()) p99Index = samples.size() - 1;
         float p99 = samples[p99Index];
-        
-        // 50%タイル（中央値）
         size_t p50Index = samples.size() / 2;
         float p50 = samples[p50Index];
-        
-        // 1%タイル（下位1%）
         size_t p01Index = static_cast<size_t>(samples.size() * 0.01);
         float p01 = samples[p01Index];
         
-        // ログ出力（msの場合は1000倍、FPSの場合はそのまま）
-        float multiplier = (unit == "ms") ? 1000.0f : 1.0f;
+        float mul = 1.0f;
+        if (toMs && unit == "ms") mul = 1000.0f; // 秒→ミリ秒
         
         std::ostringstream oss;
         oss << name << " (外れ値除外後サンプル数: " << samples.size() << "): "
-            << "平均=" << std::fixed << std::setprecision(2) << (avg * multiplier) << unit
-            << ", 最小=" << (min * multiplier) << unit
-            << ", 1%タイル=" << (p01 * multiplier) << unit
-            << ", 中央値=" << (p50 * multiplier) << unit
-            << ", 99%タイル=" << (p99 * multiplier) << unit
-            << ", 最大=" << (max * multiplier) << unit;
+            << "平均=" << std::fixed << std::setprecision(2) << (avg * mul) << unit
+            << ", 最小=" << (min * mul) << unit
+            << ", 1%タイル=" << (p01 * mul) << unit
+            << ", 中央値=" << (p50 * mul) << unit
+            << ", 99%タイル=" << (p99 * mul) << unit
+            << ", 最大=" << (max * mul) << unit;
         
         DEBUGLOG_CATEGORY(DebugLog::Category::System, oss.str());
     }

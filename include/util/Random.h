@@ -2,7 +2,7 @@
  * @file Random.h
  * @brief 高品質な乱数を簡単に使うためのユーティリティ
  * @author 山内陽
-あ * @version 1.0
+ * @version 1.0
  *
  * @details
  * Cの rand()/srand() の代わりに、C++の <random> を使った高品質な乱数生成を提供します。
@@ -20,10 +20,11 @@
 #include <limits>
 #include <chrono>
 #include <cmath>
+#include <algorithm>
 #include <DirectXMath.h>
 #include <string>
 
-#include "util/Random.h"
+#include "app/DebugLog.h"
 
 namespace util {
 
@@ -31,8 +32,8 @@ class Random {
 public:
     // 任意の固定シードで初期化（現在のスレッドのエンジンを再シード）
     static void Seed(uint32_t seed) {
-        Engine() .seed(seed);
-		DEBUGLOG_CATEGORY(DebugLog::Category::System, "Randomのシード設定： " + std::to_string(seed));
+        Engine().seed(seed);
+        DEBUGLOG_CATEGORY(DebugLog::Category::System, "Randomのシード設定： " + std::to_string(seed));
     }
 
     // 現在時刻でシード（簡易）
@@ -88,7 +89,7 @@ public:
         // 球面一様分布（角度から生成）
         const float z = Float(-1.0f, 1.0f);
         const float t = Float(0.0f, 6.28318530718f); // 2π
-        const float r = std::sqrt(std::max(0.0f, 1.0f - z * z));
+        const float r = std::sqrt((std::max)(0.0f, 1.0f - z * z));
         return DirectX::XMFLOAT3{ r * std::cos(t), r * std::sin(t), z };
     }
 

@@ -12,7 +12,7 @@
  * - ランダムな形状・色の敵が自動で降ってくる
  * - 弾が敵に当たると敵が消滅
  * - スコアが貯まっていく
- * 
+ *
  * ### v5.0の新機能:
  * - 敵がランダムな形状(Cube, Sphere, Cylinder, Cone, Capsule)で出現
  * - 敵がランダムな色で出現
@@ -23,9 +23,11 @@
 
 #include "pch.h"
 #include "components/Rotator.h"
+#include "components/WringDeformer.h"
 #include <cstdlib>
 #include <ctime>
 #include "util/Random.h"
+#include "graphics/TextureManager.h"
 
 // ========================================================
 // ゲーム用コンポーネント
@@ -163,6 +165,8 @@ struct EnemyMovement : Behaviour {
  */
 class GameScene : public IScene {
 public:
+    explicit GameScene(TextureManager& tm) : textureManager_(&tm) {}
+
     /**
      * @brief シーン開始時の初期化
      * @param[in,out] world ワールド参照
@@ -299,8 +303,8 @@ private:
                 // プレイヤーの位置から弾を発射(球体)
                 Transform bulletTransform;
                 bulletTransform.position = DirectX::XMFLOAT3{
-                    playerTransform->position.x, 
-                    playerTransform->position.y + 1.0f, 
+                    playerTransform->position.x,
+                    playerTransform->position.y + 1.0f,
                     0.0f
                 };
                 bulletTransform.rotation = DirectX::XMFLOAT3{0.0f, 0.0f, 0.0f};
@@ -351,8 +355,8 @@ private:
             // ランダムな回転速度
             float randomRotSpeed = util::Random::Float(30.0f, 130.0f) * (util::Random::Bool() ? 1.0f : -1.0f);
 
-            // ランダムなスケール(0.7～1.2倍)
-            float randomScale = util::Random::Float(0.7f, 1.2f);
+            // ランダムなスケール(大きめ: 3.0～6.0倍で雑巾絞りがよく見える)
+            float randomScale = util::Random::Float(3.0f, 6.0f);
 
             Transform enemyTransform;
             enemyTransform.position = DirectX::XMFLOAT3{randomX, 8.0f, 0.0f};
@@ -363,12 +367,22 @@ private:
             enemyRenderer.meshType = randomShape;
             enemyRenderer.color = randomColor;
 
+            TextureManager::TextureHandle texHandle = TextureManager::INVALID_TEXTURE;
+            if (textureManager_) {
+                texHandle = textureManager_->LoadFromFile("Assets/Textures/enemy_texture.png");
+                if (texHandle == TextureManager::INVALID_TEXTURE) {
+                    // フォールバック: デフォルト白
+                    texHandle = textureManager_->GetDefaultWhite();
+                }
+            }
+            enemyRenderer.texture = texHandle;
+
             Entity enemy = world.Create()
                 .With<Transform>(enemyTransform)
                 .With<MeshRenderer>(enemyRenderer)
                 .With<Enemy>()
                 .WithCause<EnemyMovement>(World::Cause::WaveTimer)
-                .WithCause<Rotator>(World::Cause::WaveTimer, randomRotSpeed)
+                .With<WringDeformer>()
                 .Build();
             ownedEntities_.push_back(enemy);
         }
@@ -430,6 +444,7 @@ private:
     }
 
     Entity playerEntity_;        ///< プレイヤーエンティティ
+    TextureManager* textureManager_ = nullptr; ///< 共有テクスチャマネージャー（外部注入）
     int score_;                  ///< 現在のスコア
     float enemySpawnTimer_;      ///< 敵生成タイマー
     float shootCooldown_;        ///< シーン内での射撃クールダウン

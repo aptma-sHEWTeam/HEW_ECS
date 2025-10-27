@@ -147,6 +147,7 @@
     <ClInclude Include="include\animation\Animation.h" />
     <ClInclude Include="include\app\App.h" />
     <ClInclude Include="include\app\DebugLog.h" />
+    <ClInclude Include="include\components\WringDeformer.h" />
     <ClInclude Include="include\ecs\World.h" />
     <ClInclude Include="include\gameplay\EnemySpawner.h" />
     <ClInclude Include="include\graphics\Camera.h" />

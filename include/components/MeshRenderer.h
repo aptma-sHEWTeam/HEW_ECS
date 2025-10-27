@@ -178,9 +178,9 @@ struct MeshRenderer {
      * renderer.color = DirectX::XMFLOAT3{0.5f, 0.5f, 0.5f};
      * @endcode
      * 
-     * @note デフォルトは明るい水色{0.3, 0.7, 1.0}
+     * @note デフォルトは白
      */
-    DirectX::XMFLOAT3 color{ 0.3f, 0.7f, 1.0f };
+    DirectX::XMFLOAT3 color{ 1.0f, 1.0f, 1.0f };
     
     /**
      * @var texture
