@@ -99,7 +99,9 @@ class GameScene : public IScene {
         Entity debugRenderer = world.Create().With<CollisionDebugRenderer>().Build(); ownedEntities_.push_back(debugRenderer);
 #endif
         world.Create().With<DirectionalLight>();
-        CreateFloor(world);
+        int gridSize = 10;//床のサイズ指定
+        float tileSize = 1.0f;
+        CreateFloor(world, gridSize,tileSize);
         CreatePlayer(world);
         CreateStart(world);
         CreateGoal(world);
@@ -323,24 +325,47 @@ class GameScene : public IScene {
         ownedEntities_.push_back(uiUpdater);
     }
 
-    void CreateFloor(World &world) {
-        Transform transform{
-            {0.0f, -2.0f, 0.0f},
-            {0.0f, 0.0f, 0.0f},
-            {20.0f, 0.2f, 20.0f},
-        };
+    //床の生成　gridSize ×　gridSizeのタイル生成
+    void CreateFloor(World &world ,int gridSize, float tileSize ) {
 
-        MeshRenderer renderer;
-        renderer.meshType = MeshType::Plane;
-        renderer.color = DirectX::XMFLOAT3{0.5f, 0.5f, 0.5f};
+        if (gridSize <= 0.0f || tileSize <= 0.0f)
+            return;
 
-        Entity floor = world.Create()
-                           .With<Transform>(transform)
-                           .With<MeshRenderer>(renderer)
-                           .With<CollisionBox>(DirectX::XMFLOAT3{20.0f, 0.2f, 20.0f})
-                           .Build();
+        const float yOffset = -2.0f;//高さのオフセット
+        const float half = (gridSize * tileSize) * 0.5f;
+        
+        
 
-        ownedEntities_.push_back(floor);
+        for (int i = 0; i < gridSize; ++i)
+        {
+            for (int j = 0; j < gridSize; ++j)
+            {
+                float x = i * tileSize - half + tileSize * 0.5f;
+                float z = j * tileSize - half + tileSize * 0.5f;
+
+                Transform transform{
+                    {x, yOffset, z},
+                    {0.0f, 0.0f, 0.0f}, //回転
+                    {tileSize, 0.2f, tileSize},
+                };
+
+                MeshRenderer renderer;
+                renderer.meshType = MeshType::Cube;
+                renderer.color = DirectX::XMFLOAT3{1.0f, 0.0f, 1.0f};
+
+                Entity floor = world.Create()
+                                   .With<Transform>(transform)
+                                   .With<MeshRenderer>(renderer)
+                                   //.With<CollisionBox>(DirectX::XMFLOAT3{20.0f, 0.2f, 20.0f})
+                                   .Build();
+
+                ownedEntities_.push_back(floor);
+
+            }
+
+        }
+       
+
     }
 
     void CreatePlayer(World &world) {
