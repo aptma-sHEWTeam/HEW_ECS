@@ -55,7 +55,7 @@ struct EnemyCollisionHandler : ICollisionHandler {
     void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override {
         if (w.Has<PlayerTag>(other)) {
             DEBUGLOG("敵がプレイヤーと衝突");
-            
+
         }
     }
 };
@@ -70,6 +70,9 @@ struct WallCollisionHandler : ICollisionHandler {
         // 壁(self)にプレイヤー(other)が衝突したときにログ出力
         if (w.Has<PlayerTag>(other)) {
             DEBUGLOG("壁がプレイヤーと衝突");
+            //プレイヤーが壁に当たったら止まる
+            auto &PlayerVelo = w.Get<PlayerVelocity>(other);
+            PlayerVelo.velocity = {0.0f, 0.0f};
         }
     }
 };
