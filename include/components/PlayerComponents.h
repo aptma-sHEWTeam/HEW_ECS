@@ -193,8 +193,8 @@ struct PlayerMovement : Behaviour {
         t->position.x += v->velocity.x * dt * slowFactor;
         t->position.z += v->velocity.y * dt * slowFactor;
 
-        const float limitX = 8.0f;
-        const float limitY = 10.0f;
+        const float limitX = 9.0f;
+        const float limitY = 9.5f;
         if (t->position.x < -limitX) t->position.x = -limitX;
         if (t->position.x > limitX)  t->position.x =  limitX;
         if (t->position.z < -limitY) t->position.z = -limitY;

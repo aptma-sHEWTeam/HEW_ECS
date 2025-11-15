@@ -97,9 +97,6 @@ class GameScene : public IScene {
         Entity stageEntity_ = world.Create().With<StageCreate>().Build();ownedEntities_.push_back(stageEntity_);
 
         world.Create().With<DirectionalLight>();
-        int gridSize = 15;//床(全体)のサイズ指定
-        float tileSize = 1.0f;//床（1マス）サイズ指定
-        CreateFloor(world, gridSize,tileSize);
         CreatePlayer(world);
         // ステージ1をセットアップ
         SetupStage(world, 1);
@@ -134,45 +131,6 @@ class GameScene : public IScene {
     void CreateTextFormats();
 
     void CreateUI(World &world, float screenWidth, float screenHeight);
-
-    //床の生成　gridSize ×　gridSizeのタイル生成
-    void CreateFloor(World &world ,int gridSize, float tileSize ) {
-
-        if (gridSize <= 0.0f || tileSize <= 0.0f)
-            return;
-
-        const float yOffset = -2.0f;//高さのオフセット
-        const float half = (gridSize * tileSize) * 0.5f;
-        
-        
-
-        for (int i = 0; i < gridSize; ++i)
-        {
-            for (int j = 0; j < gridSize; ++j)
-            {
-                float x = i * tileSize - half + tileSize * 0.5f;
-                float z = j * tileSize - half + tileSize * 0.5f;
-
-                Transform transform{
-                    {x, yOffset, z},
-                    {0.0f, 0.0f, 0.0f}, //回転
-                    {tileSize, 0.2f, tileSize},
-                };
-
-                MeshRenderer renderer;
-                renderer.meshType = MeshType::Cube;
-                renderer.color = DirectX::XMFLOAT3{0.5f, 0.5f, 0.5f};//床の色
-
-                Entity floor = world.Create()
-                                   .With<Transform>(transform)
-                                   .With<MeshRenderer>(renderer)
-                                   //.With<CollisionBox>(DirectX::XMFLOAT3{20.0f, 0.2f, 20.0f})
-                                   .Build();
-
-                ownedEntities_.push_back(floor);
-            }
-        }
-    }
 
     void CreatePlayer(World &world) {
         Transform transform{
@@ -210,9 +168,16 @@ class GameScene : public IScene {
             float mapWidth = static_cast<float>(stagecreate.stageMap[0].size());
             float mapHeight = static_cast<float>(stagecreate.stageMap.size());
 
+            //マップのインデックスの範囲の最大を取得する
+            const int max_x_index = stagecreate.stageMap[0].size() - 1; 
+            const int max_y_index = stagecreate.stageMap.size() - 1; 
+
             //オフセット計算
             const float offsetX = (mapWidth * tileSize) * 0.5f - (tileSize * 0.5f);
             const float offsetZ = (mapHeight * tileSize) * 0.5f - (tileSize * 0.5f);
+
+            //床の生成
+            CreateFloor(world, static_cast<int>(mapWidth), tileSize);
 
             for (int y = 0; y < stagecreate.stageMap.size(); ++y) {
                 for (int x = 0; x < stagecreate.stageMap[y].size(); ++x) {
@@ -224,6 +189,20 @@ class GameScene : public IScene {
                     float worldZ = offsetZ - (static_cast<float>(y) * tileSize);
 
                     const DirectX::XMFLOAT3 blockposition = {worldX, worldY, worldZ};
+
+                       //ステージの外周に壁を生成する
+                    if (y == 0) {               //上端
+                        CreatFloorWall(world, {worldX,worldY,worldZ + tileSize});
+                    }
+                    if (y == max_y_index) {     //下端
+                        CreatFloorWall(world, {worldX, worldY, worldZ - tileSize});
+                    }      
+                    if (x == 0) {               //左端
+                        CreatFloorWall(world, {worldX - tileSize, worldY, worldZ});
+                    }
+                    if (x == max_x_index) {     //右端
+                        CreatFloorWall(world, {worldX + tileSize, worldY, worldZ});
+                    }
 
                     if (blockType != 0) {
                         switch (blockType) {
@@ -243,6 +222,40 @@ class GameScene : public IScene {
         });
     }
 
+ 
+    void CreateFloor(World &world, int gridSize, float tileSize) {
+
+        if (gridSize <= 0.0f || tileSize <= 0.0f)
+            return;
+
+        const float yOffset = -2.0f; //高さのオフセット
+        const float half = (gridSize * tileSize) * 0.5f;
+
+        for (int i = 0; i < gridSize; ++i) {
+            for (int j = 0; j < gridSize; ++j) {
+                float x = i * tileSize - half + tileSize * 0.5f;
+                float z = j * tileSize - half + tileSize * 0.5f;
+
+                Transform transform{
+                    {x, yOffset, z},
+                    {0.0f, 0.0f, 0.0f}, //回転
+                    {tileSize, 0.2f, tileSize},
+                };
+
+                MeshRenderer renderer;
+                renderer.meshType = MeshType::Cube;
+                renderer.color = DirectX::XMFLOAT3{0.5f, 0.5f, 0.5f}; //床の色
+
+                Entity floor = world.Create()
+                                   .With<Transform>(transform)
+                                   .With<MeshRenderer>(renderer)
+                                   //.With<CollisionBox>(DirectX::XMFLOAT3{20.0f, 0.2f, 20.0f})
+                                   .Build();
+
+                ownedEntities_.push_back(floor);
+            }
+        }
+    }
 
     void CreateStart(World &world, const DirectX::XMFLOAT3 &position) {
         Transform t{position,{0,0,0},{1,1,1}};
@@ -289,6 +302,15 @@ class GameScene : public IScene {
         stageOwnedEntities_.push_back(wall);
     }
 
+    void CreatFloorWall(World &world, const DirectX::XMFLOAT3 &position) {
+        Transform transform{position, {0.0f,0.0f,0.0f}, {1.0f,1.0f,1.0f}};
+        MeshRenderer renderer;
+        renderer.meshType = MeshType::Cube;
+        renderer.color = DirectX::XMFLOAT3{0.5f, 0.5f, 0.5f};
+        Entity worldwall = world.Create().With<Transform>(transform).With<MeshRenderer>(renderer); 
+        stageOwnedEntities_.push_back(wall);
+    }
+
     void SetupStage(World &world, int stage) {
         //既存のステージ要素をリセット
         for (const auto &entity : stageOwnedEntities_) {
@@ -310,12 +332,15 @@ class GameScene : public IScene {
             if (tPlayer && tStart) {
                 tPlayer->position = {tStart->position.x,0.0f,tStart->position.z};
 
+                //プレイヤーの速度リセット
+                if (auto *vPlayer = world.TryGet<PlayerVelocity>(playerEntity_)) {
+                    vPlayer->velocity = {0.0f,0.0f};
+                }
+
+
             }
         }
-     // float goalX = 5.0f + static_cast<float>(stage - 1) * 2.0f;
-     // if (world.IsAlive(goalEntity_)) { if (auto* tGoal = world.TryGet<Transform>(goalEntity_)) { tGoal->position = { goalX, 0.0f, 5.0f }; } }
-     // if (world.IsAlive(startEntity_)) { if (auto* tStart = world.TryGet<Transform>(startEntity_)) { tStart->position = { -3.0f, 0.0f, 5.0f }; } }
-     // if (world.IsAlive(playerEntity_)) { if (auto* tPlayer = world.TryGet<Transform>(playerEntity_)) { tPlayer->position = { -3.0f, 0.0f, 5.0f }; } }
+    
     }
 
     //プレイヤーのスタート合図
@@ -333,5 +358,7 @@ class GameScene : public IScene {
     Entity playerEntity_{};
     Entity stageEntity{};
     Entity startEntity_{};
+    Entity wall{};
+    Entity worldwall{};
     Entity goalEntity_{};
 };
