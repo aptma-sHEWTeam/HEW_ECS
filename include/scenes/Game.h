@@ -459,3 +459,5 @@ class GameScene : public IScene {
     Entity startEntity_{};
     Entity goalEntity_{};
 };
+
+
