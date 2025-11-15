@@ -154,6 +154,7 @@
     <ClCompile Include="src\input\GamepadSystem.cpp" />
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\pch.cpp" />
+    <ClCompile Include="src\scenes\GameUI.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Hp.h" />

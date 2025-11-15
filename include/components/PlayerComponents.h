@@ -18,6 +18,8 @@
 #include "input/InputSystem.h"
 #include "input/GamepadSystem.h"
 #include <DirectXMath.h>
+#include <cmath>
+#include <algorithm>
 
 // =========================================
 // ベロシティ計算コンポーネント
@@ -27,20 +29,15 @@ struct PlayerVelocity : Behaviour {
     float speed = 10.0f;                       ///< 移動速度(単位/秒) - 速度を上げて動きを明確に
     DirectX::XMFLOAT2 velocity = {0.0f, 0.0f}; ///< 現在の移動ベロシティ
 
-    void SetVelocity(DirectX::XMFLOAT2 speed) {
-        velocity.x = speed.x;
-        velocity.y = speed.y;
+    void SetVelocity(DirectX::XMFLOAT2 speed)
+    {
+        velocity = speed;
     }
 
     void UpdateVelocity(const DirectX::XMFLOAT2 &inputDir) {
-        // 入力がある場合はベロシティを更新
         if (inputDir.x != 0.0f || inputDir.y != 0.0f) {
-
-            // ベクトルの長さを計算
             float length = std::sqrt(inputDir.x * inputDir.x + inputDir.y * inputDir.y);
-
             if (length > 0.0f) {
-                // 正規化し、speedを乗算してベロシティを更新
                 float normal_x = inputDir.x / length;
                 float normal_y = inputDir.y / length;
                 velocity.x = normal_x * speed;
@@ -49,8 +46,11 @@ struct PlayerVelocity : Behaviour {
         }
     }
 
-    DirectX::XMFLOAT2 GetVelocity() {
-        return velocity;
+    DirectX::XMFLOAT2 GetVelocity() { return velocity; }
+
+    float GetVelocitySqrted() {
+        float l = std::sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
+        return l;
     }
 };
 
@@ -87,6 +87,18 @@ struct PlayerMovement : Behaviour {
     InputSystem *input_ = nullptr;     ///< 入力システムへのポインタ
     GamepadSystem *gamepad_ = nullptr; ///< ゲームパッドシステムへのポインタ
 
+    // チャージ挙動設定
+    float minChargeSpeedFactor = 0.3f;   ///< チャージ中の最低速度係数(0.0-1.0)
+    float chargeMaxTime = 1.0f;          ///< チャージ最大時間(秒)
+
+    // 入力モード
+    bool flickOnly = true;               ///< 左スティックの通常移動を無効化し、はじく移動（チャージ&リリース）のみ有効にする
+
+    // 内部状態
+    bool isCharging_ = false;            ///< 現在チャージ中か
+    DirectX::XMFLOAT2 lastStickDir_ {0.0f, 0.0f}; ///< 直近の左スティック方向(正規化)
+    bool wasCharging_ = false;           ///< 前フレームでチャージしていたか(ローカル検出)
+
     /**
      * @brief 毎フレーム更新処理
      * @param[in,out] w ワールド参照
@@ -101,12 +113,11 @@ struct PlayerMovement : Behaviour {
     void OnUpdate(World &w, Entity self, float dt) override {
         auto *t = w.TryGet<Transform>(self);
         auto *v = w.TryGet<PlayerVelocity>(self);
-       
+
         if (!t || !v || (!input_ && !gamepad_))
             return;
 
         DirectX::XMFLOAT2 inputDir = {0.0f, 0.0f};
-
 
         // キーボード入力の処理
         if (input_) {
@@ -125,74 +136,68 @@ struct PlayerMovement : Behaviour {
         }
 
         // すべての接続されているゲームパッドの入力を統合（XInput + DirectInput）
-        if (gamepad_) 
+        float slowFactor = 1.0f; // このフレームの速度係数（チャージ中は低下)
+        if (gamepad_)
         {
             float gx = gamepad_->GetLeftStickX();
             float gy = gamepad_->GetLeftStickY();
-#ifdef _DEBUG
-            static int debugCounter = 0;
-            if (debugCounter % 30 == 0 && (gx != 0.0f || gy != 0.0f)) { // 入力があるときだけログ出力
-                DEBUGLOG("PlayerMovement: Gamepad input - LX=" + std::to_string(gx) + ", LY=" + std::to_string(gy));
+            float mag = std::sqrt(gx * gx + gy * gy);
+
+            // 方向キャッシュ（常時）
+            if (mag > 1e-5f) {
+                lastStickDir_.x = gx / mag;
+                lastStickDir_.y = gy / mag;
             }
-            debugCounter++;
-#endif
 
-            inputDir.x += gx;
-            inputDir.y += gy;
+            // ローカルしきい値によるチャージ/リリース検出（GamepadSystemのフォールバック）
+            const float releaseThreshold = 0.1f;
+            bool chargingNowLocal = (mag > releaseThreshold);
 
-            static bool isCharging = false;     //チャージ中かどうか
-            static float ChargePower = 0.0f;    //チャージ具合
-            static float prev_gx = 0.0f;        //前のスティック値
+            // チャージ状態更新（統合）
+            bool chargingSys = gamepad_->IsLeftStickCharging();
+            bool effectiveCharging = chargingSys || chargingNowLocal;
+            if (effectiveCharging) {
+                isCharging_ = true;
+                float charge = gamepad_->GetLeftStickChargeAmount(chargeMaxTime); // 0..1
+                slowFactor = std::max(minChargeSpeedFactor, 1.0f - charge);
+            }
 
-        //左スティックを倒している時
-           if (gx < -0.5f) 
-           {
-                isCharging = true;      
-                float currentCharge = gamepad_->GetLeftStickChargeAmount(1.0f);
-                
-                //経過時間に応じてチャージ量を溜める
-                ChargePower += currentCharge * dt;
+            // リリースで方向転換＋通常速度に復帰（統合: システム検出 or ローカル検出）
+            bool releasedSys = gamepad_->IsLeftStickReleased();
+            bool releasedLocal = (wasCharging_ && !chargingNowLocal);
+            if (releasedSys || releasedLocal) {
+                float dirLen = std::sqrt(lastStickDir_.x * lastStickDir_.x + lastStickDir_.y * lastStickDir_.y);
+                if (dirLen > 1e-5f) {
+                    v->velocity.x = (lastStickDir_.x / dirLen) * v->speed;
+                    v->velocity.y = (lastStickDir_.y / dirLen) * v->speed;
+                    float yawRad = std::atan2(v->velocity.y, v->velocity.x);
+                    t->rotation.y = yawRad * (180.0f / 3.1415926535f);
+                }
+                isCharging_ = false;
+                slowFactor = 1.0f;
+            }
 
-                //1.0以上は溜めれない
-                if (ChargePower > 1.0f)
-                {
-                    ChargePower = 1.0f;
-                } 
-           }
+            // 次フレーム用にローカル状態を保持
+            wasCharging_ = chargingNowLocal;
 
-           //fab....絶対値を求める関数
-           //スティックが戻ったら右へ移動
-           if (isCharging && prev_gx < -0.5f && fabs(gx) < 0.1f) 
-           {
-               //テスト用
-               //5倍速で右へ
-               float Speed = 1.0f + ChargePower * 5.0f;
-
-               inputDir.x = Speed; 
-
-               //状態リセット
-               isCharging = false;
-               ChargePower = 0.0f;
-           }
-            prev_gx = gx; 
+            if (!flickOnly) {
+                inputDir.x += gx;
+                inputDir.y += gy;
+            }
         }
 
-        v->UpdateVelocity(inputDir);
+        if (inputDir.x != 0.0f || inputDir.y != 0.0f) {
+            v->UpdateVelocity(inputDir);
+        }
 
-        // ベロシティに基づいて位置を更新
-        t->position.x += v->velocity.x * dt;
-        t->position.z += v->velocity.y * dt;
+        t->position.x += v->velocity.x * dt * slowFactor;
+        t->position.z += v->velocity.y * dt * slowFactor;
 
-        // 画面外に出ないように制限
         const float limitX = 8.0f;
         const float limitY = 10.0f;
-        if (t->position.x < -limitX)
-            t->position.x = -limitX;
-        if (t->position.x > limitX)
-            t->position.x = limitX;
-        if (t->position.z < -limitY)
-            t->position.z = -limitY;
-        if (t->position.z > limitY)
-            t->position.z = limitY;
+        if (t->position.x < -limitX) t->position.x = -limitX;
+        if (t->position.x > limitX)  t->position.x =  limitX;
+        if (t->position.z < -limitY) t->position.z = -limitY;
+        if (t->position.z > limitY)  t->position.z =  limitY;
     }
 };

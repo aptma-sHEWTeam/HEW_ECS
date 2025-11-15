@@ -468,7 +468,7 @@ private:
 
         hwnd_ = CreateWindowW(
             wc.lpszClassName,
-            L"シューティングゲーム - A/D:移動 スペース:発射 ESC:終了",
+            L"はじく！",
             WS_OVERLAPPEDWINDOW,
             CW_USEDEFAULT, CW_USEDEFAULT,
             rc.right - rc.left, rc.bottom - rc.top,
@@ -568,7 +568,7 @@ private:
             static_cast<float>(width) / height, // アスペクト比
             0.1f,                               // ニアクリップ
             100.0f,                             // ファークリップ
-            DirectX::XMFLOAT3{0, 20, 0},        // カメラ位置（上方向に移動）
+            DirectX::XMFLOAT3{0, 26, 0},        // カメラ位置（上方向に移動）
             DirectX::XMFLOAT3{0, 0, 0},         // 注視点（原点を見る）
             DirectX::XMFLOAT3{0, 0, 1}         // 上方向ベクトル（Z軸を下方向に）
         );
