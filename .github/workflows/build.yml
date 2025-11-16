@@ -34,7 +34,7 @@ jobs:
         echo "Build failed for config=${{ matrix.config }}, platform=${{ matrix.platform }}"
         exit 1
 
-    # ====== master & Release のときだけ成果物収集 → ZIP ======
+    # ====== Release/master only: 成果物収集 ======
 
     - name: Collect build outputs (Release/master only)
       if: github.ref == 'refs/heads/master' && matrix.config == 'Release'
@@ -48,23 +48,22 @@ jobs:
         REM Assets フォルダも丸ごと入れる
         xcopy /E /I /Y ".\Assets\*" artifact\Assets\
 
-    - name: Upload artifact (optional, for Actions UI)
+    - name: Upload artifact (optional)
       if: github.ref == 'refs/heads/master' && matrix.config == 'Release'
       uses: actions/upload-artifact@v4
       with:
         name: HEW_GAME-${{ matrix.platform }}-${{ matrix.config }}
         path: artifact/**
         compression-level: 9
-        if-no-files-found: error
 
     - name: Archive build for release
       if: github.ref == 'refs/heads/master' && matrix.config == 'Release'
       run: |
         powershell Compress-Archive -Path artifact\* -DestinationPath HEW_GAME.zip -Force
 
-    # ====== 公開用リポジトリ (aptma-sHEWTeam/hew-game-release) にリリース＋アップロード ======
+    # ====== 公開用 Repo (aptma-sHEWTeam/hew-game-release) に Release ======
 
-    - name: Install GitHub CLI via choco
+    - name: Install GitHub CLI
       if: github.ref == 'refs/heads/master' && matrix.config == 'Release'
       shell: powershell
       run: |
@@ -73,28 +72,24 @@ jobs:
 
     - name: Create release on public repo and upload asset
       if: github.ref == 'refs/heads/master' && matrix.config == 'Release'
-      shell: powershell
+      shell: bash
       env:
         GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_PAT }}
       run: |
-        # 公開用リポジトリ
-        $TARGET_REPO = "aptma-sHEWTeam/hew-game-release"
+        TARGET_REPO="aptma-sHEWTeam/hew-game-release"
+        TAG="v0.1.${{ github.run_number }}"
+        TITLE="Auto build ${{ github.run_number }}"
 
-        # タグ名・リリース名
-        $TAG   = "v0.1.${{ github.run_number }}"
-        $TITLE = "Auto build ${{ github.run_number }}"
+        # 既存の同タグリリースがあれば消す（エラー無視）
+        gh release delete "$TAG" --repo "$TARGET_REPO" --yes 2>/dev/null || true
 
-        # 同じタグのリリースがあったら消す（同一タグでこけないように）
-        gh release delete $TAG --repo $TARGET_REPO --yes 2>$null || echo "no existing release"
-
-        # 新規リリース作成＋ HEW_GAME.zip を asset として添付
-        gh release create $TAG "HEW_GAME.zip" `
-          --repo $TARGET_REPO `
-          --title $TITLE `
-          --notes "Automated build from private repo run #${{ github.run_number }}" `
+        # Release 作成＋zip アップロード
+        gh release create "$TAG" "HEW_GAME.zip" \
+          --repo "$TARGET_REPO" \
+          --title "$TITLE" \
+          --notes "Automated build from private repo run #${{ github.run_number }}" \
           --prerelease
 
-  # ====== Debug ビルドの compile-check 用 ======
   compile-check:
     runs-on: windows-latest
     
