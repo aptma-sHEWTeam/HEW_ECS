@@ -34,7 +34,8 @@ jobs:
         echo "Build failed for config=${{ matrix.config }}, platform=${{ matrix.platform }}"
         exit 1
 
-    # ====== ここから Release/master 用の成果物収集＋配布 ======
+
+    # ====== Release/master のときだけ成果物収集 → ZIP → Release → Drive ======
 
     - name: Collect build outputs (Release/master only)
       if: github.ref == 'refs/heads/master' && matrix.config == 'Release'
@@ -74,6 +75,30 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+
+    # ====== Google Drive アップロード（追加部分） ======
+
+    - name: Set up Python
+      if: github.ref == 'refs/heads/master' && matrix.config == 'Release'
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install Google API deps
+      if: github.ref == 'refs/heads/master' && matrix.config == 'Release'
+      run: |
+        pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib
+
+    - name: Upload HEW_GAME.zip to Google Drive
+      if: github.ref == 'refs/heads/master' && matrix.config == 'Release'
+      env:
+        GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+        GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+      run: |
+        python scripts/upload_to_drive.py HEW_GAME.zip "HEW_GAME-v0.1.${{ github.run_number }}.zip"
+
+
+  # ====== Debug ビルドの compile-check 用 ======
   compile-check:
     runs-on: windows-latest
     
