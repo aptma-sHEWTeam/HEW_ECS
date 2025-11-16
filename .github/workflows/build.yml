@@ -34,8 +34,7 @@ jobs:
         echo "Build failed for config=${{ matrix.config }}, platform=${{ matrix.platform }}"
         exit 1
 
-
-    # ====== Release/master のときだけ成果物収集 → ZIP → Release → Drive ======
+    # ====== Release/master only: 成果物収集 → ZIP ======
 
     - name: Collect build outputs (Release/master only)
       if: github.ref == 'refs/heads/master' && matrix.config == 'Release'
@@ -63,41 +62,35 @@ jobs:
       run: |
         powershell Compress-Archive -Path artifact\* -DestinationPath HEW_GAME.zip -Force
 
-    - name: Create GitHub Release
+    # ====== 公開用リポジトリ (Repo B) にリリース＋アップロード ======
+
+    - name: Install GitHub CLI
       if: github.ref == 'refs/heads/master' && matrix.config == 'Release'
-      uses: softprops/action-gh-release@v2
+      uses: cli/cli-action@v2
       with:
-        tag_name: v0.1.${{ github.run_number }}
-        name: "Auto build ${{ github.run_number }}"
-        draft: false
-        prerelease: true
-        files: HEW_GAME.zip
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        version: latest
 
-
-    # ====== Google Drive アップロード（追加部分） ======
-
-    - name: Set up Python
-      if: github.ref == 'refs/heads/master' && matrix.config == 'Release'
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
-
-    - name: Install Google API deps
-      if: github.ref == 'refs/heads/master' && matrix.config == 'Release'
-      run: |
-        pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib
-
-    - name: Upload HEW_GAME.zip to Google Drive
+    - name: Create release on public repo and upload asset
       if: github.ref == 'refs/heads/master' && matrix.config == 'Release'
       env:
-        GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
-        GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
+        GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_PAT }}
       run: |
-        python scripts/upload_to_drive.py HEW_GAME.zip "HEW_GAME-v0.1.${{ github.run_number }}.zip"
+        # 公開用リポジトリ
+        TARGET_REPO="aptma-sHEWTeam/hew-game-release"
 
+        # タグ名・リリース名。好きに変えていい。
+        TAG="v0.1.${{ github.run_number }}"
+        TITLE="Auto build ${{ github.run_number }}"
 
+        # 既に同じタグのリリースがあったら消す (失敗を避けるため)
+        gh release delete "$TAG" --repo "$TARGET_REPO" --yes || echo "no existing release"
+
+        # 新規リリース作成（本番では prerelease:false にしていい）
+        gh release create "$TAG" HEW_GAME.zip \
+          --repo "$TARGET_REPO" \
+          --title "$TITLE" \
+          --notes "Automated build from private repo run #${{ github.run_number }}" \
+          --prerelease
   # ====== Debug ビルドの compile-check 用 ======
   compile-check:
     runs-on: windows-latest
