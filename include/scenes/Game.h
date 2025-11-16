@@ -101,7 +101,7 @@ class GameScene : public IScene {
         Entity debugRenderer = world.Create().With<CollisionDebugRenderer>().Build(); ownedEntities_.push_back(debugRenderer);
 #endif
         world.Create().With<DirectionalLight>();
-        int gridSize = 15;//床(全体)のサイズ指定
+        int gridSize = 15;//床(全体)のサイズ指定 
         float tileSize = 1.0f;//床（1マス）サイズ指定
         CreateFloor(world, gridSize,tileSize);
         CreatePlayer(world);
