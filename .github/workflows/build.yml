@@ -34,7 +34,7 @@ jobs:
         echo "Build failed for config=${{ matrix.config }}, platform=${{ matrix.platform }}"
         exit 1
 
-    # ====== Release/master only: 成果物収集 → ZIP ======
+    # ====== master & Release のときだけ成果物収集 → ZIP ======
 
     - name: Collect build outputs (Release/master only)
       if: github.ref == 'refs/heads/master' && matrix.config == 'Release'
@@ -62,35 +62,38 @@ jobs:
       run: |
         powershell Compress-Archive -Path artifact\* -DestinationPath HEW_GAME.zip -Force
 
-    # ====== 公開用リポジトリ (Repo B) にリリース＋アップロード ======
+    # ====== 公開用リポジトリ (aptma-sHEWTeam/hew-game-release) にリリース＋アップロード ======
 
-    - name: Install GitHub CLI
+    - name: Install GitHub CLI via choco
       if: github.ref == 'refs/heads/master' && matrix.config == 'Release'
-      uses: cli/cli-action@v2
-      with:
-        version: latest
+      shell: powershell
+      run: |
+        choco install gh -y
+        gh --version
 
     - name: Create release on public repo and upload asset
       if: github.ref == 'refs/heads/master' && matrix.config == 'Release'
+      shell: powershell
       env:
         GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_PAT }}
       run: |
         # 公開用リポジトリ
-        TARGET_REPO="aptma-sHEWTeam/hew-game-release"
+        $TARGET_REPO = "aptma-sHEWTeam/hew-game-release"
 
-        # タグ名・リリース名。好きに変えていい。
-        TAG="v0.1.${{ github.run_number }}"
-        TITLE="Auto build ${{ github.run_number }}"
+        # タグ名・リリース名
+        $TAG   = "v0.1.${{ github.run_number }}"
+        $TITLE = "Auto build ${{ github.run_number }}"
 
-        # 既に同じタグのリリースがあったら消す (失敗を避けるため)
-        gh release delete "$TAG" --repo "$TARGET_REPO" --yes || echo "no existing release"
+        # 同じタグのリリースがあったら消す（同一タグでこけないように）
+        gh release delete $TAG --repo $TARGET_REPO --yes 2>$null || echo "no existing release"
 
-        # 新規リリース作成（本番では prerelease:false にしていい）
-        gh release create "$TAG" HEW_GAME.zip \
-          --repo "$TARGET_REPO" \
-          --title "$TITLE" \
-          --notes "Automated build from private repo run #${{ github.run_number }}" \
+        # 新規リリース作成＋ HEW_GAME.zip を asset として添付
+        gh release create $TAG "HEW_GAME.zip" `
+          --repo $TARGET_REPO `
+          --title $TITLE `
+          --notes "Automated build from private repo run #${{ github.run_number }}" `
           --prerelease
+
   # ====== Debug ビルドの compile-check 用 ======
   compile-check:
     runs-on: windows-latest
