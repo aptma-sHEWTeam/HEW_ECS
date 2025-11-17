@@ -104,6 +104,20 @@ struct WallCollisionHandler : ICollisionHandler {
 REGISTER_COLLISION_HANDLER_TYPE(WallCollisionHandler)
 
 /**
+ * @struct FloorWallColisionHandler
+ * @brief ステージの壁の衝突イベントを処理
+ */
+    struct FloorWallCollisionHandler : ICollisionHandler {
+    void OnCollisionEnter(World& w, Entity self, Entity other, const CollisionInfo& info) override {
+         if (w.Has<PlayerTag>(other)) {
+            DEBUGLOG("壁がプレイヤーと衝突 - スタート地点へ戻しタイマーをリセット");
+             ResetPlayerToStart(w,other,true);
+          }
+    }
+};
+REGISTER_COLLISION_HANDLER_TYPE(FloorWallCollisionHandler)
+
+/**
  * @class GameScene
  * @brief 3DゲームとUIを統合したシーン
  */
@@ -379,6 +393,9 @@ class GameScene : public IScene {
         Entity worldwallEntity = world.Create()
             .With<Transform>(transform)
             .With<MeshRenderer>(renderer)
+            .With<WallTag>()
+            .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+            .With<FloorWallCollisionHandler>()
             .Build();
 
         stageOwnedEntities_.push_back(worldwallEntity);
