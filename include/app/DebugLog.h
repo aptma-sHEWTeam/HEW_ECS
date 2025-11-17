@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include "app/BuildConfig.h"
 #include <fstream>
 #include <string>
 #include <chrono>
@@ -7,6 +8,7 @@
 #include <mutex>
 #include <atomic>
 #include <thread>
+#include <vector>
 
 // Debug log macros
 #ifdef _DEBUG
@@ -88,29 +90,46 @@ public:
     }
 
     void Log(const std::string& message) {
+#ifdef _DEBUG
         std::lock_guard<std::mutex> lock(mutex_);
         WriteLog("INFO", message, Category::General);
+#else
+        (void)message;
+#endif
     }
 
     void LogError(const std::string& message) {
+#ifdef _DEBUG
         std::lock_guard<std::mutex> lock(mutex_);
         WriteLog("ERROR", message, Category::General);
+#else
+        (void)message;
+#endif
     }
 
     void LogWarning(const std::string& message) {
+#ifdef _DEBUG
         std::lock_guard<std::mutex> lock(mutex_);
         WriteLog("WARNING", message, Category::General);
+#else
+        (void)message;
+#endif
     }
 
     void LogWithCategory(Category cat, const std::string& message) {
+#ifdef _DEBUG
         std::lock_guard<std::mutex> lock(mutex_);
         WriteLog("INFO", message, cat);
+#else
+        (void)cat;
+        (void)message;
+#endif
     }
 
     /**
      * @brief 終了時統計を出力
      */
-    void OutputShutdownStatistics() {
+    void OutputShutdownStatistics(std::ostream& out) {
         if (frameCount_ == 0) return;
 
         float avgDt = totalTime_ / frameCount_;
@@ -128,46 +147,25 @@ public:
         float recentAvgDt = (recentValidCount > 0) ? (recentSum / recentValidCount) : 0.0f;
         float recentAvgFps = (recentAvgDt > 0.0f) ? (1.0f / recentAvgDt) : 0.0f;
 
-        logFile_ << "========================================" << std::endl;
-        logFile_ << "フレーム統計（DebugLog）" << std::endl;
-        logFile_ << "========================================" << std::endl;
-        logFile_ << "総フレーム数: " << frameCount_ << std::endl;
-        logFile_ << "総実行時間: " << std::fixed << std::setprecision(2) << totalTime_ << "秒" << std::endl;
-        logFile_ << "平均FPS: " << std::fixed << std::setprecision(2) << avgFps << std::endl;
-        logFile_ << "平均フレーム時間: " << std::fixed << std::setprecision(2) << (avgDt * 1000.0f) << "ms" << std::endl;
-        logFile_ << "直近100フレームの平均FPS: " << std::fixed << std::setprecision(2) << recentAvgFps << std::endl;
-        logFile_ << "直近100フレームの平均時間: " << std::fixed << std::setprecision(2) << (recentAvgDt * 1000.0f) << "ms" << std::endl;
-        logFile_ << "========================================" << std::endl;
+        out << "========================================\n";
+        out << "フレーム統計（DebugLog）\n";
+        out << "========================================\n";
+        out << "総フレーム数: " << frameCount_ << '\n';
+        out << "総実行時間: " << std::fixed << std::setprecision(2) << totalTime_ << "秒\n";
+        out << "平均FPS: " << std::fixed << std::setprecision(2) << avgFps << '\n';
+        out << "平均フレーム時間: " << std::fixed << std::setprecision(2) << (avgDt * 1000.0f) << "ms\n";
+        out << "直近100フレームの平均FPS: " << std::fixed << std::setprecision(2) << recentAvgFps << '\n';
+        out << "直近100フレームの平均時間: " << std::fixed << std::setprecision(2) << (recentAvgDt * 1000.0f) << "ms\n";
+        out << "========================================\n";
     }
 
 private:
-    DebugLog() {
-#ifdef _DEBUG
-        // UTF-8 BOMで出力するため、バイナリモードで開く
-        logFile_.open("debug_log.txt", std::ios::out | std::ios::trunc | std::ios::binary);
-        if (logFile_.is_open()) {
-            // UTF-8 BOMを書き込む
-            const unsigned char bom[] = { 0xEF, 0xBB, 0xBF };
-            logFile_.write(reinterpret_cast<const char*>(bom), sizeof(bom));
-            logFile_ << "========================================" << std::endl;
-            logFile_ << "デバッグログ開始" << std::endl;
-            logFile_ << "========================================" << std::endl;
-            logFile_.flush();
-        }
-#endif
-    }
+    DebugLog() = default;
 
     ~DebugLog() {
 #ifdef _DEBUG
-        if (logFile_.is_open()) {
-            // 終了時統計を出力
-            OutputShutdownStatistics();
-
-            logFile_ << "========================================" << std::endl;
-            logFile_ << "デバッグログ終了" << std::endl;
-            logFile_ << "========================================" << std::endl;
-            logFile_.close();
-        }
+        std::lock_guard<std::mutex> lock(mutex_);
+        FlushBufferedLogsLocked(true);
 #endif
     }
 
@@ -184,9 +182,9 @@ private:
     }
 
     void WriteLog(const std::string& level, const std::string& message, Category cat, const std::string& extra = "") {
-        if (logFile_.is_open()) {
-            auto now = std::chrono::system_clock::now();
-            auto in_time_t = std::chrono::system_clock::to_time_t(now);
+#ifdef _DEBUG
+        auto now = std::chrono::system_clock::now();
+        auto in_time_t = std::chrono::system_clock::to_time_t(now);
 
             std::tm bt{};
             localtime_s(&bt, &in_time_t);
@@ -199,29 +197,75 @@ private:
             std::ostringstream oss;
             oss << threadId;
 
-            logFile_ << std::put_time(&bt, "%Y-%m-%d %H:%M:%S")
-                     << " [F#" << frame << "]"
-                     << " [TID:" << oss.str() << "]"
-                     << " [" << CategoryToString(cat) << "]"
-                     << " [" << level << "] " << message;
+            std::ostringstream line;
+            line << std::put_time(&bt, "%Y-%m-%d %H:%M:%S")
+                 << " [F#" << frame << "]"
+                 << " [TID:" << oss.str() << "]"
+                 << " [" << CategoryToString(cat) << "]"
+                 << " [" << level << "] " << message;
 
             if (!extra.empty()) {
-                logFile_ << " | " << extra;
+                line << " | " << extra;
             }
 
-            logFile_ << std::endl;
-
-            // 重要なログは即座にフラッシュ
-            if (level == "ERROR" || level == "WARNING") {
-                logFile_.flush();
+            bufferedLogs_.emplace_back(line.str());
+            if (bufferedLogs_.size() >= flushThreshold_) {
+                FlushBufferedLogsLocked(false);
             }
+#else
+        (void)level;
+        (void)message;
+        (void)cat;
+        (void)extra;
+#endif
+    }
+
+    void FlushBufferedLogsLocked(bool finalFlush) {
+#ifdef _DEBUG
+        if (bufferedLogs_.empty() && !finalFlush) {
+            return;
         }
+
+        std::ios_base::openmode mode = std::ios::out | std::ios::binary;
+        mode |= logFileInitialized_ ? std::ios::app : std::ios::trunc;
+
+        std::ofstream file(logFilePath_, mode);
+        if (!file.is_open()) {
+            return;
+        }
+
+        if (!logFileInitialized_) {
+            const unsigned char bom[] = { 0xEF, 0xBB, 0xBF };
+            file.write(reinterpret_cast<const char*>(bom), sizeof(bom));
+            file << "========================================\n";
+            file << "デバッグログ開始\n";
+            file << "========================================\n";
+            logFileInitialized_ = true;
+        }
+
+        for (const auto& entry : bufferedLogs_) {
+            file << entry << '\n';
+        }
+        bufferedLogs_.clear();
+
+        if (finalFlush) {
+            OutputShutdownStatistics(file);
+            file << "========================================\n";
+            file << "デバッグログ終了\n";
+            file << "========================================\n";
+        }
+
+        file.flush();
+#endif
     }
 
     DebugLog(const DebugLog&) = delete;
     DebugLog& operator=(const DebugLog&) = delete;
 
-    std::ofstream logFile_;
+    std::vector<std::string> bufferedLogs_;
+    const std::string logFilePath_ = "debug_log.txt";
+    bool logFileInitialized_ = false;
+    const size_t flushThreshold_ = DEBUGLOG_AUTO_FLUSH_THRESHOLD;
     std::mutex mutex_;
     std::atomic<uint64_t> currentFrame_{0};
 

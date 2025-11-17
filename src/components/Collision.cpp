@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file Collision.cpp
  * @brief 衝突判定システムの実装
  * @author 立山悠朔・上手凉太郎・山内陽
@@ -8,76 +8,15 @@
 
 #include "pch.h"
 #include "components/Collision.h"
+#include "app/BuildConfig.h"
 #include "scenes/Game.h"
 #include <unordered_set>
 #include <typeindex>
 
-#ifdef _DEBUG
+#if ENABLE_DEBUG_VISUALS
 #include "graphics/DebugDraw.h"
 #include "app/ServiceLocator.h"
-
-/**
- * @brief CollisionDebugRendererの実装
- */
-void CollisionDebugRenderer::OnUpdate(World& w, Entity self, float dt) {
-   if (!enabled) return;
-
-    // DebugDrawシステムを取得(try-catchでエラーハンドリング)
- DebugDraw* debugDraw = nullptr;
-    try {
-        debugDraw = &ServiceLocator::Get<DebugDraw>();
-    } catch (const std::runtime_error&) {
-        // DebugDrawが登録されていない場合は警告を出して終了
-     static bool warningShown = false;
-  if (!warningShown) {
-   DEBUGLOG_WARNING("CollisionDebugRenderer: DebugDrawシステムが登録されていません。ServiceLocatorに登録してください。");
-            warningShown = true;
-   }
-        return;
-    }
-
-    if (!debugDraw || !debugDraw->IsInitialized()) {
-    return;
-    }
-
-    // CollisionBoxを持つエンティティを描画
-    w.ForEach<Transform, CollisionBox>([&](Entity e, Transform& t, CollisionBox& box) {
- auto center = box.GetWorldCenter(t);
-      auto size = box.GetScaledSize(t);
-
-  // ボックスをワイヤーフレームで描画
-        // DebugDraw::DrawBox は center と halfExtents を受け取るため
-    DirectX::XMFLOAT3 halfExtents = {
-   size.x * 0.5f,
-  size.y * 0.5f,
-      size.z * 0.5f
-        };
-        debugDraw->DrawBox(center, halfExtents, boxColor);
-    });
-
-    // CollisionSphereを持つエンティティを描画
-    w.ForEach<Transform, CollisionSphere>([&](Entity e, Transform& t, CollisionSphere& sphere) {
-auto center = sphere.GetWorldCenter(t);
-        float radius = sphere.GetScaledRadius(t);
-
-     // 球をワイヤーフレームで描画
-      debugDraw->DrawSphere(center, radius, sphereColor);
-    });
-
-    // CollisionCapsuleを持つエンティティを描画
-    w.ForEach<Transform, CollisionCapsule>([&](Entity e, Transform& t, CollisionCapsule& capsule) {
-  auto top = capsule.GetTopPoint(t);
-     auto bottom = capsule.GetBottomPoint(t);
-   float radius = capsule.radius * std::max({t.scale.x, t.scale.y, t.scale.z});
-
-        // カプセルをワイヤーフレームで描画(簡易実装: 球2つ+線分)
-        debugDraw->DrawSphere(top, radius, sphereColor);
-     debugDraw->DrawSphere(bottom, radius, sphereColor);
-     debugDraw->AddLine(top, bottom, sphereColor);
-    });
-}
-
-#endif // _DEBUG
+#endif
 
 // ========================================================
 // CollisionHandlerRegistry 実装

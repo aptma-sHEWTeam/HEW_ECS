@@ -719,20 +719,6 @@ struct CollisionLayer : IComponent {
 };
 
 // ========================================================
-// デバッグ用: 衝突形状の可視化
-// ========================================================
-
-#ifdef _DEBUG
-struct CollisionDebugRenderer : Behaviour {
-    DirectX::XMFLOAT3 boxColor{0.0f, 1.0f, 0.0f};
-    DirectX::XMFLOAT3 sphereColor{1.0f, 1.0f, 0.0f};
-    bool enabled{true};
-
-    void OnUpdate(World &w, Entity self, float dt) override;
-};
-#endif
-
-// ========================================================
 // 作成者: 立山悠朔・上手涼太郎・山内陽
 // バージョン: v2.1 - OnEnter/OnStay/OnExit イベントシステム追加
 // ========================================================

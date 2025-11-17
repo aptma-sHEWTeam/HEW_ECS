@@ -387,21 +387,6 @@ if ((world.Has<PlayerTag>(a) && world.Has<GoalTag>(b)) ||
 4. **静的オブジェクトの最適化**  
    (今後実装予定)
 
----
-
-## デバッグ機能
-
-### DebugビルドでのCollision可視化
-
-```cpp
-#ifdef _DEBUG
-// デバッグレンダラーを追加
-Entity debugRenderer = world.Create()
-    .With<CollisionDebugRenderer>()
-    .Build();
-#endif
-```
-
 これにより、すべての衝突形状がワイヤーフレームで描画されます。
 
 - **CollisionBox**: 緑色の立方体

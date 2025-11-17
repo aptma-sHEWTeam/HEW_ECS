@@ -21,6 +21,16 @@
 #include <cassert>
 #endif
 
+#if !defined(ECS_TRACE_LOG)
+#if defined(ENABLE_ECS_TRACE_LOG) && ENABLE_ECS_TRACE_LOG
+#define ECS_TRACE_LOG(message) DEBUGLOG(message)
+#define ECS_TRACE_CATEGORY(category, message) DEBUGLOG_CATEGORY(category, message)
+#else
+#define ECS_TRACE_LOG(message) ((void)0)
+#define ECS_TRACE_CATEGORY(category, message) ((void)0)
+#endif
+#endif
+
 /**
  * @file World.h
  * @brief ECSワールド管理システムとエンティティビルダーの定義
@@ -179,14 +189,15 @@ public:
     // 起因タグ（ログ解析用）
     enum class Cause {
         Unknown = 0,
-        Spawner = 1,
-        WaveTimer = 2,
-        Collision = 3,
-        LifetimeExpired = 4,
-        SceneInit = 5,
-        SceneTeardown = 6,   // シーン終了時
-        SceneUnload = 7,     // シーン切り替え時
-        AppShutdown = 8      // アプリケーション終了時
+        Spawner,
+        WaveTimer,
+        Collision,
+        LifetimeExpired,
+        StageReset,
+        SceneInit,
+        SceneTeardown,   // シーン終了時
+        SceneUnload,     // シーン切り替え時
+        AppShutdown      // アプリケーション終了時
     };
 
     static const char* CauseToString(Cause c) {
@@ -224,9 +235,9 @@ public:
      * @details 確保したコンポーネントストアのメモリを解放します
      */
     ~World() {
-        DEBUGLOG("World::~World() - World破棄中");
-        DEBUGLOG("アクティブエンティティ: " + std::to_string(alive_.size()));
-        DEBUGLOG("アクティブビヘイビア: " + std::to_string(behaviours_.size()));
+        ECS_TRACE_LOG("World::~World() - World破棄中");
+        ECS_TRACE_LOG("アクティブエンティティ: " + std::to_string(alive_.size()));
+        ECS_TRACE_LOG("アクティブビヘイビア: " + std::to_string(behaviours_.size()));
 
         // 未処理の破棄キューを先に処理
         FlushDestroyEndOfFrame();
@@ -241,14 +252,14 @@ public:
                 DestroyEntityInternal(id, Cause::AppShutdown);
             }
 
-            DEBUGLOG("すべてのエンティティを破棄 (最終生存数: " + std::to_string(alive_.size()) + ")");
+            ECS_TRACE_LOG("すべてのエンティティを破棄 (最終生存数: " + std::to_string(alive_.size()) + ")");
         }
 
         for (auto& pair : stores_) {
             delete pair.second;
         }
 
-        DEBUGLOG("World破棄完了");
+        ECS_TRACE_LOG("World破棄完了");
     }
 
     /**
@@ -279,13 +290,13 @@ public:
             // 再利用可能なIDがあればそれを使う
             id = freeIdsReady_.back();
             freeIdsReady_.pop_back();
-            DEBUGLOG("エンティティ作成 (再利用ID: " + std::to_string(id) + ")");
+            ECS_TRACE_LOG("エンティティ作成 (再利用ID: " + std::to_string(id) + ")");
         }
         else {
             // なければ新規ID
             id = ++nextId_;
             generations_.resize(std::max<size_t>(generations_.size(), id + 1), 1);
-            DEBUGLOG("エンティティ作成 (新規ID: " + std::to_string(id) + ")");
+            ECS_TRACE_LOG("エンティティ作成 (新規ID: " + std::to_string(id) + ")");
         }
         alive_.insert(id); // live setへコミット
 
@@ -309,7 +320,7 @@ public:
         }
         std::lock_guard<std::mutex> lock(spawnMutex_);
         pendingSpawn_.push_back({ cause, onCreated });
-        DEBUGLOG(std::string("スポーンをキューに追加 (原因=") + CauseToString(cause) + ")");
+        ECS_TRACE_LOG(std::string("スポーンをキューに追加 (原因=") + CauseToString(cause) + ")");
     }
 
     /**
@@ -377,7 +388,7 @@ public:
             std::lock_guard<std::mutex> lock(pendingMutex_);
             pendingDestroy_.push_back({ e.id, cause });
         }
-        DEBUGLOG(std::string("破棄をキューに追加 (ID: ") + std::to_string(e.id) + ", 原因=" + CauseToString(cause) + ")");
+        ECS_TRACE_LOG(std::string("破棄をキューに追加 (ID: ") + std::to_string(e.id) + ", 原因=" + CauseToString(cause) + ")");
     }
 
     /**
@@ -428,7 +439,7 @@ public:
         s.map[e.id] = std::move(obj);
         registerBehaviourWithCause<T>(e, &ref, cause);
 
-        DEBUGLOG("コンポーネント " + std::string(typeid(T).name()) + " をエンティティ " + std::to_string(e.id) + " に追加");
+        ECS_TRACE_LOG("コンポーネント " + std::string(typeid(T).name()) + " をエンティティ " + std::to_string(e.id) + " に追加");
 
         return ref;
     }
@@ -460,7 +471,7 @@ public:
         // コンポーネントを削除
         s->map.erase(it);
 
-        DEBUGLOG("コンポーネント " + std::string(typeid(T).name()) + " をエンティティ " + std::to_string(e.id) + " から削除");
+        ECS_TRACE_LOG("コンポーネント " + std::string(typeid(T).name()) + " をエンティティ " + std::to_string(e.id) + " から削除");
 
         return true;
     }
@@ -617,7 +628,7 @@ public:
                     entry.started = true;
                     startedCount++;
                     // 原因付きログ
-                    DEBUGLOG(std::string("ビヘイビア開始: ") + typeid(*entry.b).name() +
+                    ECS_TRACE_LOG(std::string("ビヘイビア開始: ") + typeid(*entry.b).name() +
                              " on Entity " + std::to_string(entry.e.id) +
                              " (gen " + std::to_string(entry.e.gen) + ")" +
                              " 原因=" + CauseToString(entry.cause));
@@ -632,7 +643,7 @@ public:
         }
 
         if (startedCount > 0) {
-            DEBUGLOG(std::to_string(startedCount) + " 個の新しいビヘイビアを開始");
+            ECS_TRACE_LOG(std::to_string(startedCount) + " 個の新しいビヘイビアを開始");
         }
 
         // OnUpdateの実行（より安全なイテレーション）
@@ -682,7 +693,7 @@ public:
         );
 
         if (behaviours_.size() != beforeCleanup) {
-            DEBUGLOG(std::to_string(beforeCleanup - behaviours_.size()) + " 個の死んだビヘイビアをクリーンアップ");
+            ECS_TRACE_LOG(std::to_string(beforeCleanup - behaviours_.size()) + " 個の死んだビヘイビアをクリーンアップ");
         }
 
         // 整合性チェック（生存数 = 開始時 + 作成 - 破棄）
@@ -704,7 +715,7 @@ public:
         // Nフレームごとに集計ログを出す（スパム抑制）
         if (recentCount_ >= metricsWindow_) {
             float avg = (recentCount_ > 0) ? (recentDtSum_ / recentCount_) : 0.0f;
-            DEBUGLOG("メトリクス: frames=" + std::to_string(metricsWindow_) +
+            ECS_TRACE_LOG("メトリクス: frames=" + std::to_string(metricsWindow_) +
                      ", dt(avg/min/max)=" + std::to_string(avg) + "/" + std::to_string(recentDtMin_) + "/" + std::to_string(recentDtMax_) +
                      ", created=" + std::to_string(recentCreated_) +
                      ", destroyed=" + std::to_string(recentDestroyed_) +
@@ -753,7 +764,7 @@ public:
             destroyed++;
         }
         if (destroyed > 0) {
-            DEBUGLOG("破棄キューをフラッシュ: " + std::to_string(destroyed) + " 個のエンティティ");
+            ECS_TRACE_LOG("破棄キューをフラッシュ: " + std::to_string(destroyed) + " 個のエンティティ");
         }
     }
 
@@ -784,7 +795,7 @@ public:
             spawned++;
         }
         if (spawned > 0) {
-            DEBUGLOG("スポーンキューをフラッシュ: " + std::to_string(spawned) + " 個のエンティティ");
+            ECS_TRACE_LOG("スポーンキューをフラッシュ: " + std::to_string(spawned) + " 個のエンティティ");
         }
     }
 
@@ -799,7 +810,7 @@ public:
      */
     void StopAllSystems() {
         if (systemsStopped_) return; // 冪等性
-        DEBUGLOG_CATEGORY(DebugLog::Category::ECS, "World::StopAllSystems() - すべてのシステムを停止");
+        ECS_TRACE_CATEGORY(DebugLog::Category::ECS, "World::StopAllSystems() - すべてのシステムを停止");
         systemsStopped_ = true;
 
         // 保留中のスポーンキューをクリア
@@ -811,7 +822,7 @@ public:
             }
         }
 
-        DEBUGLOG_CATEGORY(DebugLog::Category::ECS, "新規Spawnが無効化されました");
+        ECS_TRACE_CATEGORY(DebugLog::Category::ECS, "新規Spawnが無効化されました");
     }
 
     /**
@@ -916,7 +927,7 @@ private:
 
     // 内部破棄: 世代インクリメント + フリーIDは次フレームまで保留
     void DestroyEntityInternal(uint32_t id, Cause cause = Cause::Unknown) {
-        DEBUGLOG("エンティティ破棄中 (ID: " + std::to_string(id) + ", 原因=" + CauseToString(cause) + ")");
+        ECS_TRACE_LOG("エンティティ破棄中 (ID: " + std::to_string(id) + ", 原因=" + CauseToString(cause) + ")");
 
         // Behaviourリストから該当IDを除去
         size_t behaviourCount = behaviours_.size();
@@ -926,7 +937,7 @@ private:
             behaviours_.end());
         size_t removedBehaviours = behaviourCount - behaviours_.size();
         if (removedBehaviours > 0) {
-            DEBUGLOG("エンティティ " + std::to_string(id) + " から " + std::to_string(removedBehaviours) + " 個のビヘイビアを削除");
+            ECS_TRACE_LOG("エンティティ " + std::to_string(id) + " から " + std::to_string(removedBehaviours) + " 個のビヘイビアを削除");
         }
 
         // 全コンポーネント削除
@@ -946,7 +957,7 @@ private:
         totalDestroyed_++;
         if (trackFrameAccounting_) { destroyedThisFrame_++; }
 
-        DEBUGLOG("エンティティ破棄成功 (ID: " + std::to_string(id) + ", 総生存数: " + std::to_string(alive_.size()) + ")");
+        ECS_TRACE_LOG("エンティティ破棄成功 (ID: " + std::to_string(id) + ", 総生存数: " + std::to_string(alive_.size()) + ")");
     }
 
     uint32_t nextId_ = 0;
@@ -1027,3 +1038,4 @@ EntityBuilder& EntityBuilder::WithCause(CauseType cause, Args&&... args) {
     world_->AddWithCause<T>(entity_, static_cast<World::Cause>(cause), std::forward<Args>(args)...);
     return *this;
 }
+

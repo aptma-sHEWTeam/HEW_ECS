@@ -24,6 +24,8 @@
 #include <cmath>
 #include <thread>
 
+#include "app/BuildConfig.h"
+
 // DirectX11 & ECS システム
 #include "graphics/GfxDevice.h"
 #include "graphics/RenderSystem.h"
@@ -31,7 +33,9 @@
 #include "graphics/Camera.h"
 #include "input/InputSystem.h"
 #include "graphics/TextureManager.h"
+#if ENABLE_DEBUG_VISUALS
 #include "graphics/DebugDraw.h"
+#endif
 #include "app/ResourceManager.h"
 #include "app/ServiceLocator.h"
 
@@ -73,7 +77,7 @@ struct App {
     // シーン管理
     SceneManager sceneManager_; ///< シーンマネージャー
 
-#ifdef _DEBUG
+#if ENABLE_DEBUG_VISUALS
     DebugDraw debugDraw_; ///< デバッグ描画用
 #endif
 
@@ -103,9 +107,6 @@ struct App {
     };
 
     FrameMetrics currentMetrics_;       ///< 現在のフレームメトリクス
-    FrameMetrics avgMetrics_;           ///< 平均メトリクス
-    int metricsFrameCount_ = 0;         ///< メトリクス計測フレーム数
-    const int metricsUpdateInterval_ = 30; ///< メトリクス更新間隔（フレーム）
 
     // 詳細統計用（最大1000フレーム分のサンプル）
     std::vector<float> frameTotalSamples_; ///< フレーム合計時間のサンプル
@@ -222,9 +223,9 @@ struct App {
 
             // ゲームパッドの更新
             gamepad_.Update();
-#ifdef _DEBUG
+#if ENABLE_DEBUG_VISUALS
             UpdateDebugCamera(deltaTime);
-#endif
+#endif // ENABLE_DEBUG_VISUALS
 
             // ESCキーで終了
             if (input_.GetKeyDown(VK_ESCAPE)) {
@@ -244,15 +245,15 @@ struct App {
             std::chrono::duration<float> updateDuration = updateEndTime - updateStartTime;
             currentMetrics_.updateTime = updateDuration.count();
 
-#ifdef _DEBUG
+#if ENABLE_DEBUG_VISUALS
             DrawDebugInfo();
-#endif
+#endif // ENABLE_DEBUG_VISUALS
 
             renderer_.Render(world_, camera_);
 
-#ifdef _DEBUG
+#if ENABLE_DEBUG_VISUALS
             debugDraw_.Render(gfx_, camera_);
-#endif
+#endif // ENABLE_DEBUG_VISUALS
 
             auto renderEndTime = std::chrono::high_resolution_clock::now();
             std::chrono::duration<float> renderDuration = renderEndTime - renderStartTime;
@@ -273,11 +274,6 @@ struct App {
             currentMetrics_.totalTime = frameDuration.count();
 
             // メトリクス集計
-            avgMetrics_.updateTime += currentMetrics_.updateTime;
-            avgMetrics_.renderTime += currentMetrics_.renderTime;
-            avgMetrics_.presentTime += currentMetrics_.presentTime;
-            avgMetrics_.totalTime += currentMetrics_.totalTime;
-            metricsFrameCount_++;
 
             // サンプル収集（最大1000フレーム）
             if (metricsCollecting_ && frameTotalSamples_.size() < maxSamples_) {
@@ -287,18 +283,8 @@ struct App {
                 presentSamples_.push_back(currentMetrics_.presentTime);
             }
 
-#ifdef _DEBUG
-            // ウィンドウタイトルにスコアとFPS表示
-            if (metricsFrameCount_ >= metricsUpdateInterval_) {
-                UpdateWindowTitleWithMetrics();
-
-                // リセット
-                avgMetrics_ = FrameMetrics{};
-                metricsFrameCount_ = 0;
-            }
-#else
             UpdateWindowTitle();
-#endif
+
 
             // フレーム時間を調整して60Hzに制限
             auto frameEndTime = std::chrono::high_resolution_clock::now();
@@ -327,7 +313,7 @@ struct App {
     }
 
 private:
-#ifdef _DEBUG
+#if ENABLE_DEBUG_VISUALS
     void UpdateDebugCamera(float deltaTime) {
         const float moveSpeed = 10.0f;
         const float rotateSpeed = DirectX::XMConvertToRadians(90.0f);
@@ -366,7 +352,7 @@ private:
         DirectX::XMStoreFloat3(&camera_.target, target);
         camera_.Update();
     }
-#endif
+#endif // ENABLE_DEBUG_VISUALS
     /**
      * @brief アプリケーション終了時のクリーンアップ
      * @details 正しい順序でリソースを解放します
@@ -395,11 +381,11 @@ private:
             DEBUGLOG_CATEGORY(DebugLog::Category::System, "Phase 3: すべてのエンティティが正常に破棄されました");
         }
 
-#ifdef _DEBUG
+#if ENABLE_DEBUG_VISUALS
         // Phase 4: デバッグ描画解放
         DEBUGLOG_CATEGORY(DebugLog::Category::System, "Phase 4: DebugDrawを解放");
         debugDraw_.Shutdown();
-#endif
+#endif // ENABLE_DEBUG_VISUALS
 
         // Phase 5: レンダリングシステム解放
         DEBUGLOG_CATEGORY(DebugLog::Category::System, "Phase 5: RenderSystemを解放");
@@ -468,7 +454,7 @@ private:
 
         hwnd_ = CreateWindowW(
             wc.lpszClassName,
-            L"シューティングゲーム - A/D:移動 スペース:発射 ESC:終了",
+            L"はじく！",
             WS_OVERLAPPEDWINDOW,
             CW_USEDEFAULT, CW_USEDEFAULT,
             rc.right - rc.left, rc.bottom - rc.top,
@@ -537,7 +523,7 @@ private:
   DEBUGLOG("GamepadSystemを正常に初期化");
      }
 
-#ifdef _DEBUG
+#if ENABLE_DEBUG_VISUALS
         DEBUGLOG("DebugDrawを初期化中 (DEBUGビルド)");
         if (!debugDraw_.Init(gfx_)) {
             DEBUGLOG("[WARNING] DebugDraw::Init() 失敗 - デバッグビジュアライゼーションは利用できません");
@@ -546,7 +532,7 @@ private:
             DEBUGLOG("DebugDrawを正常に初期化");
             ServiceLocator::Register(&debugDraw_); // Register DebugDraw in ServiceLocator
         }
-#endif
+#endif // ENABLE_DEBUG_VISUALS
 
         DEBUGLOG("InitializeGraphics() 正常に完了");
         return true;
@@ -568,8 +554,8 @@ private:
             static_cast<float>(width) / height, // アスペクト比
             0.1f,                               // ニアクリップ
             100.0f,                             // ファークリップ
-            DirectX::XMFLOAT3{0, 20, 0},        // カメラ位置（上方向に移動）
-            DirectX::XMFLOAT3{0, 0, 0},         // 注視点（原点を見る）
+            DirectX::XMFLOAT3{0, 26, -7},        // カメラ位置（上方向に移動）
+            DirectX::XMFLOAT3{0, 0, -1},         // 注視点（原点を見る）
             DirectX::XMFLOAT3{0, 0, 1}         // 上方向ベクトル（Z軸を下方向に）
         );
     }
@@ -609,38 +595,14 @@ private:
     }
 
     /**
-     * @brief ウィンドウタイトルを更新する
+     * @brief Updates the OS window title with a fixed label.
      */
     void UpdateWindowTitle() {
-        if (sceneManager_.GetCurrentScene()) {
-            std::wstringstream ss;
-            ss << L"はじく！" ;
-            SetWindowTextW(hwnd_, ss.str().c_str());
+        if (hwnd_) {
+            SetWindowTextW(hwnd_, L"HEW GAME");
         }
     }
-
-    /**
-     * @brief ウィンドウタイトルにメトリクスを含めて更新する
-     */
-    void UpdateWindowTitleWithMetrics() {
-        if (sceneManager_.GetCurrentScene() && metricsFrameCount_ > 0) {
-            float avgUpdate = avgMetrics_.updateTime / metricsFrameCount_ * 1000.0f; // ms
-            float avgRender = avgMetrics_.renderTime / metricsFrameCount_ * 1000.0f; // ms
-            float avgPresent = avgMetrics_.presentTime / metricsFrameCount_ * 1000.0f; // ms
-            float avgTotal = avgMetrics_.totalTime / metricsFrameCount_; // s
-            float fps = (avgTotal > 0.0f) ? (1.0f / avgTotal) : 0.0f;
-
-            std::wstringstream ss;
-            ss << L"はじく！"
-               << L" | FPS: " << static_cast<int>(fps)
-               << L" (U:" << std::fixed << std::setprecision(1) << avgUpdate
-               << L"ms R:" << avgRender
-               << L"ms P:" << avgPresent << L"ms)";
-            SetWindowTextW(hwnd_, ss.str().c_str());
-        }
-    }
-
-#ifdef _DEBUG
+#if ENABLE_DEBUG_VISUALS
     /**
      * @brief デバッグ情報を描画する
      */
@@ -716,7 +678,7 @@ private:
                 color);
         });
     }
-#endif
+#endif // ENABLE_DEBUG_VISUALS
 
     /**
      * @brief フレーム統計を出力する
@@ -869,3 +831,5 @@ private:
 // 作成者: 山内陽
 // バージョン: v5.1 - Doxygenコメントを追加
 // ========================================================
+
+

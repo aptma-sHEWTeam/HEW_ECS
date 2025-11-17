@@ -18,7 +18,7 @@
 #include <cstdio>
 #include "app/DebugLog.h"
 
-#ifdef _DEBUG
+#if defined(ENABLE_GFX_DEBUG_LAYER) && ENABLE_GFX_DEBUG_LAYER
 #include <dxgidebug.h>
 #endif
 
@@ -87,7 +87,7 @@ public:
         sd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD; // FLIP_DISCARDに変更（推奨モデル）
 
         UINT flags = 0;
-#if defined(_DEBUG)
+#if defined(ENABLE_GFX_DEBUG_LAYER) && ENABLE_GFX_DEBUG_LAYER
         flags |= D3D11_CREATE_DEVICE_DEBUG;
 #endif
         flags |= D3D11_CREATE_DEVICE_BGRA_SUPPORT; // Direct2D1.1との互換用
@@ -265,7 +265,7 @@ public:
             releasedCount++;
         }
 
-#ifdef _DEBUG
+#if defined(ENABLE_GFX_DEBUG_LAYER) && ENABLE_GFX_DEBUG_LAYER
         // デバッグビルド: VS出力を使わず、アプリのログに参照カウント要約を出力
         if (device_) {
             Microsoft::WRL::ComPtr<ID3D11Debug> debug;
@@ -425,7 +425,7 @@ private:
         DEBUGLOG(std::string("垂直同期: ON (Present(1)) - ディスプレイのリフレッシュレートに同期"));
     }
 
-#ifdef _DEBUG
+#if defined(ENABLE_GFX_DEBUG_LAYER) && ENABLE_GFX_DEBUG_LAYER
     /**
      * @brief 旧仕様の互換ダミー
      */

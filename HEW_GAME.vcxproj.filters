@@ -37,9 +37,6 @@
     <Filter Include="include\graphics">
       <UniqueIdentifier>{238ED95F-E64E-4BE4-B6E1-2426BDC9CB86}</UniqueIdentifier>
     </Filter>
-    <Filter Include="include\input">
-      <UniqueIdentifier>{DEEFE83A-C540-4ABC-91FD-39588A624D1D}</UniqueIdentifier>
-    </Filter>
     <Filter Include="include\samples">
       <UniqueIdentifier>{26D0D560-C0DF-4BF5-A073-FBAE269E0254}</UniqueIdentifier>
     </Filter>
@@ -82,6 +79,12 @@
     <Filter Include="src\components">
       <UniqueIdentifier>{57a46a21-f980-4759-8996-2ff09f74a300}</UniqueIdentifier>
     </Filter>
+    <Filter Include="include\samples\input">
+      <UniqueIdentifier>{DEEFE83A-C540-4ABC-91FD-39588A624D1D}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="src\scenes">
+      <UniqueIdentifier>{cf779884-54b0-4abc-87d3-6529a905e019}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\app\ResourceManager.cpp">
@@ -107,6 +110,9 @@
     </ClCompile>
     <ClCompile Include="src\graphics\TextSystem.cpp">
       <Filter>src\app</Filter>
+    </ClCompile>
+    <ClCompile Include="src\scenes\GameUI.cpp">
+      <Filter>src\scenes</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -144,7 +150,7 @@
       <Filter>include\graphics</Filter>
     </ClInclude>
     <ClInclude Include="include\input\GamepadSystem.h">
-      <Filter>include\input</Filter>
+      <Filter>include\samples\input</Filter>
     </ClInclude>
     <ClInclude Include="include\pch.h">
       <Filter>include</Filter>
@@ -162,7 +168,7 @@
       <Filter>include\graphics</Filter>
     </ClInclude>
     <ClInclude Include="include\input\InputSystem.h">
-      <Filter>include\input</Filter>
+      <Filter>include\samples\input</Filter>
     </ClInclude>
     <ClInclude Include="include\components\Model.h">
       <Filter>include\components</Filter>
@@ -234,7 +240,7 @@
       <Filter>include\scenes</Filter>
     </ClInclude>
     <ClInclude Include="MouseCoordinate.h">
-      <Filter>include\input</Filter>
+      <Filter>include\samples\input</Filter>
     </ClInclude>
     <ClInclude Include="include\components\GameStats.h">
       <Filter>include\scenes</Filter>
@@ -327,6 +333,9 @@
     </None>
     <None Include="docs\Transform_Hierarchy_Guide.md">
       <Filter>docs</Filter>
+    </None>
+    <None Include=".github\workflows\sync-main-to-teams.yml">
+      <Filter>.github\workflows</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
