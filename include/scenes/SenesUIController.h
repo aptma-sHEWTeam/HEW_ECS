@@ -22,16 +22,19 @@ struct GameUIUpdater : Behaviour {
 
     void OnUpdate(World &w, Entity self, float dt) override {
         w.ForEach<GameStats>([&](Entity e, GameStats &stats) {
+            // 経過時間の更新
             if (!stats.isPaused) {
                 stats.elapsedTime += dt;
             }
 
+            //スコア表示の更新
             if (auto *scoreText = w.TryGet<UIText>(scoreTextEntity_)) {
                 std::wstringstream ss;
                 ss << L"Score: " << stats.score;
                 scoreText->text = ss.str();
             }
 
+            //経過時間表示の更新
             if (auto *timeText = w.TryGet<UIText>(timeTextEntity_)) {
                 std::wstringstream ss;
                 int minutes = static_cast<int>(stats.elapsedTime) / 60;
@@ -41,6 +44,7 @@ struct GameUIUpdater : Behaviour {
                 timeText->text = ss.str();
             }
 
+            //fps表示の更新
             if (auto *fpsText = w.TryGet<UIText>(fpsTextEntity_)) {
                 float fps = (dt > 0.0f) ? (1.0f / dt) : 0.0f;
                 std::wstringstream ss;
@@ -48,6 +52,7 @@ struct GameUIUpdater : Behaviour {
                 fpsText->text = ss.str();
             }
 
+            //ポーズ表示の更新
             if (auto *pauseText = w.TryGet<UIText>(pauseTextEntity_)) {
                 auto *pauseTransform = w.TryGet<UITransform>(pauseTextEntity_);
                 if (pauseTransform) {

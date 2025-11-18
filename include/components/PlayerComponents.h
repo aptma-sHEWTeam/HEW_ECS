@@ -152,7 +152,7 @@ struct PlayerMovement : Behaviour {
             }
 
             // ローカルしきい値によるチャージ/リリース検出（GamepadSystemのフォールバック）
-            const float releaseThreshold = 0.5f;
+            const float releaseThreshold = 0.3f;
             bool chargingNowLocal = (mag > releaseThreshold);
 
             // チャージ状態更新（統合）
