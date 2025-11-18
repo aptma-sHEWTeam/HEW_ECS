@@ -167,6 +167,7 @@ struct App {
         ServiceLocator::Register(&world_);
         ServiceLocator::Register(&renderer_);
         ServiceLocator::Register(&resManager_);
+        ServiceLocator::Register(&sceneManager_);
 
         SetupCamera(width, height);
 
