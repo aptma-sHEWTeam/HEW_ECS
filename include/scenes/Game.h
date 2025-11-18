@@ -13,6 +13,7 @@
 #include "components/MeshRenderer.h"
 #include "components/Collision.h"
 #include "components/UIComponents.h"
+#include "components/CountUIComponent.h"
 #include "input/InputSystem.h"
 #include "input/GamepadSystem.h"
 #include "components/Rotator.h"

@@ -6,6 +6,7 @@
 #include "scenes/Game.h"
 #include "systems/UISystem.h"
 #include "graphics/TextSystem.h"
+#include "components/CountUIComponent.h"
 
 void GameScene::CreateTextFormats() {
     TextSystem::TextFormat hudFormat;
