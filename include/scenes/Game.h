@@ -158,16 +158,9 @@ class GameScene : public IScene {
         world.Create().With<DirectionalLight>();
 
         CreatePlayer(world);
-        CreateStart(world);
-        CreateGoal(world);
-        CreateTestEnemy(world);
-        CreateWall(world,{3.0f,0.0f,3.0f});
-        CreateWall(world, {-1.0f, 0.0f, 3.0f});
         CreateUI(world, screenWidth, screenHeight);
-        ShowStateUI(world);//カウントダウン
-        // ステージ1をセットアップ
+        ShowStateUI(world);
         SetupStage(world, 1);
-        CreateUI(world, screenWidth, screenHeight);
 
         DEBUGLOG("GameWithUIScene の初期化が正常に完了しました");
     }
@@ -429,9 +422,9 @@ class GameScene : public IScene {
         if (world.IsAlive(playerEntity_)) {
             ResetPlayerToStart(world, playerEntity_);
         }
-    //プレイヤーのスタート合図
-    void ShowStateUI(World &world)
-    {
+    }
+
+    void ShowStateUI(World &world) {
         //優先事項：UIの表示
         //プレイヤーの停止（後でいい）
         //カウントスタート321
@@ -459,10 +452,8 @@ class GameScene : public IScene {
         {
 
         }*/
-       
-    }
 
-    void ShowStateUI() {}
+    }
 
     TextSystem textSystem_;
     std::vector<Entity> ownedEntities_;
