@@ -260,6 +260,9 @@
     <ClInclude Include="include\components\StageComponents.h">
       <Filter>include\components</Filter>
     </ClInclude>
+    <ClInclude Include="CountUIComponent.h">
+      <Filter>include\components</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Textures\test.png">

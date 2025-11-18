@@ -322,11 +322,11 @@ struct PlayerGuide : Behaviour
         }
         else
         {
-            guidTransform->scale = {2, 1, 0.1};   // チャージ中はガイドの大きさを1にする
+            guidTransform->scale = {2.5f, 1, 0.1};   // チャージ中はガイドの大きさを1にする
 
             // (x,y) = (cosΘ, sinΘ)
-            guidTransform->position.x += std::cosf(rad) * 3;
-            guidTransform->position.z += std::sinf(rad) * 3;
+            guidTransform->position.x += std::cosf(rad) * 2;
+            guidTransform->position.z += std::sinf(rad) * 2;
         }
     }
 };

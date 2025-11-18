@@ -218,6 +218,7 @@
     <ClCompile Include="src\scenes\GameUI.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CountUIComponent.h" />
     <ClInclude Include="Hp.h" />
     <ClInclude Include="include\animation\Animation.h" />
     <ClInclude Include="include\app\ResourceManager.h" />
