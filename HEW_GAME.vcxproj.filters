@@ -260,7 +260,7 @@
     <ClInclude Include="include\components\StageComponents.h">
       <Filter>include\components</Filter>
     </ClInclude>
-    <ClInclude Include="CountUIComponent.h">
+    <ClInclude Include="include\components\CountUIcomponent.h">
       <Filter>include\components</Filter>
     </ClInclude>
   </ItemGroup>
