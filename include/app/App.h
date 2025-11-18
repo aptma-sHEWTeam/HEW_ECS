@@ -280,9 +280,6 @@ struct App {
             std::chrono::duration<float> frameDuration = presentEndTime - frameStartTime;
             currentMetrics_.totalTime = frameDuration.count();
 
-            // メトリクス集計
-
-            // サンプル収集（最大1000フレーム）
             if (metricsCollecting_ && frameTotalSamples_.size() < maxSamples_) {
                 frameTotalSamples_.push_back(currentMetrics_.totalTime);
                 updateSamples_.push_back(currentMetrics_.updateTime);
@@ -293,7 +290,7 @@ struct App {
             UpdateWindowTitle();
 
 
-            // フレーム時間を調整して60Hzに制限
+            // 60Hzに制限
             auto frameEndTime = std::chrono::high_resolution_clock::now();
             std::chrono::duration<float> elapsedTime = frameEndTime - frameStartTime;
             if (elapsedTime.count() < targetFrameTime) {

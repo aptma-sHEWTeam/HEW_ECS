@@ -13,6 +13,7 @@
 #include "components/MeshRenderer.h"
 #include "components/Collision.h"
 #include "components/UIComponents.h"
+#include "components/CountUIComponent.h"
 #include "input/InputSystem.h"
 #include "input/GamepadSystem.h"
 #include "components/Rotator.h"
@@ -104,6 +105,20 @@ struct WallCollisionHandler : ICollisionHandler {
 REGISTER_COLLISION_HANDLER_TYPE(WallCollisionHandler)
 
 /**
+ * @struct FloorWallColisionHandler
+ * @brief ステージの壁の衝突イベントを処理
+ */
+    struct FloorWallCollisionHandler : ICollisionHandler {
+    void OnCollisionEnter(World& w, Entity self, Entity other, const CollisionInfo& info) override {
+         if (w.Has<PlayerTag>(other)) {
+            DEBUGLOG("壁がプレイヤーと衝突 - スタート地点へ戻しタイマーをリセット");
+             ResetPlayerToStart(w,other,true);
+          }
+    }
+};
+REGISTER_COLLISION_HANDLER_TYPE(FloorWallCollisionHandler)
+
+/**
  * @class GameScene
  * @brief 3DゲームとUIを統合したシーン
  */
@@ -143,8 +158,9 @@ class GameScene : public IScene {
         world.Create().With<DirectionalLight>();
 
         CreatePlayer(world);
-        SetupStage(world, 1);
         CreateUI(world, screenWidth, screenHeight);
+        ShowStateUI(world);
+        SetupStage(world, 1);
 
         DEBUGLOG("GameWithUIScene の初期化が正常に完了しました");
     }
@@ -379,6 +395,9 @@ class GameScene : public IScene {
         Entity worldwallEntity = world.Create()
             .With<Transform>(transform)
             .With<MeshRenderer>(renderer)
+            .With<WallTag>()
+            .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+            .With<FloorWallCollisionHandler>()
             .Build();
 
         stageOwnedEntities_.push_back(worldwallEntity);
@@ -405,7 +424,36 @@ class GameScene : public IScene {
         }
     }
 
-    void ShowStateUI() {}
+    void ShowStateUI(World &world) {
+        //優先事項：UIの表示
+        //プレイヤーの停止（後でいい）
+        //カウントスタート321
+        //プレイヤーの解放
+        UITransform CountTransform;
+        CountTransform.position = {20.0f, 170.0f};
+        CountTransform.size = {200.0f, 40.0f};
+        CountTransform.anchor = {0.0f, 0.0f};
+        CountTransform.pivot = {0.0f, 0.0f};
+
+        UIText CountText{L"Count:Go"};
+        CountText.color = {0.0f, 1.0f, 1.0f, 1.0f};
+        CountText.formatId = "hud";
+
+        Entity CountEntity = world.Create()
+                               .With<UITransform>(CountTransform)
+                               .With<UIText>(CountText)
+                               .Build();
+        ownedEntities_.push_back(CountEntity);
+       /* stateCountDowndoActive_ = false;
+        stateFrameCounter_ = 0;
+        stateCountdownJustFinished_ = false;
+
+        if (world.IsAlive(startTextEntity_))
+        {
+
+        }*/
+
+    }
 
     TextSystem textSystem_;
     std::vector<Entity> ownedEntities_;
