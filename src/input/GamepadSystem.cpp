@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @file GamepadSystem.cpp
  * @brief ゲームパッド入力管理システムの実装
  * @author 山内陽
@@ -16,6 +16,16 @@
 
 #pragma comment(lib, "wbemuuid.lib")
 #pragma comment(lib, "oleaut32.lib")
+
+#if !defined(GAMEPAD_TRACE_LOG)
+#if defined(ENABLE_VERBOSE_INPUT_LOG) && ENABLE_VERBOSE_INPUT_LOG
+#define GAMEPAD_TRACE_LOG(message) DEBUGLOG(message)
+#define GAMEPAD_TRACE_CATEGORY(category, message) DEBUGLOG_CATEGORY(category, message)
+#else
+#define GAMEPAD_TRACE_LOG(message) ((void)0)
+#define GAMEPAD_TRACE_CATEGORY(category, message) ((void)0)
+#endif
+#endif
 
 #ifndef SAFE_RELEASE
 #define SAFE_RELEASE(p)     \
@@ -45,7 +55,7 @@ GamepadSystem::~GamepadSystem() {
 
 bool GamepadSystem::Init() {
 #ifdef _DEBUG
-    DEBUGLOG_CATEGORY(DebugLog::Category::Input, "GamepadSystem::Init() - 初期化開始");
+    GAMEPAD_TRACE_CATEGORY(DebugLog::Category::Input, "GamepadSystem::Init() - 初期化開始");
 #endif
 
     //既存状態をリセット
@@ -65,7 +75,7 @@ bool GamepadSystem::Init() {
 #ifdef _DEBUG
             std::ostringstream oss;
             oss << "GamepadSystem::Init - XInput slot reserved: Index=" << i;
-            DEBUGLOG_CATEGORY(DebugLog::Category::Input, oss.str());
+            GAMEPAD_TRACE_CATEGORY(DebugLog::Category::Input, oss.str());
 #endif
         }
     }
@@ -100,7 +110,7 @@ bool GamepadSystem::Init() {
     }
 
 #ifdef _DEBUG
-    DEBUGLOG_CATEGORY(DebugLog::Category::Input, "GamepadSystem::Init() - 初期化完了");
+    GAMEPAD_TRACE_CATEGORY(DebugLog::Category::Input, "GamepadSystem::Init() - 初期化完了");
 #endif
 
     return true;
@@ -108,7 +118,7 @@ bool GamepadSystem::Init() {
 
 void GamepadSystem::Shutdown() {
 #ifdef _DEBUG
-    DEBUGLOG_CATEGORY(DebugLog::Category::Input, "GamepadSystem::Shutdown() - シャットダウン開始");
+    GAMEPAD_TRACE_CATEGORY(DebugLog::Category::Input, "GamepadSystem::Shutdown() - シャットダウン開始");
 #endif
 
     //すべてのDirectInputデバイスを解放
@@ -125,7 +135,7 @@ void GamepadSystem::Shutdown() {
     nextDInputSlot_ = 0;
 
 #ifdef _DEBUG
-    DEBUGLOG_CATEGORY(DebugLog::Category::Input, "GamepadSystem::Shutdown() - シャットダウン完了");
+    GAMEPAD_TRACE_CATEGORY(DebugLog::Category::Input, "GamepadSystem::Shutdown() - シャットダウン完了");
 #endif
 }
 
@@ -140,7 +150,7 @@ void GamepadSystem::Update() {
     bool shouldLog = (frameCounter % logInterval == 0);
 
     if (shouldLog) {
-        DEBUGLOG("GamepadSystem::Update - Detailed Status Check");
+        GAMEPAD_TRACE_LOG("GamepadSystem::Update - Detailed Status Check");
     }
     frameCounter++;
 #endif
@@ -170,7 +180,7 @@ void GamepadSystem::Update() {
             } else {
                 oss << "ERROR (DWORD=" << result << ")";
             }
-            DEBUGLOG(oss.str());
+            GAMEPAD_TRACE_LOG(oss.str());
         }
 #endif
 
@@ -192,7 +202,7 @@ void GamepadSystem::Update() {
 #ifdef _DEBUG
                         std::ostringstream oss;
                         oss << "Migrating DInput device from slot " << i << " to slot " << target << " due to XInput connection";
-                        DEBUGLOG_CATEGORY(DebugLog::Category::Input, oss.str());
+                        GAMEPAD_TRACE_CATEGORY(DebugLog::Category::Input, oss.str());
 #endif
                         GamepadState moved = gamepads_[i];
                         gamepads_[i] = GamepadState();
@@ -213,7 +223,7 @@ void GamepadSystem::Update() {
 #ifdef _DEBUG
                 std::ostringstream oss;
                 oss << "GamepadSystem::Update - XInput device connected: Index=" << i;
-                DEBUGLOG_CATEGORY(DebugLog::Category::Input, oss.str());
+                GAMEPAD_TRACE_CATEGORY(DebugLog::Category::Input, oss.str());
 #endif
             }
             UpdateXInput(static_cast<int>(i));
@@ -224,7 +234,7 @@ void GamepadSystem::Update() {
 #ifdef _DEBUG
                 std::ostringstream oss;
                 oss << "GamepadSystem::Update - XInput device disconnected: Index=" << i;
-                DEBUGLOG_CATEGORY(DebugLog::Category::Input, oss.str());
+                GAMEPAD_TRACE_CATEGORY(DebugLog::Category::Input, oss.str());
 #endif
             }
         }
@@ -245,7 +255,7 @@ void GamepadSystem::Update() {
                     << " LY=" << gamepads_[i].leftStickY
                     << " RX=" << gamepads_[i].rightStickX
                     << " RY=" << gamepads_[i].rightStickY << ")";
-                DEBUGLOG(oss.str());
+                GAMEPAD_TRACE_LOG(oss.str());
             }
 #endif
             UpdateDInput(i);
@@ -374,7 +384,7 @@ void GamepadSystem::UpdateDInput(int index) {
         oss << ", Z=" << js.lZ << ", Rz=" << js.lRz;
         oss << ", Buttons[0]=" << (int) (js.rgbButtons[0] & 0x80);
         oss << ", POV[0]=" << js.rgdwPOV[0];
-        DEBUGLOG_CATEGORY(DebugLog::Category::Input, oss.str());
+        GAMEPAD_TRACE_CATEGORY(DebugLog::Category::Input, oss.str());
     }
 #endif
 
@@ -396,7 +406,7 @@ void GamepadSystem::UpdateDInput(int index) {
         oss << ", RY=" << js.lRy;
         oss << ", LT=" << (int) js.lZ;
         oss << ", RT=" << (int) js.lRz;
-        DEBUGLOG_CATEGORY(DebugLog::Category::Input, oss.str());
+        GAMEPAD_TRACE_CATEGORY(DebugLog::Category::Input, oss.str());
     }
 #endif
 
@@ -981,7 +991,7 @@ BOOL CALLBACK GamepadSystem::EnumDevicesCallback(LPCDIDEVICEINSTANCE lpddi, LPVO
     std::ostringstream oss;
     oss << "GamepadSystem::EnumDevicesCallback() - DirectInputデバイス登録: Slot=" << slot
         << ", Name=" << lpddi->tszProductName;
-    DEBUGLOG_CATEGORY(DebugLog::Category::Input, oss.str());
+    GAMEPAD_TRACE_CATEGORY(DebugLog::Category::Input, oss.str());
 #endif
 
     return DIENUM_CONTINUE;
@@ -1111,3 +1121,4 @@ LCleanup:
 GamepadSystem &GetGamepad() {
     return ServiceLocator::Get<GamepadSystem>();
 }
+

@@ -645,8 +645,10 @@ struct VSIn { float3 pos : POSITION; float3 col : COLOR; };
         Microsoft::WRL::ComPtr<ID3DBlob> vsb, psb, err;
 
         UINT compileFlags = D3DCOMPILE_ENABLE_STRICTNESS;
-#ifdef _DEBUG
+#if defined(ENABLE_SHADER_DEBUG) && ENABLE_SHADER_DEBUG
         compileFlags |= D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+#else
+        compileFlags |= D3DCOMPILE_OPTIMIZATION_LEVEL3;
 #endif
 
         HRESULT hr = D3DCompile(VS, strlen(VS), nullptr, nullptr, nullptr, "main", "vs_5_0", compileFlags, 0, vsb.GetAddressOf(), err.GetAddressOf());
