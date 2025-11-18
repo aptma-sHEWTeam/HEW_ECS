@@ -417,5 +417,3 @@ class GameScene : public IScene {
     Entity worldwall{};
     Entity goalEntity_{};
 };
-
-

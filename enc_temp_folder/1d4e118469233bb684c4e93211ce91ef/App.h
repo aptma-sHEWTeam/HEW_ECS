@@ -85,11 +85,11 @@ struct App {
     void InitializeGame() {
         DEBUGLOG("InitializeGame() begin");
 
-        auto gameScene = std::make_unique<GameScene>();
-        DEBUGLOG("GameScene instance created");
+        //auto gameScene = std::make_unique<GameScene>();
+        //DEBUGLOG("GameScene instance created");
 
-        sceneManager_.RegisterScene("Game", std::move(gameScene));
-        DEBUGLOG("GameScene registered to SceneManager");
+        //sceneManager_.RegisterScene("Game", std::move(gameScene));
+        //DEBUGLOG("GameScene registered to SceneManager");
 
         auto stageslectScene = std::make_unique<StageSlectScene>();
         DEBUGLOG("StageSelectScene instance created");
