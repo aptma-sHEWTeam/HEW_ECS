@@ -254,6 +254,7 @@
     <ClInclude Include="include\samples\GamepadSample.h" />
     <ClInclude Include="include\samples\TransformHierarchySamples.h" />
     <ClInclude Include="include\scenes\SenesUIController.h" />
+    <ClInclude Include="include\scenes\StageSelect.h" />
     <ClInclude Include="include\systems\ModelLoadingSystem.h" />
     <ClInclude Include="include\samples\WorldImprovementDemo.h" />
     <ClInclude Include="include\scenes\Game.h" />
