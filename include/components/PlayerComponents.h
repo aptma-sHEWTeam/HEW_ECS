@@ -145,10 +145,24 @@ struct PlayerMovement : Behaviour {
             float gy = gamepad_->GetLeftStickY();
             float mag = std::sqrt(gx * gx + gy * gy);
 
+            //角度履歴
+            float angleHistory[30] = {};
+            int angleIndex = 0;
+            bool angleFilled = false;
+            
             // 方向キャッシュ（常時）
             if (mag > 1e-5f) {
                 lastStickDir_.x = -(gx / mag);
                 lastStickDir_.y = -(gy / mag);
+            }
+
+            //角度履歴
+            float ang = std::atan2f(lastStickDir_.y, lastStickDir_.x);
+            angleHistory[angleIndex] = ang;                 //毎フレームの角度を保存した配列
+            angleIndex = (angleIndex + 1) % 30;             //現在の保存位置
+            if (angleIndex == 0)                            //30フレーム埋まったらtrue
+            {
+                angleFilled = true;
             }
 
             // ローカルしきい値によるチャージ/リリース検出（GamepadSystemのフォールバック）
@@ -164,24 +178,46 @@ struct PlayerMovement : Behaviour {
 
                 float charge = gamepad_->GetLeftStickChargeAmount(chargeMaxTime); // 0..1
                 slowFactor = std::max(minChargeSpeedFactor, 1.0f - charge);
+
             }
 
             // リリースで方向転換＋通常速度に復帰（統合: システム検出 or ローカル検出）
             bool releasedSys = gamepad_->IsLeftStickReleased();
             bool releasedLocal = (wasCharging_ && !chargingNowLocal);
-
+          
             if (releasedSys || releasedLocal)
             {
-                float dirLen = std::sqrt(lastStickDir_.x * lastStickDir_.x + lastStickDir_.y * lastStickDir_.y);
+                //三項演算子     angleFilled = trueの時 count = 30,falseの時 count = angleIndex
+                int count = angleFilled ? 30 : angleIndex;
+
+                float sumSin = 0.0f;
+                float sumCos = 0.0f;
+
+                for (int i = 0; i < count; i++) 
+                {
+                    sumSin += std::sinf(angleHistory[i]);
+                    sumCos += std::cosf(angleHistory[i]);
+                }
+
+                //合計平均し、ラジアンへ変換
+                float avgRad = std::atan2f(sumSin / count, sumCos / count);
+
+                // 平均角度ベクトル化
+                float dirX = std::cosf(avgRad);
+                float dirY = std::sinf(avgRad);
+
+               //プレイヤーの速度に平均角度を乗算
+                float dirLen = std::sqrt(dirX * dirX + dirY * dirY);
                 if (dirLen > 1e-5f)
                 {
-                    v->velocity.x = (lastStickDir_.x / dirLen) * v->speed;
-                    v->velocity.y = (lastStickDir_.y / dirLen) * v->speed;
+                    v->velocity.x = (dirX / dirLen) * v->speed;
+                    v->velocity.y = (dirY / dirLen) * v->speed;
+
                     float yawRad = std::atan2(v->velocity.y, v->velocity.x);
                     t->rotation.y = yawRad * (180.0f / 3.1415926535f);
 
-                isCharging_ = false;
-                slowFactor = 1.0f;
+                    isCharging_ = false;
+                    slowFactor = 1.0f;
                 }
             }
 
