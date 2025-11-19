@@ -98,6 +98,11 @@ struct PlayerMovement : Behaviour {
     DirectX::XMFLOAT2 lastStickDir_ {0.0f, 0.0f}; ///< 直近の左スティック方向(正規化)
     bool wasCharging_ = false;           ///< 前フレームでチャージしていたか(ローカル検出)
 
+      //角度履歴
+    float angleHistory[30] = {};
+    int angleIndex = 0;
+    bool angleFilled = false;
+
     /**
      * @brief 毎フレーム更新処理
      * @param[in,out] w ワールド参照
@@ -145,11 +150,6 @@ struct PlayerMovement : Behaviour {
             float gy = gamepad_->GetLeftStickY();
             float mag = std::sqrt(gx * gx + gy * gy);
 
-            //角度履歴
-            float angleHistory[30] = {};
-            int angleIndex = 0;
-            bool angleFilled = false;
-            
             // 方向キャッシュ（常時）
             if (mag > 1e-5f) {
                 lastStickDir_.x = -(gx / mag);
@@ -160,7 +160,7 @@ struct PlayerMovement : Behaviour {
             float ang = std::atan2f(lastStickDir_.y, lastStickDir_.x);
             angleHistory[angleIndex] = ang;                 //毎フレームの角度を保存した配列
             angleIndex = (angleIndex + 1) % 30;             //現在の保存位置
-            if (angleIndex == 0)                            //30フレーム埋まったらtrue
+            if (angleIndex == 30)                            //30フレーム埋まったらtrue
             {
                 angleFilled = true;
             }
