@@ -20,6 +20,7 @@ struct GameUIUpdater : Behaviour {
     Entity pauseTextEntity_;
     Entity stageTextEntity_;
 
+
     void OnUpdate(World &w, Entity self, float dt) override {
         w.ForEach<GameStats>([&](Entity e, GameStats &stats) {
             if (!stats.isPaused) {
@@ -60,6 +61,7 @@ struct GameUIUpdater : Behaviour {
                     }
                 }
             }
+
         });
 
         w.ForEach<StageProgress>([&](Entity e, StageProgress &sp) {
