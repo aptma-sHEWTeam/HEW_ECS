@@ -50,6 +50,7 @@
 // ゲームシステム
 #include "scenes/SceneManager.h"
 #include "scenes/Game.h"
+#include "scenes/StageSelect.h"
 
 /**
  * @struct App
@@ -90,7 +91,13 @@ struct App {
         sceneManager_.RegisterScene("Game", std::move(gameScene));
         DEBUGLOG("GameScene registered to SceneManager");
 
-        sceneManager_.Init("Game", world_);
+        auto stageslectScene = std::make_unique<StageSlectScene>();
+        DEBUGLOG("StageSelectScene instance created");
+
+        sceneManager_.RegisterScene("StageSelect", std::move(stageslectScene));
+        DEBUGLOG("StageSelectScene registered to SceneManager");
+
+        sceneManager_.Init("StageSelect", world_);
         DEBUGLOG("SceneManager initialised with Game scene");
 
         DEBUGLOG("InitializeGame() complete");
@@ -160,6 +167,7 @@ struct App {
         ServiceLocator::Register(&world_);
         ServiceLocator::Register(&renderer_);
         ServiceLocator::Register(&resManager_);
+        ServiceLocator::Register(&sceneManager_);
 
         SetupCamera(width, height);
 
@@ -273,9 +281,6 @@ struct App {
             std::chrono::duration<float> frameDuration = presentEndTime - frameStartTime;
             currentMetrics_.totalTime = frameDuration.count();
 
-            // メトリクス集計
-
-            // サンプル収集（最大1000フレーム）
             if (metricsCollecting_ && frameTotalSamples_.size() < maxSamples_) {
                 frameTotalSamples_.push_back(currentMetrics_.totalTime);
                 updateSamples_.push_back(currentMetrics_.updateTime);
@@ -286,7 +291,7 @@ struct App {
             UpdateWindowTitle();
 
 
-            // フレーム時間を調整して60Hzに制限
+            // 60Hzに制限
             auto frameEndTime = std::chrono::high_resolution_clock::now();
             std::chrono::duration<float> elapsedTime = frameEndTime - frameStartTime;
             if (elapsedTime.count() < targetFrameTime) {

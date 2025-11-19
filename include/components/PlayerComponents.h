@@ -26,7 +26,7 @@
 // =========================================
 
 struct PlayerVelocity : Behaviour {
-    float speed = 10.0f;                       ///< 移動速度(単位/秒) - 速度を上げて動きを明確に
+    float speed = 8.0f;                       ///< 移動速度(単位/秒) - 速度を上げて動きを明確に
     DirectX::XMFLOAT2 velocity = {0.0f, 0.0f}; ///< 現在の移動ベロシティ
 
     void SetVelocity(DirectX::XMFLOAT2 speed)
@@ -87,7 +87,7 @@ struct PlayerMovement : Behaviour {
     InputSystem *input_ = nullptr;     ///< 入力システムへのポインタ
     GamepadSystem *gamepad_ = nullptr; ///< ゲームパッドシステムへのポインタ
     // チャージ挙動設定
-    float minChargeSpeedFactor = 0.2f;   ///< チャージ中の最低速度係数(0.0-1.0)
+    float minChargeSpeedFactor = 0.4f;   ///< チャージ中の最低速度係数(0.0-1.0)
     float chargeMaxTime = 0.7f;          ///< チャージ最大時間(秒)
 
     // 入力モード
@@ -152,7 +152,7 @@ struct PlayerMovement : Behaviour {
             }
 
             // ローカルしきい値によるチャージ/リリース検出（GamepadSystemのフォールバック）
-            const float releaseThreshold = 0.5f;
+            const float releaseThreshold = 0.3f;
             bool chargingNowLocal = (mag > releaseThreshold);
 
             // チャージ状態更新（統合）
@@ -210,7 +210,6 @@ struct PlayerMovement : Behaviour {
         if (t->position.z < -limitY) t->position.z = -limitY;
         if (t->position.z > limitY)  t->position.z =  limitY;
     }
-
     float CalcMoveRotation()
     {
         return std::atan2f(lastStickDir_.y, lastStickDir_.x) * (180.0f / 3.1415926535f);
@@ -323,11 +322,11 @@ struct PlayerGuide : Behaviour
         }
         else
         {
-            guidTransform->scale = {2, 1, 0.1};   // チャージ中はガイドの大きさを1にする
+            guidTransform->scale = {2.5f, 1, 0.1};   // チャージ中はガイドの大きさを1にする
 
             // (x,y) = (cosΘ, sinΘ)
-            guidTransform->position.x += std::cosf(rad) * 3;
-            guidTransform->position.z += std::sinf(rad) * 3;
+            guidTransform->position.x += std::cosf(rad) * 2;
+            guidTransform->position.z += std::sinf(rad) * 2;
         }
     }
 };
