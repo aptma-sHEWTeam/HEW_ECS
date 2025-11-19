@@ -102,6 +102,10 @@ struct PlayerMovement : Behaviour {
     float angleHistory[30] = {};
     int angleIndex = 0;
     bool angleFilled = false;
+    
+    // 角度平均計算用の累積値（最適化）
+    float sumSin = 0.0f;
+    float sumCos = 0.0f;
 
     /**
      * @brief 毎フレーム更新処理
@@ -158,9 +162,20 @@ struct PlayerMovement : Behaviour {
 
             //角度履歴
             float ang = std::atan2f(lastStickDir_.y, lastStickDir_.x);
-            angleHistory[angleIndex] = ang;                 //毎フレームの角度を保存した配列
+            
+            // 古い角度の寄与を削除（リングバッファの上書き時）
+            if (angleFilled) {
+                sumSin -= std::sinf(angleHistory[angleIndex]);
+                sumCos -= std::cosf(angleHistory[angleIndex]);
+            }
+            
+            // 新しい角度を保存し、累積値に加算
+            angleHistory[angleIndex] = ang;
+            sumSin += std::sinf(ang);
+            sumCos += std::cosf(ang);
+            
             angleIndex = (angleIndex + 1) % 30;             //現在の保存位置
-            if (angleIndex == 30)                            //30フレーム埋まったらtrue
+            if (angleIndex == 0)                            //30フレーム埋まったらtrue
             {
                 angleFilled = true;
             }
@@ -190,16 +205,7 @@ struct PlayerMovement : Behaviour {
                 //三項演算子     angleFilled = trueの時 count = 30,falseの時 count = angleIndex
                 int count = angleFilled ? 30 : angleIndex;
 
-                float sumSin = 0.0f;
-                float sumCos = 0.0f;
-
-                for (int i = 0; i < count; i++) 
-                {
-                    sumSin += std::sinf(angleHistory[i]);
-                    sumCos += std::cosf(angleHistory[i]);
-                }
-
-                //合計平均し、ラジアンへ変換
+                // 累積値を使って平均角度を計算（ループ不要）
                 float avgRad = std::atan2f(sumSin / count, sumCos / count);
 
                 // 平均角度ベクトル化
