@@ -114,6 +114,7 @@
     <ClCompile Include="src\scenes\GameUI.cpp">
       <Filter>src\scenes</Filter>
     </ClCompile>
+    <ClCompile Include="src\systems\SpatialHashGrid.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\animation\Animation.h">
@@ -264,6 +265,10 @@
     <ClInclude Include="include\scenes\StageSelect.h">
       <Filter>include\scenes</Filter>
     </ClInclude>
+    <ClInclude Include="CountUIComponent.h">
+      <Filter>include\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\systems\SpatialHashGrid.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Textures\test.png">
