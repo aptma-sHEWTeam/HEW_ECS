@@ -28,6 +28,11 @@
 #include <sstream>
 #include <iomanip>
 
+//ステージの仮置きの制限時間
+constexpr float limittime = 10.0f;
+
+
+
 // プレイヤーをスタート地点へ戻す (必要に応じてタイマーもリセット)
 inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false) {
     if (!w.IsAlive(player)) {
@@ -56,6 +61,18 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
         }
 
         done = true;
+    });
+}
+
+//制限時間をチェックする
+inline void CheckTimeLimit(World &w,Entity player, float timeLimitSeconds) {
+    w.ForEach<GameStats>([&](Entity e, GameStats &stats) {
+        //制限時間チェック
+        if (stats.elapsedTime >= timeLimitSeconds) {
+            DEBUGLOG("時間切れ");
+            ResetPlayerToStart(w,player,true);
+        }
+
     });
 }
 
@@ -108,7 +125,7 @@ REGISTER_COLLISION_HANDLER_TYPE(WallCollisionHandler)
  * @struct FloorWallColisionHandler
  * @brief ステージの壁の衝突イベントを処理
  */
-    struct FloorWallCollisionHandler : ICollisionHandler {
+struct FloorWallCollisionHandler : ICollisionHandler {
     void OnCollisionEnter(World& w, Entity self, Entity other, const CollisionInfo& info) override {
          if (w.Has<PlayerTag>(other)) {
             DEBUGLOG("壁がプレイヤーと衝突 - スタート地点へ戻しタイマーをリセット");
@@ -117,6 +134,7 @@ REGISTER_COLLISION_HANDLER_TYPE(WallCollisionHandler)
     }
 };
 REGISTER_COLLISION_HANDLER_TYPE(FloorWallCollisionHandler)
+
 
 /**
  * @class GameScene
@@ -166,6 +184,7 @@ class GameScene : public IScene {
     }
 
     void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
+        
         // ゲームの一時停止と再開
         world.ForEach<GameStats>([&](Entity, GameStats &stats) {
             if (input.GetKeyDown(VK_ESCAPE) || input.GetKeyDown('P')) {
@@ -206,6 +225,11 @@ class GameScene : public IScene {
         });
 
         world.Tick(deltaTime);
+
+        //制限時間が過ぎていたらリセット
+        if (world.IsAlive(playerEntity_)) {
+            CheckTimeLimit(world, playerEntity_,limittime );
+        }
     }
 
     void OnExit(World &world) override {
