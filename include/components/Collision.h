@@ -67,6 +67,9 @@
 #include <unordered_map>
 #include <algorithm>
 #include <typeindex>
+#include <DirectXCollision.h> // For BoundingBox
+
+#include "systems/SpatialHashGrid.h" // Added for spatial hash grid
 
 // ========================================================
 // 前方宣言
@@ -357,83 +360,231 @@ struct ICollisionHandler : IComponent {
  * v2.1から**OnEnter/OnStay/OnExit**イベントシステムを搭載。
  */
 struct CollisionDetectionSystem : Behaviour {
+    CollisionDetectionSystem(float cellSize = 10.0f) : m_grid(cellSize) {}
+
     using CollisionCallback = std::function<void(Entity, Entity, const CollisionInfo &)>;
 
     void OnCollision(CollisionCallback callback) {
         collisionCallbacks_.push_back(callback);
     }
 
-    void OnUpdate(World &w, Entity self, float dt) override {
-        // 前フレームの衝突情報をスワップ
-        previousCollisions_.swap(currentCollisions_);
-        currentCollisions_.clear();
-        collisionCount_ = 0;
+        void OnUpdate(World &w, Entity self, float dt) override {
 
-        // すべての衝突ペアを収集
-        std::vector<Entity> collidableEntities;
+            // 前フレームの衝突情報をスワップ
 
-        w.ForEach<Transform, CollisionBox>([&](Entity e, Transform &, CollisionBox &) {
-            collidableEntities.push_back(e);
-        });
+            previousCollisions_.swap(currentCollisions_);
 
-        w.ForEach<Transform, CollisionSphere>([&](Entity e, Transform &, CollisionSphere &) {
-            if (std::find(collidableEntities.begin(), collidableEntities.end(), e) == collidableEntities.end()) {
-                collidableEntities.push_back(e);
-            }
-        });
+            currentCollisions_.clear();
 
-        w.ForEach<Transform, CollisionCapsule>([&](Entity e, Transform &, CollisionCapsule &) {
-            if (std::find(collidableEntities.begin(), collidableEntities.end(), e) == collidableEntities.end()) {
-                collidableEntities.push_back(e);
-            }
-        });
+            collisionCount_ = 0;
 
-        // 総当たりで衝突判定
-        for (size_t i = 0; i < collidableEntities.size(); ++i) {
-            for (size_t j = i + 1; j < collidableEntities.size(); ++j) {
-                Entity a = collidableEntities[i];
-                Entity b = collidableEntities[j];
+    
 
-                if (!w.IsAlive(a) || !w.IsAlive(b))
-                    continue;
+            m_grid.Clear();
 
-                auto collision = CheckCollision(w, a, b);
-                if (collision && collision->isColliding) {
-                    uint64_t pairKey = MakePairKey(a, b);
-                    currentCollisions_.insert(pairKey);
-                    collisionCount_++;
+    
 
-                    // グローバルコールバック実行
-                    for (auto &callback : collisionCallbacks_) {
-                        callback(a, b, *collision);
-                    }
+            using namespace DirectX;
 
-                    // 前フレームに衝突していたか確認
-                    bool wasColliding = previousCollisions_.find(pairKey) != previousCollisions_.end();
+    
 
-                    if (!wasColliding) {
-                        //  OnCollisionEnter イベント
-                        TriggerCollisionEnter(w, a, b, *collision);
-                        if (enableDebugLog_) {
-                            collision->DebugPrint();
+            struct Collidable {
+
+                Entity entity;
+
+                BoundingBox box;
+
+            };
+
+            std::vector<Collidable> collidables;
+
+            collidables.reserve(128); // 事前確保
+
+    
+
+            w.ForEach<CollisionBox, Transform>([&](Entity e, CollisionBox& box, Transform& t) {
+
+                XMFLOAT3 center = box.GetWorldCenter(t);
+
+                XMFLOAT3 scaledSize = box.GetScaledSize(t);
+
+                XMFLOAT3 halfExtents = {scaledSize.x * 0.5f, scaledSize.y * 0.5f, scaledSize.z * 0.5f};
+
+                BoundingBox bb(center, halfExtents);
+
+                collidables.push_back({e, bb});
+
+                m_grid.Insert(e, bb);
+
+            });
+
+    
+
+            w.ForEach<CollisionSphere, Transform>([&](Entity e, CollisionSphere& sphere, Transform& t) {
+
+                XMFLOAT3 center = sphere.GetWorldCenter(t);
+
+                float radius = sphere.GetScaledRadius(t);
+
+                XMFLOAT3 extents = {radius, radius, radius};
+
+                BoundingBox bb(center, extents);
+
+                collidables.push_back({e, bb});
+
+                m_grid.Insert(e, bb);
+
+            });
+
+    
+
+            w.ForEach<CollisionCapsule, Transform>([&](Entity e, CollisionCapsule& capsule, Transform& t) {
+
+                XMFLOAT3 top = capsule.GetTopPoint(t);
+
+                XMFLOAT3 bottom = capsule.GetBottomPoint(t);
+
+                float radius = capsule.radius * std::max({t.scale.x, t.scale.y, t.scale.z});
+
+    
+
+                float minX = std::min(top.x, bottom.x) - radius;
+
+                float minY = std::min(top.y, bottom.y) - radius;
+
+                float minZ = std::min(top.z, bottom.z) - radius;
+
+                float maxX = std::max(top.x, bottom.x) + radius;
+
+                float maxY = std::max(top.y, bottom.y) + radius;
+
+                float maxZ = std::max(top.z, bottom.z) + radius;
+
+                
+
+                XMFLOAT3 center = {(minX + maxX) * 0.5f, (minY + maxY) * 0.5f, (minZ + maxZ) * 0.5f};
+
+                XMFLOAT3 extents = {(maxX - minX) * 0.5f, (maxY - minY) * 0.5f, (maxZ - minZ) * 0.5f};
+
+                BoundingBox bb(center, extents);
+
+                collidables.push_back({e, bb});
+
+                m_grid.Insert(e, bb);
+
+            });
+
+            
+
+            std::unordered_set<uint64_t> uniquePairs; // 重複ペアを避けるため
+
+            std::vector<Entity> potentialColliders;
+
+            potentialColliders.reserve(128); // 衝突候補を保持するのに十分なサイズを事前確保
+
+    
+
+            for (const auto& collidable_a : collidables) {
+
+                Entity e_a = collidable_a.entity;
+
+                const BoundingBox& bb_a = collidable_a.box;
+
+    
+
+                if (!w.IsAlive(e_a)) continue;
+
+    
+
+                // グリッドから衝突候補を取得
+
+                m_grid.Query(bb_a, potentialColliders);
+
+    
+
+                for (Entity e_b : potentialColliders) {
+
+                    if (!w.IsAlive(e_b) || e_a.id >= e_b.id) continue;
+
+    
+
+                    uint64_t pairKey = MakePairKey(e_a, e_b);
+
+    
+
+                    auto collision = CheckCollision(w, e_a, e_b);
+
+                    if (collision && collision->isColliding) {
+
+                        currentCollisions_.insert(pairKey);
+
+                        collisionCount_++;
+
+    
+
+                        // グローバルコールバック実行
+
+                        for (auto &callback : collisionCallbacks_) {
+
+                            callback(e_a, e_b, *collision);
+
                         }
-                    } else {
-                        // 🔄 OnCollisionStay イベント
-                        TriggerCollisionStay(w, a, b, *collision);
-                    }
-                }
-            }
-        }
 
-        // 🔚 OnCollisionExit イベント - 前フレームにあったが今フレームにない衝突
-        for (uint64_t pairKey : previousCollisions_) {
-            if (currentCollisions_.find(pairKey) == currentCollisions_.end()) {
-                // 衝突が終了した
-                auto [entityA, entityB] = UnpackPairKey(pairKey);
-                TriggerCollisionExit(w, entityA, entityB);
+    
+
+                        // 前フレームに衝突していたか確認
+
+                        bool wasColliding = previousCollisions_.count(pairKey) > 0;
+
+    
+
+                        if (!wasColliding) {
+
+                            //  OnCollisionEnter イベント
+
+                            TriggerCollisionEnter(w, e_a, e_b, *collision);
+
+                            if (enableDebugLog_) {
+
+                                collision->DebugPrint();
+
+                            }
+
+                        } else {
+
+                            // 🔄 OnCollisionStay イベント
+
+                            TriggerCollisionStay(w, e_a, e_b, *collision);
+
+                        }
+
+                    }
+
+                }
+
             }
+
+    
+
+            // 🔚 OnCollisionExit イベント - 前フレームにあったが今フレームにない衝突
+
+            for (uint64_t pairKey : previousCollisions_) {
+
+                if (currentCollisions_.find(pairKey) == currentCollisions_.end()) {
+
+                    // 衝突が終了した
+
+                    auto [entityA, entityB] = UnpackPairKey(pairKey);
+
+                    if(w.IsAlive(entityA) && w.IsAlive(entityB))
+
+                        TriggerCollisionExit(w, entityA, entityB);
+
+                }
+
+            }
+
         }
-    }
 
     void SetDebugLog(bool enable) {
         enableDebugLog_ = enable;
@@ -448,6 +599,7 @@ struct CollisionDetectionSystem : Behaviour {
     std::unordered_set<uint64_t> previousCollisions_;
     size_t collisionCount_ = 0;
     bool enableDebugLog_ = false;
+    SpatialHashGrid m_grid; // Spatial Hash Grid instance
 
     static uint64_t MakePairKey(Entity a, Entity b) {
         uint32_t minId = std::min(a.id, b.id);

@@ -149,7 +149,7 @@ class GameScene : public IScene {
         Entity stageProgress = world.Create().With<StageProgress>().Build();
         ownedEntities_.push_back(stageProgress);
 
-        Entity collisionSystem = world.Create().With<CollisionDetectionSystem>().Build();
+        Entity collisionSystem = world.Create().With<CollisionDetectionSystem>(20.0f).Build();
         ownedEntities_.push_back(collisionSystem);
 
         Entity stageEntity_ = world.Create().With<StageCreate>().Build();

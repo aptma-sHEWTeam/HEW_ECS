@@ -157,7 +157,7 @@ public:
      * 垂直同期(VSync)が有効です。
      */
     void EndFrame() {
-        swap_->Present(1, 0);
+        swap_->Present(0, 0);
     }
 
     /**
