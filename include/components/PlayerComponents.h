@@ -21,12 +21,15 @@
 #include <cmath>
 #include <algorithm>
 
+#include "config/ConfigVar.h"
+
 // =========================================
 // ベロシティ計算コンポーネント
 // =========================================
 
 struct PlayerVelocity : Behaviour {
-    float speed = 8.0f;                       ///< 移動速度(単位/秒) - 速度を上げて動きを明確に
+    inline static ConfigVar<float> cfg_Speed{"Player", "MoveSpeed", 8.0f};
+    float speed = cfg_Speed;                       ///< 移動速度(単位/秒) - 速度を上げて動きを明確に
     DirectX::XMFLOAT2 velocity = {0.0f, 0.0f}; ///< 現在の移動ベロシティ
 
     void SetVelocity(DirectX::XMFLOAT2 speed)
@@ -86,9 +89,17 @@ struct PlayerVelocity : Behaviour {
 struct PlayerMovement : Behaviour {
     InputSystem *input_ = nullptr;     ///< 入力システムへのポインタ
     GamepadSystem *gamepad_ = nullptr; ///< ゲームパッドシステムへのポインタ
+    
+    // Config Variables
+    inline static ConfigVar<float> cfg_MinChargeSpeed{"Player", "MinChargeSpeedFactor", 0.4f};
+    inline static ConfigVar<float> cfg_ChargeMaxTime{"Player", "ChargeMaxTime", 0.7f};
+    inline static ConfigVar<float> cfg_ReleaseThreshold{"Player", "ReleaseThreshold", 0.3f};
+    inline static ConfigVar<float> cfg_LimitX{"Player", "LimitX", 15.0f};
+    inline static ConfigVar<float> cfg_LimitY{"Player", "LimitY", 15.0f};
+
     // チャージ挙動設定
-    float minChargeSpeedFactor = 0.4f;   ///< チャージ中の最低速度係数(0.0-1.0)
-    float chargeMaxTime = 0.7f;          ///< チャージ最大時間(秒)
+    float minChargeSpeedFactor = cfg_MinChargeSpeed;   ///< チャージ中の最低速度係数(0.0-1.0)
+    float chargeMaxTime = cfg_ChargeMaxTime;          ///< チャージ最大時間(秒)
 
     // 入力モード
     bool flickOnly = true;               ///< 左スティックの通常移動を無効化し、はじく移動（チャージ&リリース）のみ有効にする
@@ -123,6 +134,11 @@ struct PlayerMovement : Behaviour {
 
         if (!t || !v || (!input_ && !gamepad_))
             return;
+
+        // Sync Config
+        v->speed = PlayerVelocity::cfg_Speed;
+        minChargeSpeedFactor = cfg_MinChargeSpeed;
+        chargeMaxTime = cfg_ChargeMaxTime;
 
         DirectX::XMFLOAT2 inputDir = {0.0f, 0.0f};
 
@@ -166,7 +182,7 @@ struct PlayerMovement : Behaviour {
             }
 
             // ローカルしきい値によるチャージ/リリース検出（GamepadSystemのフォールバック）
-            const float releaseThreshold = 0.3f;
+            const float releaseThreshold = cfg_ReleaseThreshold;
             bool chargingNowLocal = (mag > releaseThreshold);
 
             // チャージ状態更新（統合）
@@ -239,8 +255,8 @@ struct PlayerMovement : Behaviour {
         t->position.x += v->velocity.x * dt * slowFactor;
         t->position.z += v->velocity.y * dt * slowFactor;
 
-        const float limitX = 15.0f;
-        const float limitY = 15.0f;
+        const float limitX = cfg_LimitX;
+        const float limitY = cfg_LimitY;
         if (t->position.x < -limitX) t->position.x = -limitX;
         if (t->position.x > limitX)  t->position.x =  limitX;
         if (t->position.z < -limitY) t->position.z = -limitY;

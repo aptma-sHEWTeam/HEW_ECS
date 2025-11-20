@@ -1,278 +1,372 @@
 <?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <Filter Include="src">
-      <UniqueIdentifier>{65525521-A8F6-45C0-B40E-8D6730FEBA0F}</UniqueIdentifier>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{977d4f9d-3c1d-4afc-bd7a-b803e554d34e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\app">
-      <UniqueIdentifier>{7364DA00-1A9B-48A5-A762-EBD3BE99D251}</UniqueIdentifier>
+    <Filter Include="Header Files\animation">
+      <UniqueIdentifier>{c5145ba3-599a-4118-8a00-2ac70c57f388}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\ecs">
-      <UniqueIdentifier>{6505DFD2-E336-4D26-BC48-5E3DF984B92E}</UniqueIdentifier>
+    <Filter Include="Header Files\app">
+      <UniqueIdentifier>{73593a7f-bcad-43d1-986d-691764272ea5}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\graphics">
-      <UniqueIdentifier>{C07D6197-2216-4854-8353-094ABB23BC3C}</UniqueIdentifier>
+    <Filter Include="Header Files\components">
+      <UniqueIdentifier>{73ad076b-c48c-457d-82e7-0feedf1d4c56}</UniqueIdentifier>
     </Filter>
-    <Filter Include="src\input">
-      <UniqueIdentifier>{FED9729C-D157-41A5-82B0-A5DE6EE673F6}</UniqueIdentifier>
+    <Filter Include="Header Files\config">
+      <UniqueIdentifier>{00d3a988-ebd3-434f-ad81-6f15896cebf5}</UniqueIdentifier>
     </Filter>
-    <Filter Include="include">
-      <UniqueIdentifier>{252D46D3-FBF3-4C03-84D8-43E499D1C310}</UniqueIdentifier>
+    <Filter Include="Header Files\ecs">
+      <UniqueIdentifier>{3a6a925f-bd18-4c69-9523-b6ee5623a968}</UniqueIdentifier>
     </Filter>
-    <Filter Include="include\animation">
-      <UniqueIdentifier>{333F7FFC-8362-4FDA-8357-7366F19FD7EF}</UniqueIdentifier>
+    <Filter Include="Header Files\graphics">
+      <UniqueIdentifier>{7771c9e2-9a82-421b-9044-6f56ba38d6ea}</UniqueIdentifier>
     </Filter>
-    <Filter Include="include\app">
-      <UniqueIdentifier>{5811D0D5-A29D-4859-9F7A-2C83B4AE4937}</UniqueIdentifier>
+    <Filter Include="Header Files\input">
+      <UniqueIdentifier>{e7128072-d647-4cd3-a7e3-c3f790feb4c4}</UniqueIdentifier>
     </Filter>
-    <Filter Include="include\components">
-      <UniqueIdentifier>{CEB7E3FF-7F82-4B46-A7AD-30D96D95BA09}</UniqueIdentifier>
+    <Filter Include="Header Files\samples">
+      <UniqueIdentifier>{01b9f658-c07d-4967-99c4-8ce51e89a73d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="include\ecs">
-      <UniqueIdentifier>{2BB76247-4C1A-4130-AD8E-7F9028ACBD3E}</UniqueIdentifier>
+    <Filter Include="Header Files\scenes">
+      <UniqueIdentifier>{d4b41b99-7d04-42f5-bf48-85ce2c1d4b0d}</UniqueIdentifier>
     </Filter>
-    <Filter Include="include\gameplay">
-      <UniqueIdentifier>{C1B91AC4-3C5D-48F6-B21F-1B422A1EE8A1}</UniqueIdentifier>
+    <Filter Include="Header Files\systems">
+      <UniqueIdentifier>{73b478ba-eab2-4ac8-b603-bab20efa138e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="include\graphics">
-      <UniqueIdentifier>{238ED95F-E64E-4BE4-B6E1-2426BDC9CB86}</UniqueIdentifier>
+    <Filter Include="Header Files\util">
+      <UniqueIdentifier>{156909e2-6c24-4405-b775-a61c465d1d5c}</UniqueIdentifier>
     </Filter>
-    <Filter Include="include\samples">
-      <UniqueIdentifier>{26D0D560-C0DF-4BF5-A073-FBAE269E0254}</UniqueIdentifier>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{2372d660-16d6-4133-8a3b-e176e720d526}</UniqueIdentifier>
     </Filter>
-    <Filter Include="include\scenes">
-      <UniqueIdentifier>{D565A572-0FDB-4A8D-A366-5816276B79E7}</UniqueIdentifier>
+    <Filter Include="Source Files\app">
+      <UniqueIdentifier>{63b1a0d9-3b47-40df-a8b1-0661812c64a6}</UniqueIdentifier>
     </Filter>
-    <Filter Include="include\systems">
-      <UniqueIdentifier>{73741B83-FE7F-4637-B2FB-B878EF17C496}</UniqueIdentifier>
+    <Filter Include="Source Files\components">
+      <UniqueIdentifier>{457bb58a-0dcc-4fad-8014-f569eaf11978}</UniqueIdentifier>
     </Filter>
-    <Filter Include="include\util">
-      <UniqueIdentifier>{C705CD4D-1D75-42F8-B82E-792C6B10A50D}</UniqueIdentifier>
+    <Filter Include="Source Files\config">
+      <UniqueIdentifier>{d7254ceb-38dd-4baf-bbc8-27f5ece00180}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\ecs">
+      <UniqueIdentifier>{662c6b30-bfb9-4cf3-b47f-367328c48c9e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\graphics">
+      <UniqueIdentifier>{6cc0f94d-25d6-4161-8ea8-ac42a61bf375}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\input">
+      <UniqueIdentifier>{8118ac9a-c9db-41b2-85a8-b787801ab812}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\scenes">
+      <UniqueIdentifier>{d9be106f-c6f0-4ffa-a5a2-d70f65e2ed88}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\systems">
+      <UniqueIdentifier>{f690b47b-72a2-42df-960e-3d35030f1448}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Docs">
+      <UniqueIdentifier>{656da903-e5c0-44df-8c2d-6bc61339405a}</UniqueIdentifier>
     </Filter>
     <Filter Include="Assets">
-      <UniqueIdentifier>{FE50B233-12C9-44C5-A775-8A3F385FC4F7}</UniqueIdentifier>
+      <UniqueIdentifier>{6f8a14f8-ad26-4103-a6ee-beaa6d1e57d6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Assets\Models">
+      <UniqueIdentifier>{796d58ca-eafd-40fd-bc2e-7e5c3d79b045}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Assets\StageData">
+      <UniqueIdentifier>{4fd376b9-1ca5-4340-9ec8-cf253f028748}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Assets\StageTime">
+      <UniqueIdentifier>{d972af5e-247d-45c4-ab17-3276b2f4aba8}</UniqueIdentifier>
     </Filter>
     <Filter Include="Assets\Textures">
-      <UniqueIdentifier>{0F6B2E0C-6D02-4D6A-B0B5-88456C1B1524}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="docs">
-      <UniqueIdentifier>{EEBE144A-77CA-4F22-B72D-A4A4F1B12669}</UniqueIdentifier>
+      <UniqueIdentifier>{f203db5f-f491-45a0-9c8a-28db151f19fe}</UniqueIdentifier>
     </Filter>
     <Filter Include=".github">
-      <UniqueIdentifier>{E3DDF91A-E67C-42BA-AEDD-39008207D783}</UniqueIdentifier>
+      <UniqueIdentifier>{34f9715f-923e-40e7-9d59-97f814f56102}</UniqueIdentifier>
     </Filter>
     <Filter Include=".github\ISSUE_TEMPLATE">
-      <UniqueIdentifier>{52D022F4-BD9F-4C2E-9CF7-1FB2442D2CB1}</UniqueIdentifier>
+      <UniqueIdentifier>{3ae8ddfa-8e29-4f5f-bc4f-d61cf4ca2c71}</UniqueIdentifier>
     </Filter>
     <Filter Include=".github\workflows">
-      <UniqueIdentifier>{C4B83561-B782-45B8-BD9E-5E5CFDFEEA68}</UniqueIdentifier>
+      <UniqueIdentifier>{04d01d87-d02f-4294-b6d8-b5c98d7524c7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Scripts">
+      <UniqueIdentifier>{18c0822a-3c59-44ff-ad03-c080c63a3857}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Tools">
+      <UniqueIdentifier>{cd3e6670-a63c-4a92-8127-f365053cf46e}</UniqueIdentifier>
     </Filter>
     <Filter Include=".github\scripts">
-      <UniqueIdentifier>{B8A2DF65-8B86-4A5B-8909-0A18E52871E9}</UniqueIdentifier>
+      <UniqueIdentifier>{4c801623-59e4-416d-820b-527975883309}</UniqueIdentifier>
     </Filter>
-    <Filter Include="x64">
-      <UniqueIdentifier>{A3ED2A7F-4EF0-47F0-AEE7-784CA7F6E89A}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="x64\Debug">
-      <UniqueIdentifier>{FBADB094-13CB-4734-8B7D-415CDDEA0286}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="src\components">
-      <UniqueIdentifier>{57a46a21-f980-4759-8996-2ff09f74a300}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="include\samples\input">
-      <UniqueIdentifier>{DEEFE83A-C540-4ABC-91FD-39588A624D1D}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="src\scenes">
-      <UniqueIdentifier>{cf779884-54b0-4abc-87d3-6529a905e019}</UniqueIdentifier>
-    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Hp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="MouseCoordinate.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\animation\Animation.h">
+      <Filter>Header Files\animation</Filter>
+    </ClInclude>
+    <ClInclude Include="include\app\App.h">
+      <Filter>Header Files\app</Filter>
+    </ClInclude>
+    <ClInclude Include="include\app\BuildConfig.h">
+      <Filter>Header Files\app</Filter>
+    </ClInclude>
+    <ClInclude Include="include\app\DebugLog.h">
+      <Filter>Header Files\app</Filter>
+    </ClInclude>
+    <ClInclude Include="include\app\ResourceManager.h">
+      <Filter>Header Files\app</Filter>
+    </ClInclude>
+    <ClInclude Include="include\app\ServiceLocator.h">
+      <Filter>Header Files\app</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\Collision.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\Component.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\CountUIComponent.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\GameComponents.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\GameStats.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\GameTags.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\Light.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\MeshRenderer.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\Model.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\ModelComponent.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\PlayerComponents.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\Rotator.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\StageComponents.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\Transform.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\TransformHierarchy.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\UIComponents.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\config\ConfigManager.h">
+      <Filter>Header Files\config</Filter>
+    </ClInclude>
+    <ClInclude Include="include\config\ConfigVar.h">
+      <Filter>Header Files\config</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ecs\Entity.h">
+      <Filter>Header Files\ecs</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ecs\World.h">
+      <Filter>Header Files\ecs</Filter>
+    </ClInclude>
+    <ClInclude Include="include\graphics\Camera.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\graphics\DebugDraw.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\graphics\GfxDevice.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\graphics\ModelLoader.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\graphics\RenderSystem.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\graphics\TextSystem.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\graphics\TextureManager.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\graphics\VideoPlayer.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\input\GamepadSystem.h">
+      <Filter>Header Files\input</Filter>
+    </ClInclude>
+    <ClInclude Include="include\input\InputSystem.h">
+      <Filter>Header Files\input</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pch.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\samples\CollisionEventSamples.h">
+      <Filter>Header Files\samples</Filter>
+    </ClInclude>
+    <ClInclude Include="include\samples\CollisionSamples.h">
+      <Filter>Header Files\samples</Filter>
+    </ClInclude>
+    <ClInclude Include="include\samples\ComponentSamples.h">
+      <Filter>Header Files\samples</Filter>
+    </ClInclude>
+    <ClInclude Include="include\samples\GamepadSample.h">
+      <Filter>Header Files\samples</Filter>
+    </ClInclude>
+    <ClInclude Include="include\samples\TransformHierarchySamples.h">
+      <Filter>Header Files\samples</Filter>
+    </ClInclude>
+    <ClInclude Include="include\samples\WorldImprovementDemo.h">
+      <Filter>Header Files\samples</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scenes\Game.h">
+      <Filter>Header Files\scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scenes\SceneManager.h">
+      <Filter>Header Files\scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scenes\SenesUIController.h">
+      <Filter>Header Files\scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scenes\StageSelect.h">
+      <Filter>Header Files\scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scenes\Tags.h">
+      <Filter>Header Files\scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="include\systems\ModelLoadingSystem.h">
+      <Filter>Header Files\systems</Filter>
+    </ClInclude>
+    <ClInclude Include="include\systems\SpatialHashGrid.h">
+      <Filter>Header Files\systems</Filter>
+    </ClInclude>
+    <ClInclude Include="include\systems\TransformHierarchySystem.h">
+      <Filter>Header Files\systems</Filter>
+    </ClInclude>
+    <ClInclude Include="include\systems\UISystem.h">
+      <Filter>Header Files\systems</Filter>
+    </ClInclude>
+    <ClInclude Include="include\util\Random.h">
+      <Filter>Header Files\util</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\app\ResourceManager.cpp">
-      <Filter>src\app</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ecs\World.cpp">
-      <Filter>src\ecs</Filter>
-    </ClCompile>
-    <ClCompile Include="src\graphics\ModelLoader.cpp">
-      <Filter>src\graphics</Filter>
-    </ClCompile>
-    <ClCompile Include="src\input\GamepadSystem.cpp">
-      <Filter>src\input</Filter>
-    </ClCompile>
-    <ClCompile Include="src\main.cpp">
-      <Filter>src</Filter>
-    </ClCompile>
-    <ClCompile Include="src\pch.cpp">
-      <Filter>src</Filter>
+      <Filter>Source Files\app</Filter>
     </ClCompile>
     <ClCompile Include="src\components\Collision.cpp">
-      <Filter>src\components</Filter>
+      <Filter>Source Files\components</Filter>
+    </ClCompile>
+    <ClCompile Include="src\config\ConfigManager.cpp">
+      <Filter>Source Files\config</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ecs\World.cpp">
+      <Filter>Source Files\ecs</Filter>
+    </ClCompile>
+    <ClCompile Include="src\graphics\ModelLoader.cpp">
+      <Filter>Source Files\graphics</Filter>
     </ClCompile>
     <ClCompile Include="src\graphics\TextSystem.cpp">
-      <Filter>src\app</Filter>
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="src\input\GamepadSystem.cpp">
+      <Filter>Source Files\input</Filter>
+    </ClCompile>
+    <ClCompile Include="src\main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pch.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\scenes\GameUI.cpp">
-      <Filter>src\scenes</Filter>
+      <Filter>Source Files\scenes</Filter>
     </ClCompile>
-    <ClCompile Include="src\systems\SpatialHashGrid.cpp" />
+    <ClCompile Include="src\systems\SpatialHashGrid.cpp">
+      <Filter>Source Files\systems</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="include\animation\Animation.h">
-      <Filter>include\animation</Filter>
-    </ClInclude>
-    <ClInclude Include="include\app\ResourceManager.h">
-      <Filter>include\app</Filter>
-    </ClInclude>
-    <ClInclude Include="include\app\ServiceLocator.h">
-      <Filter>include\app</Filter>
-    </ClInclude>
-    <ClInclude Include="include\app\App.h">
-      <Filter>include\app</Filter>
-    </ClInclude>
-    <ClInclude Include="include\app\DebugLog.h">
-      <Filter>include\app</Filter>
-    </ClInclude>
-    <ClInclude Include="include\components\PlayerComponents.h">
-      <Filter>include\components</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ecs\World.h">
-      <Filter>include\ecs</Filter>
-    </ClInclude>
-    <ClInclude Include="include\gameplay\EnemySpawner.h">
-      <Filter>include\gameplay</Filter>
-    </ClInclude>
-    <ClInclude Include="include\graphics\Camera.h">
-      <Filter>include\graphics</Filter>
-    </ClInclude>
-    <ClInclude Include="include\components\Component.h">
-      <Filter>include\components</Filter>
-    </ClInclude>
-    <ClInclude Include="include\graphics\RenderSystem.h">
-      <Filter>include\graphics</Filter>
-    </ClInclude>
-    <ClInclude Include="include\input\GamepadSystem.h">
-      <Filter>include\samples\input</Filter>
-    </ClInclude>
-    <ClInclude Include="include\pch.h">
-      <Filter>include</Filter>
-    </ClInclude>
-    <ClInclude Include="include\samples\ComponentSamples.h">
-      <Filter>include\samples</Filter>
-    </ClInclude>
-    <ClInclude Include="include\graphics\DebugDraw.h">
-      <Filter>include\graphics</Filter>
-    </ClInclude>
-    <ClInclude Include="include\ecs\Entity.h">
-      <Filter>include\ecs</Filter>
-    </ClInclude>
-    <ClInclude Include="include\graphics\GfxDevice.h">
-      <Filter>include\graphics</Filter>
-    </ClInclude>
-    <ClInclude Include="include\input\InputSystem.h">
-      <Filter>include\samples\input</Filter>
-    </ClInclude>
-    <ClInclude Include="include\components\Model.h">
-      <Filter>include\components</Filter>
-    </ClInclude>
-    <ClInclude Include="include\components\Light.h">
-      <Filter>include\components</Filter>
-    </ClInclude>
-    <ClInclude Include="include\components\MeshRenderer.h">
-      <Filter>include\components</Filter>
-    </ClInclude>
-    <ClInclude Include="include\components\ModelComponent.h">
-      <Filter>include\components</Filter>
-    </ClInclude>
-    <ClInclude Include="include\graphics\ModelLoader.h">
-      <Filter>include\graphics</Filter>
-    </ClInclude>
-    <ClInclude Include="include\samples\GamepadSample.h">
-      <Filter>include\samples</Filter>
-    </ClInclude>
-    <ClInclude Include="include\systems\ModelLoadingSystem.h">
-      <Filter>include\systems</Filter>
-    </ClInclude>
-    <ClInclude Include="include\samples\WorldImprovementDemo.h">
-      <Filter>include\samples</Filter>
-    </ClInclude>
-    <ClInclude Include="include\scenes\Game.h">
-      <Filter>include\scenes</Filter>
-    </ClInclude>
-    <ClInclude Include="include\components\Rotator.h">
-      <Filter>include\components</Filter>
-    </ClInclude>
-    <ClInclude Include="include\scenes\SceneManager.h">
-      <Filter>include\scenes</Filter>
-    </ClInclude>
-    <ClInclude Include="include\graphics\TextureManager.h">
-      <Filter>include\graphics</Filter>
-    </ClInclude>
-    <ClInclude Include="include\components\Transform.h">
-      <Filter>include\components</Filter>
-    </ClInclude>
-    <ClInclude Include="include\graphics\VideoPlayer.h">
-      <Filter>include\graphics</Filter>
-    </ClInclude>
-    <ClInclude Include="include\scenes\Tags.h">
-      <Filter>include\scenes</Filter>
-    </ClInclude>
-    <ClInclude Include="include\util\Random.h">
-      <Filter>include\util</Filter>
-    </ClInclude>
-    <ClInclude Include="include\components\Collision.h">
-      <Filter>include\components</Filter>
-    </ClInclude>
-    <ClInclude Include="include\samples\CollisionSamples.h">
-      <Filter>docs</Filter>
-    </ClInclude>
-    <ClInclude Include="include\samples\CollisionEventSamples.h">
-      <Filter>docs</Filter>
-    </ClInclude>
-    <ClInclude Include="include\systems\UISystem.h">
-      <Filter>include\systems</Filter>
-    </ClInclude>
-    <ClInclude Include="include\components\UIComponents.h">
-      <Filter>include\components</Filter>
-    </ClInclude>
-    <ClInclude Include="include\graphics\TextSystem.h">
-      <Filter>include\graphics</Filter>
-    </ClInclude>
-    <ClInclude Include="include\scenes\SenesUIController.h">
-      <Filter>include\scenes</Filter>
-    </ClInclude>
-    <ClInclude Include="MouseCoordinate.h">
-      <Filter>include\samples\input</Filter>
-    </ClInclude>
-    <ClInclude Include="include\components\GameStats.h">
-      <Filter>include\scenes</Filter>
-    </ClInclude>
-    <ClInclude Include="Hp.h">
-      <Filter>include\components</Filter>
-    </ClInclude>
-    <ClInclude Include="include\components\TransformHierarchy.h">
-      <Filter>include\components</Filter>
-    </ClInclude>
-    <ClInclude Include="include\systems\TransformHierarchySystem.h">
-      <Filter>include\components</Filter>
-    </ClInclude>
-    <ClInclude Include="include\samples\TransformHierarchySamples.h">
-      <Filter>include\samples</Filter>
-    </ClInclude>
-    <ClInclude Include="include\components\StageComponents.h">
-      <Filter>include\components</Filter>
-    </ClInclude>
-    <ClInclude Include="include\components\CountUIcomponent.h">
-    <ClInclude Include="include\scenes\StageSelect.h">
-      <Filter>include\scenes</Filter>
-    </ClInclude>
-    <ClInclude Include="CountUIComponent.h">
-      <Filter>include\components</Filter>
-    </ClInclude>
-    <ClInclude Include="include\systems\SpatialHashGrid.h" />
-  </ItemGroup>
-  <ItemGroup>
+    <None Include=".clang-format" />
+    <None Include=".gitattributes" />
+    <None Include=".gitignore" />
+    <None Include="README.md" />
+    <None Include="docs\ChargeSystem_Guide.md">
+      <Filter>Docs</Filter>
+    </None>
+    <None Include="docs\ChargeSystem_QuickRef.md">
+      <Filter>Docs</Filter>
+    </None>
+    <None Include="docs\Collision_Event_System.md">
+      <Filter>Docs</Filter>
+    </None>
+    <None Include="docs\Collision_System_Guide.md">
+      <Filter>Docs</Filter>
+    </None>
+    <None Include="docs\Core_Architecture.md">
+      <Filter>Docs</Filter>
+    </None>
+    <None Include="docs\DebugDraw_Improvements.md">
+      <Filter>Docs</Filter>
+    </None>
+    <None Include="docs\GamepadSystem_README.md">
+      <Filter>Docs</Filter>
+    </None>
+    <None Include="docs\RealtimeCharge_Guide.md">
+      <Filter>Docs</Filter>
+    </None>
+    <None Include="docs\RenderSystem_Improvements.md">
+      <Filter>Docs</Filter>
+    </None>
+    <None Include="docs\Transform_Hierarchy_Guide.md">
+      <Filter>Docs</Filter>
+    </None>
+    <None Include="docs\UI_System_Guide.md">
+      <Filter>Docs</Filter>
+    </None>
+    <None Include="Assets\config.toml">
+      <Filter>Assets</Filter>
+    </None>
+    <None Include="Assets\Models\test.fbx">
+      <Filter>Assets\Models</Filter>
+    </None>
+    <None Include="Assets\StageData\aaa.csv">
+      <Filter>Assets\StageData</Filter>
+    </None>
+    <None Include="Assets\StageData\aaaa.csv">
+      <Filter>Assets\StageData</Filter>
+    </None>
+    <None Include="Assets\StageData\Lunatic.csv">
+      <Filter>Assets\StageData</Filter>
+    </None>
+    <None Include="Assets\StageData\aaa.xlsx">
+      <Filter>Assets\StageData</Filter>
+    </None>
+    <None Include="Assets\StageTime\stage1time.txt">
+      <Filter>Assets\StageTime</Filter>
+    </None>
     <None Include="Assets\Textures\test.png">
       <Filter>Assets\Textures</Filter>
+    </None>
+    <None Include=".github\copilot-instructions.md">
+      <Filter>.github</Filter>
     </None>
     <None Include=".github\ISSUE_TEMPLATE\01_task.yml">
       <Filter>.github\ISSUE_TEMPLATE</Filter>
@@ -280,79 +374,44 @@
     <None Include=".github\ISSUE_TEMPLATE\02_bug.yml">
       <Filter>.github\ISSUE_TEMPLATE</Filter>
     </None>
-    <None Include=".github\workflows\add_to_project.yml">
-      <Filter>.github\workflows</Filter>
-    </None>
-    <None Include=".github\workflows\apply_labels_on_title.yml">
-      <Filter>.github\workflows</Filter>
+    <None Include=".github\ISSUE_TEMPLATE\config.yml">
+      <Filter>.github\ISSUE_TEMPLATE</Filter>
     </None>
     <None Include=".github\workflows\build.yml">
       <Filter>.github\workflows</Filter>
     </None>
-    <None Include=".github\workflows\close_to_done.yml">
+    <None Include=".github\workflows\sync-main-to-teams.yml">
       <Filter>.github\workflows</Filter>
     </None>
-    <None Include=".github\ISSUE_TEMPLATE\config.yml">
-      <Filter>.github\ISSUE_TEMPLATE</Filter>
+    <None Include=".github\scripts\get_project_fields.ps1">
+      <Filter>.github\scripts</Filter>
     </None>
-    <None Include=".github\workflows\auto_ready_on_start.yml">
-      <Filter>.github\workflows</Filter>
+    <None Include=".github\scripts\get_project_fields.sh">
+      <Filter>.github\scripts</Filter>
     </None>
-    <None Include=".github\workflows\notify_inprogress_digest.yml">
+    <None Include=".github\workflows\add_to_project.yml">
       <Filter>.github\workflows</Filter>
     </None>
     <None Include=".github\workflows\add_to_project_safe.yml.example">
       <Filter>.github\workflows</Filter>
     </None>
-    <None Include=".github\scripts\get_project_fields.sh">
-      <Filter>.github\scripts</Filter>
-    </None>
-    <None Include=".github\scripts\get_project_fields.ps1">
-      <Filter>.github\scripts</Filter>
-    </None>
-    <None Include="docs\GamepadSystem_README.md">
-      <Filter>docs</Filter>
-    </None>
-    <None Include="docs\ChargeSystem_Guide.md">
-      <Filter>docs</Filter>
-    </None>
-    <None Include="docs\RealtimeCharge_Guide.md">
-      <Filter>docs</Filter>
-    </None>
-    <None Include="docs\ChargeSystem_QuickRef.md">
-      <Filter>docs</Filter>
-    </None>
-    <None Include="docs\DebugDraw_Improvements.md">
-      <Filter>docs</Filter>
-    </None>
-    <None Include="docs\RenderSystem_Improvements.md">
-      <Filter>docs</Filter>
-    </None>
-    <None Include="docs\Collision_Event_System.md">
-      <Filter>docs</Filter>
-    </None>
-    <None Include="docs\Collision_System_Guide.md">
-      <Filter>docs</Filter>
-    </None>
-    <None Include="README.md">
-      <Filter>docs</Filter>
-    </None>
-    <None Include="docs\UI_System_Guide.md">
-      <Filter>docs</Filter>
-    </None>
-    <None Include="docs\Transform_Hierarchy_Guide.md">
-      <Filter>docs</Filter>
-    </None>
-    <None Include=".github\workflows\sync-main-to-teams.yml">
+    <None Include=".github\workflows\apply_labels_on_title.yml">
       <Filter>.github\workflows</Filter>
     </None>
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="x64\Debug\debug_log.txt">
-      <Filter>x64\Debug</Filter>
-    </Text>
-    <Text Include="debug_log.txt">
-      <Filter>docs</Filter>
-    </Text>
+    <None Include=".github\workflows\auto_ready_on_start.yml">
+      <Filter>.github\workflows</Filter>
+    </None>
+    <None Include=".github\workflows\close_to_done.yml">
+      <Filter>.github\workflows</Filter>
+    </None>
+    <None Include=".github\workflows\notify_inprogress_digest.yml">
+      <Filter>.github\workflows</Filter>
+    </None>
+    <None Include="scripts\upload_to_drive.py">
+      <Filter>Scripts</Filter>
+    </None>
+    <None Include="tools\Run-ClangFormat.ps1">
+      <Filter>Tools</Filter>
+    </None>
   </ItemGroup>
 </Project>
