@@ -26,7 +26,7 @@ public:
 
     // Implicit conversion to T
     operator T() const { return m_Value; }
-    
+
     // Assignment operator
     ConfigVar<T>& operator=(const T& value) {
         m_Value = value;
@@ -38,12 +38,12 @@ public:
     // IConfigVar implementation
     std::string GetSection() const override { return m_Section; }
     std::string GetName() const override { return m_Name; }
-    
+
     void SetValueFromString(const std::string& value) override {
         // Specializations or standard conversions would go here
         // For now, we'll handle basic types in the cpp or via specializations if needed
         // But since this is a header-only template part, we need to be careful.
-        // Actually, it's better to delegate the string parsing to the Manager or helper 
+        // Actually, it's better to delegate the string parsing to the Manager or helper
         // to avoid cluttering this header, but for simplicity in this task:
         if constexpr (std::is_same_v<T, int>) {
             m_Value = std::stoi(value);
