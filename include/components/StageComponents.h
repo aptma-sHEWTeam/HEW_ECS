@@ -13,6 +13,9 @@
 #include <sstream>
 #include <iostream>
 #include <vector>
+#include "config/ConfigVar.h"
+#include "app/DebugLog.h" // DEBUGLOG_ERRORのために追加
+
 using namespace std;
 
 /**
@@ -55,39 +58,50 @@ struct StageCreate : IComponent {
      * @brief コンストラクタ
      * @details CSVファイルをオープンし、データを読み込む
      */
-    StageCreate() {
-        m_file.open("Assets/StageData/aaa.csv");
-        if (!m_file.is_open()) {
-            cerr << "ファイルのオープンに失敗しました。" << endl;
-        } else {
-            loadStageData();
-        }
-    }
-
-    /**
-     * @brief ステージデータを読み込む
-     * @details CSVファイルからデータをパースし、stageMapに格納
-     */
-    void loadStageData() {
-        string line;
-        while (getline(m_file, line)) {
-            vector<int> row;
-            stringstream sstream(line);
-            string cell;
-
-            while (getline(sstream, cell, ',')) {
-                try {
-                    row.push_back(stoi(cell));
-                } catch (const std::invalid_argument &error) {
-                    cerr << "無効な数値: " << cell << endl;
-                } catch (const std::out_of_range &error) {
-                    cerr << "範囲外の数値: " << cell << endl;
-                }
+        explicit StageCreate(const std::string& csvPath) {
+            DEBUGLOG("[StageCreate] Constructor called with path: " + csvPath);
+            if (csvPath.empty()) {
+                DEBUGLOG_ERROR("[StageCreate] Stage CSV path is empty.");
+                return;
             }
-            stageMap.push_back(row);
+            m_file.open(csvPath);
+            if (!m_file.is_open()) {
+                DEBUGLOG_ERROR("[StageCreate] Failed to open CSV file: " + csvPath);
+            } else {
+                DEBUGLOG("[StageCreate] Successfully opened CSV file. Starting to load data...");
+                loadStageData();
+            }
         }
-        m_file.close();
-    }
+    
+        StageCreate() = delete;
+        /**
+         * @brief ステージデータを読み込む
+         * @details CSVファイルからデータをパースし、stageMapに格納
+         */
+        void loadStageData() {
+            string line;
+            int lineCount = 0;
+            while (getline(m_file, line)) {
+                lineCount++;
+                DEBUGLOG("[StageCreate] Read line " + std::to_string(lineCount) + ": " + line);
+                vector<int> row;
+                stringstream sstream(line);
+                string cell;
+    
+                while (getline(sstream, cell, ',')) {
+                    try {
+                        row.push_back(stoi(cell));
+                    } catch (const std::invalid_argument &error) {
+                        cerr << "無効な数値: " << cell << endl;
+                    } catch (const std::out_of_range &error) {
+                        cerr << "範囲外の数値: " << cell << endl;
+                    }
+                }
+                stageMap.push_back(row);
+            }
+            m_file.close();
+            DEBUGLOG("[StageCreate] Finished loading data. Total lines: " + std::to_string(lineCount));
+        }
 
     StageCreate(const StageCreate &) = delete;
     StageCreate& operator=(const StageCreate&) = delete;

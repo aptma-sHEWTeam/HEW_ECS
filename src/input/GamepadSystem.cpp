@@ -391,7 +391,7 @@ void GamepadSystem::UpdateDInput(int index) {
     // 前フレームの状態を保存
     memcpy(pad.prevButtons, pad.buttons, sizeof(pad.buttons));
 
-#ifdef _DEBUG
+#if defined(ENABLE_VERBOSE_INPUT_LOG) && ENABLE_VERBOSE_INPUT_LOG
     // 入力値を詳細にログ出力
     {
         std::ostringstream oss;
