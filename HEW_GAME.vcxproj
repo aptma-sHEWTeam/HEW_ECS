@@ -231,7 +231,6 @@
     <ClInclude Include="include\components\TransformHierarchy.h" />
     <ClInclude Include="include\components\UIComponents.h" />
     <ClInclude Include="include\ecs\World.h" />
-    <ClInclude Include="include\gameplay\EnemySpawner.h" />
     <ClInclude Include="include\graphics\Camera.h" />
     <ClInclude Include="include\components\Component.h" />
     <ClInclude Include="include\graphics\RenderSystem.h" />
