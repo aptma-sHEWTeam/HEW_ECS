@@ -19,12 +19,15 @@ void ConfigManager::Register(IConfigVar* var) {
 
 void ConfigManager::Initialize(const std::string& assetPath) {
     m_AssetPath = assetPath;
-#ifdef NDEBUG
-    m_IsDebug = false;
-#else
+    // Always enable hot reload in both debug and release builds
     m_IsDebug = true;
-#endif
-    Load();
+    
+    // Always load TOML regardless of build type
+    LoadTOML();
+    if (m_IsDirty) {
+        SaveTOML();
+        m_IsDirty = false;
+    }
 }
 
 void ConfigManager::Update() {
@@ -58,15 +61,11 @@ void ConfigManager::ForceReload() {
 }
 
 void ConfigManager::Load() {
-    if (m_IsDebug) {
-        LoadTOML();
-        // If any vars were not found in TOML, we should save the file to include them
-        if (m_IsDirty) {
-            SaveTOML();
-            m_IsDirty = false;
-        }
-    } else {
-        LoadBinary();
+    // Deprecated - now directly called from Initialize
+    LoadTOML();
+    if (m_IsDirty) {
+        SaveTOML();
+        m_IsDirty = false;
     }
 }
 
