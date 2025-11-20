@@ -23,6 +23,8 @@
 #include <cstdlib>
 #include <ctime>
 #include <algorithm>
+#include <string>
+#include <cstdint>
 
 // ========================================================
 // DirectX

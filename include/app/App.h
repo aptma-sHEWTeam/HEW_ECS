@@ -38,6 +38,7 @@
 #endif
 #include "app/ResourceManager.h"
 #include "app/ServiceLocator.h"
+#include "config/ConfigManager.h"
 
 #ifdef _DEBUG
 #include "app/DebugLog.h"
@@ -231,6 +232,15 @@ struct App {
 
             // ゲームパッドの更新
             gamepad_.Update();
+
+            // ConfigManagerの更新（ホットリロード処理）
+            ConfigManager::Instance().Update();
+
+            // F5キーで手動リロード
+            if (input_.GetKeyDown(VK_F5)) {
+                ConfigManager::Instance().ForceReload();
+                DEBUGLOG_CATEGORY(DebugLog::Category::System, "F5キーが押されました - 設定ファイルを強制リロード");
+            }
 #if ENABLE_DEBUG_VISUALS
             UpdateDebugCamera(deltaTime);
 #endif // ENABLE_DEBUG_VISUALS
