@@ -63,6 +63,7 @@
 struct App {
     // Windows関連
     HWND hwnd_ = nullptr; ///< メインウィンドウのハンドル
+    bool isWindowFocused_ = true; ///< ウィンドウがフォーカスされているかどうか
 
     // DirectX11システム
     GfxDevice gfx_; ///< グラフィックスデバイス
@@ -227,33 +228,41 @@ struct App {
             // ========== UPDATE PHASE ==========
             auto updateStartTime = std::chrono::high_resolution_clock::now();
 
-            // 入力の更新
-            input_.Update();
+            // 入力の更新（フォーカスがある場合のみ）
+            if (isWindowFocused_) {
+                input_.Update();
+            }
 
-            // ゲームパッドの更新
-            gamepad_.Update();
+            // ゲームパッドの更新（フォーカスがある場合のみ）
+            if (isWindowFocused_) {
+                gamepad_.Update();
+            }
 
             // ConfigManagerの更新（ホットリロード処理）
             ConfigManager::Instance().Update();
 
-            // F5キーで手動リロード
-            if (input_.GetKeyDown(VK_F5)) {
+            // F5キーで手動リロード（フォーカスがある場合のみ）
+            if (isWindowFocused_ && input_.GetKeyDown(VK_F5)) {
                 ConfigManager::Instance().ForceReload();
                 DEBUGLOG_CATEGORY(DebugLog::Category::System, "F5キーが押されました - 設定ファイルを強制リロード");
             }
 #if ENABLE_DEBUG_VISUALS
-            UpdateDebugCamera(deltaTime);
+            if (isWindowFocused_) {
+                UpdateDebugCamera(deltaTime);
+            }
 #endif // ENABLE_DEBUG_VISUALS
 
-            // ESCキーで終了
-            if (input_.GetKeyDown(VK_ESCAPE)) {
+            // ESCキーで終了（フォーカスがある場合のみ）
+            if (isWindowFocused_ && input_.GetKeyDown(VK_ESCAPE)) {
                 DEBUGLOG_CATEGORY(DebugLog::Category::System, "ESCキーが押されました - アプリケーション終了要求（ユーザー操作）");
                 PostQuitMessage(0);
             }
 
-            // シーンの更新
+            // シーンの更新（UIの描画のため常に呼び出す）
+            // フォーカスがない場合はdeltaTimeを0にして時間依存の更新を停止
+            float effectiveDeltaTime = isWindowFocused_ ? deltaTime : 0.0f;
             try {
-                sceneManager_.Update(world_, input_, deltaTime);
+                sceneManager_.Update(world_, input_, effectiveDeltaTime);
             } catch (const std::exception& e) {
                 DEBUGLOG("[CRITICAL ERROR] シーン更新中に例外が発生: " + std::string(e.what()));
                 PostQuitMessage(-1);
@@ -823,6 +832,16 @@ private:
      */
     LRESULT WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
         switch (msg) {
+        case WM_ACTIVATE:
+            if (LOWORD(wp) == WA_INACTIVE) {
+                isWindowFocused_ = false;
+                DEBUGLOG_CATEGORY(DebugLog::Category::System, "ウィンドウがフォーカスを失いました - 入力と更新を停止");
+            } else {
+                isWindowFocused_ = true;
+                DEBUGLOG_CATEGORY(DebugLog::Category::System, "ウィンドウがフォーカスを取得しました - 入力と更新を再開");
+            }
+            return 0;
+
         case WM_CLOSE:
             DEBUGLOG_CATEGORY(DebugLog::Category::System, "WM_CLOSEを受信 - ユーザーによるウィンドウ閉じる操作");
             // デフォルト処理に委ねる（WM_DESTROYが発生）
