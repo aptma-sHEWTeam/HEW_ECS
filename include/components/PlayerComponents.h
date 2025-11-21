@@ -24,6 +24,14 @@
 #include "config/ConfigVar.h"
 
 // =========================================
+// 定数定義
+// =========================================
+namespace PlayerConstants {
+    constexpr int ANGLE_HISTORY_SIZE = 30;
+    constexpr float EPSILON = 1e-5f;
+}
+
+// =========================================
 // ベロシティ計算コンポーネント
 // =========================================
 
@@ -110,7 +118,7 @@ struct PlayerMovement : Behaviour {
     bool wasCharging_ = false;           ///< 前フレームでチャージしていたか(ローカル検出)
 
       //角度履歴
-    float angleHistory[30] = {};
+    float angleHistory[PlayerConstants::ANGLE_HISTORY_SIZE] = {};
     int angleIndex = 0;
     bool angleFilled = false;
 
@@ -167,7 +175,7 @@ struct PlayerMovement : Behaviour {
             float mag = std::sqrt(gx * gx + gy * gy);
 
             // 方向キャッシュ（常時）
-            if (mag > 1e-5f) {
+            if (mag > PlayerConstants::EPSILON) {
                 lastStickDir_.x = -(gx / mag);
                 lastStickDir_.y = -(gy / mag);
             }
@@ -175,8 +183,8 @@ struct PlayerMovement : Behaviour {
             //角度履歴
             float ang = std::atan2f(lastStickDir_.y, lastStickDir_.x);
             angleHistory[angleIndex] = ang;                 //毎フレームの角度を保存した配列
-            angleIndex = (angleIndex + 1) % 30;             //現在の保存位置
-            if (angleIndex == 30)                            //30フレーム埋まったらtrue
+            angleIndex = (angleIndex + 1) % PlayerConstants::ANGLE_HISTORY_SIZE;             //現在の保存位置
+            if (angleIndex == PlayerConstants::ANGLE_HISTORY_SIZE)                            //30フレーム埋まったらtrue
             {
                 angleFilled = true;
             }
@@ -204,7 +212,7 @@ struct PlayerMovement : Behaviour {
             if (releasedSys || releasedLocal)
             {
                 //三項演算子     angleFilled = trueの時 count = 30,falseの時 count = angleIndex
-                int count = angleFilled ? 30 : angleIndex;
+                int count = angleFilled ? PlayerConstants::ANGLE_HISTORY_SIZE : angleIndex;
 
                 float sumSin = 0.0f;
                 float sumCos = 0.0f;
@@ -224,13 +232,13 @@ struct PlayerMovement : Behaviour {
 
                //プレイヤーの速度に平均角度を乗算
                 float dirLen = std::sqrt(dirX * dirX + dirY * dirY);
-                if (dirLen > 1e-5f)
+                if (dirLen > PlayerConstants::EPSILON)
                 {
                     v->velocity.x = (dirX / dirLen) * v->speed;
                     v->velocity.y = (dirY / dirLen) * v->speed;
 
                     float yawRad = std::atan2(v->velocity.y, v->velocity.x);
-                    t->rotation.y = yawRad * (180.0f / 3.1415926535f);
+                    t->rotation.y = yawRad * (180.0f / DirectX::XM_PI);
 
                     isCharging_ = false;
                     slowFactor = 1.0f;
@@ -264,7 +272,7 @@ struct PlayerMovement : Behaviour {
     }
     float CalcMoveRotation()
     {
-        return std::atan2f(lastStickDir_.y, lastStickDir_.x) * (180.0f / 3.1415926535f);
+        return std::atan2f(lastStickDir_.y, lastStickDir_.x) * (180.0f / DirectX::XM_PI);
     }
 };
 
@@ -299,6 +307,12 @@ struct PlayerGuide : Behaviour
     Transform *selfTransform{};
     Transform *guidTransform{};
     Entity guidEntity{};
+
+    // Config Variables
+    inline static ConfigVar<float> cfg_GuideScaleX{"Player", "GuideScaleX", 2.5f};
+    inline static ConfigVar<float> cfg_GuideScaleY{"Player", "GuideScaleY", 1.0f};
+    inline static ConfigVar<float> cfg_GuideScaleZ{"Player", "GuideScaleZ", 0.1f};
+    inline static ConfigVar<float> cfg_GuideOffsetDistance{"Player", "GuideOffsetDistance", 2.0f};
 
     /**
     * @brief ガイドオブジェクト作成
@@ -365,7 +379,7 @@ struct PlayerGuide : Behaviour
 
         // プレイヤーと同じように進行方向に回転させる
         float rad = std::atan2f(playerMove->lastStickDir_.y, playerMove->lastStickDir_.x);
-        guidTransform->rotation.y = -rad * (180.0f / 3.1415926535f); // deg(度)変換
+        guidTransform->rotation.y = -rad * (180.0f / DirectX::XM_PI); // deg(度)変換
 
         // チャージ状態の判別処理
         if (!playerMove->isCharging_)
@@ -374,11 +388,11 @@ struct PlayerGuide : Behaviour
         }
         else
         {
-            guidTransform->scale = {2.5f, 1, 0.1};   // チャージ中はガイドの大きさを1にする
+            guidTransform->scale = {cfg_GuideScaleX.Get(), cfg_GuideScaleY.Get(), cfg_GuideScaleZ.Get()};   // チャージ中はガイドの大きさを1にする
 
             // (x,y) = (cosΘ, sinΘ)
-            guidTransform->position.x += std::cosf(rad) * 2;
-            guidTransform->position.z += std::sinf(rad) * 2;
+            guidTransform->position.x += std::cosf(rad) * cfg_GuideOffsetDistance.Get();
+            guidTransform->position.z += std::sinf(rad) * cfg_GuideOffsetDistance.Get();
         }
     }
 };

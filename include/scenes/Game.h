@@ -172,6 +172,8 @@ class GameScene : public IScene {
 
     inline static ConfigVar<std::string> cfg_StagePath{"Stage", "CSVPath", "Assets/StageData/aaa.csv"};
 
+    inline static ConfigVar<float> cfg_CollisionCellSize{"Game", "CollisionCellSize", 20.0f};
+
 
     void OnEnter(World &world) override {
         DEBUGLOG("<<<<< GameScene::OnEnter CALLED! >>>>>");
@@ -199,7 +201,7 @@ class GameScene : public IScene {
         Entity stageProgress = world.Create().With<StageProgress>().Build();
         ownedEntities_.push_back(stageProgress);
 
-        Entity collisionSystem = world.Create().With<CollisionDetectionSystem>(20.0f).Build();
+        Entity collisionSystem = world.Create().With<CollisionDetectionSystem>(cfg_CollisionCellSize.Get()).Build();
         ownedEntities_.push_back(collisionSystem);
 
         Entity stageEntity_ = world.Create().With<StageCreate>(cfg_StagePath.Get()).Build();
