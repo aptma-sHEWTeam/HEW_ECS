@@ -7,18 +7,12 @@
  */
 #pragma once
 
-// pch.hには基本的な標準ライブラリ、DirectX、ECSコア、基本コンポーネント、
-// 基本システムが含まれているため、重複を避ける
 #include "pch.h"
 
-// 追加の標準ライブラリ（pch.hに含まれていないもの）
 #include <sstream>
 #include <iomanip>
 
-// 設定システム
 #include "config/ConfigVar.h"
-
-// ゲーム固有のコンポーネント（pch.hに含まれていないもの）
 #include "components/GameTags.h"
 #include "components/PlayerComponents.h"
 #include "components/UIComponents.h"
@@ -27,24 +21,14 @@
 #include "components/Light.h"
 #include "components/GameStats.h"
 #include "components/StageComponents.h"
-
-// 入力システム（InputSystemはpch.hに含まれている）
 #include "input/GamepadSystem.h"
-
-// システム
 #include "systems/UISystem.h"
 #include "graphics/TextSystem.h"
-
-// アプリケーション
 #include "app/ServiceLocator.h"
-
-// シーン関連
 #include "SenesUIController.h"
 
-//ステージの仮置きの制限時間
 inline static ConfigVar<float> cfg_LimitTime{"Game", "LimitTime", 10.0f};
 
-// プレイヤーをスタート地点へ戻す (必要に応じてタイマーもリセット)
 inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false) {
     if (!w.IsAlive(player)) {
         return;
@@ -64,7 +48,6 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
             }
         }
 
-        // タイマーリセット処理
         if (resetTimer) {
             w.ForEach<GameStats>([](Entity, GameStats &stats) {
                 stats.elapsedTime = 0.0f;
@@ -75,15 +58,12 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
     });
 }
 
-//制限時間をチェックする
 inline void CheckTimeLimit(World &w,Entity player, float timeLimitSeconds) {
     w.ForEach<GameStats>([&](Entity e, GameStats &stats) {
-        //制限時間チェック
         if (stats.elapsedTime >= timeLimitSeconds) {
             DEBUGLOG("時間切れ");
             ResetPlayerToStart(w,player,true);
         }
-
     });
 }
 
@@ -145,7 +125,6 @@ struct FloorWallCollisionHandler : ICollisionHandler {
     }
 };
 REGISTER_COLLISION_HANDLER_TYPE(FloorWallCollisionHandler)
-
 
 /**
  * @class GameScene
@@ -537,9 +516,9 @@ class GameScene : public IScene {
     std::vector<Entity> ownedEntities_;
     std::vector<Entity> stageOwnedEntities_;
     Entity playerEntity_{};
-    Entity stageEntity{};
+    Entity stageEntity_{};
     Entity startEntity_{};
-    Entity wall{};
-    Entity worldwall{};
+    Entity wall_{};
+    Entity worldwall_{};
     Entity goalEntity_{};
 };
