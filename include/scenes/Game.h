@@ -26,6 +26,7 @@
 #include "graphics/TextSystem.h"
 #include "app/ServiceLocator.h"
 #include "SenesUIController.h"
+#include "systems/ModelLoadingSystem.h"
 
 inline static ConfigVar<float> cfg_LimitTime{"Game", "LimitTime", 10.0f};
 
@@ -161,6 +162,7 @@ class GameScene : public IScene {
     inline static ConfigVar<float> cfg_FloorWallR{"Game", "FloorWallColorR", 0.5f};
     inline static ConfigVar<float> cfg_FloorWallG{"Game", "FloorWallColorG", 0.5f};
     inline static ConfigVar<float> cfg_FloorWallB{"Game", "FloorWallColorB", 0.5f};
+    inline static ConfigVar<float> cfg_WallSize{"Game", "WallSize", 3.0f};
 
     inline static ConfigVar<float> cfg_UICountPosX{"UI", "CountPosX", 20.0f};
     inline static ConfigVar<float> cfg_UICountPosY{"UI", "CountPosY", 170.0f};
@@ -169,6 +171,8 @@ class GameScene : public IScene {
     inline static ConfigVar<float> cfg_UICountR{"UI", "CountColorR", 0.0f};
     inline static ConfigVar<float> cfg_UICountG{"UI", "CountColorG", 1.0f};
     inline static ConfigVar<float> cfg_UICountB{"UI", "CountColorB", 1.0f};
+
+    inline static ConfigVar<std::string> cfg_PlayerFBXPass{"Player", "PlayerFBXPass", "Assets/Models/aaa.fbx"};
 
     inline static ConfigVar<std::string> cfg_StagePath{"Stage", "CSVPath", "Assets/StageData/aaa.csv"};
 
@@ -203,6 +207,10 @@ class GameScene : public IScene {
 
         Entity collisionSystem = world.Create().With<CollisionDetectionSystem>(cfg_CollisionCellSize.Get()).Build();
         ownedEntities_.push_back(collisionSystem);
+
+        // ModelLoadingSystem を追加して Model -> ModelComponent 変換を有効化
+        Entity modelLoaderSystem = world.Create().With<ModelLoadingSystem>().Build();
+        ownedEntities_.push_back(modelLoaderSystem);
 
         Entity stageEntity_ = world.Create().With<StageCreate>(cfg_StagePath.Get()).Build();
         ownedEntities_.push_back(stageEntity_);
@@ -287,13 +295,10 @@ class GameScene : public IScene {
     void CreatePlayer(World &world) {
         float s = cfg_PlayerScale;
         Transform transform { {0.0f, 0.0f, cfg_PlayerStartY}, {0.0f, 0.0f, 0.0f}, {s, s, s} };
-        MeshRenderer renderer;
-        renderer.meshType = MeshType::Sphere;
-        renderer.color = DirectX::XMFLOAT3 { cfg_PlayerR, cfg_PlayerG, cfg_PlayerB };
 
         Entity player = world.Create()
             .With<Transform>(transform)
-            .With<MeshRenderer>(renderer)
+            .With<Model>(cfg_PlayerFBXPass)
             .With<PlayerTag>()
             .With<PlayerVelocity>()
             .With<PlayerMovement>()
@@ -429,7 +434,7 @@ class GameScene : public IScene {
     }
 
     void CreateWall(World &world, const DirectX::XMFLOAT3 &position) {
-        Transform transform { position, { 0.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f } };
+        Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::Cube;
         renderer.color = DirectX::XMFLOAT3 { cfg_WallR, cfg_WallG, cfg_WallB };
@@ -446,7 +451,7 @@ class GameScene : public IScene {
     }
 
     void CreatFloorWall(World &world, const DirectX::XMFLOAT3 &position) {
-        Transform transform { position, { 0.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f } };
+        Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::Cube;
         renderer.color = DirectX::XMFLOAT3 { cfg_FloorWallR, cfg_FloorWallG, cfg_FloorWallB };
