@@ -32,6 +32,7 @@ inline static ConfigVar<float> cfg_LimitTime{"Game", "LimitTime", 10.0f};
 
 inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false) {
     if (!w.IsAlive(player)) {
+
         return;
     }
 
@@ -42,7 +43,7 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
         }
 
         if (auto *tPlayer = w.TryGet<Transform>(player)) {
-            tPlayer->position = {tStart.position.x, 0.0f, tStart.position.z};
+            tPlayer->position = {tStart.position.x, 0.0f, tStart.position.z-1.0f};//プレイヤーの生成場所
 
             if (auto *vPlayer = w.TryGet<PlayerVelocity>(player)) {
                 vPlayer->velocity = {0.0f, 0.0f};
@@ -294,7 +295,7 @@ class GameScene : public IScene {
 
     void CreatePlayer(World &world) {
         float s = cfg_PlayerScale;
-        Transform transform { {0.0f, 0.0f, cfg_PlayerStartY}, {0.0f, 0.0f, 0.0f}, {s, s, s} };
+        Transform transform { {0.0f, 0.0f, cfg_PlayerStartY }, {0.0f, 0.0f, 0.0f}, {s, s, s} };
 
         Entity player = world.Create()
             .With<Transform>(transform)
@@ -392,11 +393,11 @@ class GameScene : public IScene {
 
     void CreateStart(World &world, const DirectX::XMFLOAT3 &position) {
         DirectX::XMFLOAT3 diffPosition;
-        diffPosition.x = position.x;
+        diffPosition.x = position.x ;
         diffPosition.y = position.y - 1.0f;
-        diffPosition.z = position.z;
+        diffPosition.z = position.z ;
 
-        Transform t{ diffPosition, {0, 0, 0}, {1, 1, 1}};
+        Transform t{ diffPosition , {0, 0, 0}, {1, 1, 1}};//スタート地点のBox
         MeshRenderer r;
         r.meshType = MeshType::Cube;
         r.color = DirectX::XMFLOAT3 { cfg_StartR, cfg_StartG, cfg_StartB };
