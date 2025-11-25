@@ -489,10 +489,6 @@ class GameScene : public IScene {
     }
 
     void ShowStateUI(World &world) {
-        //優先事項：UIの表示
-        //プレイヤーの停止（後でいい）
-        //カウントスタート321
-        //プレイヤーの解放
         UITransform CountTransform;
         CountTransform.position = {cfg_UICountPosX, cfg_UICountPosY};
         CountTransform.size = {cfg_UICountW, cfg_UICountH};
