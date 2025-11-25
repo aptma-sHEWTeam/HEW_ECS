@@ -1,6 +1,6 @@
 [Game]
 LimitTime = 10.000000
-PlayerScale = 1.000000
+PlayerScale = 0.200000
 PlayerColorR = 1.000000
 PlayerColorG = 1.000000
 PlayerColorB = 0.000000

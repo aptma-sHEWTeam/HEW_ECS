@@ -353,8 +353,8 @@ class GameScene : public IScene {
                     if (blockType != 0) {
                         switch (blockType) {
                             case 1: CreateStart(world, blockposition); break; // スタート地点
-                            case 2: CreateGoal(world, blockposition); break; // ゴール地点
-                            case 3: CreateWall(world, blockposition); break; // 通常の壁
+                            case 2: CreateGoal(world, blockposition);  break; // ゴール地点
+                            case 3: CreateWall(world, blockposition);  break; // 通常の壁
                         }
                     }
                 }
@@ -417,6 +417,7 @@ class GameScene : public IScene {
         diffPosition.x = position.x;
         diffPosition.y = position.y - 1.0f;
         diffPosition.z = position.z;
+
         Transform t{ diffPosition, {0, 0, 0}, {1, 1, 1}};
         MeshRenderer r;
         r.meshType = MeshType::Cube;
@@ -428,6 +429,7 @@ class GameScene : public IScene {
             .With<GoalTag>()
             .With<CollisionBox>(DirectX::XMFLOAT3 { 1.0f, 2.0f, 1.0f })
             .Build();
+       
 
         goalEntity_ = e;
         stageOwnedEntities_.push_back(e);
