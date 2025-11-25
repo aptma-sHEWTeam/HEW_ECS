@@ -7,18 +7,12 @@
  */
 #pragma once
 
-// pch.hには基本的な標準ライブラリ、DirectX、ECSコア、基本コンポーネント、
-// 基本システムが含まれているため、重複を避ける
 #include "pch.h"
 
-// 追加の標準ライブラリ（pch.hに含まれていないもの）
 #include <sstream>
 #include <iomanip>
 
-// 設定システム
 #include "config/ConfigVar.h"
-
-// ゲーム固有のコンポーネント（pch.hに含まれていないもの）
 #include "components/GameTags.h"
 #include "components/PlayerComponents.h"
 #include "components/UIComponents.h"
@@ -27,19 +21,12 @@
 #include "components/Light.h"
 #include "components/GameStats.h"
 #include "components/StageComponents.h"
-
-// 入力システム（InputSystemはpch.hに含まれている）
 #include "input/GamepadSystem.h"
-
-// システム
 #include "systems/UISystem.h"
 #include "graphics/TextSystem.h"
-
-// アプリケーション
 #include "app/ServiceLocator.h"
-
-// シーン関連
 #include "SenesUIController.h"
+#include "systems/ModelLoadingSystem.h"
 
 //ステージの仮置きの制限時間
 constexpr float limittime = 10.0f;
@@ -49,7 +36,6 @@ constexpr float limittime = 10.0f;
 //ステージの仮置きの制限時間
 inline static ConfigVar<float> cfg_LimitTime{"Game", "LimitTime", 10.0f};
 
-// プレイヤーをスタート地点へ戻す (必要に応じてタイマーもリセット)
 inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false) {
     if (!w.IsAlive(player)) {
         return;
@@ -69,7 +55,6 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
             }
         }
 
-        // タイマーリセット処理
         if (resetTimer) {
             w.ForEach<GameStats>([](Entity, GameStats &stats) {
                 stats.elapsedTime = 0.0f;
@@ -80,15 +65,12 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
     });
 }
 
-//制限時間をチェックする
 inline void CheckTimeLimit(World &w,Entity player, float timeLimitSeconds) {
     w.ForEach<GameStats>([&](Entity e, GameStats &stats) {
-        //制限時間チェック
         if (stats.elapsedTime >= timeLimitSeconds) {
             DEBUGLOG("時間切れ");
             ResetPlayerToStart(w,player,true);
         }
-
     });
 }
 
@@ -151,7 +133,6 @@ struct FloorWallCollisionHandler : ICollisionHandler {
 };
 REGISTER_COLLISION_HANDLER_TYPE(FloorWallCollisionHandler)
 
-
 /**
  * @class GameScene
  * @brief 3DゲームとUIを統合したシーン
@@ -187,6 +168,7 @@ class GameScene : public IScene {
     inline static ConfigVar<float> cfg_FloorWallR{"Game", "FloorWallColorR", 0.5f};
     inline static ConfigVar<float> cfg_FloorWallG{"Game", "FloorWallColorG", 0.5f};
     inline static ConfigVar<float> cfg_FloorWallB{"Game", "FloorWallColorB", 0.5f};
+    inline static ConfigVar<float> cfg_WallSize{"Game", "WallSize", 3.0f};
 
     inline static ConfigVar<float> cfg_UICountPosX{"UI", "CountPosX", 20.0f};
     inline static ConfigVar<float> cfg_UICountPosY{"UI", "CountPosY", 170.0f};
@@ -196,7 +178,11 @@ class GameScene : public IScene {
     inline static ConfigVar<float> cfg_UICountG{"UI", "CountColorG", 1.0f};
     inline static ConfigVar<float> cfg_UICountB{"UI", "CountColorB", 1.0f};
 
+    inline static ConfigVar<std::string> cfg_PlayerFBXPass{"Player", "PlayerFBXPass", "Assets/Models/aaa.fbx"};
+
     inline static ConfigVar<std::string> cfg_StagePath{"Stage", "CSVPath", "Assets/StageData/aaa.csv"};
+
+    inline static ConfigVar<float> cfg_CollisionCellSize{"Game", "CollisionCellSize", 20.0f};
 
 
     void OnEnter(World &world) override {
@@ -225,8 +211,12 @@ class GameScene : public IScene {
         Entity stageProgress = world.Create().With<StageProgress>().Build();
         ownedEntities_.push_back(stageProgress);
 
-        Entity collisionSystem = world.Create().With<CollisionDetectionSystem>(20.0f).Build();
+        Entity collisionSystem = world.Create().With<CollisionDetectionSystem>(cfg_CollisionCellSize.Get()).Build();
         ownedEntities_.push_back(collisionSystem);
+
+        // ModelLoadingSystem を追加して Model -> ModelComponent 変換を有効化
+        Entity modelLoaderSystem = world.Create().With<ModelLoadingSystem>().Build();
+        ownedEntities_.push_back(modelLoaderSystem);
 
         Entity stageEntity_ = world.Create().With<StageCreate>(cfg_StagePath.Get()).Build();
         ownedEntities_.push_back(stageEntity_);
@@ -316,13 +306,10 @@ class GameScene : public IScene {
     void CreatePlayer(World &world) {
         float s = cfg_PlayerScale;
         Transform transform { {0.0f, 0.0f, cfg_PlayerStartY}, {0.0f, 0.0f, 0.0f}, {s, s, s} };
-        MeshRenderer renderer;
-        renderer.meshType = MeshType::Sphere;
-        renderer.color = DirectX::XMFLOAT3 { cfg_PlayerR, cfg_PlayerG, cfg_PlayerB };
 
         Entity player = world.Create()
             .With<Transform>(transform)
-            .With<MeshRenderer>(renderer)
+            .With<Model>(cfg_PlayerFBXPass)
             .With<PlayerTag>()
             .With<PlayerVelocity>()
             .With<PlayerMovement>()
@@ -458,7 +445,7 @@ class GameScene : public IScene {
     }
 
     void CreateWall(World &world, const DirectX::XMFLOAT3 &position) {
-        Transform transform { position, { 0.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f } };
+        Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::Cube;
         renderer.color = DirectX::XMFLOAT3 { cfg_WallR, cfg_WallG, cfg_WallB };
@@ -475,7 +462,7 @@ class GameScene : public IScene {
     }
 
     void CreatFloorWall(World &world, const DirectX::XMFLOAT3 &position) {
-        Transform transform { position, { 0.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f } };
+        Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::Cube;
         renderer.color = DirectX::XMFLOAT3 { cfg_FloorWallR, cfg_FloorWallG, cfg_FloorWallB };
@@ -547,9 +534,9 @@ class GameScene : public IScene {
     std::vector<Entity> ownedEntities_;
     std::vector<Entity> stageOwnedEntities_;
     Entity playerEntity_{};
-    Entity stageEntity{};
+    Entity stageEntity_{};
     Entity startEntity_{};
-    Entity wall{};
-    Entity worldwall{};
+    Entity wall_{};
+    Entity worldwall_{};
     Entity goalEntity_{};
 };
