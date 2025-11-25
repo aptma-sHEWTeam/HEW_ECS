@@ -23,6 +23,8 @@ WallColorB = 1.000000
 FloorWallColorR = 0.500000
 FloorWallColorG = 0.500000
 FloorWallColorB = 0.500000
+WallSize = 3.000000
+CollisionCellSize = 20.000000
 LimitTime = 10.000000
 LimitTime = 10.000000
 
@@ -34,6 +36,11 @@ ReleaseThreshold = 0.300000
 LimitX = 15.000000
 LimitY = 15.000000
 ChargeMoveAmount = 0.025000
+GuideScaleX = 2.500000
+GuideScaleY = 1.000000
+GuideScaleZ = 0.100000
+GuideOffsetDistance = 2.000000
+PlayerFBXPass = "Assets/Models/aaa.fbx"
 
 [Stage]
 CSVPath = "Assets/StageData/aaa.csv"
