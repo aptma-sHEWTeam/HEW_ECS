@@ -33,6 +33,7 @@ struct GoalTag : IComponent {};
  */
 struct StageProgress : IComponent {
     int currentStage = 1;
+    int selectStage = 1;
     bool requestAdvance = false;
 };
 
