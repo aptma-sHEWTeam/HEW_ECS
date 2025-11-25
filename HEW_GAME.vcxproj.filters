@@ -304,9 +304,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include=".clang-format" />
-    <None Include=".gitattributes" />
-    <None Include=".gitignore" />
     <None Include="README.md" />
     <None Include="docs\ChargeSystem_Guide.md">
       <Filter>Docs</Filter>
@@ -318,9 +315,6 @@
       <Filter>Docs</Filter>
     </None>
     <None Include="docs\Collision_System_Guide.md">
-      <Filter>Docs</Filter>
-    </None>
-    <None Include="docs\Core_Architecture.md">
       <Filter>Docs</Filter>
     </None>
     <None Include="docs\DebugDraw_Improvements.md">
@@ -341,32 +335,8 @@
     <None Include="docs\UI_System_Guide.md">
       <Filter>Docs</Filter>
     </None>
-    <None Include="Assets\config.toml">
-      <Filter>Assets</Filter>
-    </None>
-    <None Include="Assets\Models\test.fbx">
-      <Filter>Assets\Models</Filter>
-    </None>
-    <None Include="Assets\StageData\aaa.csv">
-      <Filter>Assets\StageData</Filter>
-    </None>
-    <None Include="Assets\StageData\aaaa.csv">
-      <Filter>Assets\StageData</Filter>
-    </None>
-    <None Include="Assets\StageData\Lunatic.csv">
-      <Filter>Assets\StageData</Filter>
-    </None>
-    <None Include="Assets\StageData\aaa.xlsx">
-      <Filter>Assets\StageData</Filter>
-    </None>
-    <None Include="Assets\StageTime\stage1time.txt">
-      <Filter>Assets\StageTime</Filter>
-    </None>
     <None Include="Assets\Textures\test.png">
       <Filter>Assets\Textures</Filter>
-    </None>
-    <None Include=".github\copilot-instructions.md">
-      <Filter>.github</Filter>
     </None>
     <None Include=".github\ISSUE_TEMPLATE\01_task.yml">
       <Filter>.github\ISSUE_TEMPLATE</Filter>
@@ -407,11 +377,9 @@
     <None Include=".github\workflows\notify_inprogress_digest.yml">
       <Filter>.github\workflows</Filter>
     </None>
-    <None Include="scripts\upload_to_drive.py">
-      <Filter>Scripts</Filter>
-    </None>
-    <None Include="tools\Run-ClangFormat.ps1">
-      <Filter>Tools</Filter>
-    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="debug_log.txt" />
+    <Text Include="x64\Debug\debug_log.txt" />
   </ItemGroup>
 </Project>

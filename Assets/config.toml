@@ -15,10 +15,10 @@ RotateSpeedDeg = 90.000000
 
 [Game]
 LimitTime = 10.000000
-PlayerScale = 0.800000
-PlayerColorR = 0.000000
-PlayerColorG = 0.000000
-PlayerColorB = 1.000000
+PlayerScale = 0.200000
+PlayerColorR = 1.000000
+PlayerColorG = 1.000000
+PlayerColorB = 0.000000
 PlayerStartY = 5.000000
 PlayerHeight = 2.000000
 FloorColorR = 0.500000
@@ -40,7 +40,7 @@ FloorWallColorG = 0.500000
 FloorWallColorB = 0.500000
 
 [Player]
-MoveSpeed = 8.000000
+MoveSpeed = 118.000000
 MinChargeSpeedFactor = 0.400000
 ChargeMaxTime = 0.700000
 ReleaseThreshold = 0.300000
