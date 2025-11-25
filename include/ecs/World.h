@@ -1106,3 +1106,7 @@ EntityBuilder& EntityBuilder::WithCause(CauseType cause, Args&&... args) {
     return *this;
 }
 
+// Model用の特殊化宣言（実装はWorld.cppにある）
+template<>
+EntityBuilder& EntityBuilder::With<Model>(std::string&& filePath);
+

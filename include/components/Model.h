@@ -11,4 +11,8 @@
 
 struct Model {
     std::string filePath;
+
+    Model() = default;
+    explicit Model(const std::string& path) : filePath(path) {}
+    explicit Model(std::string&& path) : filePath(std::move(path)) {}
 };
