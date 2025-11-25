@@ -1,21 +1,6 @@
-[Camera]
-FOV = 0.785398
-Near = 0.100000
-Far = 100.000000
-PosX = 0.000000
-PosY = 26.000000
-PosZ = -7.000000
-TargetX = 0.000000
-TargetY = 0.000000
-TargetZ = -1.000000
-
-[DebugCamera]
-MoveSpeed = 10.000000
-RotateSpeedDeg = 90.000000
-
 [Game]
 LimitTime = 10.000000
-PlayerScale = 0.200000
+PlayerScale = 1.000000
 PlayerColorR = 1.000000
 PlayerColorG = 1.000000
 PlayerColorB = 0.000000
@@ -38,14 +23,20 @@ WallColorB = 1.000000
 FloorWallColorR = 0.500000
 FloorWallColorG = 0.500000
 FloorWallColorB = 0.500000
+LimitTime = 10.000000
+LimitTime = 10.000000
 
 [Player]
-MoveSpeed = 118.000000
+MoveSpeed = 10.000000
 MinChargeSpeedFactor = 0.400000
 ChargeMaxTime = 0.700000
 ReleaseThreshold = 0.300000
 LimitX = 15.000000
 LimitY = 15.000000
+ChargeMoveAmount = 0.025000
+
+[Stage]
+CSVPath = "Assets/StageData/aaa.csv"
 
 [UI]
 BtnNormalR = 0.200000
@@ -65,5 +56,3 @@ CountColorR = 0.000000
 CountColorG = 1.000000
 CountColorB = 1.000000
 
-[Stage]
-CSVPath = "Assets/StageData/aaa.csv"

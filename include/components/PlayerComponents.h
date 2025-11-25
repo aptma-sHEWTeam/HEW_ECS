@@ -17,6 +17,7 @@
 #include "components/MeshRenderer.h"
 #include "input/InputSystem.h"
 #include "input/GamepadSystem.h"
+#include "components/Collision.h"
 #include <DirectXMath.h>
 #include <cmath>
 #include <algorithm>
@@ -89,13 +90,14 @@ struct PlayerVelocity : Behaviour {
 struct PlayerMovement : Behaviour {
     InputSystem *input_ = nullptr;     ///< 入力システムへのポインタ
     GamepadSystem *gamepad_ = nullptr; ///< ゲームパッドシステムへのポインタ
-    
+    CollisionSphere *collision_ = nullptr;
     // Config Variables
     inline static ConfigVar<float> cfg_MinChargeSpeed{"Player", "MinChargeSpeedFactor", 0.4f};
     inline static ConfigVar<float> cfg_ChargeMaxTime{"Player", "ChargeMaxTime", 0.7f};
     inline static ConfigVar<float> cfg_ReleaseThreshold{"Player", "ReleaseThreshold", 0.3f};
     inline static ConfigVar<float> cfg_LimitX{"Player", "LimitX", 15.0f};
     inline static ConfigVar<float> cfg_LimitY{"Player", "LimitY", 15.0f};
+    inline static ConfigVar<float> cfg_ChargeMoveAmount{"Player", "ChargeMoveAmount", 0.025};
 
     // チャージ挙動設定
     float minChargeSpeedFactor = cfg_MinChargeSpeed;   ///< チャージ中の最低速度係数(0.0-1.0)
@@ -118,6 +120,7 @@ struct PlayerMovement : Behaviour {
     float sumSin = 0.0f;
     float sumCos = 0.0f;
 
+    int frame = 0;
     /**
      * @brief 毎フレーム更新処理
      * @param[in,out] w ワールド参照
@@ -191,7 +194,7 @@ struct PlayerMovement : Behaviour {
             sumCos += std::cosf(ang);
             
             angleIndex = (angleIndex + 1) % 30;             //現在の保存位置
-            if (angleIndex == 0)                            //30フレーム埋まったらtrue
+            if (angleIndex == 0)                            //30フレーム埋まったら true
             {
                 angleFilled = true;
             }
@@ -203,13 +206,26 @@ struct PlayerMovement : Behaviour {
             // チャージ状態更新（統合）
             bool chargingSys = gamepad_->IsLeftStickCharging();
             bool effectiveCharging = chargingSys && chargingNowLocal;
+            frame++;
             if (effectiveCharging)
             {
                 isCharging_ = true;
-
+                collision_->radius * 0.01f;            //< 当たり判定変更
                 float charge = gamepad_->GetLeftStickChargeAmount(chargeMaxTime); // 0..1
                 slowFactor = std::max(minChargeSpeedFactor, 1.0f - charge);
+                
+                static float moveAmount = cfg_ChargeMoveAmount; //< チャージ中Xの移動量
+                
+                //< 2フレーム
+                if (frame % 2 == 0)
+                {
+                    t->position.x += moveAmount;
 
+                    if (t->position.x >= moveAmount || t->position.x <= -moveAmount)
+                    {
+                        moveAmount = -moveAmount;
+                    }
+                }
             }
 
             // リリースで方向転換＋通常速度に復帰（統合: システム検出 or ローカル検出）
