@@ -1,6 +1,6 @@
 [Game]
 LimitTime = 10.000000
-PlayerScale = 0.200000
+PlayerScale = 1.000000
 PlayerColorR = 1.000000
 PlayerColorG = 1.000000
 PlayerColorB = 0.000000
@@ -29,12 +29,13 @@ LimitTime = 10.000000
 LimitTime = 10.000000
 
 [Player]
-MoveSpeed = 8.000000
+MoveSpeed = 10.000000
 MinChargeSpeedFactor = 0.400000
 ChargeMaxTime = 0.700000
 ReleaseThreshold = 0.300000
 LimitX = 15.000000
 LimitY = 15.000000
+ChargeMoveAmount = 0.025000
 GuideScaleX = 2.500000
 GuideScaleY = 1.000000
 GuideScaleZ = 0.100000
