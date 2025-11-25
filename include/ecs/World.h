@@ -260,6 +260,7 @@ public:
         }
 
         ECS_TRACE_LOG("World破棄完了");
+        ClearQueryCache(); // ワールド破棄時にキャッシュをクリア
     }
 
     /**
@@ -299,6 +300,7 @@ public:
             ECS_TRACE_LOG("エンティティ作成 (新規ID: " + std::to_string(id) + ")");
         }
         alive_.insert(id); // live setへコミット
+        ClearQueryCache(); // エンティティ作成時にキャッシュをクリア
 
         // メトリクス更新
         totalCreated_++;
@@ -438,6 +440,7 @@ public:
         T& ref = *obj;
         s.map[e.id] = std::move(obj);
         registerBehaviourWithCause<T>(e, &ref, cause);
+        ClearQueryCache(); // コンポーネント追加時にキャッシュをクリア
 
         ECS_TRACE_LOG("コンポーネント " + std::string(typeid(T).name()) + " をエンティティ " + std::to_string(e.id) + " に追加");
 
@@ -470,6 +473,7 @@ public:
 
         // コンポーネントを削除
         s->map.erase(it);
+        ClearQueryCache(); // コンポーネント削除時にキャッシュをクリア
 
         ECS_TRACE_LOG("コンポーネント " + std::string(typeid(T).name()) + " をエンティティ " + std::to_string(e.id) + " から削除");
 
@@ -576,6 +580,48 @@ public:
             }
         }
     }
+
+    // キャッシュされた結果を返す新しいクエリメソッド
+    template<typename... Components>
+    std::vector<Entity> GetEntitiesWith() {
+        std::vector<std::type_index> queryKey = {std::type_index(typeid(Components))...};
+        std::sort(queryKey.begin(), queryKey.end()); // キーの正規化
+
+        // キャッシュチェック
+        if (m_queryCache.count(queryKey)) {
+            return m_queryCache[queryKey];
+        }
+
+        // キャッシュミス: クエリを実行して結果を構築
+        std::vector<Entity> resultEntities;
+        
+                // For now, let's just iterate alive entities and check for components.
+                // This is less efficient than iterating a single component store first,
+                // but it's generic and correct.
+                if (sizeof...(Components) > 0) { // Only if there are components to query for
+                    for (uint32_t id : alive_) {
+                        Entity e = {id, generations_[id]};
+                        if (!IsAlive(e)) continue;
+        
+                        bool hasAll = true;
+                        ([&] {
+                            if (!Has<Components>(e)) {
+                                hasAll = false;
+                            }
+                        }(), ...); // Fold expression to check all components
+        
+                        if (hasAll) {
+                            resultEntities.push_back(e);
+                        }
+                    }
+                }
+        
+        
+                m_queryCache[queryKey] = resultEntities; // 結果をキャッシュ        return resultEntities;
+    }
+
+
+
 
     /**
      * @brief すべてのBehaviourコンポーネントを更新
@@ -957,6 +1003,8 @@ private:
         totalDestroyed_++;
         if (trackFrameAccounting_) { destroyedThisFrame_++; }
 
+        ClearQueryCache(); // エンティティ破棄時にキャッシュをクリア
+
         ECS_TRACE_LOG("エンティティ破棄成功 (ID: " + std::to_string(id) + ", 総生存数: " + std::to_string(alive_.size()) + ")");
     }
 
@@ -1012,6 +1060,25 @@ private:
     // システム停止フラグ（新規Spawn無効化）
     bool systemsStopped_ = false;
 
+    void ClearQueryCache() {
+        m_queryCache.clear();
+        ECS_TRACE_LOG("クエリキャッシュをクリアしました。");
+    }
+
+    // クエリキャッシュ用のカスタムハッシュファンクタ
+    struct QueryKeyHash {
+        size_t operator()(const std::vector<std::type_index>& key) const {
+            size_t seed = 0;
+            for (const auto& ti : key) {
+                seed ^= ti.hash_code() + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+            }
+            return seed;
+        }
+    };
+
+    // クエリキャッシュ
+    std::unordered_map<std::vector<std::type_index>, std::vector<Entity>, QueryKeyHash> m_queryCache;
+
     friend class EntityBuilder;
 };
 
@@ -1038,4 +1105,8 @@ EntityBuilder& EntityBuilder::WithCause(CauseType cause, Args&&... args) {
     world_->AddWithCause<T>(entity_, static_cast<World::Cause>(cause), std::forward<Args>(args)...);
     return *this;
 }
+
+// Model用の特殊化宣言（実装はWorld.cppにある）
+template<>
+EntityBuilder& EntityBuilder::With<Model>(std::string&& filePath);
 

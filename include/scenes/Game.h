@@ -8,27 +8,28 @@
 #pragma once
 
 #include "pch.h"
-#include "components/GameTags.h"
-#include "components/PlayerComponents.h"
-#include "components/MeshRenderer.h"
-#include "components/Collision.h"
-#include "components/UIComponents.h"
-#include "components/CountUIComponent.h"
-#include "input/InputSystem.h"
-#include "input/GamepadSystem.h"
-#include "components/Rotator.h"
-#include "components/Light.h"
-#include "systems/UISystem.h"
-#include "graphics/TextSystem.h"
-#include "graphics/GfxDevice.h"
-#include "app/ServiceLocator.h"
-#include "SenesUIController.h"
-#include "components/GameStats.h"
-#include "components/StageComponents.h"
+
 #include <sstream>
 #include <iomanip>
 
-// プレイヤーをスタート地点へ戻す (必要に応じてタイマーもリセット)
+#include "config/ConfigVar.h"
+#include "components/GameTags.h"
+#include "components/PlayerComponents.h"
+#include "components/UIComponents.h"
+#include "components/CountUIComponent.h"
+#include "components/Rotator.h"
+#include "components/Light.h"
+#include "components/GameStats.h"
+#include "components/StageComponents.h"
+#include "input/GamepadSystem.h"
+#include "systems/UISystem.h"
+#include "graphics/TextSystem.h"
+#include "app/ServiceLocator.h"
+#include "SenesUIController.h"
+#include "systems/ModelLoadingSystem.h"
+
+inline static ConfigVar<float> cfg_LimitTime{"Game", "LimitTime", 10.0f};
+
 inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false) {
     if (!w.IsAlive(player)) {
         return;
@@ -48,7 +49,6 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
             }
         }
 
-        // タイマーリセット処理
         if (resetTimer) {
             w.ForEach<GameStats>([](Entity, GameStats &stats) {
                 stats.elapsedTime = 0.0f;
@@ -56,6 +56,15 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
         }
 
         done = true;
+    });
+}
+
+inline void CheckTimeLimit(World &w,Entity player, float timeLimitSeconds) {
+    w.ForEach<GameStats>([&](Entity e, GameStats &stats) {
+        if (stats.elapsedTime >= timeLimitSeconds) {
+            DEBUGLOG("時間切れ");
+            ResetPlayerToStart(w,player,true);
+        }
     });
 }
 
@@ -108,7 +117,7 @@ REGISTER_COLLISION_HANDLER_TYPE(WallCollisionHandler)
  * @struct FloorWallColisionHandler
  * @brief ステージの壁の衝突イベントを処理
  */
-    struct FloorWallCollisionHandler : ICollisionHandler {
+struct FloorWallCollisionHandler : ICollisionHandler {
     void OnCollisionEnter(World& w, Entity self, Entity other, const CollisionInfo& info) override {
          if (w.Has<PlayerTag>(other)) {
             DEBUGLOG("壁がプレイヤーと衝突 - スタート地点へ戻しタイマーをリセット");
@@ -124,7 +133,54 @@ REGISTER_COLLISION_HANDLER_TYPE(FloorWallCollisionHandler)
  */
 class GameScene : public IScene {
   public:
+    // Configs
+    inline static ConfigVar<float> cfg_PlayerScale{"Game", "PlayerScale", 0.8f};
+    inline static ConfigVar<float> cfg_PlayerR{"Game", "PlayerColorR", 0.0f};
+    inline static ConfigVar<float> cfg_PlayerG{"Game", "PlayerColorG", 0.0f};
+    inline static ConfigVar<float> cfg_PlayerB{"Game", "PlayerColorB", 1.0f};
+    inline static ConfigVar<float> cfg_PlayerStartY{"Game", "PlayerStartY", 5.0f};
+    inline static ConfigVar<float> cfg_PlayerHeight{"Game", "PlayerHeight", 2.0f};
+    
+    inline static ConfigVar<float> cfg_FloorR{"Game", "FloorColorR", 0.5f};
+    inline static ConfigVar<float> cfg_FloorG{"Game", "FloorColorG", 0.5f};
+    inline static ConfigVar<float> cfg_FloorB{"Game", "FloorColorB", 0.5f};
+    inline static ConfigVar<float> cfg_FloorYOffset{"Game", "FloorYOffset", -2.0f};
+    inline static ConfigVar<float> cfg_FloorThickness{"Game", "FloorThickness", 0.2f};
+
+    inline static ConfigVar<float> cfg_StartR{"Game", "StartColorR", 0.0f};
+    inline static ConfigVar<float> cfg_StartG{"Game", "StartColorG", 0.0f};
+    inline static ConfigVar<float> cfg_StartB{"Game", "StartColorB", 1.0f};
+
+    inline static ConfigVar<float> cfg_GoalR{"Game", "GoalColorR", 1.0f};
+    inline static ConfigVar<float> cfg_GoalG{"Game", "GoalColorG", 1.0f};
+    inline static ConfigVar<float> cfg_GoalB{"Game", "GoalColorB", 0.0f};
+
+    inline static ConfigVar<float> cfg_WallR{"Game", "WallColorR", 1.0f};
+    inline static ConfigVar<float> cfg_WallG{"Game", "WallColorG", 1.0f};
+    inline static ConfigVar<float> cfg_WallB{"Game", "WallColorB", 1.0f};
+
+    inline static ConfigVar<float> cfg_FloorWallR{"Game", "FloorWallColorR", 0.5f};
+    inline static ConfigVar<float> cfg_FloorWallG{"Game", "FloorWallColorG", 0.5f};
+    inline static ConfigVar<float> cfg_FloorWallB{"Game", "FloorWallColorB", 0.5f};
+    inline static ConfigVar<float> cfg_WallSize{"Game", "WallSize", 3.0f};
+
+    inline static ConfigVar<float> cfg_UICountPosX{"UI", "CountPosX", 20.0f};
+    inline static ConfigVar<float> cfg_UICountPosY{"UI", "CountPosY", 170.0f};
+    inline static ConfigVar<float> cfg_UICountW{"UI", "CountWidth", 200.0f};
+    inline static ConfigVar<float> cfg_UICountH{"UI", "CountHeight", 40.0f};
+    inline static ConfigVar<float> cfg_UICountR{"UI", "CountColorR", 0.0f};
+    inline static ConfigVar<float> cfg_UICountG{"UI", "CountColorG", 1.0f};
+    inline static ConfigVar<float> cfg_UICountB{"UI", "CountColorB", 1.0f};
+
+    inline static ConfigVar<std::string> cfg_PlayerFBXPass{"Player", "PlayerFBXPass", "Assets/Models/aaa.fbx"};
+
+    inline static ConfigVar<std::string> cfg_StagePath{"Stage", "CSVPath", "Assets/StageData/aaa.csv"};
+
+    inline static ConfigVar<float> cfg_CollisionCellSize{"Game", "CollisionCellSize", 20.0f};
+
+
     void OnEnter(World &world) override {
+        DEBUGLOG("<<<<< GameScene::OnEnter CALLED! >>>>>");
         DEBUGLOG("GameWithUIScene::OnEnter() 開始");
 
         auto *gfx = ServiceLocator::TryGet<GfxDevice>();
@@ -149,10 +205,14 @@ class GameScene : public IScene {
         Entity stageProgress = world.Create().With<StageProgress>().Build();
         ownedEntities_.push_back(stageProgress);
 
-        Entity collisionSystem = world.Create().With<CollisionDetectionSystem>().Build();
+        Entity collisionSystem = world.Create().With<CollisionDetectionSystem>(cfg_CollisionCellSize.Get()).Build();
         ownedEntities_.push_back(collisionSystem);
 
-        Entity stageEntity_ = world.Create().With<StageCreate>().Build();
+        // ModelLoadingSystem を追加して Model -> ModelComponent 変換を有効化
+        Entity modelLoaderSystem = world.Create().With<ModelLoadingSystem>().Build();
+        ownedEntities_.push_back(modelLoaderSystem);
+
+        Entity stageEntity_ = world.Create().With<StageCreate>(cfg_StagePath.Get()).Build();
         ownedEntities_.push_back(stageEntity_);
 
         world.Create().With<DirectionalLight>();
@@ -166,6 +226,7 @@ class GameScene : public IScene {
     }
 
     void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
+        
         // ゲームの一時停止と再開
         world.ForEach<GameStats>([&](Entity, GameStats &stats) {
             if (input.GetKeyDown(VK_ESCAPE) || input.GetKeyDown('P')) {
@@ -206,6 +267,11 @@ class GameScene : public IScene {
         });
 
         world.Tick(deltaTime);
+
+        //制限時間が過ぎていたらリセット
+        if (world.IsAlive(playerEntity_)) {
+            CheckTimeLimit(world, playerEntity_, cfg_LimitTime);
+        }
     }
 
     void OnExit(World &world) override {
@@ -227,19 +293,17 @@ class GameScene : public IScene {
     void CreateUI(World &world, float screenWidth, float screenHeight);
 
     void CreatePlayer(World &world) {
-        Transform transform { {0.0f, 0.0f, 5.0f}, {0.0f, 0.0f, 0.0f}, {0.8f, 0.8f, 0.8f} };
-        MeshRenderer renderer;
-        renderer.meshType = MeshType::Sphere;
-        renderer.color = DirectX::XMFLOAT3 { 0.0f, 0.0f, 1.0f };
+        float s = cfg_PlayerScale;
+        Transform transform { {0.0f, 0.0f, cfg_PlayerStartY}, {0.0f, 0.0f, 0.0f}, {s, s, s} };
 
         Entity player = world.Create()
             .With<Transform>(transform)
-            .With<MeshRenderer>(renderer)
+            .With<Model>(cfg_PlayerFBXPass)
             .With<PlayerTag>()
             .With<PlayerVelocity>()
             .With<PlayerMovement>()
             .With<PlayerGuide>()
-            .With<CollisionBox>(DirectX::XMFLOAT3 { 0.8f, 2.0f, 0.8f })
+            .With<CollisionBox>(DirectX::XMFLOAT3 { s, cfg_PlayerHeight, s })
             .With<PlayerCollisionHandler>()
             .Build();
 
@@ -303,7 +367,7 @@ class GameScene : public IScene {
             return;
         }
 
-        const float yOffset = -2.0f;
+        const float yOffset = cfg_FloorYOffset;
         const float half = (gridSize * tileSize) * 0.5f;
 
         for (int i = 0; i < gridSize; ++i) {
@@ -311,10 +375,10 @@ class GameScene : public IScene {
                 float x = i * tileSize - half + tileSize * 0.5f;
                 float z = j * tileSize - half + tileSize * 0.5f;
 
-                Transform transform { { x, yOffset, z }, { 0.0f, 0.0f, 0.0f }, { tileSize, 0.2f, tileSize } };
+                Transform transform { { x, yOffset, z }, { 0.0f, 0.0f, 0.0f }, { tileSize, cfg_FloorThickness, tileSize } };
                 MeshRenderer renderer;
                 renderer.meshType = MeshType::Cube;
-                renderer.color = DirectX::XMFLOAT3 { 0.5f, 0.5f, 0.5f };
+                renderer.color = DirectX::XMFLOAT3 { cfg_FloorR, cfg_FloorG, cfg_FloorB };
 
                 Entity floor = world.Create()
                     .With<Transform>(transform)
@@ -335,7 +399,7 @@ class GameScene : public IScene {
         Transform t{ diffPosition, {0, 0, 0}, {1, 1, 1}};
         MeshRenderer r;
         r.meshType = MeshType::Cube;
-        r.color = DirectX::XMFLOAT3 { 0.0f, 0.0f, 1.0f };
+        r.color = DirectX::XMFLOAT3 { cfg_StartR, cfg_StartG, cfg_StartB };
 
         Entity e = world.Create()
             .With<Transform>(t)
@@ -356,7 +420,7 @@ class GameScene : public IScene {
         Transform t{ diffPosition, {0, 0, 0}, {1, 1, 1}};
         MeshRenderer r;
         r.meshType = MeshType::Cube;
-        r.color = DirectX::XMFLOAT3 { 1.0f, 1.0f, 0.0f };
+        r.color = DirectX::XMFLOAT3 { cfg_GoalR, cfg_GoalG, cfg_GoalB };
 
         Entity e = world.Create()
             .With<Transform>(t)
@@ -370,10 +434,10 @@ class GameScene : public IScene {
     }
 
     void CreateWall(World &world, const DirectX::XMFLOAT3 &position) {
-        Transform transform { position, { 0.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f } };
+        Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::Cube;
-        renderer.color = DirectX::XMFLOAT3 { 1.0f, 1.0f, 1.0f };
+        renderer.color = DirectX::XMFLOAT3 { cfg_WallR, cfg_WallG, cfg_WallB };
 
         Entity wallEntity = world.Create()
             .With<Transform>(transform)
@@ -387,10 +451,10 @@ class GameScene : public IScene {
     }
 
     void CreatFloorWall(World &world, const DirectX::XMFLOAT3 &position) {
-        Transform transform { position, { 0.0f, 0.0f, 0.0f }, { 1.0f, 1.0f, 1.0f } };
+        Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::Cube;
-        renderer.color = DirectX::XMFLOAT3 { 0.5f, 0.5f, 0.5f };
+        renderer.color = DirectX::XMFLOAT3 { cfg_FloorWallR, cfg_FloorWallG, cfg_FloorWallB };
 
         Entity worldwallEntity = world.Create()
             .With<Transform>(transform)
@@ -430,13 +494,13 @@ class GameScene : public IScene {
         //カウントスタート321
         //プレイヤーの解放
         UITransform CountTransform;
-        CountTransform.position = {20.0f, 170.0f};
-        CountTransform.size = {200.0f, 40.0f};
+        CountTransform.position = {cfg_UICountPosX, cfg_UICountPosY};
+        CountTransform.size = {cfg_UICountW, cfg_UICountH};
         CountTransform.anchor = {0.0f, 0.0f};
         CountTransform.pivot = {0.0f, 0.0f};
 
         UIText CountText{L"Count:Go"};
-        CountText.color = {0.0f, 1.0f, 1.0f, 1.0f};
+        CountText.color = {cfg_UICountR, cfg_UICountG, cfg_UICountB, 1.0f};
         CountText.formatId = "hud";
 
         Entity CountEntity = world.Create()
@@ -459,9 +523,9 @@ class GameScene : public IScene {
     std::vector<Entity> ownedEntities_;
     std::vector<Entity> stageOwnedEntities_;
     Entity playerEntity_{};
-    Entity stageEntity{};
+    Entity stageEntity_{};
     Entity startEntity_{};
-    Entity wall{};
-    Entity worldwall{};
+    Entity wall_{};
+    Entity worldwall_{};
     Entity goalEntity_{};
 };

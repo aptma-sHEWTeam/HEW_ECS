@@ -21,12 +21,23 @@
 #include <cmath>
 #include <algorithm>
 
+#include "config/ConfigVar.h"
+
+// =========================================
+// 定数定義
+// =========================================
+namespace PlayerConstants {
+    constexpr int ANGLE_HISTORY_SIZE = 30;
+    constexpr float EPSILON = 1e-5f;
+}
+
 // =========================================
 // ベロシティ計算コンポーネント
 // =========================================
 
 struct PlayerVelocity : Behaviour {
-    float speed = 8.0f;                       ///< 移動速度(単位/秒) - 速度を上げて動きを明確に
+    inline static ConfigVar<float> cfg_Speed{"Player", "MoveSpeed", 8.0f};
+    float speed = cfg_Speed;                       ///< 移動速度(単位/秒) - 速度を上げて動きを明確に
     DirectX::XMFLOAT2 velocity = {0.0f, 0.0f}; ///< 現在の移動ベロシティ
 
     void SetVelocity(DirectX::XMFLOAT2 speed)
@@ -86,9 +97,17 @@ struct PlayerVelocity : Behaviour {
 struct PlayerMovement : Behaviour {
     InputSystem *input_ = nullptr;     ///< 入力システムへのポインタ
     GamepadSystem *gamepad_ = nullptr; ///< ゲームパッドシステムへのポインタ
+    
+    // Config Variables
+    inline static ConfigVar<float> cfg_MinChargeSpeed{"Player", "MinChargeSpeedFactor", 0.4f};
+    inline static ConfigVar<float> cfg_ChargeMaxTime{"Player", "ChargeMaxTime", 0.7f};
+    inline static ConfigVar<float> cfg_ReleaseThreshold{"Player", "ReleaseThreshold", 0.3f};
+    inline static ConfigVar<float> cfg_LimitX{"Player", "LimitX", 15.0f};
+    inline static ConfigVar<float> cfg_LimitY{"Player", "LimitY", 15.0f};
+
     // チャージ挙動設定
-    float minChargeSpeedFactor = 0.4f;   ///< チャージ中の最低速度係数(0.0-1.0)
-    float chargeMaxTime = 0.7f;          ///< チャージ最大時間(秒)
+    float minChargeSpeedFactor = cfg_MinChargeSpeed;   ///< チャージ中の最低速度係数(0.0-1.0)
+    float chargeMaxTime = cfg_ChargeMaxTime;          ///< チャージ最大時間(秒)
 
     // 入力モード
     bool flickOnly = true;               ///< 左スティックの通常移動を無効化し、はじく移動（チャージ&リリース）のみ有効にする
@@ -97,6 +116,11 @@ struct PlayerMovement : Behaviour {
     bool isCharging_ = false;            ///< 現在チャージ中か
     DirectX::XMFLOAT2 lastStickDir_ {0.0f, 0.0f}; ///< 直近の左スティック方向(正規化)
     bool wasCharging_ = false;           ///< 前フレームでチャージしていたか(ローカル検出)
+
+      //角度履歴
+    float angleHistory[PlayerConstants::ANGLE_HISTORY_SIZE] = {};
+    int angleIndex = 0;
+    bool angleFilled = false;
 
     /**
      * @brief 毎フレーム更新処理
@@ -118,6 +142,11 @@ struct PlayerMovement : Behaviour {
 
         if (!t || !v || (!input_ && !gamepad_))
             return;
+
+        // Sync Config
+        v->speed = PlayerVelocity::cfg_Speed;
+        minChargeSpeedFactor = cfg_MinChargeSpeed;
+        chargeMaxTime = cfg_ChargeMaxTime;
 
         DirectX::XMFLOAT2 inputDir = {0.0f, 0.0f};
 
@@ -146,13 +175,22 @@ struct PlayerMovement : Behaviour {
             float mag = std::sqrt(gx * gx + gy * gy);
 
             // 方向キャッシュ（常時）
-            if (mag > 1e-5f) {
+            if (mag > PlayerConstants::EPSILON) {
                 lastStickDir_.x = -(gx / mag);
                 lastStickDir_.y = -(gy / mag);
             }
 
+            //角度履歴
+            float ang = std::atan2f(lastStickDir_.y, lastStickDir_.x);
+            angleHistory[angleIndex] = ang;                 //毎フレームの角度を保存した配列
+            angleIndex = (angleIndex + 1) % PlayerConstants::ANGLE_HISTORY_SIZE;             //現在の保存位置
+            if (angleIndex == PlayerConstants::ANGLE_HISTORY_SIZE)                            //30フレーム埋まったらtrue
+            {
+                angleFilled = true;
+            }
+
             // ローカルしきい値によるチャージ/リリース検出（GamepadSystemのフォールバック）
-            const float releaseThreshold = 0.3f;
+            const float releaseThreshold = cfg_ReleaseThreshold;
             bool chargingNowLocal = (mag > releaseThreshold);
 
             // チャージ状態更新（統合）
@@ -164,24 +202,46 @@ struct PlayerMovement : Behaviour {
 
                 float charge = gamepad_->GetLeftStickChargeAmount(chargeMaxTime); // 0..1
                 slowFactor = std::max(minChargeSpeedFactor, 1.0f - charge);
+
             }
 
             // リリースで方向転換＋通常速度に復帰（統合: システム検出 or ローカル検出）
             bool releasedSys = gamepad_->IsLeftStickReleased();
             bool releasedLocal = (wasCharging_ && !chargingNowLocal);
-
+          
             if (releasedSys || releasedLocal)
             {
-                float dirLen = std::sqrt(lastStickDir_.x * lastStickDir_.x + lastStickDir_.y * lastStickDir_.y);
-                if (dirLen > 1e-5f)
-                {
-                    v->velocity.x = (lastStickDir_.x / dirLen) * v->speed;
-                    v->velocity.y = (lastStickDir_.y / dirLen) * v->speed;
-                    float yawRad = std::atan2(v->velocity.y, v->velocity.x);
-                    t->rotation.y = yawRad * (180.0f / 3.1415926535f);
+                //三項演算子     angleFilled = trueの時 count = 30,falseの時 count = angleIndex
+                int count = angleFilled ? PlayerConstants::ANGLE_HISTORY_SIZE : angleIndex;
 
-                isCharging_ = false;
-                slowFactor = 1.0f;
+                float sumSin = 0.0f;
+                float sumCos = 0.0f;
+
+                for (int i = 0; i < count; i++) 
+                {
+                    sumSin += std::sinf(angleHistory[i]);
+                    sumCos += std::cosf(angleHistory[i]);
+                }
+
+                //合計平均し、ラジアンへ変換
+                float avgRad = std::atan2f(sumSin / count, sumCos / count);
+
+                // 平均角度ベクトル化
+                float dirX = std::cosf(avgRad);
+                float dirY = std::sinf(avgRad);
+
+               //プレイヤーの速度に平均角度を乗算
+                float dirLen = std::sqrt(dirX * dirX + dirY * dirY);
+                if (dirLen > PlayerConstants::EPSILON)
+                {
+                    v->velocity.x = (dirX / dirLen) * v->speed;
+                    v->velocity.y = (dirY / dirLen) * v->speed;
+
+                    float yawRad = std::atan2(v->velocity.y, v->velocity.x);
+                    t->rotation.y = yawRad * (180.0f / DirectX::XM_PI);
+
+                    isCharging_ = false;
+                    slowFactor = 1.0f;
                 }
             }
 
@@ -203,8 +263,8 @@ struct PlayerMovement : Behaviour {
         t->position.x += v->velocity.x * dt * slowFactor;
         t->position.z += v->velocity.y * dt * slowFactor;
 
-        const float limitX = 15.0f;
-        const float limitY = 15.0f;
+        const float limitX = cfg_LimitX;
+        const float limitY = cfg_LimitY;
         if (t->position.x < -limitX) t->position.x = -limitX;
         if (t->position.x > limitX)  t->position.x =  limitX;
         if (t->position.z < -limitY) t->position.z = -limitY;
@@ -212,7 +272,7 @@ struct PlayerMovement : Behaviour {
     }
     float CalcMoveRotation()
     {
-        return std::atan2f(lastStickDir_.y, lastStickDir_.x) * (180.0f / 3.1415926535f);
+        return std::atan2f(lastStickDir_.y, lastStickDir_.x) * (180.0f / DirectX::XM_PI);
     }
 };
 
@@ -247,6 +307,12 @@ struct PlayerGuide : Behaviour
     Transform *selfTransform{};
     Transform *guidTransform{};
     Entity guidEntity{};
+
+    // Config Variables
+    inline static ConfigVar<float> cfg_GuideScaleX{"Player", "GuideScaleX", 2.5f};
+    inline static ConfigVar<float> cfg_GuideScaleY{"Player", "GuideScaleY", 1.0f};
+    inline static ConfigVar<float> cfg_GuideScaleZ{"Player", "GuideScaleZ", 0.1f};
+    inline static ConfigVar<float> cfg_GuideOffsetDistance{"Player", "GuideOffsetDistance", 2.0f};
 
     /**
     * @brief ガイドオブジェクト作成
@@ -313,7 +379,7 @@ struct PlayerGuide : Behaviour
 
         // プレイヤーと同じように進行方向に回転させる
         float rad = std::atan2f(playerMove->lastStickDir_.y, playerMove->lastStickDir_.x);
-        guidTransform->rotation.y = -rad * (180.0f / 3.1415926535f); // deg(度)変換
+        guidTransform->rotation.y = -rad * (180.0f / DirectX::XM_PI); // deg(度)変換
 
         // チャージ状態の判別処理
         if (!playerMove->isCharging_)
@@ -322,11 +388,11 @@ struct PlayerGuide : Behaviour
         }
         else
         {
-            guidTransform->scale = {2.5f, 1, 0.1};   // チャージ中はガイドの大きさを1にする
+            guidTransform->scale = {cfg_GuideScaleX.Get(), cfg_GuideScaleY.Get(), cfg_GuideScaleZ.Get()};   // チャージ中はガイドの大きさを1にする
 
             // (x,y) = (cosΘ, sinΘ)
-            guidTransform->position.x += std::cosf(rad) * 2;
-            guidTransform->position.z += std::sinf(rad) * 2;
+            guidTransform->position.x += std::cosf(rad) * cfg_GuideOffsetDistance.Get();
+            guidTransform->position.z += std::sinf(rad) * cfg_GuideOffsetDistance.Get();
         }
     }
 };

@@ -1,13 +1,14 @@
 ﻿#pragma once
 
-#include "pch.h"
-#include "scenes/Game.h"
+#include "components/Component.h"
 #include "components/UIComponents.h"
-#include "systems/UISystem.h"
 #include "components/GameStats.h"
+#include "components/StageComponents.h"
+#include "ecs/Entity.h"
+#include "ecs/World.h"
+#include "systems/UISystem.h"
 #include <sstream>
 #include <iomanip>
-#include "components/StageComponents.h"
 
 /**
  * @struct GameUIUpdater
@@ -19,6 +20,7 @@ struct GameUIUpdater : Behaviour {
     Entity fpsTextEntity_;
     Entity pauseTextEntity_;
     Entity stageTextEntity_;
+
 
     void OnUpdate(World &w, Entity self, float dt) override {
         w.ForEach<GameStats>([&](Entity e, GameStats &stats) {
@@ -65,6 +67,7 @@ struct GameUIUpdater : Behaviour {
                     }
                 }
             }
+
         });
 
         w.ForEach<StageProgress>([&](Entity e, StageProgress &sp) {

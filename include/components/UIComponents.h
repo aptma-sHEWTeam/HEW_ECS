@@ -15,6 +15,7 @@
 #include <DirectXMath.h>
 #include <string>
 #include <functional>
+#include "config/ConfigVar.h"
 
 /**
  * @struct UITransform
@@ -93,12 +94,32 @@ struct UIButton : IComponent {
     State state = State::Normal; ///< 現在の状態
     bool enabled = true;         ///< 有効/無効
 
-    DirectX::XMFLOAT4 normalColor{0.2f, 0.2f, 0.2f, 1.0f};     ///< 通常時の色
-    DirectX::XMFLOAT4 hoverColor{0.3f, 0.3f, 0.3f, 1.0f};      ///< ホバー時の色
-    DirectX::XMFLOAT4 pressedColor{0.15f, 0.15f, 0.15f, 1.0f}; ///< 押下時の色
-    DirectX::XMFLOAT4 disabledColor{0.1f, 0.1f, 0.1f, 0.5f};   ///< 無効時の色
+    DirectX::XMFLOAT4 normalColor;
+    DirectX::XMFLOAT4 hoverColor;
+    DirectX::XMFLOAT4 pressedColor;
+    DirectX::XMFLOAT4 disabledColor;
 
     std::function<void()> onClick; ///< クリック時のコールバック
+
+    // Configs
+    inline static ConfigVar<float> cfg_BtnNormalR{"UI", "BtnNormalR", 0.2f};
+    inline static ConfigVar<float> cfg_BtnNormalG{"UI", "BtnNormalG", 0.2f};
+    inline static ConfigVar<float> cfg_BtnNormalB{"UI", "BtnNormalB", 0.2f};
+    
+    inline static ConfigVar<float> cfg_BtnHoverR{"UI", "BtnHoverR", 0.3f};
+    inline static ConfigVar<float> cfg_BtnHoverG{"UI", "BtnHoverG", 0.3f};
+    inline static ConfigVar<float> cfg_BtnHoverB{"UI", "BtnHoverB", 0.3f};
+
+    inline static ConfigVar<float> cfg_BtnPressR{"UI", "BtnPressR", 0.15f};
+    inline static ConfigVar<float> cfg_BtnPressG{"UI", "BtnPressG", 0.15f};
+    inline static ConfigVar<float> cfg_BtnPressB{"UI", "BtnPressB", 0.15f};
+
+    UIButton() {
+        normalColor = {cfg_BtnNormalR, cfg_BtnNormalG, cfg_BtnNormalB, 1.0f};
+        hoverColor = {cfg_BtnHoverR, cfg_BtnHoverG, cfg_BtnHoverB, 1.0f};
+        pressedColor = {cfg_BtnPressR, cfg_BtnPressG, cfg_BtnPressB, 1.0f};
+        disabledColor = {0.1f, 0.1f, 0.1f, 0.5f};
+    }
 
     /**
      * @brief 現在の状態に応じた色を取得
