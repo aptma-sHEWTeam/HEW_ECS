@@ -45,7 +45,7 @@ struct StageProgress : IComponent {
  */
 struct StageCreate : IComponent {
     /**
-     * @brief ファイルストリーム
+     * @brief ステージファイルストリーム
      */
     ifstream m_file;
 
@@ -107,6 +107,53 @@ struct StageCreate : IComponent {
     StageCreate& operator=(const StageCreate&) = delete;
 };
 
+struct TimeCount : IComponent{
+    /**
+     * @brief タイムファイルストリーム
+     */
+    ifstream m_file;
+
+    /*
+    *  @brief 時間のデータを格納するベクター
+    */
+    vector<vector<int>> stageTime;
+
+    /**
+     * @brief　コンストラクタ
+     */
+    TimeCount() {
+        m_file.open("Assets/StageTime/testTime");
+        if (!m_file.is_open())
+            cerr << "Error: Could not open Assets/StageTime/testTime.csv" << endl;
+    }
+
+    TimeCount() = delete;
+
+    void loadStageTime() {
+        string line;
+        while (getline(m_file, line)) {
+            vector<int> row;
+            stringstream sstream(line);
+            string cell;
+
+            while (getline(sstream, cell, ',')) {
+                try {
+                    row.push_back(stoi(cell));
+                } catch (const std::invalid_argument &error) {
+                    cerr << "無効な数値: " << cell << endl;
+                } catch (const std::out_of_range &error) {
+                    cerr << "範囲外の数値: " << cell << endl;
+                }
+            }
+            stageTime.push_back(row);
+        }
+        m_file.close();
+
+    }
+
+    TimeCount(const TimeCount &) = delete;
+    TimeCount& operator=(const TimeCount &) = delete;
+};
 
 
 
