@@ -28,8 +28,6 @@
 #include "SenesUIController.h"
 #include "systems/ModelLoadingSystem.h"
 
-inline static ConfigVar<float> cfg_LimitTime{"Game", "LimitTime", 10.0f};
-
 inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false) {
     if (!w.IsAlive(player)) {
 
@@ -179,6 +177,7 @@ class GameScene : public IScene {
 
     inline static ConfigVar<float> cfg_CollisionCellSize{"Game", "CollisionCellSize", 20.0f};
 
+    inline static ConfigVar<float> cfg_LimitTime{"Game", "LimitTime", 10.0f};
 
     void OnEnter(World &world) override {
         DEBUGLOG("<<<<< GameScene::OnEnter CALLED! >>>>>");
@@ -215,6 +214,9 @@ class GameScene : public IScene {
 
         Entity stageEntity_ = world.Create().With<StageCreate>(cfg_StagePath.Get()).Build();
         ownedEntities_.push_back(stageEntity_);
+
+        Entity timeEntity_ = world.Create().With<TimeCount>(cfg_LimitTime.Get()).Build();
+        ownedEntities_.push_back(timeEntity_);
 
         world.Create().With<DirectionalLight>();
 
@@ -312,6 +314,20 @@ class GameScene : public IScene {
         ownedEntities_.push_back(player);
     }
 
+    /**
+     * @brief ステージ生成関数
+     * @deteail 読み込んだCSVファイルのデータを基にステージを生成する
+     *          新しい生成物を設定するときはこの関数内のswitch文に設定する
+     *          例： 
+     *              if (blockType != 0) {
+     *                  switch (blockType) {
+     *                      case 1: CreateStart(world, blockposition); break; // スタート地点
+     *                      case 2: CreateGoal(world, blockposition); break; // ゴール地点
+     *                      case 3: CreateWall(world, blockposition); break; // 通常の壁
+     *                      case 4: CreateAccell(world,blockposition); break; //新規のブロック
+     *                  }
+     *              }
+     */
     void CreateStageMap(World &world) {
         world.ForEach<StageCreate>([&](Entity, StageCreate &stagecreate) {
             float tileSize = 1.0f;
