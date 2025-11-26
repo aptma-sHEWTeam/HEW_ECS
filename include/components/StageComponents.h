@@ -108,7 +108,7 @@ struct StageCreate : IComponent {
     StageCreate& operator=(const StageCreate&) = delete;
 };
 
-struct TimeCount : IComponent{
+struct TimeLoad : IComponent{
     /**
      * @brief タイムファイルストリーム
      */
@@ -122,7 +122,7 @@ struct TimeCount : IComponent{
     /**
      * @brief　コンストラクタ
      */
-    TimeCount() {
+    TimeLoad() {
         m_file.open("Assets/StageData/StageTime/stage1.csv");
         if (!m_file.is_open())
             cerr << "Error: Could not open Assets/StageDate/StageTime/stage1.csv" << endl;
@@ -154,8 +154,8 @@ struct TimeCount : IComponent{
 
     }
 
-    TimeCount(const TimeCount &) = delete;
-    TimeCount& operator=(const TimeCount &) = delete;
+    TimeLoad(const TimeLoad &) = delete;
+    TimeLoad& operator=(const TimeLoad &) = delete;
 };
 
 
