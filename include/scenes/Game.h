@@ -28,14 +28,6 @@
 #include "SenesUIController.h"
 #include "systems/ModelLoadingSystem.h"
 
-//ステージの仮置きの制限時間
-constexpr float limittime = 10.0f;
-
-
-
-//ステージの仮置きの制限時間
-inline static ConfigVar<float> cfg_LimitTime{"Game", "LimitTime", 10.0f};
-
 inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false) {
     if (!w.IsAlive(player)) {
 
@@ -185,6 +177,7 @@ class GameScene : public IScene {
 
     inline static ConfigVar<float> cfg_CollisionCellSize{"Game", "CollisionCellSize", 20.0f};
 
+    inline static ConfigVar<float> cfg_LimitTime{"Game", "LimitTime", 10.0f};
 
     void OnEnter(World &world) override {
         DEBUGLOG("<<<<< GameScene::OnEnter CALLED! >>>>>");
@@ -221,6 +214,9 @@ class GameScene : public IScene {
 
         Entity stageEntity_ = world.Create().With<StageCreate>(cfg_StagePath.Get()).Build();
         ownedEntities_.push_back(stageEntity_);
+
+        Entity timeEntity_ = world.Create().With<TimeCount>(cfg_LimitTime.Get()).Build();
+        ownedEntities_.push_back(timeEntity_);
 
         world.Create().With<DirectionalLight>();
 
@@ -274,11 +270,6 @@ class GameScene : public IScene {
         });
 
         world.Tick(deltaTime);
-
-        //制限時間が過ぎていたらリセット
-        if (world.IsAlive(playerEntity_)) {
-            CheckTimeLimit(world, playerEntity_,limittime );
-        }
 
         //制限時間が過ぎていたらリセット
         if (world.IsAlive(playerEntity_)) {

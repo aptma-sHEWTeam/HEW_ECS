@@ -123,12 +123,14 @@ struct TimeCount : IComponent{
      * @brief　コンストラクタ
      */
     TimeCount() {
-        m_file.open("Assets/StageTime/testTime");
+        m_file.open("Assets/StageData/StageTime/stage1.csv");
         if (!m_file.is_open())
-            cerr << "Error: Could not open Assets/StageTime/testTime.csv" << endl;
+            cerr << "Error: Could not open Assets/StageDate/StageTime/stage1.csv" << endl;
+        else {
+            loadStageTime();        
+        }
     }
 
-    TimeCount() = delete;
 
     void loadStageTime() {
         string line;
