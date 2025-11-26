@@ -215,9 +215,6 @@ class GameScene : public IScene {
         Entity stageEntity_ = world.Create().With<StageCreate>(cfg_StagePath.Get()).Build();
         ownedEntities_.push_back(stageEntity_);
 
-        Entity timeEntity_ = world.Create().With<TimeCount>(cfg_LimitTime.Get()).Build();
-        ownedEntities_.push_back(timeEntity_);
-
         world.Create().With<DirectionalLight>();
 
         CreatePlayer(world);
