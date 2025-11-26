@@ -20,12 +20,12 @@
  * @details
  * TextSystemを使用してボタン、テキスト、パネルを描画します。
  */
-struct UIRenderSystem : Behaviour {
+struct UIRenderSystem {
     TextSystem *textSystem_ = nullptr;
     float screenWidth_ = 1280.0f;
     float screenHeight_ = 720.0f;
 
-    void OnUpdate(World &w, Entity self, float dt) override {
+    void Render(World &w) {
         if (!textSystem_ || !textSystem_->IsInitialized()) {
             return;
         }

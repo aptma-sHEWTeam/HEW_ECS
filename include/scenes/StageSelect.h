@@ -86,6 +86,11 @@ class StageSlectScene : public IScene {
             maneger->ChangeScene("Game", world);
         }
     }
+    void OnRender(World &world) override {
+        world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
+            sys.Render(world);
+        });
+    }
 
     void OnExit(World &world) override {
         for (const auto &e : ownedEntities_) {
