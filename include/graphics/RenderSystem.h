@@ -573,31 +573,11 @@ struct RenderSystem {
      * @brief 基本形状メッシュの作成
      */
     bool CreatePrimitiveMeshes(GfxDevice &gfx) {
-        // Cube
-        if (!CreateCubeMesh(gfx)) {
-            DEBUGLOG_ERROR("[RenderSystem] キューブメッシュの作成失敗");
-            return false;
-        }
-
-        // Sphere
-        if (!CreateSphereMesh(gfx)) {
-            DEBUGLOG_ERROR("[RenderSystem] 球体メッシュの作成失敗");
-            return false;
-        }
-
-        // Cylinder
-        if (!CreateCylinderMesh(gfx)) {
-            DEBUGLOG_ERROR("[RenderSystem] 円柱メッシュの作成失敗");
-            return false;
-        }
-
-        // Plane
-        if (!CreatePlaneMesh(gfx)) {
-            DEBUGLOG_ERROR("[RenderSystem] 平面メッシュの作成失敗");
-            return false;
-        }
-
-        DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "[RenderSystem] 基本形状メッシュの作成完了");
+        if (!CreateCubeMesh(gfx)) { DEBUGLOG_ERROR("[RenderSystem] キューブメッシュの作成失敗"); return false; }
+        if (!CreateSphereMesh(gfx)) { DEBUGLOG_ERROR("[RenderSystem] 球体メッシュの作成失敗"); return false; }
+        if (!CreateCylinderMesh(gfx)) { DEBUGLOG_ERROR("[RenderSystem] 円柱メッシュの作成失敗"); return false; }
+        if (!CreatePlaneMesh(gfx)) { DEBUGLOG_ERROR("[RenderSystem] 平面メッシュの作成に失敗"); return false; }
+        if (!CreateRightIsoTriPrismMesh(gfx)) { DEBUGLOG_ERROR("[RenderSystem] 直角二等辺三角柱メッシュの作成に失敗"); return false; }
         return true;
     }
 
@@ -799,6 +779,42 @@ struct RenderSystem {
         uint16_t indices[] = {0, 1, 2, 0, 2, 3};
 
         return CreateMeshBuffers(gfx, vertices, 4, indices, 6, static_cast<int>(MeshType::Plane));
+    }
+
+    /**
+     * @brief 直角二等辺三角柱メッシュの作成
+     */
+    bool CreateRightIsoTriPrismMesh(GfxDevice &gfx) {
+        const float s = 0.5f;
+        std::vector<Vertex> v;
+        std::vector<uint16_t> idx;
+        DirectX::XMFLOAT3 A{-s,-s,-s};
+        DirectX::XMFLOAT3 B{ s,-s,-s};
+        DirectX::XMFLOAT3 C{-s,-s, s};
+        DirectX::XMFLOAT3 A2{-s,s,-s};
+        DirectX::XMFLOAT3 B2{ s,s,-s};
+        DirectX::XMFLOAT3 C2{-s,s, s};
+        auto make = [&](DirectX::XMFLOAT3 p, DirectX::XMFLOAT2 uv, DirectX::XMFLOAT3 n){ v.push_back({p,uv,n,{1,0,0},{0,1,0}}); };
+        make(A,{0,1},{0,-1,0}); make(B,{1,1},{0,-1,0}); make(C,{0,0},{0,-1,0});
+        make(A2,{0,1},{0,1,0}); make(C2,{0,0},{0,1,0}); make(B2,{1,1},{0,1,0});
+        DirectX::XMFLOAT3 nBack{0,0,-1};
+        make(A,{0,1},nBack); make(A2,{0,0},nBack); make(B2,{1,0},nBack); make(B,{1,1},nBack);
+        DirectX::XMFLOAT3 nFront{0,0,1};
+        make(B,{1,1},nFront); make(B2,{1,0},nFront); make(C2,{0,0},nFront); make(C,{0,1},nFront);
+        DirectX::XMFLOAT3 nLeft{-1,0,0};
+        make(C,{1,1},nLeft); make(C2,{1,0},nLeft); make(A2,{0,0},nLeft); make(A,{0,1},nLeft);
+        auto calcNormal = [](DirectX::XMFLOAT3 p0, DirectX::XMFLOAT3 p1, DirectX::XMFLOAT3 p2){ using namespace DirectX; XMVECTOR v0=XMLoadFloat3(&p0), v1=XMLoadFloat3(&p1), v2=XMLoadFloat3(&p2); XMVECTOR n = XMVector3Normalize(XMVector3Cross(XMVectorSubtract(v1,v0), XMVectorSubtract(v2,v0))); DirectX::XMFLOAT3 r; XMStoreFloat3(&r,n); return r; };
+        DirectX::XMFLOAT3 nDiag = calcNormal(B,A,A2);
+        make(B,{1,1},nDiag); make(A,{0,1},nDiag); make(A2,{0,0},nDiag); make(B2,{1,0},nDiag);
+        DirectX::XMFLOAT3 nDiag2 = calcNormal(C,B,B2);
+        make(C,{0,1},nDiag2); make(B,{1,1},nDiag2); make(B2,{1,0},nDiag2); make(C2,{0,0},nDiag2);
+        idx.insert(idx.end(),{0,1,2,3,4,5});
+        idx.insert(idx.end(),{6,7,8,6,8,9});
+        idx.insert(idx.end(),{10,11,12,10,12,13});
+        idx.insert(idx.end(),{14,15,16,14,16,17});
+        idx.insert(idx.end(),{18,19,20,18,20,21});
+        idx.insert(idx.end(),{22,23,24,22,24,25});
+        return CreateMeshBuffers(gfx, v.data(), v.size(), idx.data(), idx.size(), static_cast<int>(MeshType::RightIsoTriPrism));
     }
 
     /**

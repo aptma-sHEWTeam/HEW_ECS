@@ -44,7 +44,8 @@ enum class MeshType {
     Cylinder,      ///< 円柱
     Cone,          ///< 円錐
     Plane,         ///< 平面
-    Capsule        ///< カプセル
+    Capsule,        ///< カプセル
+    RightIsoTriPrism ///< 立方体を斜めに2等分した直角二等辺三角柱
 };
 
 /**

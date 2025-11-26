@@ -1,7 +1,7 @@
-/**
+ï»¿/**
  * @file ModelLoadingSystem.h
- * @brief 3Dƒ‚ƒfƒ‹‚Ìƒ[ƒhƒVƒXƒeƒ€
- * @author R“à—z
+ * @brief 3Dãƒ¢ãƒ‡ãƒ«ã®ãƒ­ãƒ¼ãƒ‰ã‚·ã‚¹ãƒ†ãƒ 
+ * @author å±±å†…é™½
  */
 #pragma once
 

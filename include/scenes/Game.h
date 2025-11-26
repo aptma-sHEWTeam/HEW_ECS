@@ -141,7 +141,7 @@ class GameScene : public IScene {
     inline static ConfigVar<float> cfg_PlayerB{"Game", "PlayerColorB", 1.0f};
     inline static ConfigVar<float> cfg_PlayerStartY{"Game", "PlayerStartY", 5.0f};
     inline static ConfigVar<float> cfg_PlayerHeight{"Game", "PlayerHeight", 2.0f};
-    
+
     inline static ConfigVar<float> cfg_FloorR{"Game", "FloorColorR", 0.5f};
     inline static ConfigVar<float> cfg_FloorG{"Game", "FloorColorG", 0.5f};
     inline static ConfigVar<float> cfg_FloorB{"Game", "FloorColorB", 0.5f};
@@ -227,7 +227,7 @@ class GameScene : public IScene {
     }
 
     void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
-        
+
         // ゲームの一時停止と再開
         world.ForEach<GameStats>([&](Entity, GameStats &stats) {
             if (input.GetKeyDown(VK_ESCAPE) || input.GetKeyDown('P')) {
@@ -323,8 +323,8 @@ class GameScene : public IScene {
             float mapWidth = static_cast<float>(stagecreate.stageMap[0].size());
             float mapHeight = static_cast<float>(stagecreate.stageMap.size());
 
-            const int max_x_index = stagecreate.stageMap[0].size() - 1;
-            const int max_y_index = stagecreate.stageMap.size() - 1;
+            const int max_x_index = static_cast<int>(stagecreate.stageMap[0].size() - 1);
+            const int max_y_index = static_cast<int>(stagecreate.stageMap.size() - 1);
 
             const float offsetX = (mapWidth * tileSize) * 0.5f - (tileSize * 0.5f);
             const float offsetZ = (mapHeight * tileSize) * 0.5f - (tileSize * 0.5f);

@@ -1,7 +1,7 @@
-/**
+ï»¿/**
  * @file StageSelect.h
- * @brief ƒZƒŒƒNƒgƒV[ƒ“
- * @author —§R—Iñ
+ * @brief ã‚»ãƒ¬ã‚¯ãƒˆã‚·ãƒ¼ãƒ³
+ * @author ç«‹å±±æ‚ æœ”
  * @date 2025
  * @version 1.0
  */
@@ -18,7 +18,7 @@
 
 /**
  * @class StageSlectScene
- * @brief 3DƒQ[ƒ€‚ÆUI‚ğ“‡‚µ‚½ƒV[ƒ“
+ * @brief 3Dã‚²ãƒ¼ãƒ ã¨UIã‚’çµ±åˆã—ãŸã‚·ãƒ¼ãƒ³
  */
 class StageSlectScene : public IScene {
   public:
@@ -76,10 +76,10 @@ class StageSlectScene : public IScene {
             }
         });
 
-        // TickXV
+        // Tickæ›´æ–°
         world.Tick(deltaTime);
 
-        //enter‚ğ‰Ÿ‚µ‚½‚çƒV[ƒ“ˆÚ“®
+        //enterã‚’æŠ¼ã—ãŸã‚‰ã‚·ãƒ¼ãƒ³ç§»å‹•
         if (input.GetKeyDown(VK_RETURN)) {
             DEBUGLOG("Enter pressed!");
             auto *maneger = ServiceLocator::TryGet<SceneManager>();
@@ -105,7 +105,7 @@ class StageSlectScene : public IScene {
     void CreateTextFormats() {
         TextSystem::TextFormat hud;
         hud.fontSize = 24.0f;
-        hud.fontFamily = L"ƒƒCƒŠƒI";
+        hud.fontFamily = L"ãƒ¡ã‚¤ãƒªã‚ª";
         hud.alignment = DWRITE_TEXT_ALIGNMENT_LEADING;
         textSystem_.CreateTextFormat("hud", hud);
     }
