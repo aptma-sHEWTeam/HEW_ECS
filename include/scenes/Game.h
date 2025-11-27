@@ -27,6 +27,7 @@
 #include "app/ServiceLocator.h"
 #include "SenesUIController.h"
 #include "systems/ModelLoadingSystem.h"
+#include "graphics/TextureManager.h"
 
 inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false) {
     if (!w.IsAlive(player)) {
@@ -171,9 +172,11 @@ class GameScene : public IScene {
     inline static ConfigVar<float> cfg_UICountG{"UI", "CountColorG", 1.0f};
     inline static ConfigVar<float> cfg_UICountB{"UI", "CountColorB", 1.0f};
 
-    inline static ConfigVar<std::string> cfg_PlayerFBXPass{"Player", "PlayerFBXPass", "Assets/Models/test.fbx"};
+    inline static ConfigVar<std::string> cfg_PlayerFBXPass{"Player", "PlayerFBXPass", "Assets/Models/aaa.fbx"};
 
     inline static ConfigVar<std::string> cfg_StagePath{"Stage", "CSVPath", "Assets/StageData/StageCollision/DebugStage1/room1.csv"};
+
+    inline static ConfigVar<std::string> cfg_RoomPath{"UI", "RoomPNGPass", "Assets/Textures/Count.png"};
 
     inline static ConfigVar<float> cfg_CollisionCellSize{"Game", "CollisionCellSize", 20.0f};
 
@@ -309,7 +312,7 @@ class GameScene : public IScene {
             .With<PlayerVelocity>()
             .With<PlayerMovement>()
             .With<PlayerGuide>()
-            .With<CollisionBox>(DirectX::XMFLOAT3 { s, cfg_PlayerHeight, s })
+            .With<CollisionSphere>(0.4f)
             .With<PlayerCollisionHandler>()
             .Build();
 
@@ -321,7 +324,7 @@ class GameScene : public IScene {
      * @brief ステージ生成関数
      * @deteail 読み込んだCSVファイルのデータを基にステージを生成する
      *          新しい生成物を設定するときはこの関数内のswitch文に設定する
-     *          例： 
+     *          例：
      *              if (blockType != 0) {
      *                  switch (blockType) {
      *                      case 1: CreateStart(world, blockposition); break; // スタート地点
