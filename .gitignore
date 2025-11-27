@@ -22,6 +22,7 @@ mono_crash.*
 [Rr]elease/
 [Rr]eleases/
 debug_log.csv
+debug_log.txt
 metrics_log.csv
 x64/
 x86/
