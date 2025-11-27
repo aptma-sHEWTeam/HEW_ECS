@@ -105,7 +105,7 @@ struct PlayerMovement : Behaviour {
     inline static ConfigVar<float> cfg_ReleaseThreshold{"Player", "ReleaseThreshold", 0.3f};
     inline static ConfigVar<float> cfg_LimitX{"Player", "LimitX", 15.0f};
     inline static ConfigVar<float> cfg_LimitY{"Player", "LimitY", 15.0f};
-    inline static ConfigVar<float> cfg_ChargeMoveAmount{"Player", "ChargeMoveAmount", 0.025};
+    inline static ConfigVar<float> cfg_ChargeMoveAmount{"Player", "ChargeMoveAmount", 0.025f};
 
     // チャージ挙動設定
     float minChargeSpeedFactor = cfg_MinChargeSpeed;   ///< チャージ中の最低速度係数(0.0-1.0)
@@ -218,7 +218,7 @@ struct PlayerMovement : Behaviour {
             if (effectiveCharging)
             {
                 isCharging_ = true;
-                collision_->radius * 0.01f;            //< 当たり判定変更
+                if (collision_) { collision_->radius *= 0.01f; }            //< 当たり判定変更
                 float charge = gamepad_->GetLeftStickChargeAmount(chargeMaxTime); // 0..1
                 slowFactor = std::max(minChargeSpeedFactor, 1.0f - charge);
                 

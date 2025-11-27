@@ -121,13 +121,12 @@ struct CollisionBox : IComponent {
      * @param[in] transform エンティティのTransform
    * @return DirectX::XMFLOAT3 ワールド座標での中心
      */
-    DirectX::XMFLOAT3 GetWorldCenter(const Transform &transform) const {
-        using namespace DirectX;
-        XMVECTOR pos = XMLoadFloat3(&transform.position);
-        XMVECTOR off = XMLoadFloat3(&offset);
-        XMFLOAT3 result;
-        XMStoreFloat3(&result, XMVectorAdd(pos, off));
-        return result;
+    inline DirectX::XMFLOAT3 GetWorldCenter(const Transform &transform) const noexcept {
+        return {
+            transform.position.x + offset.x,
+            transform.position.y + offset.y,
+            transform.position.z + offset.z
+        };
     }
 
     /**
@@ -168,13 +167,12 @@ struct CollisionSphere : IComponent {
     /**
      * @brief ワールド空間での中心座標を取得
      */
-    DirectX::XMFLOAT3 GetWorldCenter(const Transform &transform) const {
-        using namespace DirectX;
-        XMVECTOR pos = XMLoadFloat3(&transform.position);
-        XMVECTOR off = XMLoadFloat3(&offset);
-        XMFLOAT3 result;
-        XMStoreFloat3(&result, XMVectorAdd(pos, off));
-        return result;
+    inline DirectX::XMFLOAT3 GetWorldCenter(const Transform &transform) const noexcept {
+        return {
+            transform.position.x + offset.x,
+            transform.position.y + offset.y,
+            transform.position.z + offset.z
+        };
     }
 
     /**
@@ -215,13 +213,12 @@ struct CollisionCapsule : IComponent {
     /**
      * @brief ワールド空間での中心座標を取得
      */
-    DirectX::XMFLOAT3 GetWorldCenter(const Transform &transform) const {
-        using namespace DirectX;
-        XMVECTOR pos = XMLoadFloat3(&transform.position);
-        XMVECTOR off = XMLoadFloat3(&offset);
-        XMFLOAT3 result;
-        XMStoreFloat3(&result, XMVectorAdd(pos, off));
-        return result;
+    inline DirectX::XMFLOAT3 GetWorldCenter(const Transform &transform) const noexcept {
+        return {
+            transform.position.x + offset.x,
+            transform.position.y + offset.y,
+            transform.position.z + offset.z
+        };
     }
 
     /**
@@ -257,8 +254,13 @@ struct CollisionRightIsoTriPrism : IComponent { // 立方体半分の直角二�
     bool mainDiagonalXZ{true}; // true:x+z>=0面で切断 / false:x - z >=0
     explicit CollisionRightIsoTriPrism(const DirectX::XMFLOAT3 &boxSize={1,1,1}, const DirectX::XMFLOAT3 &centerOffset={0,0,0}, bool diag=true)
         : size(boxSize), offset(centerOffset), mainDiagonalXZ(diag) {}
-    DirectX::XMFLOAT3 GetWorldCenter(const Transform &t) const {
-        using namespace DirectX; DirectX::XMFLOAT3 r; XMStoreFloat3(&r, XMVectorAdd(XMLoadFloat3(&t.position), XMLoadFloat3(&offset))); return r; }
+    inline DirectX::XMFLOAT3 GetWorldCenter(const Transform &t) const noexcept {
+        return {
+            t.position.x + offset.x,
+            t.position.y + offset.y,
+            t.position.z + offset.z
+        };
+    }
     DirectX::XMFLOAT3 GetScaledSize(const Transform &t) const { return {size.x*t.scale.x,size.y*t.scale.y,size.z*t.scale.z}; }
 };
 

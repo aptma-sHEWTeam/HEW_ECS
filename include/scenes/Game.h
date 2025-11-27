@@ -171,7 +171,7 @@ class GameScene : public IScene {
     inline static ConfigVar<float> cfg_UICountG{"UI", "CountColorG", 1.0f};
     inline static ConfigVar<float> cfg_UICountB{"UI", "CountColorB", 1.0f};
 
-    inline static ConfigVar<std::string> cfg_PlayerFBXPass{"Player", "PlayerFBXPass", "Assets/Models/aaa.fbx"};
+    inline static ConfigVar<std::string> cfg_PlayerFBXPass{"Player", "PlayerFBXPass", "Assets/Models/test.fbx"};
 
     inline static ConfigVar<std::string> cfg_StagePath{"Stage", "CSVPath", "Assets/StageData/aaa.csv"};
 
@@ -272,6 +272,12 @@ class GameScene : public IScene {
         if (world.IsAlive(playerEntity_)) {
             CheckTimeLimit(world, playerEntity_, cfg_LimitTime);
         }
+    }
+
+    void OnRender(World &world) override {
+        world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
+            sys.Render(world);
+        });
     }
 
     void OnExit(World &world) override {
