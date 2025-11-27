@@ -121,13 +121,12 @@ struct CollisionBox : IComponent {
      * @param[in] transform エンティティのTransform
    * @return DirectX::XMFLOAT3 ワールド座標での中心
      */
-    DirectX::XMFLOAT3 GetWorldCenter(const Transform &transform) const {
-        using namespace DirectX;
-        XMVECTOR pos = XMLoadFloat3(&transform.position);
-        XMVECTOR off = XMLoadFloat3(&offset);
-        XMFLOAT3 result;
-        XMStoreFloat3(&result, XMVectorAdd(pos, off));
-        return result;
+    inline DirectX::XMFLOAT3 GetWorldCenter(const Transform &transform) const noexcept {
+        return {
+            transform.position.x + offset.x,
+            transform.position.y + offset.y,
+            transform.position.z + offset.z
+        };
     }
 
     /**
@@ -168,13 +167,12 @@ struct CollisionSphere : IComponent {
     /**
      * @brief ワールド空間での中心座標を取得
      */
-    DirectX::XMFLOAT3 GetWorldCenter(const Transform &transform) const {
-        using namespace DirectX;
-        XMVECTOR pos = XMLoadFloat3(&transform.position);
-        XMVECTOR off = XMLoadFloat3(&offset);
-        XMFLOAT3 result;
-        XMStoreFloat3(&result, XMVectorAdd(pos, off));
-        return result;
+    inline DirectX::XMFLOAT3 GetWorldCenter(const Transform &transform) const noexcept {
+        return {
+            transform.position.x + offset.x,
+            transform.position.y + offset.y,
+            transform.position.z + offset.z
+        };
     }
 
     /**
@@ -215,13 +213,12 @@ struct CollisionCapsule : IComponent {
     /**
      * @brief ワールド空間での中心座標を取得
      */
-    DirectX::XMFLOAT3 GetWorldCenter(const Transform &transform) const {
-        using namespace DirectX;
-        XMVECTOR pos = XMLoadFloat3(&transform.position);
-        XMVECTOR off = XMLoadFloat3(&offset);
-        XMFLOAT3 result;
-        XMStoreFloat3(&result, XMVectorAdd(pos, off));
-        return result;
+    inline DirectX::XMFLOAT3 GetWorldCenter(const Transform &transform) const noexcept {
+        return {
+            transform.position.x + offset.x,
+            transform.position.y + offset.y,
+            transform.position.z + offset.z
+        };
     }
 
     /**
@@ -241,6 +238,30 @@ struct CollisionCapsule : IComponent {
         center.y -= height * 0.5f * transform.scale.y;
         return center;
     }
+};
+
+/**
+ * @struct CollisionRightIsoTriPrism
+ * @brief 直方体半分の直角二等辺三角柱 (軸アライン想定)
+ *
+ * @details
+ * XZ平面での対称性を持ち、上下いずれかの面でカットされた形状です。
+ * 主に床や壁の一部として使用されることを想定しています。
+ */
+struct CollisionRightIsoTriPrism : IComponent { // 立方体半分の直角二等辺三角柱 (軸アライン想定)
+    DirectX::XMFLOAT3 size{1.0f,1.0f,1.0f}; // 包含する元キューブサイズ
+    DirectX::XMFLOAT3 offset{0,0,0};
+    bool mainDiagonalXZ{true}; // true:x+z>=0面で切断 / false:x - z >=0
+    explicit CollisionRightIsoTriPrism(const DirectX::XMFLOAT3 &boxSize={1,1,1}, const DirectX::XMFLOAT3 &centerOffset={0,0,0}, bool diag=true)
+        : size(boxSize), offset(centerOffset), mainDiagonalXZ(diag) {}
+    inline DirectX::XMFLOAT3 GetWorldCenter(const Transform &t) const noexcept {
+        return {
+            t.position.x + offset.x,
+            t.position.y + offset.y,
+            t.position.z + offset.z
+        };
+    }
+    DirectX::XMFLOAT3 GetScaledSize(const Transform &t) const { return {size.x*t.scale.x,size.y*t.scale.y,size.z*t.scale.z}; }
 };
 
 // ========================================================
@@ -474,6 +495,16 @@ struct CollisionDetectionSystem : Behaviour {
 
             });
 
+            w.ForEach<CollisionRightIsoTriPrism, Transform>([&](Entity e, CollisionRightIsoTriPrism& tri, Transform& t) {
+                using namespace DirectX;
+                XMFLOAT3 center = tri.GetWorldCenter(t);
+                XMFLOAT3 scaled = tri.GetScaledSize(t);
+                XMFLOAT3 halfExtents = {scaled.x*0.5f, scaled.y*0.5f, scaled.z*0.5f};
+                BoundingBox bb(center, halfExtents); // 包含AABB
+                collidables.push_back({e, bb});
+                m_grid.Insert(e, bb);
+            });
+
             
 
             std::unordered_set<uint64_t> uniquePairs; // 重複ペアを避けるため
@@ -694,6 +725,19 @@ struct CollisionDetectionSystem : Behaviour {
             }
         }
 
+        // Box vs TriPrism (use AABB test then refine plane)
+        if (auto *boxA = w.TryGet<CollisionBox>(a)) {
+            if (auto *triB = w.TryGet<CollisionRightIsoTriPrism>(b)) {
+                auto info = CheckAABB_AABB(*transformA,*boxA,*transformB, CollisionBox(triB->GetScaledSize(*transformB)), a,b);
+                if (info) { info->isColliding = RefineTriPrism(boxA, transformA, triB, transformB, *info, true); if(info->isColliding) return info; }
+            }
+        }
+        if (auto *triA = w.TryGet<CollisionRightIsoTriPrism>(a)) {
+            if (auto *boxB = w.TryGet<CollisionBox>(b)) {
+                auto info = CheckAABB_AABB(*transformA, CollisionBox(triA->GetScaledSize(*transformA)), *transformB,*boxB, a,b);
+                if (info) { info->isColliding = RefineTriPrism(boxB, transformB, triA, transformA, *info, false); if(info->isColliding) return info; }
+            }
+        }
         return std::nullopt;
     }
 
@@ -847,6 +891,31 @@ struct CollisionDetectionSystem : Behaviour {
         }
 
         return std::nullopt;
+    }
+
+    static bool RefineTriPrism(const CollisionBox* box, const Transform* tBox, const CollisionRightIsoTriPrism* tri, const Transform* tTri, CollisionInfo &info, bool triIsB){
+        if(!box||!tBox||!tri||!tTri) return false;
+        // 平面: mainDiagonalXZ ? x+z>=0 : x - z >=0 (ローカル: 中心原点, サイズスケール後)
+        DirectX::XMFLOAT3 triCenter = tri->GetWorldCenter(*tTri);
+        DirectX::XMFLOAT3 triSize = tri->GetScaledSize(*tTri);
+        // Box center
+        DirectX::XMFLOAT3 boxCenter = box->GetWorldCenter(*tBox);
+        // ローカルへ変換 (XZ 平面判定) : 点p -> (p - triCenter)
+        float relX = boxCenter.x - triCenter.x;
+        float relZ = boxCenter.z - triCenter.z;
+        // 正規化閾値: サイズの半分範囲内
+        float limit = 0.5f * (triSize.x + triSize.z); // 粗い尺度
+        float planeVal = tri->mainDiagonalXZ ? (relX + relZ) : (relX - relZ);
+        // 三角柱内部判定 (単純化): AABB重なりは既に確認済み、平面側に存在するかで絞る
+        if(planeVal < -limit*0.0f){ // 平面反対側なら非衝突
+            return false;
+        }
+        // 法線計算
+        DirectX::XMFLOAT3 n = tri->mainDiagonalXZ ? DirectX::XMFLOAT3{0.707f,0.0f,0.707f} : DirectX::XMFLOAT3{0.707f,0.0f,-0.707f};
+        // penetrationDepth は既存を維持 / contactPoint修正
+        info.normal = triIsB ? n : DirectX::XMFLOAT3{-n.x,-n.y,-n.z};
+        info.contactPoint = boxCenter; // 簡易
+        return true;
     }
 };
 

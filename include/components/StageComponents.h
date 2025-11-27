@@ -36,6 +36,7 @@ struct GoalTag : IComponent {};
  */
 struct StageProgress : IComponent {
     int currentStage = 1;
+    int selectStage = 1;
     bool requestAdvance = false;
 };
 
@@ -45,7 +46,7 @@ struct StageProgress : IComponent {
  */
 struct StageCreate : IComponent {
     /**
-     * @brief ファイルストリーム
+     * @brief ステージファイルストリーム
      */
     ifstream m_file;
 
@@ -92,9 +93,9 @@ struct StageCreate : IComponent {
                     try {
                         row.push_back(stoi(cell));
                     } catch (const std::invalid_argument &error) {
-                        cerr << "無効な数値: " << cell << endl;
+                        cerr << "無効な数値: " << cell << " (" << error.what() << ")" << endl;
                     } catch (const std::out_of_range &error) {
-                        cerr << "範囲外の数値: " << cell << endl;
+                        cerr << "範囲外の数値: " << cell << " (" << error.what() << ")" << endl;
                     }
                 }
                 stageMap.push_back(row);
@@ -107,6 +108,55 @@ struct StageCreate : IComponent {
     StageCreate& operator=(const StageCreate&) = delete;
 };
 
+struct TimeLoad : IComponent{
+    /**
+     * @brief タイムファイルストリーム
+     */
+    ifstream m_file;
+
+    /*
+    *  @brief 時間のデータを格納するベクター
+    */
+    vector<vector<int>> stageTime;
+
+    /**
+     * @brief　コンストラクタ
+     */
+    TimeLoad() {
+        m_file.open("Assets/StageData/StageTime/stage1.csv");
+        if (!m_file.is_open())
+            cerr << "Error: Could not open Assets/StageData/StageTime/stage1.csv" << endl;
+        else {
+            loadStageTime();        
+        }
+    }
+
+
+    void loadStageTime() {
+        string line;
+        while (getline(m_file, line)) {
+            vector<int> row;
+            stringstream sstream(line);
+            string cell;
+
+            while (getline(sstream, cell, ',')) {
+                try {
+                    row.push_back(stoi(cell));
+                } catch (const std::invalid_argument &error) {
+                    cerr << "無効な数値: " << cell << " (" << error.what() << ")" << endl;
+                } catch (const std::out_of_range &error) {
+                    cerr << "範囲外の数値: " << cell << " (" << error.what() << ")" << endl;
+                }
+            }
+            stageTime.push_back(row);
+        }
+        m_file.close();
+
+    }
+
+    TimeLoad(const TimeLoad &) = delete;
+    TimeLoad& operator=(const TimeLoad &) = delete;
+};
 
 
 

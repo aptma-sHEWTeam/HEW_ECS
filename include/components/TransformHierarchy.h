@@ -1,12 +1,12 @@
-/**
+ï»¿/**
  * @file TransformHierarchy.h
- * @brief TransformŠK‘w\‘¢ŠÇ—ƒRƒ“ƒ|[ƒlƒ“ƒg
- * @author R“à—z
+ * @brief Transforméšå±¤æ§‹é€ ç®¡ç†ã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆ
+ * @author å±±å†…é™½
  * @date 2025
  * @version 6.0
  *
  * @details
- * ƒGƒ“ƒeƒBƒeƒBŠÔ‚ÌeqŠÖŒW‚ğŠÇ—‚µAŠK‘w“I‚ÈTransform•ÏŠ·‚ğÀŒ»‚µ‚Ü‚·B
+ * ã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£é–“ã®è¦ªå­é–¢ä¿‚ã‚’ç®¡ç†ã—ã€éšå±¤çš„ãªTransformå¤‰æ›ã‚’å®Ÿç¾ã—ã¾ã™ã€‚
  */
 #pragma once
 
@@ -17,35 +17,35 @@
 
 /**
  * @struct TransformHierarchy
- * @brief ƒGƒ“ƒeƒBƒeƒBŠÔ‚ÌeqŠÖŒW‚ğŠÇ—‚·‚éƒRƒ“ƒ|[ƒlƒ“ƒg
+ * @brief ã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£é–“ã®è¦ªå­é–¢ä¿‚ã‚’ç®¡ç†ã™ã‚‹ã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆ
  *
  * @details
- * ‚±‚ÌƒRƒ“ƒ|[ƒlƒ“ƒg‚ğg—p‚·‚é‚±‚Æ‚ÅA3DƒIƒuƒWƒFƒNƒg‚ÌŠK‘w\‘¢‚ğ\’z‚Å‚«‚Ü‚·B
- * eƒGƒ“ƒeƒBƒeƒB‚ªˆÚ“®E‰ñ“]EƒXƒP[ƒ‹‚·‚é‚ÆAqƒGƒ“ƒeƒBƒeƒB‚à“¯‚¶•ÏŠ·‚ğó‚¯‚Ü‚·B
+ * ã“ã®ã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆã‚’ä½¿ç”¨ã™ã‚‹ã“ã¨ã§ã€3Dã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã®éšå±¤æ§‹é€ ã‚’æ§‹ç¯‰ã§ãã¾ã™ã€‚
+ * è¦ªã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£ãŒç§»å‹•ãƒ»å›è»¢ãƒ»ã‚¹ã‚±ãƒ¼ãƒ«ã™ã‚‹ã¨ã€å­ã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£ã‚‚åŒã˜å¤‰æ›ã‚’å—ã‘ã¾ã™ã€‚
  *
- * ### eqŠÖŒW‚Ì“Á’¥:
- * - e‚Ì•ÏŠ·iˆÊ’uE‰ñ“]EƒXƒP[ƒ‹j‚Íq‚É©“®“I‚É“K—p‚³‚ê‚Ü‚·
- * - q‚Ìƒ[ƒJƒ‹À•W‚Íe‚ÌÀ•WŒn‚ğŠî€‚Æ‚µ‚Ü‚·
- * - 1‚Â‚Ìe‚Í•¡”‚Ìq‚ğ‚Â‚±‚Æ‚ª‚Å‚«‚Ü‚·
- * - q‚Í1‚Â‚Ìe‚Ì‚İ‚ğ‚Â‚±‚Æ‚ª‚Å‚«‚Ü‚·
+ * ### è¦ªå­é–¢ä¿‚ã®ç‰¹å¾´:
+ * - è¦ªã®å¤‰æ›ï¼ˆä½ç½®ãƒ»å›è»¢ãƒ»ã‚¹ã‚±ãƒ¼ãƒ«ï¼‰ã¯å­ã«è‡ªå‹•çš„ã«é©ç”¨ã•ã‚Œã¾ã™
+ * - å­ã®ãƒ­ãƒ¼ã‚«ãƒ«åº§æ¨™ã¯è¦ªã®åº§æ¨™ç³»ã‚’åŸºæº–ã¨ã—ã¾ã™
+ * - 1ã¤ã®è¦ªã¯è¤‡æ•°ã®å­ã‚’æŒã¤ã“ã¨ãŒã§ãã¾ã™
+ * - å­ã¯1ã¤ã®è¦ªã®ã¿ã‚’æŒã¤ã“ã¨ãŒã§ãã¾ã™
  *
- * @par g—p—á(Šî–{)
+ * @par ä½¿ç”¨ä¾‹(åŸºæœ¬)
  * @code
- * // eƒGƒ“ƒeƒBƒeƒB‚ğì¬
+ * // è¦ªã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£ã‚’ä½œæˆ
  * Entity parent = world.Create()
  *     .With<Transform>(DirectX::XMFLOAT3{0, 0, 0})
  *     .With<MeshRenderer>(DirectX::XMFLOAT3{1, 0, 0})
  * .With<TransformHierarchy>()
  *     .Build();
  *
- * // qƒGƒ“ƒeƒBƒeƒB‚ğì¬
+ * // å­ã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£ã‚’ä½œæˆ
  * Entity child = world.Create()
- * .With<Transform>(DirectX::XMFLOAT3{2, 0, 0})  // e‚©‚ç‰E‚É2’PˆÊ
+ * .With<Transform>(DirectX::XMFLOAT3{2, 0, 0})  // è¦ªã‹ã‚‰å³ã«2å˜ä½
  *     .With<MeshRenderer>(DirectX::XMFLOAT3{0, 1, 0})
  *     .With<TransformHierarchy>()
  *     .Build();
  *
- * // eqŠÖŒW‚ğİ’è
+ * // è¦ªå­é–¢ä¿‚ã‚’è¨­å®š
  * auto* childHierarchy = world.TryGet<TransformHierarchy>(child);
  * auto* parentHierarchy = world.TryGet<TransformHierarchy>(parent);
  * if (childHierarchy && parentHierarchy) {
@@ -54,9 +54,9 @@
  * }
  * @endcode
  *
- * @par g—p—á(•¡”‚Ìq)
+ * @par ä½¿ç”¨ä¾‹(è¤‡æ•°ã®å­)
  * @code
- * // 1‚Â‚Ìe‚É•¡”‚Ìq‚ğ’Ç‰Á
+ * // 1ã¤ã®è¦ªã«è¤‡æ•°ã®å­ã‚’è¿½åŠ 
  * for (int i = 0; i < 3; ++i) {
  *     Entity child = world.Create()
  *         .With<Transform>(DirectX::XMFLOAT3{static_cast<float>(i) * 2.0f, 0, 0})
@@ -74,44 +74,44 @@
  */
 struct TransformHierarchy : IComponent {
     /**
-     * @brief ƒfƒtƒHƒ‹ƒgƒRƒ“ƒXƒgƒ‰ƒNƒ^
+     * @brief ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆã‚³ãƒ³ã‚¹ãƒˆãƒ©ã‚¯ã‚¿
      */
     TransformHierarchy() = default;
 
     /**
-     * @brief eƒGƒ“ƒeƒBƒeƒB‚ğİ’è
-     * @param parentEntity eƒGƒ“ƒeƒBƒeƒB
+     * @brief è¦ªã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£ã‚’è¨­å®š
+     * @param parentEntity è¦ªã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£
    */
     void SetParent(Entity parentEntity) {
         parent = parentEntity;
     }
 
     /**
-     * @brief eƒGƒ“ƒeƒBƒeƒB‚ğæ“¾
-     * @return eƒGƒ“ƒeƒBƒeƒBi‘¶İ‚µ‚È‚¢ê‡‚Ístd::nulloptj
+     * @brief è¦ªã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£ã‚’å–å¾—
+     * @return è¦ªã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£ï¼ˆå­˜åœ¨ã—ãªã„å ´åˆã¯std::nulloptï¼‰
      */
     std::optional<Entity> GetParent() const {
         return parent;
     }
 
     /**
-     * @brief e‚ğ‚Â‚©‚Ç‚¤‚©‚ğŠm”F
-     * @return true: e‚ª‘¶İ‚·‚é, false: e‚ª‘¶İ‚µ‚È‚¢
+     * @brief è¦ªã‚’æŒã¤ã‹ã©ã†ã‹ã‚’ç¢ºèª
+     * @return true: è¦ªãŒå­˜åœ¨ã™ã‚‹, false: è¦ªãŒå­˜åœ¨ã—ãªã„
      */
     bool HasParent() const {
         return parent.has_value();
     }
 
     /**
-     * @brief eqŠÖŒW‚ğ‰ğœ
+     * @brief è¦ªå­é–¢ä¿‚ã‚’è§£é™¤
      */
     void ClearParent() {
         parent = std::nullopt;
     }
 
     /**
-     * @brief qƒGƒ“ƒeƒBƒeƒB‚ğ’Ç‰Á
-     * @param childEntity qƒGƒ“ƒeƒBƒeƒB
+     * @brief å­ã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£ã‚’è¿½åŠ 
+     * @param childEntity å­ã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£
      */
     void AddChild(Entity childEntity) {
         for (const auto &child : children) {
@@ -123,8 +123,8 @@ struct TransformHierarchy : IComponent {
     }
 
     /**
-     * @brief qƒGƒ“ƒeƒBƒeƒB‚ğíœ
-     * @param childEntity íœ‚·‚éqƒGƒ“ƒeƒBƒeƒB
+     * @brief å­ã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£ã‚’å‰Šé™¤
+     * @param childEntity å‰Šé™¤ã™ã‚‹å­ã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£
      */
     void RemoveChild(Entity childEntity) {
         children.erase(
@@ -134,24 +134,24 @@ struct TransformHierarchy : IComponent {
     }
 
     /**
-     * @brief ‚·‚×‚Ä‚ÌqƒGƒ“ƒeƒBƒeƒB‚ğæ“¾
-     * @return qƒGƒ“ƒeƒBƒeƒB‚ÌƒŠƒXƒg
+     * @brief ã™ã¹ã¦ã®å­ã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£ã‚’å–å¾—
+     * @return å­ã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£ã®ãƒªã‚¹ãƒˆ
      */
     const std::vector<Entity> &GetChildren() const {
         return children;
     }
 
     /**
-     * @brief q‚ğ‚Â‚©‚Ç‚¤‚©‚ğŠm”F
-     * @return true: q‚ª‘¶İ‚·‚é, false: q‚ª‘¶İ‚µ‚È‚¢
+     * @brief å­ã‚’æŒã¤ã‹ã©ã†ã‹ã‚’ç¢ºèª
+     * @return true: å­ãŒå­˜åœ¨ã™ã‚‹, false: å­ãŒå­˜åœ¨ã—ãªã„
      */
     bool HasChildren() const {
         return !children.empty();
     }
 
     /**
-     * @brief q‚Ì”‚ğæ“¾
-     * @return qƒGƒ“ƒeƒBƒeƒB‚Ì”
+     * @brief å­ã®æ•°ã‚’å–å¾—
+     * @return å­ã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£ã®æ•°
      */
     size_t GetChildCount() const {
         return children.size();

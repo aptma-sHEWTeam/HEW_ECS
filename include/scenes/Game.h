@@ -29,10 +29,9 @@
 #include "systems/ModelLoadingSystem.h"
 #include "graphics/TextureManager.h"
 
-inline static ConfigVar<float> cfg_LimitTime{"Game", "LimitTime", 10.0f};
-
 inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false) {
     if (!w.IsAlive(player)) {
+
         return;
     }
 
@@ -43,7 +42,7 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
         }
 
         if (auto *tPlayer = w.TryGet<Transform>(player)) {
-            tPlayer->position = {tStart.position.x, 0.0f, tStart.position.z};
+            tPlayer->position = {tStart.position.x, 0.0f, tStart.position.z-1.0f};//プレイヤーの生成場所
 
             if (auto *vPlayer = w.TryGet<PlayerVelocity>(player)) {
                 vPlayer->velocity = {0.0f, 0.0f};
@@ -141,7 +140,7 @@ class GameScene : public IScene {
     inline static ConfigVar<float> cfg_PlayerB{"Game", "PlayerColorB", 1.0f};
     inline static ConfigVar<float> cfg_PlayerStartY{"Game", "PlayerStartY", 5.0f};
     inline static ConfigVar<float> cfg_PlayerHeight{"Game", "PlayerHeight", 2.0f};
-    
+
     inline static ConfigVar<float> cfg_FloorR{"Game", "FloorColorR", 0.5f};
     inline static ConfigVar<float> cfg_FloorG{"Game", "FloorColorG", 0.5f};
     inline static ConfigVar<float> cfg_FloorB{"Game", "FloorColorB", 0.5f};
@@ -189,6 +188,7 @@ class GameScene : public IScene {
 
     inline static ConfigVar<float> cfg_CollisionCellSize{"Game", "CollisionCellSize", 20.0f};
 
+    inline static ConfigVar<float> cfg_LimitTime{"Game", "LimitTime", 10.0f};
 
     void OnEnter(World &world) override {
         DEBUGLOG("<<<<< GameScene::OnEnter CALLED! >>>>>");
@@ -237,7 +237,7 @@ class GameScene : public IScene {
     }
 
     void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
-        
+
         // ゲームの一時停止と再開
         world.ForEach<GameStats>([&](Entity, GameStats &stats) {
             if (input.GetKeyDown(VK_ESCAPE) || input.GetKeyDown('P')) {
@@ -285,6 +285,12 @@ class GameScene : public IScene {
         }
     }
 
+    void OnRender(World &world) override {
+        world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
+            sys.Render(world);
+        });
+    }
+
     void OnExit(World &world) override {
         DEBUGLOG("GameWithUIScene::OnExit() 開始");
 
@@ -305,7 +311,7 @@ class GameScene : public IScene {
 
     void CreatePlayer(World &world) {
         float s = cfg_PlayerScale;
-        Transform transform { {0.0f, 0.0f, cfg_PlayerStartY}, {0.0f, 0.0f, 0.0f}, {s, s, s} };
+        Transform transform { {0.0f, 0.0f, cfg_PlayerStartY }, {0.0f, 0.0f, 0.0f}, {s, s, s} };
 
         Entity player = world.Create()
             .With<Transform>(transform)
@@ -322,6 +328,20 @@ class GameScene : public IScene {
         ownedEntities_.push_back(player);
     }
 
+    /**
+     * @brief ステージ生成関数
+     * @deteail 読み込んだCSVファイルのデータを基にステージを生成する
+     *          新しい生成物を設定するときはこの関数内のswitch文に設定する
+     *          例： 
+     *              if (blockType != 0) {
+     *                  switch (blockType) {
+     *                      case 1: CreateStart(world, blockposition); break; // スタート地点
+     *                      case 2: CreateGoal(world, blockposition); break; // ゴール地点
+     *                      case 3: CreateWall(world, blockposition); break; // 通常の壁
+     *                      case 4: CreateAccell(world,blockposition); break; //新規のブロック
+     *                  }
+     *              }
+     */
     void CreateStageMap(World &world) {
         world.ForEach<StageCreate>([&](Entity, StageCreate &stagecreate) {
             float tileSize = 1.0f;
@@ -333,8 +353,8 @@ class GameScene : public IScene {
             float mapWidth = static_cast<float>(stagecreate.stageMap[0].size());
             float mapHeight = static_cast<float>(stagecreate.stageMap.size());
 
-            const int max_x_index = stagecreate.stageMap[0].size() - 1;
-            const int max_y_index = stagecreate.stageMap.size() - 1;
+            const int max_x_index = static_cast<int>(stagecreate.stageMap[0].size() - 1);
+            const int max_y_index = static_cast<int>(stagecreate.stageMap.size() - 1);
 
             const float offsetX = (mapWidth * tileSize) * 0.5f - (tileSize * 0.5f);
             const float offsetZ = (mapHeight * tileSize) * 0.5f - (tileSize * 0.5f);
@@ -403,11 +423,11 @@ class GameScene : public IScene {
 
     void CreateStart(World &world, const DirectX::XMFLOAT3 &position) {
         DirectX::XMFLOAT3 diffPosition;
-        diffPosition.x = position.x;
+        diffPosition.x = position.x ;
         diffPosition.y = position.y - 1.0f;
-        diffPosition.z = position.z;
+        diffPosition.z = position.z ;
 
-        Transform t{ diffPosition, {0, 0, 0}, {1, 1, 1}};
+        Transform t{ diffPosition , {0, 0, 0}, {1, 1, 1}};//スタート地点のBox
         MeshRenderer r;
         r.meshType = MeshType::Cube;
         r.color = DirectX::XMFLOAT3 { cfg_StartR, cfg_StartG, cfg_StartB };
@@ -500,10 +520,6 @@ class GameScene : public IScene {
     }
 
     void ShowStateUI(World &world) {
-        //優先事項：UIの表示
-        //プレイヤーの停止（後でいい）
-        //カウントスタート321
-        //プレイヤーの解放
         UITransform CountTransform;
         CountTransform.position = {cfg_UICountPosX, cfg_UICountPosY};
         CountTransform.size = {cfg_UICountW, cfg_UICountH};
