@@ -45,9 +45,6 @@ jobs:
         REM exe と Release の中身
         xcopy /E /I /Y ".\x64\Release\*" artifact\
 
-        REM Assets フォルダも丸ごと入れる
-        xcopy /E /I /Y ".\Assets\*" artifact\Assets\
-
     - name: Upload artifact (optional)
       if: github.ref == 'refs/heads/master' && matrix.config == 'Release'
       uses: actions/upload-artifact@v4
