@@ -173,7 +173,7 @@ class GameScene : public IScene {
 
     inline static ConfigVar<std::string> cfg_PlayerFBXPass{"Player", "PlayerFBXPass", "Assets/Models/test.fbx"};
 
-    inline static ConfigVar<std::string> cfg_StagePath{"Stage", "CSVPath", "Assets/StageData/aaa.csv"};
+    inline static ConfigVar<std::string> cfg_StagePath{"Stage", "CSVPath", "Assets/StageData/StageCollision/DebugStage1/room1.csv"};
 
     inline static ConfigVar<float> cfg_CollisionCellSize{"Game", "CollisionCellSize", 20.0f};
 
@@ -375,8 +375,13 @@ class GameScene : public IScene {
                             case 1: CreateStart(world, blockposition); break; // スタート地点
                             case 2: CreateGoal(world, blockposition); break; // ゴール地点
                             case 3: CreateWall(world, blockposition); break; // 通常の壁
+                            case 5: CreateRightDownCorner(world, blockposition); break; // 通常の壁
+                            case 6: CreateLeftDownCorner(world, blockposition); break; // 通常の壁
+                            case 7: CreateLeftUpCorner(world, blockposition); break; // 通常の壁
+                            case 8: CreateRightUpCorner(world, blockposition); break; // 通常の壁
                         }
                     }
+
                 }
             }
         });
@@ -470,7 +475,24 @@ class GameScene : public IScene {
         stageOwnedEntities_.push_back(wallEntity);
     }
 
-    void CreateWall(World &world, const DirectX::XMFLOAT3 &position) {
+    void CreateRightDownCorner(World &world, const DirectX::XMFLOAT3 &position) {
+        Transform transform{position, {0.0f, 0.0f, 180.0f}, {1.0f, cfg_WallSize, 1.0f}};
+        MeshRenderer renderer;
+        renderer.meshType = MeshType::RightIsoTriPrism;
+        renderer.color = DirectX::XMFLOAT3{cfg_WallR, cfg_WallG, cfg_WallB};
+
+        Entity wallEntity = world.Create()
+                                .With<Transform>(transform)
+                                .With<MeshRenderer>(renderer)
+                                .With<WallTag>()
+                                .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                                .With<WallCollisionHandler>()
+                                .Build();
+
+        stageOwnedEntities_.push_back(wallEntity);
+    }
+
+    void CreateLeftDownCorner(World &world, const DirectX::XMFLOAT3 &position) {
         Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::RightIsoTriPrism;
@@ -487,9 +509,42 @@ class GameScene : public IScene {
         stageOwnedEntities_.push_back(wallEntity);
     }
 
+    void CreateLeftUpCorner(World &world, const DirectX::XMFLOAT3 &position) {
+        Transform transform{position, {0.0f, 90.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
+        MeshRenderer renderer;
+        renderer.meshType = MeshType::RightIsoTriPrism;
+        renderer.color = DirectX::XMFLOAT3{cfg_WallR, cfg_WallG, cfg_WallB};
+
+        Entity wallEntity = world.Create()
+                                .With<Transform>(transform)
+                                .With<MeshRenderer>(renderer)
+                                .With<WallTag>()
+                                .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                                .With<WallCollisionHandler>()
+                                .Build();
+
+        stageOwnedEntities_.push_back(wallEntity);
+    }
+
+    void CreateRightUpCorner(World &world, const DirectX::XMFLOAT3 &position) {
+        Transform transform{position, {0.0f, 180.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
+        MeshRenderer renderer;
+        renderer.meshType = MeshType::RightIsoTriPrism;
+        renderer.color = DirectX::XMFLOAT3{cfg_WallR, cfg_WallG, cfg_WallB};
+
+        Entity wallEntity = world.Create()
+                                .With<Transform>(transform)
+                                .With<MeshRenderer>(renderer)
+                                .With<WallTag>()
+                                .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                                .With<WallCollisionHandler>()
+                                .Build();
+
+        stageOwnedEntities_.push_back(wallEntity);
+    }
 
     void CreatFloorWall(World &world, const DirectX::XMFLOAT3 &position) {
-        Transform transform{{0.0f,}, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
+        Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::Cube;
         renderer.color = DirectX::XMFLOAT3 { cfg_FloorWallR, cfg_FloorWallG, cfg_FloorWallB };
