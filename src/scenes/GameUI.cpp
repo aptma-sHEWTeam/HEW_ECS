@@ -112,21 +112,39 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                            .Build();
     ownedEntities_.push_back(fpsEntity);
 
-    UITransform stageTransform;
-    stageTransform.position = {150.0f, 120.0f};
-    stageTransform.size = {130.0f, 40.0f};
-    stageTransform.anchor = {0.0f, 0.0f};
-    stageTransform.pivot = {1.0f, 0.0f};
 
-    UIText stageText{L"FLOOR: 1"};
-    stageText.color = {1.0f, 0.5f, 0.0f, 1.0f};
-    stageText.formatId = "hud";
+    UIText stageText[2];
 
-    Entity stageEntity = world.Create()
-                             .With<UITransform>(stageTransform)
-                             .With<UIText>(stageText)
+    stageText[0].text = {L"Room : 0/"};
+    stageText[0].color = {1.0f, 0.5f, 0.0f, 1.0f};
+    stageText[0].formatId = "hud";
+    float stagetextSize0 = 3.9f * sizeof(stageText[0].text);
+
+    stageText[1].text = {L"0"};
+    stageText[1].color = {1.0f, 0.5f, 0.0f, 1.0f};
+    stageText[1].formatId = "hud";
+
+    UITransform stageTransform[2];
+    stageTransform[0].position = {800.0f, 110.0f};
+    stageTransform[0].size = {130.0f, 40.0f};
+    stageTransform[0].anchor = {0.0f, 0.0f};
+    stageTransform[0].pivot = {1.0f, 0.0f};
+
+    stageTransform[1].position = {stageTransform[0].position.x + stagetextSize0, stageTransform[0].position.y};
+    stageTransform[1].size = stageTransform[0].size;
+    stageTransform[1].anchor = stageTransform[0].anchor;
+    stageTransform[1].pivot = stageTransform[0].pivot;
+
+    Entity stageEntity[2];
+
+    for (int i = 0; i < 2; i++) {
+        stageEntity[i] = world.Create()
+                             .With<UITransform>(stageTransform[i])
+                             .With<UIText>(stageText[i])
                              .Build();
-    ownedEntities_.push_back(stageEntity);
+        ownedEntities_.push_back(stageEntity[i]);
+    }
+
 
     UIText titleText[2];
 
@@ -151,10 +169,10 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     titleTransform[1].anchor   = titleTransform[0].anchor;
     titleTransform[1].pivot    = titleTransform[0].pivot;
 
+    Entity titleEntity[2];
+
     for (int i = 0 ; i < 2; i++)
     {
-        Entity titleEntity[2];
-
         titleEntity[i] = world.Create()
                                 .With<UITransform>(titleTransform[i])
                                 .With<UIText>(titleText[i])
@@ -186,7 +204,8 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         updater->timeTextEntity_ = timeEntity;
         updater->fpsTextEntity_ = fpsEntity;
         updater->pauseTextEntity_ = pauseEntity;
-        updater->stageTextEntity_ = stageEntity;
+        updater->stageTextEntity_[0] = stageEntity[0];
+        updater->stageTextEntity_[1] = stageEntity[1];
     }
     ownedEntities_.push_back(uiUpdater);
 }

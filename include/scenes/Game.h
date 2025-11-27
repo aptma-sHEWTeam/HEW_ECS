@@ -27,6 +27,7 @@
 #include "app/ServiceLocator.h"
 #include "SenesUIController.h"
 #include "systems/ModelLoadingSystem.h"
+#include "graphics/TextureManager.h"
 
 inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false) {
     if (!w.IsAlive(player)) {
@@ -171,9 +172,11 @@ class GameScene : public IScene {
     inline static ConfigVar<float> cfg_UICountG{"UI", "CountColorG", 1.0f};
     inline static ConfigVar<float> cfg_UICountB{"UI", "CountColorB", 1.0f};
 
-    inline static ConfigVar<std::string> cfg_PlayerFBXPass{"Player", "PlayerFBXPass", "Assets/Models/test.fbx"};
+    inline static ConfigVar<std::string> cfg_PlayerFBXPass{"Player", "PlayerFBXPass", "Assets/Models/aaa.fbx"};
 
     inline static ConfigVar<std::string> cfg_StagePath{"Stage", "CSVPath", "Assets/StageData/aaa.csv"};
+
+    inline static ConfigVar<std::string> cfg_RoomPath{"UI", "RoomPNGPass", "Assets/Textures/Count.png"};
 
     inline static ConfigVar<float> cfg_CollisionCellSize{"Game", "CollisionCellSize", 20.0f};
 
