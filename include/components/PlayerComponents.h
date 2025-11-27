@@ -129,6 +129,19 @@ struct PlayerMovement : Behaviour {
     float sumCos = 0.0f;
 
     int frame = 0;
+    bool historyLocked_ = false;  ///< 履歴記録が完了したらロック
+
+    void ResetAngleHistory() {
+        for (int i = 0; i < PlayerConstants::ANGLE_HISTORY_SIZE; ++i) {
+            angleHistory[i] = 0.0f;
+        }
+        angleIndex = 0;
+        angleFilled = false;
+        sumSin = 0.0f;
+        sumCos = 0.0f;
+        historyLocked_ = false;
+    }
+
     /**
      * @brief 毎フレーム更新処理
      * @param[in,out] w ワールド参照
@@ -234,6 +247,20 @@ struct PlayerMovement : Behaviour {
                         moveAmount = -moveAmount;
                     }
                 }
+
+                if (!historyLocked_) {
+                    float ang = std::atan2f(lastStickDir_.y, lastStickDir_.x);
+                    
+                    angleHistory[angleIndex] = ang;
+                    sumSin += std::sinf(ang);
+                    sumCos += std::cosf(ang);
+                    
+                    angleIndex++;
+                    if (angleIndex >= PlayerConstants::ANGLE_HISTORY_SIZE) {
+                        angleFilled = true;
+                        historyLocked_ = true;
+                    }
+                }
             }
 
             // リリースで方向転換＋通常速度に復帰（統合: システム検出 or ローカル検出）
@@ -242,28 +269,28 @@ struct PlayerMovement : Behaviour {
           
             if (releasedSys || releasedLocal)
             {
-                //三項演算子     angleFilled = trueの時 count = 30,falseの時 count = angleIndex
                 int count = angleFilled ? PlayerConstants::ANGLE_HISTORY_SIZE : angleIndex;
 
-                // 累積値を使って平均角度を計算（ループ不要）
-                float avgRad = std::atan2f(sumSin / count, sumCos / count);
+                if (count > 0) {
+                    float avgRad = std::atan2f(sumSin / count, sumCos / count);
 
-                // 平均角度ベクトル化
-                float dirX = std::cosf(avgRad);
-                float dirY = std::sinf(avgRad);
+                    // 平均角度ベクトル化
+                    float dirX = std::cosf(avgRad);
+                    float dirY = std::sinf(avgRad);
 
-               //プレイヤーの速度に平均角度を乗算
-                float dirLen = std::sqrt(dirX * dirX + dirY * dirY);
-                if (dirLen > PlayerConstants::EPSILON)
-                {
-                    v->velocity.x = (dirX / dirLen) * v->speed;
-                    v->velocity.y = (dirY / dirLen) * v->speed;
+                   //プレイヤーの速度に平均角度を乗算
+                    float dirLen = std::sqrt(dirX * dirX + dirY * dirY);
+                    if (dirLen > PlayerConstants::EPSILON)
+                    {
+                        v->velocity.x = (dirX / dirLen) * v->speed;
+                        v->velocity.y = (dirY / dirLen) * v->speed;
 
-                    float yawRad = std::atan2(v->velocity.y, v->velocity.x);
-                    t->rotation.y = yawRad * (180.0f / DirectX::XM_PI);
+                        float yawRad = std::atan2(v->velocity.y, v->velocity.x);
+                        t->rotation.y = yawRad * (180.0f / DirectX::XM_PI);
 
-                    isCharging_ = false;
-                    slowFactor = 1.0f;
+                        isCharging_ = false;
+                        slowFactor = 1.0f;
+                    }
                 }
             }
 
