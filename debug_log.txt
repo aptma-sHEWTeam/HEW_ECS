@@ -1,0 +1,179 @@
+﻿========================================
+デバッグログ開始
+========================================
+2025-11-27 10:54:47 [F#0] [TID:23540] [General] [INFO] ========================================
+2025-11-27 10:54:47 [F#0] [TID:23540] [General] [INFO] App::Init() 開始
+2025-11-27 10:54:47 [F#0] [TID:23540] [General] [INFO] ウィンドウサイズ: 1280x720
+2025-11-27 10:54:47 [F#0] [TID:23540] [General] [INFO] COMライブラリを初期化 (モード: COINIT_MULTITHREADED, HRESULT: 0x0)
+2025-11-27 10:54:47 [F#0] [TID:23540] [General] [INFO] CreateAppWindow() 開始
+2025-11-27 10:54:47 [F#0] [TID:23540] [General] [INFO] ウィンドウクラスを正常に登録
+2025-11-27 10:54:47 [F#0] [TID:23540] [General] [INFO] ウィンドウサイズを調整: 1296x759
+2025-11-27 10:54:47 [F#0] [TID:23540] [General] [INFO] WM_NCCREATE: Appインスタンスをウィンドウに関連付け
+2025-11-27 10:54:47 [F#0] [TID:23540] [General] [INFO] ウィンドウ作成成功 (HWND: 0x2820344)
+2025-11-27 10:54:47 [F#0] [TID:23540] [System] [INFO] ウィンドウがフォーカスを取得しました - 入力と更新を再開
+2025-11-27 10:54:47 [F#0] [TID:23540] [General] [INFO] ウィンドウを表示
+2025-11-27 10:54:47 [F#0] [TID:23540] [General] [INFO] CreateAppWindow() 正常に完了
+2025-11-27 10:54:47 [F#0] [TID:23540] [General] [INFO] InitializeGraphics() 開始
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] アダプタ: Intel(R) UHD Graphics
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] 機能レベル: 11.0
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] スワップ効果: FLIP_DISCARD (推奨)
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] バックバッファフォーマット: BGRA8_UNORM (Direct2D互換)
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] 垂直同期: ON (Present(1)) - ディスプレイのリフレッシュレートに同期
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] GfxDeviceを正常に初期化
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] Service registered: class GfxDevice
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] TextureManagerを正常に初期化
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] Service registered: class TextureManager
+2025-11-27 10:54:48 [F#0] [TID:23540] [Graphics] [INFO] [RenderSystem] 初期化開始
+2025-11-27 10:54:48 [F#0] [TID:23540] [Graphics] [INFO] [RenderSystem] シェーダーのコンパイル完了
+2025-11-27 10:54:48 [F#0] [TID:23540] [Graphics] [INFO] [RenderSystem] 入力レイアウトの作成完了
+2025-11-27 10:54:48 [F#0] [TID:23540] [Graphics] [INFO] [RenderSystem] 定数バッファの作成完了
+2025-11-27 10:54:48 [F#0] [TID:23540] [Graphics] [INFO] [RenderSystem] ステートの作成完了
+2025-11-27 10:54:48 [F#0] [TID:23540] [Graphics] [INFO] [RenderSystem] 初期化完了
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] RenderSystemを正常に初期化
+2025-11-27 10:54:48 [F#0] [TID:23540] [Input] [INFO] InputSystem::Init() - 初期化開始
+2025-11-27 10:54:48 [F#0] [TID:23540] [Input] [INFO] InputSystem::Init() - 初期化完了
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] InputSystemを初期化
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] GamepadSystemを初期化中
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] GamepadSystemを正常に初期化
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] InitializeGraphics() 正常に完了
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] Service registered: class InputSystem
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] Service registered: class GamepadSystem
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] Service registered: class World
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] Service registered: struct RenderSystem
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] Service registered: class ResourceManager
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] Service registered: class SceneManager
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] SetupCamera() 開始
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] アスペクト比: 1.777778
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] InitializeGame() begin
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] GameScene instance created
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] GameScene registered to SceneManager
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] StageSelectScene instance created
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] StageSelectScene registered to SceneManager
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] TextSystem initialized successfully
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] SceneManager initialised with Game scene
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] InitializeGame() complete
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] App::Init() 正常に完了
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] ========================================
+2025-11-27 10:54:48 [F#0] [TID:23540] [General] [INFO] App::Run() - メインループ開始
+2025-11-27 10:54:49 [F#98] [TID:23540] [General] [INFO] Enter pressed!
+2025-11-27 10:54:49 [F#98] [TID:23540] [Scene] [INFO] Scene change: OnExit()
+2025-11-27 10:54:49 [F#98] [TID:23540] [General] [INFO] TextSystem shutdown
+2025-11-27 10:54:49 [F#98] [TID:23540] [Scene] [INFO] Scene change: OnEnter()
+2025-11-27 10:54:49 [F#98] [TID:23540] [General] [INFO] <<<<< GameScene::OnEnter CALLED! >>>>>
+2025-11-27 10:54:49 [F#98] [TID:23540] [General] [INFO] GameWithUIScene::OnEnter() 開始
+2025-11-27 10:54:49 [F#98] [TID:23540] [General] [INFO] TextSystem initialized successfully
+2025-11-27 10:54:49 [F#98] [TID:23540] [General] [INFO] [StageCreate] Constructor called with path: Assets/StageData/StageCollision/DebugStage1/room1.csv
+2025-11-27 10:54:49 [F#98] [TID:23540] [General] [INFO] [StageCreate] Successfully opened CSV file. Starting to load data...
+2025-11-27 10:54:49 [F#98] [TID:23540] [General] [INFO] [StageCreate] Read line 1: 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+2025-11-27 10:54:49 [F#98] [TID:23540] [General] [INFO] [StageCreate] Read line 2: 0,5,6,0,0,0,0,0,0,0,0,0,0,0,0
+2025-11-27 10:54:49 [F#98] [TID:23540] [General] [INFO] [StageCreate] Read line 3: 0,8,7,0,0,0,0,0,0,0,0,0,0,0,0
+2025-11-27 10:54:49 [F#98] [TID:23540] [General] [INFO] [StageCreate] Read line 4: 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+2025-11-27 10:54:49 [F#98] [TID:23540] [General] [INFO] [StageCreate] Read line 5: 0,0,10,11,12,13,14,0,30,31,32,33,34,0,0
+2025-11-27 10:54:49 [F#98] [TID:23540] [General] [INFO] [StageCreate] Read line 6: 3,0,15,16,17,18,19,0,35,36,37,38,39,0,3
+2025-11-27 10:54:49 [F#98] [TID:23540] [General] [INFO] [StageCreate] Read line 7: 3,0,0,0,0,0,0,0,0,0,0,0,0,0,3
+2025-11-27 10:54:49 [F#98] [TID:23540] [General] [INFO] [StageCreate] Read line 8: 3,0,0,0,0,0,0,0,0,0,0,0,0,0,3
+2025-11-27 10:54:49 [F#98] [TID:23540] [General] [INFO] [StageCreate] Read line 9: 3,0,0,0,0,0,0,0,50,51,52,53,54,0,3
+2025-11-27 10:54:49 [F#98] [TID:23540] [General] [INFO] [StageCreate] Read line 10: 3,0,0,0,0,0,0,0,0,0,0,0,0,0,3
+2025-11-27 10:54:49 [F#98] [TID:23540] [General] [INFO] [StageCreate] Read line 11: 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+2025-11-27 10:54:49 [F#98] [TID:23540] [General] [INFO] [StageCreate] Read line 12: 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+2025-11-27 10:54:49 [F#98] [TID:23540] [General] [INFO] [StageCreate] Read line 13: 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+2025-11-27 10:54:49 [F#98] [TID:23540] [General] [INFO] [StageCreate] Read line 14: 1,1,0,0,0,3,3,3,3,3,0,0,0,2,2
+2025-11-27 10:54:49 [F#98] [TID:23540] [General] [INFO] [StageCreate] Read line 15: 1,1,0,0,0,3,3,3,3,3,0,0,0,2,2
+2025-11-27 10:54:49 [F#98] [TID:23540] [General] [INFO] [StageCreate] Finished loading data. Total lines: 15
+2025-11-27 10:54:49 [F#98] [TID:23540] [General] [INFO] GameWithUIScene の初期化が正常に完了しました
+2025-11-27 10:54:49 [F#99] [TID:23540] [General] [INFO] 🔥 OnCollisionEnter: Entity 11 <-> Entity 317
+2025-11-27 10:54:49 [F#99] [TID:23540] [General] [INFO]   ✅ Entity 11 has handler, calling OnCollisionEnter
+2025-11-27 10:54:49 [F#99] [TID:23540] [General] [INFO] 🔥 OnCollisionEnter: Entity 11 <-> Entity 341
+2025-11-27 10:54:49 [F#99] [TID:23540] [General] [INFO]   ✅ Entity 11 has handler, calling OnCollisionEnter
+2025-11-27 10:54:49 [F#99] [TID:23540] [Graphics] [INFO] Model cache miss, loading: Assets/Models/aaa.fbx
+2025-11-27 10:54:49 [F#99] [TID:23540] [General] [ERROR] Assimp Error: Unable to open file "Assets/Models/aaa.fbx".
+2025-11-27 10:54:52 [F#258] [TID:23540] [General] [INFO] 🔥 OnCollisionEnter: Entity 11 <-> Entity 319
+2025-11-27 10:54:52 [F#258] [TID:23540] [General] [INFO]   ✅ Entity 11 has handler, calling OnCollisionEnter
+2025-11-27 10:54:52 [F#288] [TID:23540] [General] [INFO] 🔥 OnCollisionEnter: Entity 11 <-> Entity 324
+2025-11-27 10:54:52 [F#288] [TID:23540] [General] [INFO]   ✅ Entity 11 has handler, calling OnCollisionEnter
+2025-11-27 10:54:52 [F#288] [TID:23540] [General] [INFO]   ✅ Entity 324 has handler, calling OnCollisionEnter
+2025-11-27 10:54:52 [F#288] [TID:23540] [General] [INFO] 壁がプレイヤーと衝突 - スタート地点へ戻しタイマーをリセット
+2025-11-27 10:54:52 [F#289] [TID:23540] [General] [INFO] 🔥 OnCollisionEnter: Entity 11 <-> Entity 317
+2025-11-27 10:54:52 [F#289] [TID:23540] [General] [INFO]   ✅ Entity 11 has handler, calling OnCollisionEnter
+2025-11-27 10:54:52 [F#289] [TID:23540] [General] [INFO] 🔥 OnCollisionEnter: Entity 11 <-> Entity 341
+2025-11-27 10:54:52 [F#289] [TID:23540] [General] [INFO]   ✅ Entity 11 has handler, calling OnCollisionEnter
+2025-11-27 10:54:53 [F#301] [TID:23540] [General] [INFO] 🔥 OnCollisionEnter: Entity 11 <-> Entity 319
+2025-11-27 10:54:53 [F#301] [TID:23540] [General] [INFO]   ✅ Entity 11 has handler, calling OnCollisionEnter
+2025-11-27 10:54:53 [F#331] [TID:23540] [General] [INFO] 🔥 OnCollisionEnter: Entity 11 <-> Entity 324
+2025-11-27 10:54:53 [F#331] [TID:23540] [General] [INFO]   ✅ Entity 11 has handler, calling OnCollisionEnter
+2025-11-27 10:54:53 [F#331] [TID:23540] [General] [INFO]   ✅ Entity 324 has handler, calling OnCollisionEnter
+2025-11-27 10:54:53 [F#331] [TID:23540] [General] [INFO] 壁がプレイヤーと衝突 - スタート地点へ戻しタイマーをリセット
+2025-11-27 10:54:53 [F#332] [TID:23540] [General] [INFO] 🔥 OnCollisionEnter: Entity 11 <-> Entity 317
+2025-11-27 10:54:53 [F#332] [TID:23540] [General] [INFO]   ✅ Entity 11 has handler, calling OnCollisionEnter
+2025-11-27 10:54:53 [F#332] [TID:23540] [General] [INFO] 🔥 OnCollisionEnter: Entity 11 <-> Entity 341
+2025-11-27 10:54:53 [F#332] [TID:23540] [General] [INFO]   ✅ Entity 11 has handler, calling OnCollisionEnter
+2025-11-27 10:55:01 [F#793] [TID:23540] [General] [INFO] 🔥 OnCollisionEnter: Entity 11 <-> Entity 306
+2025-11-27 10:55:01 [F#793] [TID:23540] [General] [INFO]   ✅ Entity 11 has handler, calling OnCollisionEnter
+2025-11-27 10:55:01 [F#793] [TID:23540] [General] [INFO] 🔥 OnCollisionEnter: Entity 11 <-> Entity 305
+2025-11-27 10:55:01 [F#793] [TID:23540] [General] [INFO]   ✅ Entity 11 has handler, calling OnCollisionEnter
+2025-11-27 10:55:01 [F#793] [TID:23540] [General] [INFO] 🔥 OnCollisionEnter: Entity 11 <-> Entity 319
+2025-11-27 10:55:01 [F#793] [TID:23540] [General] [INFO]   ✅ Entity 11 has handler, calling OnCollisionEnter
+2025-11-27 10:55:03 [F#930] [TID:23540] [General] [INFO] 時間切れ
+2025-11-27 10:55:03 [F#931] [TID:23540] [General] [INFO] 🔥 OnCollisionEnter: Entity 11 <-> Entity 317
+2025-11-27 10:55:03 [F#931] [TID:23540] [General] [INFO]   ✅ Entity 11 has handler, calling OnCollisionEnter
+2025-11-27 10:55:03 [F#932] [TID:23540] [General] [INFO] 🔥 OnCollisionEnter: Entity 11 <-> Entity 341
+2025-11-27 10:55:03 [F#932] [TID:23540] [General] [INFO]   ✅ Entity 11 has handler, calling OnCollisionEnter
+2025-11-27 10:55:12 [F#3258] [TID:23540] [System] [INFO] WM_CLOSEを受信 - ユーザーによるウィンドウ閉じる操作
+2025-11-27 10:55:12 [F#3258] [TID:23540] [System] [INFO] ウィンドウがフォーカスを失いました - 入力と更新を停止
+2025-11-27 10:55:12 [F#3258] [TID:23540] [System] [INFO] WM_DESTROYを受信 - 終了メッセージを投稿
+2025-11-27 10:55:12 [F#3258] [TID:23540] [General] [INFO] App::Run() - メインループ終了 (総フレーム数: 3258)
+2025-11-27 10:55:12 [F#3258] [TID:23540] [General] [INFO] App::~App() - デストラクタ呼び出し
+2025-11-27 10:55:12 [F#3258] [TID:23540] [System] [INFO] ========================================
+2025-11-27 10:55:12 [F#3258] [TID:23540] [System] [INFO] フレーム統計サマリ (サンプル数: 1000)
+2025-11-27 10:55:12 [F#3258] [TID:23540] [System] [INFO] ========================================
+2025-11-27 10:55:12 [F#3258] [TID:23540] [System] [INFO] フレーム合計時間 (外れ値除外後サンプル数: 980): 平均=7.24ms, 最小=0.84ms, 1%タイル=1.19ms, 中央値=6.77ms, 99%タイル=28.90ms, 最大=45.38ms
+2025-11-27 10:55:12 [F#3258] [TID:23540] [System] [INFO] Update時間 (外れ値除外後サンプル数: 980): 平均=7.65ms, 最小=0.58ms, 1%タイル=0.71ms, 中央値=7.89ms, 99%タイル=15.59ms, 最大=18.35ms
+2025-11-27 10:55:12 [F#3258] [TID:23540] [System] [INFO] Render時間 (外れ値除外後サンプル数: 980): 平均=1.93ms, 最小=0.39ms, 1%タイル=0.44ms, 中央値=2.08ms, 99%タイル=3.15ms, 最大=3.75ms
+2025-11-27 10:55:12 [F#3258] [TID:23540] [System] [INFO] Present時間 (外れ値除外後サンプル数: 980): 平均=1.36ms, 最小=0.14ms, 1%タイル=0.14ms, 中央値=0.27ms, 99%タイル=6.32ms, 最大=6.49ms
+2025-11-27 10:55:12 [F#3258] [TID:23540] [System] [INFO] FPS (外れ値除外後サンプル数: 980): 平均=214.41, 最小=22.04, 1%タイル=34.61, 中央値=147.64, 99%タイル=843.53, 最大=1197.17
+2025-11-27 10:55:12 [F#3258] [TID:23540] [System] [INFO] ========================================
+2025-11-27 10:55:12 [F#3258] [TID:23540] [System] [INFO] App::Shutdown() - クリーンアップ開始
+2025-11-27 10:55:12 [F#3258] [TID:23540] [System] [INFO] Phase 0: すべてのシステムを停止（新規Spawn無効化）
+2025-11-27 10:55:12 [F#3258] [TID:23540] [System] [INFO] Phase 1: SceneManagerのシャットダウン
+2025-11-27 10:55:12 [F#3258] [TID:23540] [Scene] [INFO] SceneManager::Shutdown()
+2025-11-27 10:55:12 [F#3258] [TID:23540] [General] [INFO] GameWithUIScene::OnExit() 開始
+2025-11-27 10:55:12 [F#3258] [TID:23540] [General] [INFO] TextSystem shutdown
+2025-11-27 10:55:12 [F#3258] [TID:23540] [General] [INFO] GameWithUIScene のクリーンアップが完了しました
+2025-11-27 10:55:12 [F#3258] [TID:23540] [System] [INFO] Phase 2: Worldキューをフラッシュ (エンティティ数: 337)
+2025-11-27 10:55:12 [F#3258] [TID:23540] [System] [INFO] Phase 3: World破棄前の残存エンティティチェック
+2025-11-27 10:55:12 [F#3258] [TID:23540] [General] [WARNING] World破棄前に 94 個の生存エンティティが残っています
+2025-11-27 10:55:12 [F#3258] [TID:23540] [System] [INFO] Phase 5: RenderSystemを解放
+2025-11-27 10:55:12 [F#3258] [TID:23540] [Graphics] [INFO] [RenderSystem] シャットダウン開始
+2025-11-27 10:55:12 [F#3258] [TID:23540] [Graphics] [INFO] RenderSystem統計: Models=0, Meshes=318, DrawCalls=318
+2025-11-27 10:55:12 [F#3258] [TID:23540] [Graphics] [INFO] [RenderSystem] シャットダウン完了
+2025-11-27 10:55:12 [F#3258] [TID:23540] [System] [INFO] Phase 6: TextureManagerを解放
+2025-11-27 10:55:12 [F#3258] [TID:23540] [Graphics] [INFO] TextureManager::Shutdown() - 1 個のテクスチャを解放中
+2025-11-27 10:55:12 [F#3258] [TID:23540] [Graphics] [INFO] テクスチャ2D: 1 個
+2025-11-27 10:55:12 [F#3258] [TID:23540] [Graphics] [INFO] シェーダーリソースビュー: 1 個
+2025-11-27 10:55:12 [F#3258] [TID:23540] [Graphics] [INFO] TextureManager::Shutdown() 完了
+2025-11-27 10:55:12 [F#3258] [TID:23540] [Graphics] [INFO] Clearing all cached resources.
+2025-11-27 10:55:12 [F#3258] [TID:23540] [System] [INFO] Phase 7: InputSystemを解放
+2025-11-27 10:55:12 [F#3258] [TID:23540] [Input] [INFO] InputSystem::Shutdown() - シャットダウン中
+2025-11-27 10:55:12 [F#3258] [TID:23540] [Input] [INFO] InputSystem::Shutdown() - 完了
+2025-11-27 10:55:12 [F#3258] [TID:23540] [System] [INFO] Phase 7.5: GamepadSystemを解放
+2025-11-27 10:55:12 [F#3258] [TID:23540] [System] [INFO] Phase 8: GfxDeviceを解放
+2025-11-27 10:55:12 [F#3258] [TID:23540] [Graphics] [INFO] GfxDevice::Shutdown() - リソースを解放中
+2025-11-27 10:55:12 [F#3258] [TID:23540] [Graphics] [INFO] ID3D11DeviceContext::ClearState() を呼び出し
+2025-11-27 10:55:12 [F#3258] [TID:23540] [Graphics] [INFO] ID3D11DeviceContext::Flush() を呼び出し
+2025-11-27 10:55:12 [F#3258] [TID:23540] [Graphics] [INFO] 深度ステンシルビューを解放 (ULONG RefCount: 1)
+2025-11-27 10:55:12 [F#3258] [TID:23540] [Graphics] [INFO] レンダーターゲットビューを解放 (ULONG RefCount: 1)
+2025-11-27 10:55:12 [F#3258] [TID:23540] [Graphics] [INFO] スワップチェインを解放 (ULONG RefCount: 1)
+2025-11-27 10:55:12 [F#3258] [TID:23540] [Graphics] [INFO] デバイスコンテキストを解放 (ULONG RefCount: 1)
+2025-11-27 10:55:12 [F#3258] [TID:23540] [Graphics] [INFO] デバイスを解放 (ULONG RefCount: 1)
+2025-11-27 10:55:12 [F#3258] [TID:23540] [Graphics] [INFO] GfxDevice::Shutdown() 完了 (解放リソース数: 5)
+2025-11-27 10:55:12 [F#3258] [TID:23540] [System] [INFO] Phase 9: COMを終了
+2025-11-27 10:55:12 [F#3258] [TID:23540] [General] [INFO] ServiceLocator shutting down.
+2025-11-27 10:55:12 [F#3258] [TID:23540] [System] [INFO] App::Shutdown() 正常に完了
+2025-11-27 10:55:12 [F#3258] [TID:23540] [General] [INFO] App 正常に破棄
+2025-11-27 10:55:12 [F#3258] [TID:23540] [General] [INFO] SceneManager::~SceneManager()
+2025-11-27 10:55:12 [F#3258] [TID:23540] [General] [WARNING] 94 個の残存エンティティを強制破棄 (原因=AppShutdown)
+2025-11-27 10:55:12 [F#3258] [TID:23540] [General] [INFO] TextureManager::~TextureManager() - デストラクタ呼び出し
+2025-11-27 10:55:12 [F#3258] [TID:23540] [General] [INFO] GfxDevice::~GfxDevice() - デストラクタ呼び出し
+========================================
+デバッグログ終了
+========================================
