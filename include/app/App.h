@@ -23,6 +23,8 @@
 #include <algorithm>
 #include <cmath>
 #include <thread>
+#include <filesystem>
+#include <fstream>
 
 #include "app/BuildConfig.h"
 
@@ -221,6 +223,11 @@ struct App {
             }
 
             accumulator += deltaTime;
+            // スパイラル回避: 溜まり過ぎを抑制（最大5フレーム分まで）
+            const float maxAccum = fixedDeltaTime * 5.0f;
+            if (accumulator > maxAccum) {
+                accumulator = maxAccum;
+            }
 
             // ========== UPDATE PHASE (Fixed Step) ==========
             while (accumulator >= fixedDeltaTime) {
@@ -324,7 +331,36 @@ struct App {
 
             UpdateWindowTitle();
 
-            // Sleep removed to allow unlimited FPS (or VSync limited)
+#if ENABLE_METRICS_LOG
+            MaybeLogMetrics(frameCount, renderer_.GetStatistics());
+#endif
+
+#if ENABLE_FRAME_PACING
+            const double targetFrameSec = 1.0 / static_cast<double>(FRAME_PACING_TARGET_FPS);
+            double elapsedSec = frameDuration.count();
+            double remainingSec = targetFrameSec - elapsedSec;
+            if (remainingSec > 0.0) {
+                const double spinThreshold = FRAME_PACING_SPIN_THRESHOLD_MS / 1000.0;
+                if (remainingSec > spinThreshold) {
+                    DWORD sleepMs = static_cast<DWORD>((remainingSec - spinThreshold) * 1000.0);
+                    if (sleepMs > 0) {
+                        ::Sleep(sleepMs);
+                    }
+                }
+                // 残りわずかは軽くスピン＋譲り
+                while (true) {
+                    auto now = std::chrono::high_resolution_clock::now();
+                    std::chrono::duration<double> sinceStart = now - frameStartTime;
+                    if (sinceStart.count() >= targetFrameSec) {
+                        break;
+                    }
+                    ::Sleep(0);
+                }
+            }
+#else
+            // 軽い休止を入れてCPU占有率を抑制（スレッドを譲る）
+            ::Sleep(0);
+#endif
 
             frameCount++;
         }
@@ -452,6 +488,44 @@ private:
 
         DEBUGLOG_CATEGORY(DebugLog::Category::System, "App::Shutdown() 正常に完了");
     }
+
+#if ENABLE_METRICS_LOG
+    /**
+     * @brief 計測メトリクスをログ出力（一定フレーム間隔）
+     */
+    void MaybeLogMetrics(int frameCount, const RenderSystem::Statistics& renderStats) {
+        if (frameCount % METRICS_LOG_INTERVAL_FRAMES != 0) {
+            return;
+        }
+
+        auto toMs = [](float seconds) { return seconds * 1000.0f; };
+
+        const std::filesystem::path csvPath = "metrics_log.csv";
+        const bool needHeader = !std::filesystem::exists(csvPath);
+
+        std::ofstream ofs(csvPath, std::ios::app);
+        if (!ofs.is_open()) {
+            DEBUGLOG_WARNING("[Metrics] metrics_log.csv を開けませんでした");
+            return;
+        }
+
+        if (needHeader) {
+            ofs << "frame,total_ms,update_ms,render_ms,present_ms,drawcalls,models,meshes,entities,behaviours\n";
+        }
+
+        ofs << frameCount << ','
+            << std::fixed << std::setprecision(3)
+            << toMs(currentMetrics_.totalTime) << ','
+            << toMs(currentMetrics_.updateTime) << ','
+            << toMs(currentMetrics_.renderTime) << ','
+            << toMs(currentMetrics_.presentTime) << ','
+            << renderStats.totalDrawCalls << ','
+            << renderStats.modelsRendered << ','
+            << renderStats.meshesRendered << ','
+            << world_.GetAliveCount() << ','
+            << world_.GetBehaviourCount() << '\n';
+    }
+#endif // ENABLE_METRICS_LOG
 
     // ========================================================
     // 初期化ヘルパー

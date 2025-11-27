@@ -898,6 +898,12 @@ public:
         return store->map.size();
     }
 
+
+    /**
+     * @brief 登録されているBehaviour数を取得
+     */
+    size_t GetBehaviourCount() const { return behaviours_.size(); }
+
 private:
     /**
      * @interface IStore
