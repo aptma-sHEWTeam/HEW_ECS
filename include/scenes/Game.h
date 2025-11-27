@@ -619,7 +619,7 @@ class GameScene : public IScene {
         if (world.IsAlive(playerEntity_)) {
             ResetPlayerToStart(world, playerEntity_);
         }
-    }
+    }e
 
     TextSystem textSystem_;
     std::vector<Entity> ownedEntities_;
