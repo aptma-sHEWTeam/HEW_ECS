@@ -33,7 +33,11 @@
 #endif
 
 #ifndef ENABLE_DEBUG_VISUALS
+#if defined(_DEBUG)
+#define ENABLE_DEBUG_VISUALS 1
+#else
 #define ENABLE_DEBUG_VISUALS 0
+#endif
 #endif
 
 #ifndef ENABLE_METRICS_LOG
