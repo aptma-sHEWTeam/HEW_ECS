@@ -312,7 +312,7 @@ class GameScene : public IScene {
             .With<PlayerVelocity>()
             .With<PlayerMovement>()
             .With<PlayerGuide>()
-            .With<CollisionBox>(DirectX::XMFLOAT3 { s, cfg_PlayerHeight, s })
+            .With<CollisionSphere>(0.4f)
             .With<PlayerCollisionHandler>()
             .Build();
 
@@ -324,7 +324,7 @@ class GameScene : public IScene {
      * @brief ステージ生成関数
      * @deteail 読み込んだCSVファイルのデータを基にステージを生成する
      *          新しい生成物を設定するときはこの関数内のswitch文に設定する
-     *          例： 
+     *          例：
      *              if (blockType != 0) {
      *                  switch (blockType) {
      *                      case 1: CreateStart(world, blockposition); break; // スタート地点
