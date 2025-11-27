@@ -219,7 +219,6 @@ class GameScene : public IScene {
 
         CreatePlayer(world);
         CreateUI(world, screenWidth, screenHeight);
-        ShowStateUI(world);
         SetupStage(world, 1);
 
         DEBUGLOG("GameWithUIScene の初期化が正常に完了しました");
@@ -508,33 +507,6 @@ class GameScene : public IScene {
         if (world.IsAlive(playerEntity_)) {
             ResetPlayerToStart(world, playerEntity_);
         }
-    }
-
-    void ShowStateUI(World &world) {
-        UITransform CountTransform;
-        CountTransform.position = {cfg_UICountPosX, cfg_UICountPosY};
-        CountTransform.size = {cfg_UICountW, cfg_UICountH};
-        CountTransform.anchor = {0.0f, 0.0f};
-        CountTransform.pivot = {0.0f, 0.0f};
-
-        UIText CountText{L"Count:Go"};
-        CountText.color = {cfg_UICountR, cfg_UICountG, cfg_UICountB, 1.0f};
-        CountText.formatId = "hud";
-
-        Entity CountEntity = world.Create()
-                               .With<UITransform>(CountTransform)
-                               .With<UIText>(CountText)
-                               .Build();
-        ownedEntities_.push_back(CountEntity);
-       /* stateCountDowndoActive_ = false;
-        stateFrameCounter_ = 0;
-        stateCountdownJustFinished_ = false;
-
-        if (world.IsAlive(startTextEntity_))
-        {
-
-        }*/
-
     }
 
     TextSystem textSystem_;

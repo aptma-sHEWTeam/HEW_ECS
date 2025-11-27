@@ -8,6 +8,7 @@
 #include "graphics/TextSystem.h"
 #include "components/CountUIComponent.h"
 
+
 void GameScene::CreateTextFormats() {
     TextSystem::TextFormat hudFormat;
     hudFormat.fontSize = 24.0f;
@@ -64,7 +65,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     }
     ownedEntities_.push_back(uiInteractionSystem);
 
-    UITransform scoreTransform;
+   /* UITransform scoreTransform;
     scoreTransform.position = {20.0f, 20.0f};
     scoreTransform.size = {300.0f, 40.0f};
     scoreTransform.anchor = {0.0f, 0.0f};
@@ -78,16 +79,16 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                              .With<UITransform>(scoreTransform)
                              .With<UIText>(scoreText)
                              .Build();
-    ownedEntities_.push_back(scoreEntity);
+    ownedEntities_.push_back(scoreEntity);*/
 
     UITransform timeTransform;
     timeTransform.position = {20.0f, 70.0f};
-    timeTransform.size = {300.0f, 40.0f};
+    timeTransform.size = {1000.0f, 80.0f};
     timeTransform.anchor = {0.0f, 0.0f};
     timeTransform.pivot = {0.0f, 0.0f};
 
     UIText timeText{L"時間: 00:00"};
-    timeText.color = {1.0f, 1.0f, 1.0f, 1.0f};
+    timeText.color = {1.0f, 0.0f, 0.0f, 1.0f};
     timeText.formatId = "hud";
 
     Entity timeEntity = world.Create()
@@ -96,6 +97,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                             .Build();
     ownedEntities_.push_back(timeEntity);
 
+#ifdef _DEBUG
     UITransform fpsTransform;
     fpsTransform.position = {-20.0f, 20.0f};
     fpsTransform.size = {200.0f, 40.0f};
@@ -111,14 +113,15 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                            .With<UIText>(fpsText)
                            .Build();
     ownedEntities_.push_back(fpsEntity);
+#endif // !_DEBUG
 
     UITransform stageTransform;
-    stageTransform.position = {150.0f, 120.0f};
+    stageTransform.position = {-80.0f,80.0f};
     stageTransform.size = {130.0f, 40.0f};
-    stageTransform.anchor = {0.0f, 0.0f};
+    stageTransform.anchor = {1.0f, 0.0f};
     stageTransform.pivot = {1.0f, 0.0f};
 
-    UIText stageText{L"FLOOR: 1"};
+    UIText stageText{L"ルーム: 1"};
     stageText.color = {1.0f, 0.5f, 0.0f, 1.0f};
     stageText.formatId = "hud";
 
@@ -127,7 +130,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                              .With<UIText>(stageText)
                              .Build();
     ownedEntities_.push_back(stageEntity);
-
+    /*
     UIText titleText[2];
 
     titleText[0].text     = {L"Fricker Game:"};
@@ -141,7 +144,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 
     UITransform titleTransform[2];
 
-    titleTransform[0].position = {800.0f, 60.0f};
+    titleTransform[0].position = {10.0f, 60.0f};
     titleTransform[0].size     = {300.0f, 30.0f};
     titleTransform[0].anchor   = {0.0f,    0.0f};
     titleTransform[0].pivot    = {0.0f,    0.0f};
@@ -160,7 +163,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                                 .With<UIText>(titleText[i])
                                 .Build();
         ownedEntities_.push_back(titleEntity[i]);
-    }
+    }*/
 
     UITransform pauseTransform;
     pauseTransform.position = {0.0f, 0.0f};
@@ -182,9 +185,11 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                            .With<GameUIUpdater>()
                            .Build();
     if (auto *updater = world.TryGet<GameUIUpdater>(uiUpdater)) {
-        updater->scoreTextEntity_ = scoreEntity;
+        //updater->scoreTextEntity_ = scoreEntity;
         updater->timeTextEntity_ = timeEntity;
+#ifdef _DEBUG
         updater->fpsTextEntity_ = fpsEntity;
+#endif // !_DEBUG
         updater->pauseTextEntity_ = pauseEntity;
         updater->stageTextEntity_ = stageEntity;
     }
