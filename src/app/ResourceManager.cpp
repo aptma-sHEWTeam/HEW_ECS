@@ -1,8 +1,8 @@
 #include "app/ResourceManager.h"
 #include "app/DebugLog.h"
 
-const std::vector<ModelComponent>& ResourceManager::GetModel(const std::string& filePath) {
-    static const std::vector<ModelComponent> kEmpty;
+const std::vector<ModelPrefabNode>& ResourceManager::GetModel(const std::string& filePath) {
+    static const std::vector<ModelPrefabNode> kEmpty;
 
     auto it = modelCache_.find(filePath);
     if (it != modelCache_.end()) {
@@ -11,7 +11,7 @@ const std::vector<ModelComponent>& ResourceManager::GetModel(const std::string& 
     }
 
     DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "Model cache miss, loading: " + filePath);
-    std::vector<ModelComponent> loadedModel = ModelLoader::LoadModel(filePath);
+    std::vector<ModelPrefabNode> loadedModel = ModelLoader::LoadModel(filePath);
 
     if (loadedModel.empty()) {
         return kEmpty;

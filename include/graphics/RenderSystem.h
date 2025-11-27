@@ -17,6 +17,7 @@
 #include "components/MeshRenderer.h"
 #include "components/ModelComponent.h"
 #include "components/Light.h"
+#include "components/TransformHierarchy.h"
 #include "graphics/TextureManager.h"
 #include "app/DebugLog.h"
 #include "app/ServiceLocator.h"
@@ -898,6 +899,7 @@ struct RenderSystem {
      * @brief ModelComponentの描画
      */
     void RenderModelComponents(World &w, GfxDevice &gfx, const Camera &cam, TextureManager &texMgr) {
+        std::unordered_map<uint32_t, DirectX::XMMATRIX> worldCache;
         w.ForEach<ModelComponent>([&](Entity e, ModelComponent &mc) {
             auto *t = w.TryGet<Transform>(e);
             if (!t)
@@ -906,7 +908,7 @@ struct RenderSystem {
                 return;
 
             // ワールド行列の計算
-            DirectX::XMMATRIX worldMatrix = CalculateWorldMatrix(*t);
+            DirectX::XMMATRIX worldMatrix = CalculateWorldMatrix(w, e, *t, worldCache);
 
             // 定数バッファの更新
             UpdateVSConstants(gfx, worldMatrix, cam, mc.uvOffset, mc.uvScale);
@@ -931,6 +933,7 @@ struct RenderSystem {
      * @brief MeshRendererの描画
    */
     void RenderMeshRenderers(World &w, GfxDevice &gfx, const Camera &cam, TextureManager &texMgr) {
+        std::unordered_map<uint32_t, DirectX::XMMATRIX> worldCache;
         w.ForEach<Transform, MeshRenderer>([&](Entity e, Transform &t, MeshRenderer &mr) {
             // メッシュデータの取得
             auto it = meshCache_.find(static_cast<int>(mr.meshType));
@@ -944,7 +947,7 @@ struct RenderSystem {
                 return;
 
             // ワールド行列の計算
-            DirectX::XMMATRIX worldMatrix = CalculateWorldMatrix(t);
+            DirectX::XMMATRIX worldMatrix = CalculateWorldMatrix(w, e, t, worldCache);
 
             // 定数バッファの更新
             UpdateVSConstants(gfx, worldMatrix, cam, mr.uvOffset, mr.uvScale);
@@ -966,9 +969,9 @@ struct RenderSystem {
     }
 
     /**
-     * @brief ワールド行列の計算
+     * @brief ローカル行列の計算
      */
-    DirectX::XMMATRIX CalculateWorldMatrix(const Transform &t) const {
+    DirectX::XMMATRIX BuildLocalMatrix(const Transform &t) const {
         DirectX::XMMATRIX S = DirectX::XMMatrixScaling(t.scale.x, t.scale.y, t.scale.z);
         DirectX::XMMATRIX R = DirectX::XMMatrixRotationRollPitchYaw(
             DirectX::XMConvertToRadians(t.rotation.x),
@@ -977,6 +980,35 @@ struct RenderSystem {
         DirectX::XMMATRIX T = DirectX::XMMatrixTranslation(t.position.x, t.position.y, t.position.z);
 
         return S * R * T;
+    }
+
+    /**
+     * @brief 親子階層を考慮したワールド行列の計算（メモ化付き）
+     */
+    DirectX::XMMATRIX CalculateWorldMatrix(
+        const World &w,
+        Entity e,
+        const Transform &t,
+        std::unordered_map<uint32_t, DirectX::XMMATRIX> &cache) const {
+        auto it = cache.find(e.id);
+        if (it != cache.end()) {
+            return it->second;
+        }
+
+        DirectX::XMMATRIX world = BuildLocalMatrix(t);
+        auto *hierarchy = w.TryGet<TransformHierarchy>(e);
+        if (hierarchy && hierarchy->HasParent()) {
+            auto parentOpt = hierarchy->GetParent();
+            if (parentOpt && w.IsAlive(*parentOpt)) {
+                if (auto *parentTransform = w.TryGet<Transform>(*parentOpt)) {
+                    DirectX::XMMATRIX parentWorld = CalculateWorldMatrix(w, *parentOpt, *parentTransform, cache);
+                    world = DirectX::XMMatrixMultiply(world, parentWorld);
+                }
+            }
+        }
+
+        cache[e.id] = world;
+        return world;
     }
 
     /**
