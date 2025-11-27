@@ -41,8 +41,8 @@ struct GameUIUpdater : Behaviour {
                 std::wstringstream ss;
                 int minutes = static_cast<int>(stats.elapsedTime) / 60;
                 int seconds = static_cast<int>(stats.elapsedTime) % 60;
-                ss << L"Time: " << std::setw(2) << std::setfill(L'0') << minutes
-                   << L":" << std::setw(2) << std::setfill(L'0') << seconds;
+                ss << L" " << std::setw(2) << std::setfill(L'0') << minutes
+                   << L":" << std::setw(2) << std::setfill(L'10') << seconds;
                 timeText->text = ss.str();
             }
 
@@ -81,6 +81,7 @@ struct GameUIUpdater : Behaviour {
             if (auto *stageText = w.TryGet<UIText>(stageTextEntity_[1])) {
                 std::wstringstream ss;
                 ss << L"" << sp.selectStage;
+                ss << L"ルーム: " << sp.currentStage;
                 stageText->text = ss.str();
             }
         });
