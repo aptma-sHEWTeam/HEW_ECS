@@ -58,6 +58,7 @@
 #include "ecs/Entity.h"
 #include "ecs/World.h"
 #include "app/DebugLog.h"
+#include "app/BuildConfig.h"
 #include <DirectXMath.h>
 #include <variant>
 #include <optional>
@@ -67,9 +68,14 @@
 #include <unordered_map>
 #include <algorithm>
 #include <typeindex>
+#include <cmath>
 #include <DirectXCollision.h> // For BoundingBox
 
 #include "systems/SpatialHashGrid.h" // Added for spatial hash grid
+#if ENABLE_DEBUG_VISUALS
+#include "graphics/DebugDraw.h"
+#include "app/ServiceLocator.h"
+#endif
 
 // ========================================================
 // 前方宣言
@@ -407,6 +413,18 @@ struct CollisionDetectionSystem : Behaviour {
 
             using namespace DirectX;
 
+#if ENABLE_DEBUG_VISUALS
+            DebugDraw* debugDraw = ServiceLocator::TryGet<DebugDraw>();
+            if (debugDraw && !debugDraw->IsInitialized()) {
+                debugDraw = nullptr;
+            }
+            const DirectX::XMFLOAT3 colorBox{0.0f, 0.6f, 1.0f};
+            const DirectX::XMFLOAT3 colorSphere{0.0f, 1.0f, 0.4f};
+            const DirectX::XMFLOAT3 colorCapsule{1.0f, 0.2f, 1.0f};
+            const DirectX::XMFLOAT3 colorTri{1.0f, 0.85f, 0.0f};
+            const DirectX::XMFLOAT3 colorHit{1.0f, 0.0f, 0.0f};
+#endif
+
     
 
             struct Collidable {
@@ -437,6 +455,12 @@ struct CollisionDetectionSystem : Behaviour {
 
                 m_grid.Insert(e, bb);
 
+#if ENABLE_DEBUG_VISUALS
+                if (debugDraw) {
+                    debugDraw->DrawBox(center, halfExtents, colorBox);
+                }
+#endif
+
             });
 
     
@@ -454,6 +478,12 @@ struct CollisionDetectionSystem : Behaviour {
                 collidables.push_back({e, bb});
 
                 m_grid.Insert(e, bb);
+
+#if ENABLE_DEBUG_VISUALS
+                if (debugDraw) {
+                    debugDraw->DrawSphere(center, radius, colorSphere);
+                }
+#endif
 
             });
 
@@ -493,6 +523,26 @@ struct CollisionDetectionSystem : Behaviour {
 
                 m_grid.Insert(e, bb);
 
+#if ENABLE_DEBUG_VISUALS
+                if (debugDraw) {
+                    debugDraw->AddLine(bottom, top, colorCapsule);
+                    const int segments = 12;
+                    for (int i = 0; i < segments; ++i) {
+                        float a0 = DirectX::XM_2PI * (float)i / segments;
+                        float a1 = DirectX::XM_2PI * (float)(i + 1) / segments;
+                        float c0 = cosf(a0), s0 = sinf(a0);
+                        float c1 = cosf(a1), s1 = sinf(a1);
+                        DirectX::XMFLOAT3 p0{bottom.x + radius * c0, bottom.y, bottom.z + radius * s0};
+                        DirectX::XMFLOAT3 p1{bottom.x + radius * c1, bottom.y, bottom.z + radius * s1};
+                        DirectX::XMFLOAT3 q0{top.x + radius * c0, top.y, top.z + radius * s0};
+                        DirectX::XMFLOAT3 q1{top.x + radius * c1, top.y, top.z + radius * s1};
+                        debugDraw->AddLine(p0, p1, colorCapsule);
+                        debugDraw->AddLine(q0, q1, colorCapsule);
+                        debugDraw->AddLine(p0, q0, colorCapsule);
+                    }
+                }
+#endif
+
             });
 
             w.ForEach<CollisionRightIsoTriPrism, Transform>([&](Entity e, CollisionRightIsoTriPrism& tri, Transform& t) {
@@ -503,6 +553,22 @@ struct CollisionDetectionSystem : Behaviour {
                 BoundingBox bb(center, halfExtents); // 包含AABB
                 collidables.push_back({e, bb});
                 m_grid.Insert(e, bb);
+
+#if ENABLE_DEBUG_VISUALS
+                if (debugDraw) {
+                    debugDraw->DrawBox(center, halfExtents, colorTri);
+                    float minX = center.x - halfExtents.x;
+                    float maxX = center.x + halfExtents.x;
+                    float minZ = center.z - halfExtents.z;
+                    float maxZ = center.z + halfExtents.z;
+                    float y = center.y;
+                    if (tri.mainDiagonalXZ) {
+                        debugDraw->AddLine({minX, y, maxZ}, {maxX, y, minZ}, colorTri);
+                    } else {
+                        debugDraw->AddLine({minX, y, minZ}, {maxX, y, maxZ}, colorTri);
+                    }
+                }
+#endif
             });
 
             
@@ -550,6 +616,16 @@ struct CollisionDetectionSystem : Behaviour {
                         currentCollisions_.insert(pairKey);
 
                         collisionCount_++;
+
+#if ENABLE_DEBUG_VISUALS
+                        if (debugDraw) {
+                            DirectX::XMFLOAT3 end{
+                                collision->contactPoint.x + collision->normal.x * (0.5f + collision->penetrationDepth),
+                                collision->contactPoint.y + collision->normal.y * (0.5f + collision->penetrationDepth),
+                                collision->contactPoint.z + collision->normal.z * (0.5f + collision->penetrationDepth)};
+                            debugDraw->AddLine(collision->contactPoint, end, colorHit);
+                        }
+#endif
 
     
 

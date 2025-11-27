@@ -19,7 +19,7 @@ struct GameUIUpdater : Behaviour {
     Entity timeTextEntity_;
     Entity fpsTextEntity_;
     Entity pauseTextEntity_;
-    Entity stageTextEntity_;
+    Entity stageTextEntity_[2];
 
 
     void OnUpdate(World &w, Entity self, float dt) override {
@@ -70,12 +70,23 @@ struct GameUIUpdater : Behaviour {
 
         });
 
+        // ステージの更新
         w.ForEach<StageProgress>([&](Entity e, StageProgress &sp) {
-            if (auto *stageText = w.TryGet<UIText>(stageTextEntity_)) {
+            if (auto *stageText = w.TryGet<UIText>(stageTextEntity_[0])) {
                 std::wstringstream ss;
+                ss << L"Room : " << sp.currentStage << "/";
+                stageText->text = ss.str();
+            }
+
+            if (auto *stageText = w.TryGet<UIText>(stageTextEntity_[1])) {
+                std::wstringstream ss;
+                ss << L"" << sp.selectStage;
                 ss << L"ルーム: " << sp.currentStage;
                 stageText->text = ss.str();
             }
         });
+
+        // ルームの更新
+
     }
 };
