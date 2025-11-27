@@ -21,6 +21,8 @@
 #include "components/Light.h"
 #include "components/GameStats.h"
 #include "components/StageComponents.h"
+#include "components/EmissiveMaterial.h"
+#include "components/EmissivePulse.h"
 #include "input/GamepadSystem.h"
 #include "systems/UISystem.h"
 #include "graphics/TextSystem.h"
@@ -181,6 +183,22 @@ class GameScene : public IScene {
     inline static ConfigVar<float> cfg_CollisionCellSize{"Game", "CollisionCellSize", 20.0f};
 
     inline static ConfigVar<float> cfg_LimitTime{"Game", "LimitTime", 10.0f};
+
+    inline static ConfigVar<float> cfg_StartEmissiveR{"Game", "StartEmissiveR", 0.0f};
+    inline static ConfigVar<float> cfg_StartEmissiveG{"Game", "StartEmissiveG", 0.5f};
+    inline static ConfigVar<float> cfg_StartEmissiveB{"Game", "StartEmissiveB", 1.0f};
+    inline static ConfigVar<float> cfg_StartEmissiveIntensity{"Game", "StartEmissiveIntensity", 1.5f};
+    inline static ConfigVar<float> cfg_StartPulseMin{"Game", "StartPulseMin", 4.0f};
+    inline static ConfigVar<float> cfg_StartPulseMax{"Game", "StartPulseMax", 10.0f};
+    inline static ConfigVar<float> cfg_StartPulseSpeed{"Game", "StartPulseSpeed", 1.0f};
+
+    inline static ConfigVar<float> cfg_GoalEmissiveR{"Game", "GoalEmissiveR", 1.0f};
+    inline static ConfigVar<float> cfg_GoalEmissiveG{"Game", "GoalEmissiveG", 0.8f};
+    inline static ConfigVar<float> cfg_GoalEmissiveB{"Game", "GoalEmissiveB", 0.0f};
+    inline static ConfigVar<float> cfg_GoalEmissiveIntensity{"Game", "GoalEmissiveIntensity", 2.0f};
+    inline static ConfigVar<float> cfg_GoalPulseMin{"Game", "GoalPulseMin", 4.0f};
+    inline static ConfigVar<float> cfg_GoalPulseMax{"Game", "GoalPulseMax", 10.0f};
+    inline static ConfigVar<float> cfg_GoalPulseSpeed{"Game", "GoalPulseSpeed", 1.0f};
 
     void OnEnter(World &world) override {
         DEBUGLOG("<<<<< GameScene::OnEnter CALLED! >>>>>");
@@ -381,8 +399,6 @@ class GameScene : public IScene {
                             case 6: CreateLeftDownCorner(world, blockposition); break; // 通常の壁
                             case 7: CreateLeftUpCorner(world, blockposition); break; // 通常の壁
                             case 8: CreateRightUpCorner(world, blockposition); break; // 通常の壁
-                            case 2: CreateGoal(world, blockposition);  break; // ゴール地点
-                            case 3: CreateWall(world, blockposition);  break; // 通常の壁
                         }
                     }
 
@@ -425,14 +441,23 @@ class GameScene : public IScene {
         diffPosition.y = position.y - 1.0f;
         diffPosition.z = position.z ;
 
-        Transform t{ diffPosition , {0, 0, 0}, {1, 1, 1}};//スタート地点のBox
+        Transform t{ diffPosition , {0, 0, 0}, {1, 1, 1}};
         MeshRenderer r;
         r.meshType = MeshType::Cube;
         r.color = DirectX::XMFLOAT3 { cfg_StartR, cfg_StartG, cfg_StartB };
 
+        EmissiveMaterial emissive{
+            DirectX::XMFLOAT3{ cfg_StartEmissiveR, cfg_StartEmissiveG, cfg_StartEmissiveB },
+            cfg_StartEmissiveIntensity
+        };
+
+        EmissivePulse pulse{ cfg_StartPulseMin, cfg_StartPulseMax, cfg_StartPulseSpeed };
+
         Entity e = world.Create()
             .With<Transform>(t)
             .With<MeshRenderer>(r)
+            .With<EmissiveMaterial>(emissive)
+            .With<EmissivePulse>(pulse)
             .With<StartTag>()
             .With<CollisionBox>(DirectX::XMFLOAT3 { 1.0f, 2.0f, 1.0f })
             .Build();
@@ -452,13 +477,22 @@ class GameScene : public IScene {
         r.meshType = MeshType::Cube;
         r.color = DirectX::XMFLOAT3 { cfg_GoalR, cfg_GoalG, cfg_GoalB };
 
+        EmissiveMaterial emissive{
+            DirectX::XMFLOAT3{ cfg_GoalEmissiveR, cfg_GoalEmissiveG, cfg_GoalEmissiveB },
+            cfg_GoalEmissiveIntensity
+        };
+
+        EmissivePulse pulse{ cfg_GoalPulseMin, cfg_GoalPulseMax, cfg_GoalPulseSpeed };
+
         Entity e = world.Create()
             .With<Transform>(t)
             .With<MeshRenderer>(r)
+            .With<EmissiveMaterial>(emissive)
+            .With<EmissivePulse>(pulse)
             .With<GoalTag>()
             .With<CollisionBox>(DirectX::XMFLOAT3 { 1.0f, 2.0f, 1.0f })
             .Build();
-       
+
 
         goalEntity_ = e;
         stageOwnedEntities_.push_back(e);

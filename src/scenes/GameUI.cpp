@@ -137,16 +137,8 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     stageTransform[1].size = stageTransform[0].size;
     stageTransform[1].anchor = stageTransform[0].anchor;
     stageTransform[1].pivot = stageTransform[0].pivot;
-    UITransform stageTransform;
-    stageTransform.position = {-80.0f,80.0f};
-    stageTransform.size = {130.0f, 40.0f};
-    stageTransform.anchor = {1.0f, 0.0f};
-    stageTransform.pivot = {1.0f, 0.0f};
 
     Entity stageEntity[2];
-    UIText stageText{L"ルーム: 1"};
-    stageText.color = {1.0f, 0.5f, 0.0f, 1.0f};
-    stageText.formatId = "hud";
 
     for (int i = 0; i < 2; i++) {
         stageEntity[i] = world.Create()
@@ -155,9 +147,6 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                              .Build();
         ownedEntities_.push_back(stageEntity[i]);
     }
-
-
-    ownedEntities_.push_back(stageEntity);
     /*
     UIText titleText[2];
 
