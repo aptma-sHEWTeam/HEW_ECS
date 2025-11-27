@@ -488,7 +488,7 @@ class GameScene : public IScene {
                                 .With<Transform>(transform)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
-                                .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                                .With<CollisionRightIsoTriPrism>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                                 .With<WallCollisionHandler>()
                                 .Build();
 
@@ -505,7 +505,7 @@ class GameScene : public IScene {
                                 .With<Transform>(transform)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
-                                .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                                .With<CollisionRightIsoTriPrism>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                                 .With<WallCollisionHandler>()
                                 .Build();
 
@@ -522,7 +522,7 @@ class GameScene : public IScene {
                                 .With<Transform>(transform)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
-                                .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                                .With<CollisionRightIsoTriPrism>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                                 .With<WallCollisionHandler>()
                                 .Build();
 
@@ -539,7 +539,7 @@ class GameScene : public IScene {
                                 .With<Transform>(transform)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
-                                .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                                .With<CollisionRightIsoTriPrism>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                                 .With<WallCollisionHandler>()
                                 .Build();
 
