@@ -464,8 +464,26 @@ class GameScene : public IScene {
         stageOwnedEntities_.push_back(wallEntity);
     }
 
-    void CreatFloorWall(World &world, const DirectX::XMFLOAT3 &position) {
+    void CreateWall(World &world, const DirectX::XMFLOAT3 &position) {
         Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
+        MeshRenderer renderer;
+        renderer.meshType = MeshType::RightIsoTriPrism;
+        renderer.color = DirectX::XMFLOAT3{cfg_WallR, cfg_WallG, cfg_WallB};
+
+        Entity wallEntity = world.Create()
+                                .With<Transform>(transform)
+                                .With<MeshRenderer>(renderer)
+                                .With<WallTag>()
+                                .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                                .With<WallCollisionHandler>()
+                                .Build();
+
+        stageOwnedEntities_.push_back(wallEntity);
+    }
+
+
+    void CreatFloorWall(World &world, const DirectX::XMFLOAT3 &position) {
+        Transform transform{{0.0f,}, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::Cube;
         renderer.color = DirectX::XMFLOAT3 { cfg_FloorWallR, cfg_FloorWallG, cfg_FloorWallB };
