@@ -147,16 +147,21 @@ public:
         float recentAvgDt = (recentValidCount > 0) ? (recentSum / recentValidCount) : 0.0f;
         float recentAvgFps = (recentAvgDt > 0.0f) ? (1.0f / recentAvgDt) : 0.0f;
 
-        out << "========================================\n";
-        out << "フレーム統計（DebugLog）\n";
-        out << "========================================\n";
-        out << "総フレーム数: " << frameCount_ << '\n';
-        out << "総実行時間: " << std::fixed << std::setprecision(2) << totalTime_ << "秒\n";
-        out << "平均FPS: " << std::fixed << std::setprecision(2) << avgFps << '\n';
-        out << "平均フレーム時間: " << std::fixed << std::setprecision(2) << (avgDt * 1000.0f) << "ms\n";
-        out << "直近100フレームの平均FPS: " << std::fixed << std::setprecision(2) << recentAvgFps << '\n';
-        out << "直近100フレームの平均時間: " << std::fixed << std::setprecision(2) << (recentAvgDt * 1000.0f) << "ms\n";
-        out << "========================================\n";
+        std::ostringstream msg;
+        msg << "Summary: frames=" << frameCount_
+            << ", totalTimeSec=" << std::fixed << std::setprecision(2) << totalTime_
+            << ", avgFps=" << avgFps
+            << ", avgMs=" << (avgDt * 1000.0f)
+            << ", recentAvgFps=" << recentAvgFps
+            << ", recentAvgMs=" << (recentAvgDt * 1000.0f);
+
+        out << GetTimestampString() << ','
+            << frameCount_ << ','
+            << EscapeCsv("main") << ','
+            << EscapeCsv("System") << ','
+            << EscapeCsv("STATS") << ','
+            << EscapeCsv(msg.str()) << ','
+            << EscapeCsv("") << '\n';
     }
 
 private:
@@ -181,37 +186,51 @@ private:
         }
     }
 
-    void WriteLog(const std::string& level, const std::string& message, Category cat, const std::string& extra = "") {
-#ifdef _DEBUG
+    std::string GetTimestampString() const {
         auto now = std::chrono::system_clock::now();
         auto in_time_t = std::chrono::system_clock::to_time_t(now);
+        std::tm bt{};
+        localtime_s(&bt, &in_time_t);
 
-            std::tm bt{};
-            localtime_s(&bt, &in_time_t);
+        std::ostringstream ts;
+        ts << std::put_time(&bt, "%Y-%m-%d %H:%M:%S");
+        return ts.str();
+    }
 
-            // フレームプレフィックス
-            uint64_t frame = currentFrame_.load(std::memory_order_relaxed);
+    std::string EscapeCsv(const std::string& value) const {
+        std::string escaped = value;
+        for (size_t pos = 0; (pos = escaped.find('"', pos)) != std::string::npos; pos += 2) {
+            escaped.insert(pos, 1, '"');
+        }
+        if (escaped.find_first_of(",\n\r") != std::string::npos) {
+            escaped = "\"" + escaped + "\"";
+        }
+        return escaped;
+    }
 
-            // スレッドID取得
-            auto threadId = std::this_thread::get_id();
-            std::ostringstream oss;
-            oss << threadId;
+    void WriteLog(const std::string& level, const std::string& message, Category cat, const std::string& extra = "") {
+#ifdef _DEBUG
+        // フレームプレフィックス
+        uint64_t frame = currentFrame_.load(std::memory_order_relaxed);
 
-            std::ostringstream line;
-            line << std::put_time(&bt, "%Y-%m-%d %H:%M:%S")
-                 << " [F#" << frame << "]"
-                 << " [TID:" << oss.str() << "]"
-                 << " [" << CategoryToString(cat) << "]"
-                 << " [" << level << "] " << message;
+        // スレッドID取得
+        auto threadId = std::this_thread::get_id();
+        std::ostringstream tidOss;
+        tidOss << threadId;
 
-            if (!extra.empty()) {
-                line << " | " << extra;
-            }
+        std::ostringstream line;
+        line << GetTimestampString() << ','
+             << frame << ','
+             << EscapeCsv(tidOss.str()) << ','
+             << EscapeCsv(CategoryToString(cat)) << ','
+             << EscapeCsv(level) << ','
+             << EscapeCsv(message) << ','
+             << EscapeCsv(extra);
 
-            bufferedLogs_.emplace_back(line.str());
-            if (bufferedLogs_.size() >= flushThreshold_) {
-                FlushBufferedLogsLocked(false);
-            }
+        bufferedLogs_.emplace_back(line.str());
+        if (bufferedLogs_.size() >= flushThreshold_) {
+            FlushBufferedLogsLocked(false);
+        }
 #else
         (void)level;
         (void)message;
@@ -237,9 +256,7 @@ private:
         if (!logFileInitialized_) {
             const unsigned char bom[] = { 0xEF, 0xBB, 0xBF };
             file.write(reinterpret_cast<const char*>(bom), sizeof(bom));
-            file << "========================================\n";
-            file << "デバッグログ開始\n";
-            file << "========================================\n";
+            file << "timestamp,frame,thread_id,category,level,message,extra\n";
             logFileInitialized_ = true;
         }
 
@@ -250,9 +267,6 @@ private:
 
         if (finalFlush) {
             OutputShutdownStatistics(file);
-            file << "========================================\n";
-            file << "デバッグログ終了\n";
-            file << "========================================\n";
         }
 
         file.flush();
@@ -263,7 +277,7 @@ private:
     DebugLog& operator=(const DebugLog&) = delete;
 
     std::vector<std::string> bufferedLogs_;
-    const std::string logFilePath_ = "debug_log.txt";
+    const std::string logFilePath_ = "debug_log.csv";
     bool logFileInitialized_ = false;
     const size_t flushThreshold_ = DEBUGLOG_AUTO_FLUSH_THRESHOLD;
     std::mutex mutex_;

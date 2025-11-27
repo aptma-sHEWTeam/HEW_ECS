@@ -21,7 +21,8 @@ mono_crash.*
 [Dd]ebugPublic/
 [Rr]elease/
 [Rr]eleases/
-debug_log.txt
+debug_log.csv
+metrics_log.csv
 x64/
 x86/
 Assets/
