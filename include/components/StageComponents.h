@@ -93,9 +93,9 @@ struct StageCreate : IComponent {
                     try {
                         row.push_back(stoi(cell));
                     } catch (const std::invalid_argument &error) {
-                        cerr << "無効な数値: " << cell << endl;
+                        cerr << "無効な数値: " << cell << " (" << error.what() << ")" << endl;
                     } catch (const std::out_of_range &error) {
-                        cerr << "範囲外の数値: " << cell << endl;
+                        cerr << "範囲外の数値: " << cell << " (" << error.what() << ")" << endl;
                     }
                 }
                 stageMap.push_back(row);
@@ -125,7 +125,7 @@ struct TimeLoad : IComponent{
     TimeLoad() {
         m_file.open("Assets/StageData/StageTime/stage1.csv");
         if (!m_file.is_open())
-            cerr << "Error: Could not open Assets/StageDate/StageTime/stage1.csv" << endl;
+            cerr << "Error: Could not open Assets/StageData/StageTime/stage1.csv" << endl;
         else {
             loadStageTime();        
         }
@@ -143,9 +143,9 @@ struct TimeLoad : IComponent{
                 try {
                     row.push_back(stoi(cell));
                 } catch (const std::invalid_argument &error) {
-                    cerr << "無効な数値: " << cell << endl;
+                    cerr << "無効な数値: " << cell << " (" << error.what() << ")" << endl;
                 } catch (const std::out_of_range &error) {
-                    cerr << "範囲外の数値: " << cell << endl;
+                    cerr << "範囲外の数値: " << cell << " (" << error.what() << ")" << endl;
                 }
             }
             stageTime.push_back(row);
