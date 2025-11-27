@@ -11,4 +11,5 @@ struct PlayerTag : IComponent {};		///< プレイヤータグ
 struct EnemyTag : IComponent {};		///< 敵タグ
 struct BulletTag : IComponent {};		///< 弾丸タグ
 struct WallTag : IComponent {};			///< 壁タグ
+struct GimmickTag : IComponent {};		///< ギミックタグ
 struct FloorWallTag : IComponent {};	///< ステージ共通の壁タグ
