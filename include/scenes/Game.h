@@ -27,6 +27,7 @@
 #include "app/ServiceLocator.h"
 #include "SenesUIController.h"
 #include "systems/ModelLoadingSystem.h"
+#include "graphics/TextureManager.h"
 
 inline static ConfigVar<float> cfg_LimitTime{"Game", "LimitTime", 10.0f};
 
@@ -172,9 +173,19 @@ class GameScene : public IScene {
     inline static ConfigVar<float> cfg_UICountG{"UI", "CountColorG", 1.0f};
     inline static ConfigVar<float> cfg_UICountB{"UI", "CountColorB", 1.0f};
 
+    inline static ConfigVar<float> cfg_UIRoomPosX{"UI", "RoomPosX", 20.0f};  // 追加
+    inline static ConfigVar<float> cfg_UIRoomPosY{"UI", "RoomPosY", 170.0f};
+    inline static ConfigVar<float> cfg_UIRoomW{"UI", "RoomWidth", 200.0f};
+    inline static ConfigVar<float> cfg_UIRoomH{"UI", "RoomHeight", 40.0f};
+    inline static ConfigVar<float> cfg_UIRoomR{"UI", "RoomColorR", 0.0f};
+    inline static ConfigVar<float> cfg_UIRoomG{"UI", "RoomColorG", 1.0f};
+    inline static ConfigVar<float> cfg_UIRoomB{"UI", "RoomColorB", 1.0f};
+
     inline static ConfigVar<std::string> cfg_PlayerFBXPass{"Player", "PlayerFBXPass", "Assets/Models/aaa.fbx"};
 
     inline static ConfigVar<std::string> cfg_StagePath{"Stage", "CSVPath", "Assets/StageData/aaa.csv"};
+
+    inline static ConfigVar<std::string> cfg_RoomPath{"UI", "RoomPNGPass", "Assets/Textures/Count.png"};
 
     inline static ConfigVar<float> cfg_CollisionCellSize{"Game", "CollisionCellSize", 20.0f};
 
@@ -517,6 +528,22 @@ class GameScene : public IScene {
 
         }*/
 
+    }
+
+    void ShowRoomUI(World &world)
+    {
+        UITransform RoomTransform;
+        RoomTransform.position = {cfg_UICountPosX, cfg_UICountPosY};
+        RoomTransform.size = {cfg_UICountW, cfg_UICountH};
+        RoomTransform.anchor = {0.0f, 0.0f};
+        RoomTransform.pivot = {0.0f, 0.0f};
+
+       /* auto RoomTextures = LoadFromFiles(cfg_RoomPath);
+        Entity RoomEntity = world.Create()
+                                 .With<UITransform>(RoomTransform)
+                        
+                                 .Build();
+        ownedEntities_.push_back(RoomEntity);*/
     }
 
     TextSystem textSystem_;

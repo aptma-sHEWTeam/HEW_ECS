@@ -62,4 +62,12 @@ CountHeight = 40.000000
 CountColorR = 0.000000
 CountColorG = 1.000000
 CountColorB = 1.000000
+RoomPosX = 20.000000
+RoomPosY = 170.000000
+RoomWidth = 200.000000
+RoomHeight = 40.000000
+RoomColorR = 0.000000
+RoomColorG = 1.000000
+RoomColorB = 1.000000
+RoomPNGPass = "Assets/Textures/Count.png"
 
