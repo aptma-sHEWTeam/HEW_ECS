@@ -118,8 +118,9 @@ struct PlayerMovement : Behaviour {
     bool isCharging_ = false;            ///< 現在チャージ中か
     DirectX::XMFLOAT2 lastStickDir_ {0.0f, 0.0f}; ///< 直近の左スティック方向(正規化)
     bool wasCharging_ = false;           ///< 前フレームでチャージしていたか(ローカル検出)
+    bool wasChargingPrev_ = false;       ///< チャージ開始検出用
 
-      //角度履歴
+    // 角度履歴
     float angleHistory[PlayerConstants::ANGLE_HISTORY_SIZE] = {};
     int angleIndex = 0;
     bool angleFilled = false;
@@ -163,14 +164,12 @@ struct PlayerMovement : Behaviour {
         if (!t || !v || (!input_ && !gamepad_))
             return;
 
-        // Sync Config
         v->speed = PlayerVelocity::cfg_Speed;
         minChargeSpeedFactor = cfg_MinChargeSpeed;
         chargeMaxTime = cfg_ChargeMaxTime;
 
         DirectX::XMFLOAT2 inputDir = {0.0f, 0.0f};
 
-        // キーボード入力の処理
         if (input_) {
             if (input_->GetKey('W') || input_->GetKey(VK_UP)) {
                 inputDir.y += 1.0f;
@@ -186,58 +185,38 @@ struct PlayerMovement : Behaviour {
             }
         }
 
-        // すべての接続されているゲームパッドの入力を統合（XInput + DirectInput）
-        float slowFactor = 1.0f; // このフレームの速度係数（チャージ中は低下)
+        float slowFactor = 1.0f;
         if (gamepad_)
         {
             float gx = gamepad_->GetLeftStickX();
             float gy = gamepad_->GetLeftStickY();
             float mag = std::sqrt(gx * gx + gy * gy);
 
-            // 方向キャッシュ（常時）
             if (mag > PlayerConstants::EPSILON) {
                 lastStickDir_.x = -(gx / mag);
                 lastStickDir_.y = -(gy / mag);
             }
 
-            //角度履歴
-            float ang = std::atan2f(lastStickDir_.y, lastStickDir_.x);
-            
-            // 古い角度の寄与を削除（リングバッファの上書き時）
-            if (angleFilled) {
-                sumSin -= std::sinf(angleHistory[angleIndex]);
-                sumCos -= std::cosf(angleHistory[angleIndex]);
-            }
-            
-            // 新しい角度を保存し、累積値に加算
-            angleHistory[angleIndex] = ang;
-            sumSin += std::sinf(ang);
-            sumCos += std::cosf(ang);
-            
-            angleIndex = (angleIndex + 1) % 30;             //現在の保存位置
-            if (angleIndex == 0)                            //30フレーム埋まったら true
-            {
-                angleFilled = true;
-            }
-
-            // ローカルしきい値によるチャージ/リリース検出（GamepadSystemのフォールバック）
             const float releaseThreshold = cfg_ReleaseThreshold;
             bool chargingNowLocal = (mag > releaseThreshold);
 
-            // チャージ状態更新（統合）
             bool chargingSys = gamepad_->IsLeftStickCharging();
             bool effectiveCharging = chargingSys && chargingNowLocal;
             frame++;
+
+            if (effectiveCharging && !wasChargingPrev_) {
+                ResetAngleHistory();
+            }
+
             if (effectiveCharging)
             {
                 isCharging_ = true;
-                if (collision_) { collision_->radius *= 0.01f; }            //< 当たり判定変更
-                float charge = gamepad_->GetLeftStickChargeAmount(chargeMaxTime); // 0..1
+                if (collision_) { collision_->radius *= 0.01f; }
+                float charge = gamepad_->GetLeftStickChargeAmount(chargeMaxTime);
                 slowFactor = std::max(minChargeSpeedFactor, 1.0f - charge);
                 
-                static float moveAmount = cfg_ChargeMoveAmount; //< チャージ中Xの移動量
+                static float moveAmount = cfg_ChargeMoveAmount;
                 
-                //< 2フレーム
                 if (frame % 2 == 0)
                 {
                     t->position.x += moveAmount;
@@ -248,22 +227,26 @@ struct PlayerMovement : Behaviour {
                     }
                 }
 
-                if (!historyLocked_) {
+                if (!historyLocked_ && mag > PlayerConstants::EPSILON) {
                     float ang = std::atan2f(lastStickDir_.y, lastStickDir_.x);
+                    
+                    if (angleFilled) {
+                        sumSin -= std::sinf(angleHistory[angleIndex]);
+                        sumCos -= std::cosf(angleHistory[angleIndex]);
+                    }
                     
                     angleHistory[angleIndex] = ang;
                     sumSin += std::sinf(ang);
                     sumCos += std::cosf(ang);
                     
-                    angleIndex++;
-                    if (angleIndex >= PlayerConstants::ANGLE_HISTORY_SIZE) {
+                    angleIndex = (angleIndex + 1) % PlayerConstants::ANGLE_HISTORY_SIZE;
+                    if (angleIndex == 0) {
                         angleFilled = true;
                         historyLocked_ = true;
                     }
                 }
             }
 
-            // リリースで方向転換＋通常速度に復帰（統合: システム検出 or ローカル検出）
             bool releasedSys = gamepad_->IsLeftStickReleased();
             bool releasedLocal = (wasCharging_ && !chargingNowLocal);
           
@@ -274,11 +257,9 @@ struct PlayerMovement : Behaviour {
                 if (count > 0) {
                     float avgRad = std::atan2f(sumSin / count, sumCos / count);
 
-                    // 平均角度ベクトル化
                     float dirX = std::cosf(avgRad);
                     float dirY = std::sinf(avgRad);
 
-                   //プレイヤーの速度に平均角度を乗算
                     float dirLen = std::sqrt(dirX * dirX + dirY * dirY);
                     if (dirLen > PlayerConstants::EPSILON)
                     {
@@ -292,10 +273,12 @@ struct PlayerMovement : Behaviour {
                         slowFactor = 1.0f;
                     }
                 }
+                
+                ResetAngleHistory();
             }
 
-            // 次フレーム用にローカル状態を保持
             wasCharging_ = chargingNowLocal;
+            wasChargingPrev_ = effectiveCharging;
 
             if (!flickOnly)
             {
