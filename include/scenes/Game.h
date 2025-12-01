@@ -11,6 +11,7 @@
 
 #include <sstream>
 #include <iomanip>
+#include <cmath>
 
 #include "config/ConfigVar.h"
 #include "components/GameTags.h"
@@ -28,7 +29,25 @@
 #include "SenesUIController.h"
 #include "systems/ModelLoadingSystem.h"
 
+//ゴールエリアへの移動処理
+struct GoalInteraction {
+    Entity player;
+    DirectX::XMFLOAT3 target; //ゴール中央へ移動するターゲット座標
+    float elapsed = 0.0f;     //停止中の経過時間計測
+    float holdDuration = 0.5f;//到達後に停止する時間
+    float moveSpeed = 2.0f;   //移動速度
+    bool moving = true;       //移動フェーズか、停止フェーズか
+
+    GoalInteraction() = default;
+    GoalInteraction(Entity p, const DirectX::XMFLOAT3 &t, float e, float ms, float hd)
+        : player(p), target(t), elapsed(e), moveSpeed(ms), holdDuration(hd), moving(true){};
+
+};
+//REGISTER_COMPONENT_TYPE(GoalInteraction) 必要だったらのマクロ
+
 inline static ConfigVar<float> cfg_LimitTime{"Game", "LimitTime", 10.0f};
+inline static ConfigVar<float> cfg_GoalHoldSecond{ "Game", "GoalHoldSecond", 0.5f}; //到達後の時間停止
+inline static ConfigVar<float> cfg_GoalMoveSpeed{"Game", "GoalMoveSpeed", 2.0f};    //中央への移動スピード
 
 inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false) {
     if (!w.IsAlive(player)) {
@@ -43,7 +62,7 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
         }
 
         if (auto *tPlayer = w.TryGet<Transform>(player)) {
-            tPlayer->position = {tStart.position.x, 0.0f, tStart.position.z-1.0f};//プレイヤーの生成場所
+            tPlayer->position = {tStart.position.x, 0.0f, tStart.position.z - 1.0f};//プレイヤーの生成場所
 
             if (auto *vPlayer = w.TryGet<PlayerVelocity>(player)) {
                 vPlayer->velocity = {0.0f, 0.0f};
@@ -80,8 +99,17 @@ struct PlayerCollisionHandler : ICollisionHandler {
             w.ForEach<GameStats>([](Entity, GameStats &stats) { stats.score += 10; });
         }
         if (w.Has<GoalTag>(other)) {
-            w.ForEach<StageProgress>([](Entity, StageProgress &sp) { sp.requestAdvance = true; });
-            DEBUGLOG("プレイヤーがゴールに到達");
+            bool already = false;
+          //  w.ForEach<StageProgress>([&](Entity, StageProgress &sp) { sp.requestAdvance = true; });
+            w.ForEach<StageProgress>([&](Entity, GoalInteraction &gi) {
+                if (gi.player == self) {
+                    already = true;
+                } 
+                });
+            if (already) {
+                return; 
+            }
+            DEBUGLOG("プレイヤーがゴールに到達 ->ゴール中央へ移動して一時停止後ワープする");
         }
     }
 };
@@ -268,6 +296,50 @@ class GameScene : public IScene {
         });
 
         world.Tick(deltaTime);
+
+        world.ForEach<GoalInteraction>([&](Entity giEntity, GoalInteraction &gi) {
+            //対象プレイヤーが消えていたらGoal処理は消去
+            if (!world.IsAlive(gi.player)) {
+                world.DestroyEntityWithCause(giEntity, World::Cause::StageReset);
+                return;
+            }
+            auto *tPlayer = world.TryGet<Transform>(gi.player);
+            //プレイヤーにTransformがなければ終了
+            if (!tPlayer) {
+                world.DestroyEntityWithCause(giEntity, World::Cause::StageReset);
+                return;
+            }
+            //ゴール中央に向かってゆっくりと移動させる
+            if (gi.moving) {
+                float dx = gi.target.x - tPlayer->position.x;
+                float dz = gi.target.z - tPlayer->position.z;
+                float dist = std::sqrt(dx * dz + dz * dz);
+                float step = gi.moveSpeed * deltaTime;
+
+                if (dist <= 0.001f || dist <= step) {
+                    //到着
+                    tPlayer->position.x = gi.target.x;
+                    tPlayer->position.z = gi.target.z;
+                    gi.moving = false;
+                    gi.elapsed = 0.0f;
+                    DEBUGLOG("プレイヤーがゴールの中央に到着しました。停止フェーズに移行します・・・");
+                } else {
+                    //正規化してステップ移動
+                    tPlayer->position.x += dx / dist * step;
+                    tPlayer->position.z += dz / dist * step;
+                }
+            } else {
+                //停止フェーズ：時間計測
+                gi.elapsed += deltaTime;
+                if (gi.elapsed >= gi.holdDuration) {
+                    //停止完了→スタート地点ワープ
+                    ResetPlayerToStart(world, gi.player, true);
+                    world.ForEach<StageProgress>([](Entity, StageProgress &sp) { sp.requestAdvance = true; });
+                    world.DestroyEntityWithCause(giEntity, World::Cause::StageReset);
+                    DEBUGLOG("ゴール処理完了：スタートへワープしステージ進行");
+                }
+            }
+        });
 
         //制限時間が過ぎていたらリセット
         if (world.IsAlive(playerEntity_)) {
