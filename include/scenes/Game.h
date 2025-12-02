@@ -707,7 +707,7 @@ class GameScene : public IScene {
         if (world.IsAlive(playerEntity_)) {
             ResetPlayerToStart(world, playerEntity_);
         }
-    }e
+    }
 
     // 簡易ライトベイク（影なし近似）: ステージ生成直後にメッシュカラーへ反映
     void BakeStageLighting(World &world) {
