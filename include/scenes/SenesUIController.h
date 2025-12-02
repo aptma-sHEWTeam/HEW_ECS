@@ -42,7 +42,7 @@ struct GameUIUpdater : Behaviour {
                 int minutes = static_cast<int>(stats.elapsedTime) / 60;
                 int seconds = static_cast<int>(stats.elapsedTime) % 60;
                 ss << L" " << std::setw(2) << std::setfill(L'0') << minutes
-                   << L":" << std::setw(2) << std::setfill(L'10') << seconds;
+                   << L":" << std::setw(2) << std::setfill(L'0') << seconds;
                 timeText->text = ss.str();
             }
 

@@ -134,6 +134,26 @@ struct FloorWallCollisionHandler : ICollisionHandler {
 REGISTER_COLLISION_HANDLER_TYPE(FloorWallCollisionHandler)
 
 /**
+ * @struct DashBordCollisionHandler
+ * 
+ * @brief 加速板の衝突イベントを処理
+ */
+struct DashBordCollisionHandler :ICollisionHandler
+{
+   void OnCollisionEnter(World& w, Entity self, Entity other, const CollisionInfo& info)override
+   {
+        auto *v = w.TryGet<PlayerVelocity>(other);
+        if (w.Has<PlayerTag>(other))
+        {
+            DEBUGLOG("プレイヤーが加速板と接触 - プレイヤー加速-");
+            
+            v->isBoosting = true;
+        }
+   }
+};
+REGISTER_COLLISION_HANDLER_TYPE(DashBordCollisionHandler)
+
+/**
  * @class GameScene
  * @brief 3DゲームとUIを統合したシーン
  */
@@ -253,8 +273,10 @@ class GameScene : public IScene {
 
         world.Create().With<DirectionalLight>();
 
+        
         CreatePlayer(world);
         CreateUI(world, screenWidth, screenHeight);
+       
         SetupStage(world, 1);
 
         DEBUGLOG("GameWithUIScene の初期化が正常に完了しました");
@@ -636,8 +658,28 @@ class GameScene : public IScene {
             .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
             .With<FloorWallCollisionHandler>()
             .Build();
-
+       
         stageOwnedEntities_.push_back(worldwallEntity);
+    }
+
+    //加速板
+    void CreateDashBord(World& world)
+    {
+        Transform transform{{-7.0f,0.0f,0.0f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
+        MeshRenderer renderer;
+        
+        renderer.meshType = MeshType::Cube;
+        renderer.color = DirectX::XMFLOAT3{0.0f, 0.0f, 1.0f};
+
+        Entity dashBordEntity = world.Create()
+                                    .With<Transform>(transform)
+                                    .With<MeshRenderer>(renderer)
+                                    .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                                    .With<GimmickTag>()
+                                    .With<DashBordCollisionHandler>()
+                                    .Build();
+
+        stageOwnedEntities_.push_back(dashBordEntity);
     }
 
     void SetupStage(World &world, int stage) {
@@ -655,6 +697,9 @@ class GameScene : public IScene {
         // 新しいステージのマップを生成
         CreateStageMap(world);
 
+        //加速板(仮置き)
+      //  CreateDashBord(world);
+
         // 簡易ライトベイク（アンビエント＋ディレクショナル＋ポイントライトの影なし近似）
         BakeStageLighting(world);
 
@@ -662,7 +707,7 @@ class GameScene : public IScene {
         if (world.IsAlive(playerEntity_)) {
             ResetPlayerToStart(world, playerEntity_);
         }
-    }e
+    }
 
     // 簡易ライトベイク（影なし近似）: ステージ生成直後にメッシュカラーへ反映
     void BakeStageLighting(World &world) {
@@ -742,6 +787,8 @@ class GameScene : public IScene {
         }
     }
 
+
+
     TextSystem textSystem_;
     ImageSystem imageSystem_;
     std::vector<Entity> ownedEntities_;
@@ -752,5 +799,6 @@ class GameScene : public IScene {
     Entity wall_{};
     Entity worldwall_{};
     Entity goalEntity_{};
+    Entity gimmickEntity_{};
     DirectX::XMFLOAT3 cameraPosition_ = { 0.0f, 10.0f, -10.0f };
 };
