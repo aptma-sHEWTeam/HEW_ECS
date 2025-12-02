@@ -375,13 +375,13 @@ class GameScene : public IScene {
                     // ステージマップに応じたオブジェクトの生成
                     if (blockType != 0) {
                         switch (blockType) {
-                            case 1: CreateStart(world, blockposition); break; // スタート地点
-                            case 2: CreateGoal(world, blockposition); break; // ゴール地点
-                            case 3: CreateWall(world, blockposition); break; // 通常の壁
-                            case 5: CreateRightDownCorner(world, blockposition); break; // 通常の壁
-                            case 6: CreateLeftDownCorner(world, blockposition); break; // 通常の壁
-                            case 7: CreateLeftUpCorner(world, blockposition); break; // 通常の壁
-                            case 8: CreateRightUpCorner(world, blockposition); break; // 通常の壁
+                            case 1: CreateStart(world, blockposition); break;               // スタート地点
+                            case 2: CreateGoal(world, blockposition); break;                // ゴール地点
+                            case 3: CreateWall(world, blockposition); break;                // 通常の壁
+                            case 5: CreateRightDownCorner(world, blockposition); break;     // 右下が直角の三角形
+                            case 6: CreateLeftDownCorner(world, blockposition); break;      // 左下が直角の三角形
+                            case 7: CreateLeftUpCorner(world, blockposition); break;        // 左上が直角の三角形
+                            case 8: CreateRightUpCorner(world, blockposition); break;       // 右上が直角の三角形
                         }
                     }
 
