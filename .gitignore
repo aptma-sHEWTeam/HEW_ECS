@@ -371,3 +371,4 @@ docs/html/
 docs/latex/
 docs/doxygen_sqlite3.db
 Doxyfile.bak
+/debug_log.txt

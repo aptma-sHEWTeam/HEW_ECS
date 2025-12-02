@@ -21,6 +21,7 @@
 #include "graphics/TextureManager.h"
 #include "app/DebugLog.h"
 #include "app/ServiceLocator.h"
+#include "systems/RenderingSystem.h"
 #include <d3dcompiler.h>
 #include <DirectXMath.h>
 #include <wrl/client.h>
@@ -207,8 +208,10 @@ struct RenderSystem {
         // パイプラインステートの設定
         SetupPipeline(gfx);
 
-        // ライト情報の更新
-        UpdateLightConstants(w, cam, gfx);
+        // ライト情報の更新（統合レンダリングシステムに委譲）
+        RenderingSystem::GetInstance().UpdateLights(w, cam.position);
+        RenderingSystem::GetInstance().BindLightBuffer(gfx.Ctx(), 1);
+        RenderingSystem::GetInstance().BindMaterialBuffer(gfx.Ctx(), 2);
 
         // ModelComponentの描画
         RenderModelComponents(w, gfx, cam, texMgr);
@@ -351,70 +354,111 @@ struct RenderSystem {
         )";
 
         const char *PS = R"(
-            struct DirectionalLight {
-     float3 direction;
-          float padding;
-  float4 color;
-     };
-
-         cbuffer PerObject : register(b0) {
-    float4 gColor;
-    float gUseTexture;
-       float gUseNormalMap;
-   float gSpecularPower;
-    float padding_obj;
+            struct PointLightGPU {
+                float3 position; float range;
+                float3 color; float intensity;
+                float constantAtt; float linearAtt; float quadraticAtt; float enabled;
             };
 
-       cbuffer PerFrame : register(b1) {
-       DirectionalLight gLight;
-    float3 gAmbientColor;
-    float padding_frame;
-      float3 gEyePos;
-          float padding_frame2;
-   };
+            cbuffer PerObject : register(b0) {
+                float4 gColor;
+                float gUseTexture;
+                float gUseNormalMap;
+                float gSpecularPower;
+                float padding_obj;
+            };
 
-   Texture2D gTexture : register(t0);
-      Texture2D gNormalMap : register(t1);
- SamplerState gSampler : register(s0);
+            cbuffer PerFrameLighting : register(b1) {
+                float3 gAmbientColor; float gAmbientIntensity;
+                float3 gEyePos; int gActivePointLights;
+                float3 gDirLightDir; float gDirLightEnabled;
+                float3 gDirLightColor; float gDirLightIntensity;
+                PointLightGPU gPointLights[8];
+            };
+
+            cbuffer MaterialBuffer : register(b2) {
+                float4 gDiffuseColor;
+                float3 gEmissiveColor; float gEmissiveIntensity;
+            };
+
+            Texture2D gTexture : register(t0);
+            Texture2D gNormalMap : register(t1);
+            SamplerState gSampler : register(s0);
 
             struct VSOut {
-       float4 pos : SV_POSITION;
-       float2 tex : TEXCOORD;
- float3 nrm : NORMAL;
-     float3 tan : TANGENT;
-      float3 bitan : BITANGENT;
-      float3 worldPos : WORLDPOS;
-    };
+                float4 pos : SV_POSITION;
+                float2 tex : TEXCOORD;
+                float3 nrm : NORMAL;
+                float3 tan : TANGENT;
+                float3 bitan : BITANGENT;
+                float3 worldPos : WORLDPOS;
+            };
 
-    float4 main(VSOut i) : SV_Target {
-      float3 normal = normalize(i.nrm);
-     if (gUseNormalMap > 0.5) {
-        float3x3 TBN = float3x3(normalize(i.tan), normalize(i.bitan), normalize(i.nrm));
-            float3 tangentNormal = gNormalMap.Sample(gSampler, i.tex).xyz * 2.0 - 1.0;
-               normal = normalize(mul(tangentNormal, TBN));
-   }
-
-     float light_factor = max(0.0f, dot(normal, -gLight.direction));
-
- float4 final_color = gColor;
-         if (gUseTexture > 0.5) {
-     final_color *= gTexture.Sample(gSampler, i.tex);
-   }
-
-         float3 toEye = normalize(gEyePos - i.worldPos);
-     float3 reflection = reflect(gLight.direction, normal);
-     float spec_factor = pow(max(0.0f, dot(toEye, reflection)), gSpecularPower);
-
-    float3 diffuse = final_color.rgb * gLight.color.rgb * light_factor;
-     float3 ambient = final_color.rgb * gAmbientColor;
-           float3 specular = gLight.color.rgb * spec_factor;
-
-          return float4(diffuse + ambient + specular, final_color.a);
+            float3 ApplyPointLight(PointLightGPU L, float3 worldPos, float3 normal, float3 viewDir, float3 baseColor, float specPower)
+            {
+                if (L.enabled < 0.5)
+                    return 0.0.xxx;
+                float3 toLight = L.position - worldPos;
+                float dist = length(toLight);
+                if (dist > L.range)
+                    return 0.0.xxx;
+                float3 lightDir = toLight / max(dist, 1e-4);
+                float NdotL = max(0.0, dot(normal, lightDir));
+                float att = 1.0 / max(L.constantAtt + L.linearAtt * dist + L.quadraticAtt * dist * dist, 1e-4);
+                float3 diffuse = baseColor * L.color * (NdotL * L.intensity * att);
+                // Blinn-Phong specular
+                float3 halfDir = normalize(lightDir + viewDir);
+                float spec = pow(max(0.0, dot(normal, halfDir)), specPower);
+                float3 specular = L.color * (spec * L.intensity * att);
+                return diffuse + specular;
             }
-  )";
+
+            float3 ApplyDirectional(float3 dir, float3 color, float intensity, float3 normal, float3 viewDir, float3 baseColor, float specPower)
+            {
+                float NdotL = max(0.0, dot(normal, -normalize(dir)));
+                float3 diffuse = baseColor * color * (NdotL * intensity);
+                float3 halfDir = normalize(-normalize(dir) + viewDir);
+                float spec = pow(max(0.0, dot(normal, halfDir)), specPower);
+                float3 specular = color * (spec * intensity);
+                return diffuse + specular;
+            }
+
+            float4 main(VSOut i) : SV_Target {
+                float3 normal = normalize(i.nrm);
+                if (gUseNormalMap > 0.5) {
+                    float3x3 TBN = float3x3(normalize(i.tan), normalize(i.bitan), normalize(i.nrm));
+                    float3 tangentNormal = gNormalMap.Sample(gSampler, i.tex).xyz * 2.0 - 1.0;
+                    normal = normalize(mul(tangentNormal, TBN));
+                }
+
+                float4 base = gColor;
+                if (gUseTexture > 0.5) {
+                    base *= gTexture.Sample(gSampler, i.tex);
+                }
+
+                float3 viewDir = normalize(gEyePos - i.worldPos);
+
+                float3 colorAccum = base.rgb * gAmbientColor * gAmbientIntensity;
+
+                if (gDirLightEnabled > 0.5)
+                {
+                    colorAccum += ApplyDirectional(gDirLightDir, gDirLightColor, gDirLightIntensity, normal, viewDir, base.rgb, gSpecularPower);
+                }
+
+                [unroll]
+                for (int idx = 0; idx < gActivePointLights; ++idx) {
+                    colorAccum += ApplyPointLight(gPointLights[idx], i.worldPos, normal, viewDir, base.rgb, gSpecularPower);
+                }
+
+                // emissive additive
+                colorAccum += gEmissiveColor * gEmissiveIntensity;
+
+                return float4(colorAccum, base.a);
+            }
+        )";
 
         Microsoft::WRL::ComPtr<ID3DBlob> vsb, psb, err;
-        UINT compileFlags = D3DCOMPILE_ENABLE_STRICTNESS;
+        UINT compileFlags = D3D_COMPILE_STANDARD_FILE_INCLUDE ? D3DCOMPILE_ENABLE_STRICTNESS : D3DCOMPILE_ENABLE_STRICTNESS;
 #if defined(ENABLE_SHADER_DEBUG) && ENABLE_SHADER_DEBUG
         compileFlags |= D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #else
@@ -509,7 +553,7 @@ struct RenderSystem {
             return false;
         }
 
-        // PS定数バッファ
+        // PS定数バッファ（PerObject）
         cbd.ByteWidth = sizeof(PSConstants);
         hr = gfx.Dev()->CreateBuffer(&cbd, nullptr, psCb_.GetAddressOf());
         if (FAILED(hr)) {
@@ -517,7 +561,7 @@ struct RenderSystem {
             return false;
         }
 
-        // PSライト定数バッファ
+        // 旧PSライト定数バッファ（未使用だが互換のため作成）
         cbd.ByteWidth = sizeof(PSLightConstants);
         hr = gfx.Dev()->CreateBuffer(&cbd, nullptr, psLightCb_.GetAddressOf());
         if (FAILED(hr)) {
@@ -875,14 +919,14 @@ struct RenderSystem {
         gfx.Ctx()->PSSetShader(ps_.Get(), nullptr, 0);
         gfx.Ctx()->VSSetConstantBuffers(0, 1, vsCb_.GetAddressOf());
         gfx.Ctx()->PSSetConstantBuffers(0, 1, psCb_.GetAddressOf());
-        gfx.Ctx()->PSSetConstantBuffers(1, 1, psLightCb_.GetAddressOf());
+        // b1/b2 は統合RenderingSystem側でバインドする
         gfx.Ctx()->PSSetSamplers(0, 1, samplerState_.GetAddressOf());
         gfx.Ctx()->RSSetState(rasterState_.Get());
         gfx.Ctx()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     }
 
     /**
-* @brief ライト定数の更新
+* @brief ライト定数の更新（非使用・互換維持）
      */
     void UpdateLightConstants(World &w, const Camera &cam, GfxDevice &gfx) {
         PSLightConstants lightCbuf;
@@ -913,6 +957,9 @@ struct RenderSystem {
             // 定数バッファの更新
             UpdateVSConstants(gfx, worldMatrix, cam, mc.uvOffset, mc.uvScale);
             UpdatePSConstants(gfx, mc.color, mc.texture, mc.normalTexture, 32.0f);
+
+            // エミッシブ/マテリアルの設定
+            RenderingSystem::GetInstance().SetMaterialForEntity(gfx.Ctx(), e, w);
 
             // テクスチャの設定
             SetTextures(gfx, texMgr, mc.texture, mc.normalTexture);
@@ -952,6 +999,9 @@ struct RenderSystem {
             // 定数バッファの更新
             UpdateVSConstants(gfx, worldMatrix, cam, mr.uvOffset, mr.uvScale);
             UpdatePSConstants(gfx, mr.color, mr.texture, TextureManager::INVALID_TEXTURE, 32.0f);
+
+            // エミッシブ/マテリアルの設定
+            RenderingSystem::GetInstance().SetMaterialForEntity(gfx.Ctx(), e, w);
 
             // テクスチャの設定
             SetTextures(gfx, texMgr, mr.texture, TextureManager::INVALID_TEXTURE);
