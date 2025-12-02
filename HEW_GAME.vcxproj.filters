@@ -267,6 +267,7 @@
     <ClInclude Include="include\util\Random.h">
       <Filter>Header Files\util</Filter>
     </ClInclude>
+    <ClInclude Include="RoomUIComponents.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\app\ResourceManager.cpp">
