@@ -46,7 +46,7 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
         }
 
         if (auto *tPlayer = w.TryGet<Transform>(player)) {
-            tPlayer->position = {tStart.position.x, 0.0f, tStart.position.z-1.0f};//プレイヤーの生成場所
+            tPlayer->position = {tStart.position.x, 0.0f, tStart.position.z};//プレイヤーの生成場所
 
             if (auto *vPlayer = w.TryGet<PlayerVelocity>(player)) {
                 vPlayer->velocity = {0.0f, 0.0f};
