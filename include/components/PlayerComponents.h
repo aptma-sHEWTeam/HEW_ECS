@@ -24,6 +24,15 @@
 
 #include "config/ConfigVar.h"
 
+//ConfigVar
+inline static ConfigVar<float> cfg_MinChargeSpeed{"Player", "MinChargeSpeedFactor", 0.4f};
+inline static ConfigVar<float> cfg_ChargeMaxTime{"Player", "ChargeMaxTime", 0.7f};
+inline static ConfigVar<float> cfg_ReleaseThreshold{"Player", "ReleaseThreshold", 0.3f};
+inline static ConfigVar<float> cfg_ChargeMoveAmount{"Player", "ChargeMoveAmount", 0.025f};
+inline static ConfigVar<float> cfg_LimitX{"Player", "LimitX", 15.0f};
+inline static ConfigVar<float> cfg_LimitY{"Player", "LimitY", 15.0f};
+inline static ConfigVar<float> cfg_AccelerateMagnification{"Player","AccelerateMagnification",1.5f};
+    
 // =========================================
 // 定数定義
 // =========================================
@@ -38,23 +47,78 @@ namespace PlayerConstants {
 
 struct PlayerVelocity : Behaviour {
     inline static ConfigVar<float> cfg_Speed{"Player", "MoveSpeed", 8.0f};
-    float speed = cfg_Speed;                       ///< 移動速度(単位/秒) - 速度を上げて動きを明確に
+    
+    float Acceleration = cfg_AccelerateMagnification;///< 加速度の倍率
+     
+    float speed      = cfg_Speed;                         ///< 移動速度(単位/秒) - 速度を上げて動きを明確に
+    float SlowFactor = 2.0f;
+    bool isBoosting     = false;                         ///< 加速中か判定
+    bool isDecelerating = false;                         ///< 減速中か判定
+
+    float DebugSpeed = 0.0f;                            ///<　デバックログ用
+
     DirectX::XMFLOAT2 velocity = {0.0f, 0.0f}; ///< 現在の移動ベロシティ
 
+    
     void SetVelocity(DirectX::XMFLOAT2 speed)
     {
         velocity = speed;
     }
 
-    void UpdateVelocity(const DirectX::XMFLOAT2 &inputDir) {
-        if (inputDir.x != 0.0f || inputDir.y != 0.0f) {
+    void UpdateVelocity(const DirectX::XMFLOAT2 &inputDir) 
+    {
+        if (inputDir.x != 0.0f || inputDir.y != 0.0f)
+        {
             float length = std::sqrt(inputDir.x * inputDir.x + inputDir.y * inputDir.y);
-            if (length > 0.0f) {
+            if (length > 0.0f && !isDecelerating) 
+            {
                 float normal_x = inputDir.x / length;
                 float normal_y = inputDir.y / length;
                 velocity.x = normal_x * speed;
                 velocity.y = normal_y * speed;
             }
+        }
+
+        //減速処理
+        if(isDecelerating)
+        {
+            //速度の大きさ取得
+            float currentSpeed = std::sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
+            DebugSpeed = velocity.x;
+             float newSpeed = currentSpeed - SlowFactor;
+
+            float decelerate_x = velocity.x / currentSpeed;
+            float decelerate_y = velocity.y / currentSpeed;
+            DebugSpeed = decelerate_x * newSpeed;
+            velocity.y = decelerate_y * newSpeed;
+          
+           
+        }
+    }
+
+    void UpdatePosition(World &w,Entity self,float dt)
+    {
+        auto *t = w.TryGet<Transform>(self);
+        auto *v = w.TryGet<PlayerVelocity>(self);
+        t->position.x += v->velocity.x * dt;
+        t->position.z += v->velocity.y * dt ;
+
+        const float limitX = cfg_LimitX;
+        const float limitY = cfg_LimitY;
+        if (t->position.x < -limitX)
+            t->position.x = -limitX;
+        if (t->position.x > limitX)
+            t->position.x = limitX;
+        if (t->position.z < -limitY)
+            t->position.z = -limitY;
+        if (t->position.z > limitY)
+            t->position.z = limitY;
+
+        //加速するか否か
+        if (isBoosting)
+        {
+            v->velocity.x = Acceleration;
+            v->velocity.y = Acceleration;
         }
     }
 
@@ -99,17 +163,10 @@ struct PlayerMovement : Behaviour {
     InputSystem *input_ = nullptr;     ///< 入力システムへのポインタ
     GamepadSystem *gamepad_ = nullptr; ///< ゲームパッドシステムへのポインタ
     CollisionSphere *collision_ = nullptr;
-    // Config Variables
-    inline static ConfigVar<float> cfg_MinChargeSpeed{"Player", "MinChargeSpeedFactor", 0.4f};
-    inline static ConfigVar<float> cfg_ChargeMaxTime{"Player", "ChargeMaxTime", 0.7f};
-    inline static ConfigVar<float> cfg_ReleaseThreshold{"Player", "ReleaseThreshold", 0.3f};
-    inline static ConfigVar<float> cfg_LimitX{"Player", "LimitX", 15.0f};
-    inline static ConfigVar<float> cfg_LimitY{"Player", "LimitY", 15.0f};
-    inline static ConfigVar<float> cfg_ChargeMoveAmount{"Player", "ChargeMoveAmount", 0.025f};
-
+    
     // チャージ挙動設定
     float minChargeSpeedFactor = cfg_MinChargeSpeed;   ///< チャージ中の最低速度係数(0.0-1.0)
-    float chargeMaxTime = cfg_ChargeMaxTime;          ///< チャージ最大時間(秒)
+    float chargeMaxTime = cfg_ChargeMaxTime;           ///< チャージ最大時間(秒)
 
     // 入力モード
     bool flickOnly = true;               ///< 左スティックの通常移動を無効化し、はじく移動（チャージ&リリース）のみ有効にする
@@ -185,7 +242,6 @@ struct PlayerMovement : Behaviour {
             }
         }
 
-        float slowFactor = 1.0f;
         if (gamepad_)
         {
             float gx = gamepad_->GetLeftStickX();
@@ -211,12 +267,16 @@ struct PlayerMovement : Behaviour {
             if (effectiveCharging)
             {
                 isCharging_ = true;
+                
+                v->isDecelerating = true;
+               
+
                 if (collision_) { collision_->radius *= 0.01f; }
                 float charge = gamepad_->GetLeftStickChargeAmount(chargeMaxTime);
-                slowFactor = std::max(minChargeSpeedFactor, 1.0f - charge);
                 
                 static float moveAmount = cfg_ChargeMoveAmount;
                 
+                //ふるえ
                 if (frame % 2 == 0)
                 {
                     t->position.x += moveAmount;
@@ -227,6 +287,7 @@ struct PlayerMovement : Behaviour {
                     }
                 }
 
+                //補正
                 if (!historyLocked_ && mag > PlayerConstants::EPSILON) {
                     float ang = std::atan2f(lastStickDir_.y, lastStickDir_.x);
                     
@@ -246,6 +307,7 @@ struct PlayerMovement : Behaviour {
                     }
                 }
             }
+
 
             bool releasedSys = gamepad_->IsLeftStickReleased();
             bool releasedLocal = (wasCharging_ && !chargingNowLocal);
@@ -270,7 +332,7 @@ struct PlayerMovement : Behaviour {
                         t->rotation.y = yawRad * (180.0f / DirectX::XM_PI);
 
                         isCharging_ = false;
-                        slowFactor = 1.0f;
+                        v->isDecelerating = false;
                     }
                 }
                 
@@ -285,23 +347,16 @@ struct PlayerMovement : Behaviour {
                 inputDir.x += -gx;
                 inputDir.y += -gy;
             }
+
+            v->UpdatePosition(w,self,dt);
         }
 
         if (inputDir.x != 0.0f || inputDir.y != 0.0f)
         {
             v->UpdateVelocity(inputDir);
         }
-
-        t->position.x += v->velocity.x * dt * slowFactor;
-        t->position.z += v->velocity.y * dt * slowFactor;
-
-        const float limitX = cfg_LimitX;
-        const float limitY = cfg_LimitY;
-        if (t->position.x < -limitX) t->position.x = -limitX;
-        if (t->position.x > limitX)  t->position.x =  limitX;
-        if (t->position.z < -limitY) t->position.z = -limitY;
-        if (t->position.z > limitY)  t->position.z =  limitY;
     }
+
     float CalcMoveRotation()
     {
         return std::atan2f(lastStickDir_.y, lastStickDir_.x) * (180.0f / DirectX::XM_PI);
