@@ -25,7 +25,6 @@
 #include "components/EmissiveMaterial.h"
 #include "components/EmissivePulse.h"
 #include "components/PointLight.h"
-#include "components/SkyboxLight.h"
 #include "systems/RenderingSystem.h"
 #include "input/GamepadSystem.h"
 #include "systems/UISystem.h"
