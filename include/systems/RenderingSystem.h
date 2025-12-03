@@ -11,6 +11,7 @@
 #include "components/EmissivePulse.h"
 #include "components/PointLight.h"
 #include "components/Light.h"
+#include "components/SkyboxLight.h"
 #include <d3d11.h>
 #include <wrl/client.h>
 #include <DirectXMath.h>
@@ -114,6 +115,20 @@ public:
 
         lightingData_.cameraPosition = cameraPos;
         lightingData_.activePointLights = 0;
+
+        // SkyboxLight -> drive ambient from top/bottom gradient (average) if present
+        bool skyboxFound = false;
+        world.ForEach<SkyboxLight>([&](Entity, SkyboxLight& sky){
+            if (skyboxFound || !sky.enabled) return;
+            DirectX::XMFLOAT3 avg{
+                (sky.topColor.x + sky.bottomColor.x) * 0.5f,
+                (sky.topColor.y + sky.bottomColor.y) * 0.5f,
+                (sky.topColor.z + sky.bottomColor.z) * 0.5f
+            };
+            lightingData_.ambientColor = avg;
+            lightingData_.ambientIntensity = sky.intensity;
+            skyboxFound = true;
+        });
 
         // Directional light (take the first one)
         lightingData_.dirLightEnabled = 0.0f;

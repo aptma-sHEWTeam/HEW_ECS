@@ -243,6 +243,7 @@
     <ClInclude Include="include\components\ModelComponent.h" />
     <ClInclude Include="include\components\PlayerComponents.h" />
     <ClInclude Include="include\components\Rotator.h" />
+    <ClInclude Include="include\components\SkyboxLight.h" />
     <ClInclude Include="include\components\StageComponents.h" />
     <ClInclude Include="include\components\Transform.h" />
     <ClInclude Include="include\components\TransformHierarchy.h" />
