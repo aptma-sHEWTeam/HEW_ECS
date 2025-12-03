@@ -79,6 +79,7 @@ class TextSystem {
         float y = 0.0f;                                  ///< Y座標
         float width = 100.0f;                            ///< 描画領域の幅
         float height = 50.0f;                            ///< 描画領域の高さ
+        float fontSize = 0.0f;                           ///< フォントサイズの上書き(>0 の場合に適用)
         DirectX::XMFLOAT4 color{1.0f, 1.0f, 1.0f, 1.0f}; ///< テキストの色(RGBA)
         std::string formatId = "default";                ///< 使用するフォーマットID
     };

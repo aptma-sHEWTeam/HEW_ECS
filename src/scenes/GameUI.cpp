@@ -90,6 +90,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     UIText timeText{L"時間: 00:00"};
     timeText.color = {1.0f, 0.0f, 0.0f, 1.0f};
     timeText.formatId = "hud";
+    timeText.fontSize = 36.0f;
 
     Entity timeEntity = world.Create()
                             .With<UITransform>(timeTransform)

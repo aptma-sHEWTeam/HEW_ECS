@@ -8,6 +8,7 @@
 #include <cmath>
 #include <dxgi.h>
 #include <dxgi1_2.h>
+#include <vector>
 
 bool TextSystem::Init(GfxDevice &gfx) {
     if (initialized_) {
@@ -132,10 +133,49 @@ void TextSystem::DrawText(const TextParams &params) {
         params.x + params.width,
         params.y + params.height);
 
+    // 使用するテキストフォーマットを決定（fontSize > 0 の場合、サイズ上書きフォーマットを一時作成）
+    IDWriteTextFormat *formatToUse = formatIt->second.Get();
+    Microsoft::WRL::ComPtr<IDWriteTextFormat> overrideFormat;
+    if (params.fontSize > 0.0f && dwriteFactory_) {
+        IDWriteTextFormat *base = formatIt->second.Get();
+
+        // 基本フォーマットのプロパティを取得
+        DWRITE_FONT_WEIGHT weight = base->GetFontWeight();
+        DWRITE_FONT_STYLE style = base->GetFontStyle();
+        DWRITE_FONT_STRETCH stretch = base->GetFontStretch();
+        DWRITE_TEXT_ALIGNMENT textAlign = base->GetTextAlignment();
+        DWRITE_PARAGRAPH_ALIGNMENT paraAlign = base->GetParagraphAlignment();
+
+        // フォントファミリー名
+        UINT32 famLen = base->GetFontFamilyNameLength();
+        std::vector<wchar_t> famBuf(famLen + 1);
+        if (SUCCEEDED(base->GetFontFamilyName(famBuf.data(), static_cast<UINT32>(famBuf.size())))) {
+            // ロケール
+            UINT32 locLen = base->GetLocaleNameLength();
+            std::vector<wchar_t> locBuf(locLen + 1);
+            if (SUCCEEDED(base->GetLocaleName(locBuf.data(), static_cast<UINT32>(locBuf.size())))) {
+                HRESULT hrFmt = dwriteFactory_->CreateTextFormat(
+                    famBuf.data(),
+                    nullptr,
+                    weight,
+                    style,
+                    stretch,
+                    params.fontSize,
+                    locBuf.data(),
+                    overrideFormat.GetAddressOf());
+                if (SUCCEEDED(hrFmt) && overrideFormat) {
+                    overrideFormat->SetTextAlignment(textAlign);
+                    overrideFormat->SetParagraphAlignment(paraAlign);
+                    formatToUse = overrideFormat.Get();
+                }
+            }
+        }
+    }
+
     d2dContext_->DrawTextW(
         params.text.c_str(),
         static_cast<UINT32>(params.text.length()),
-        formatIt->second.Get(),
+        formatToUse,
         &rect,
         brush);
 }

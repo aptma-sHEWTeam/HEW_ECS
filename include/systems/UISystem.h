@@ -125,6 +125,7 @@ struct UIRenderSystem {
         params.height = transform.size.y;
         params.color = text.color;
         params.formatId = text.formatId;
+        params.fontSize = text.fontSize;
 
         textSystem_->DrawText(params);
     }
