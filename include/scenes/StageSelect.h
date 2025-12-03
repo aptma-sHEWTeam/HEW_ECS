@@ -84,7 +84,7 @@ class StageSlectScene : public IScene {
         world.Tick(deltaTime);
 
         //enterを押したらシーン移動
-        if (input.GetKeyDown(VK_RETURN)) {
+        if (input.GetKeyDown(VK_BACK)) {
             DEBUGLOG("Enter pressed!");
             auto *maneger = ServiceLocator::TryGet<SceneManager>();
             maneger->ChangeScene("Game", world);

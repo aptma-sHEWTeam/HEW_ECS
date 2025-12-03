@@ -20,6 +20,7 @@ private:
         int parentIndex,
         const aiScene* scene,
         const std::string& directory,
+        const std::string& modelFilePath,
         std::vector<ModelPrefabNode>& outNodes,
         GfxDevice& gfx);
 
@@ -27,11 +28,13 @@ private:
         aiMesh* mesh,
         const aiScene* scene,
         const std::string& directory,
+        const std::string& modelFilePath,
         GfxDevice& gfx);
 
     static TextureManager::TextureHandle LoadMaterialTextures(
         aiMaterial* mat,
         aiTextureType type,
-        const std::string& directory
+        const std::string& directory,
+        const std::string& modelFilePath
     );
 };

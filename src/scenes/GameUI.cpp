@@ -7,6 +7,7 @@
 #include "systems/UISystem.h"
 #include "graphics/TextSystem.h"
 #include "components/CountUIComponent.h"
+#include "components/UIImageComponents.h"
 
 
 void GameScene::CreateTextFormats() {
@@ -53,6 +54,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                                 .Build();
     if (auto *renderSys = world.TryGet<UIRenderSystem>(uiRenderSystem)) {
         renderSys->SetTextSystem(&textSystem_);
+        renderSys->SetImageSystem(&imageSystem_);
         renderSys->SetScreenSize(screenWidth, screenHeight);
     }
     ownedEntities_.push_back(uiRenderSystem);
@@ -90,6 +92,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     UIText timeText{L"時間: 00:00"};
     timeText.color = {1.0f, 0.0f, 0.0f, 1.0f};
     timeText.formatId = "hud";
+    timeText.fontSize = 36.0f;
 
     Entity timeEntity = world.Create()
                             .With<UITransform>(timeTransform)
@@ -212,4 +215,21 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         updater->stageTextEntity_[1] = stageEntity[1];
     }
     ownedEntities_.push_back(uiUpdater);
+
+    // テスト画像描画: Asetts/Image/test.png を画面左上に表示
+    UITransform imgTransform;
+    imgTransform.position = {20.0f, 20.0f};
+    imgTransform.size = {256.0f, 256.0f};
+    imgTransform.anchor = {0.0f, 0.0f};
+    imgTransform.pivot = {0.0f, 0.0f};
+
+    UIImage img{L"./Assets/Textures/test.png" };
+    img.opacity = 1.0f;
+    img.keepAspect = true;
+
+    Entity imgEntity = world.Create()
+                            .With<UITransform>(imgTransform)
+                            .With<UIImage>(img)
+                            .Build();
+    ownedEntities_.push_back(imgEntity);
 }

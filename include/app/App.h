@@ -41,6 +41,7 @@
 #include "app/ResourceManager.h"
 #include "app/ServiceLocator.h"
 #include "config/ConfigManager.h"
+#include "config/ConfigVar.h"
 
 #ifdef _DEBUG
 #include "app/DebugLog.h"
@@ -85,6 +86,20 @@ struct App {
 #if ENABLE_DEBUG_VISUALS
     DebugDraw debugDraw_; ///< デバッグ描画用
 #endif
+
+    // Camera設定（TOMLで編集可能）
+    inline static ConfigVar<float> cfg_CamFovDeg{"Camera", "FovDegrees", 45.0f};
+    inline static ConfigVar<float> cfg_CamNear{"Camera", "Near", 0.1f};
+    inline static ConfigVar<float> cfg_CamFar{"Camera", "Far", 100.0f};
+    inline static ConfigVar<float> cfg_CamPosX{"Camera", "PosX", 0.0f};
+    inline static ConfigVar<float> cfg_CamPosY{"Camera", "PosY", 26.0f};
+    inline static ConfigVar<float> cfg_CamPosZ{"Camera", "PosZ", -7.0f};
+    inline static ConfigVar<float> cfg_CamTargetX{"Camera", "TargetX", 0.0f};
+    inline static ConfigVar<float> cfg_CamTargetY{"Camera", "TargetY", 0.0f};
+    inline static ConfigVar<float> cfg_CamTargetZ{"Camera", "TargetZ", -1.0f};
+    inline static ConfigVar<float> cfg_CamUpX{"Camera", "UpX", 0.0f};
+    inline static ConfigVar<float> cfg_CamUpY{"Camera", "UpY", 0.0f};
+    inline static ConfigVar<float> cfg_CamUpZ{"Camera", "UpZ", 1.0f};
 
     void InitializeGame() {
         DEBUGLOG("InitializeGame() begin");
@@ -660,14 +675,21 @@ private:
         float aspectRatio = static_cast<float>(width) / static_cast<float>(height);
         DEBUGLOG("アスペクト比: " + std::to_string(aspectRatio));
 
+        const float fovRad = DirectX::XMConvertToRadians(cfg_CamFovDeg.Get());
+        const float nearZ = cfg_CamNear.Get();
+        const float farZ = cfg_CamFar.Get();
+        const DirectX::XMFLOAT3 camPos{ cfg_CamPosX.Get(), cfg_CamPosY.Get(), cfg_CamPosZ.Get() };
+        const DirectX::XMFLOAT3 camTarget{ cfg_CamTargetX.Get(), cfg_CamTargetY.Get(), cfg_CamTargetZ.Get() };
+        const DirectX::XMFLOAT3 camUp{ cfg_CamUpX.Get(), cfg_CamUpY.Get(), cfg_CamUpZ.Get() };
+
         camera_ = Camera::LookAtLH(
-            DirectX::XM_PIDIV4,                 // 視野角（45度）
-            static_cast<float>(width) / height, // アスペクト比
-            0.1f,                               // ニアクリップ
-            100.0f,                             // ファークリップ
-            DirectX::XMFLOAT3{0, 26, -7},        // カメラ位置（上方向に移動）
-            DirectX::XMFLOAT3{0, 0, -1},         // 注視点（原点を見る）
-            DirectX::XMFLOAT3{0, 0, 1}         // 上方向ベクトル（Z軸を下方向に）
+            fovRad,
+            aspectRatio,
+            nearZ,
+            farZ,
+            camPos,
+            camTarget,
+            camUp
         );
     }
 

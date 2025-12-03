@@ -26,6 +26,14 @@ struct ModelLoadingSystem : public Behaviour {
 
             const auto &nodes = resMgr.GetModel(model.filePath);
             if (nodes.empty()) {
+                // Fallback: if model cannot be loaded, attach a simple placeholder mesh
+                MeshRenderer placeholder{};
+                placeholder.meshType = MeshType::Cube;
+                placeholder.color = DirectX::XMFLOAT3{ 0.8f, 0.2f, 0.2f };
+                if (!world.Has<MeshRenderer>(entity)) {
+                    world.Add<MeshRenderer>(entity, placeholder);
+                }
+                // Remove Model to avoid retry each frame
                 world.Remove<Model>(entity);
                 return;
             }
