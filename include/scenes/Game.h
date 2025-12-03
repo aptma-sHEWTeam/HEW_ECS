@@ -271,7 +271,7 @@ class GameScene : public IScene {
       
             Entity stageEntity_ = world.Create().With<StageCreate>(cfg_StagePath.Get()).Build();
             ownedEntities_.push_back(stageEntity_);
-        });*/
+    })
 
       
 
