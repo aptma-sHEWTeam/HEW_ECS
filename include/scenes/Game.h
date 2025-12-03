@@ -54,7 +54,7 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
         }
 
         if (resetTimer) {
-            w.ForEach<GameStats>([](Entity, GameStats &stats) {
+            w.ForEach<GameStatus>([](Entity, GameStatus &stats) {
                 stats.elapsedTime = 0.0f;
             });
         }
@@ -64,7 +64,7 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
 }
 
 inline void CheckTimeLimit(World &w,Entity player, float timeLimitSeconds) {
-    w.ForEach<GameStats>([&](Entity e, GameStats &stats) {
+    w.ForEach<GameStatus>([&](Entity e, GameStatus &stats) {
         if (stats.elapsedTime >= timeLimitSeconds) {
             DEBUGLOG("時間切れ");
             ResetPlayerToStart(w,player,true);
@@ -80,7 +80,7 @@ struct PlayerCollisionHandler : ICollisionHandler {
     void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override {
         if (w.Has<EnemyTag>(other)) {
             DEBUGLOG("プレイヤーが敵と衝突 - 侵入深度: " + std::to_string(info.penetrationDepth));
-            w.ForEach<GameStats>([](Entity, GameStats &stats) { stats.score += 10; });
+            w.ForEach<GameStatus>([](Entity, GameStatus &stats) { stats.score += 10; });
         }
         if (w.Has<GoalTag>(other)) {
             w.ForEach<StageProgress>([](Entity, StageProgress &sp) { sp.requestAdvance = true; });
@@ -178,7 +178,7 @@ class GameScene : public IScene {
 
     inline static ConfigVar<std::string> cfg_PlayerFBXPass{"Player", "PlayerFBXPass", "Assets/Models/aaa.fbx"};
 
-    inline static ConfigVar<std::string> cfg_StagePath{"Stage", "CSVPath", "Assets/StageData/StageCollision/DebugStage1/room1.csv"};
+    inline static ConfigVar<std::string> cfg_StagePath{"Stage", "CSVPath", "Assets/StageData/StageCollision/ DebugStage1 / room1.csv"};
 
     inline static ConfigVar<std::string> cfg_RoomPath{"UI", "RoomPNGPass", "Assets/Textures/Count.png"};
 
@@ -228,12 +228,6 @@ class GameScene : public IScene {
         float screenWidth = static_cast<float>(gfx->Width());
         float screenHeight = static_cast<float>(gfx->Height());
 
-        Entity gameStats = world.Create().With<GameStats>().Build();
-        ownedEntities_.push_back(gameStats);
-
-        Entity stageProgress = world.Create().With<StageProgress>().Build();
-        ownedEntities_.push_back(stageProgress);
-
         Entity collisionSystem = world.Create().With<CollisionDetectionSystem>(cfg_CollisionCellSize.Get()).Build();
         ownedEntities_.push_back(collisionSystem);
 
@@ -241,8 +235,18 @@ class GameScene : public IScene {
         Entity modelLoaderSystem = world.Create().With<ModelLoadingSystem>().Build();
         ownedEntities_.push_back(modelLoaderSystem);
 
-        Entity stageEntity_ = world.Create().With<StageCreate>(cfg_StagePath.Get()).Build();
-        ownedEntities_.push_back(stageEntity_);
+         world.ForEach<StageSelectStatus>([&](Entity e, StageSelectStatus &status) {
+            std::string Stagepath = "Assets/StageData/StageCollision/DebugStage" + std::to_string(status.StageCount) + "/room1.csv";
+            Entity stageEntity_ = world.Create().With<StageCreate>(Stagepath).Build();
+            ownedEntities_.push_back(stageEntity_);
+        });
+
+      
+            Entity stageEntity_ = world.Create().With<StageCreate>(cfg_StagePath.Get()).Build();
+            ownedEntities_.push_back(stageEntity_);
+        });*/
+
+      
 
         world.Create().With<DirectionalLight>();
 
@@ -256,7 +260,7 @@ class GameScene : public IScene {
     void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
 
         // ゲームの一時停止と再開
-        world.ForEach<GameStats>([&](Entity, GameStats &stats) {
+        world.ForEach<GameStatus>([&](Entity, GameStatus &stats) {
             if (input.GetKeyDown(VK_ESCAPE) || input.GetKeyDown('P')) {
                 stats.isPaused = !stats.isPaused;
                 DEBUGLOG(stats.isPaused ? "ゲームが一時停止されました" : "ゲームが再開されました");

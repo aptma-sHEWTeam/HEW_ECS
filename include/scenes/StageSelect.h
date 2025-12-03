@@ -47,6 +47,10 @@ class StageSlectScene : public IScene {
         float screenWidth = static_cast<float>(gfx->Width());
         float screenHeight = static_cast<float>(gfx->Height());
 
+        world.Create().With<GameStatus>().Build();
+
+        world.Create().With<StageSelectStatus>().Build();
+
         // UICanvas & Systems
         Entity canvas = world.Create().With<UICanvas>().Build();
         ownedEntities_.push_back(canvas);
@@ -85,6 +89,26 @@ class StageSlectScene : public IScene {
             auto *maneger = ServiceLocator::TryGet<SceneManager>();
             maneger->ChangeScene("Game", world);
         }
+
+        world.ForEach<StageSelectStatus>([&](Entity e, StageSelectStatus &stats) {
+            //右、左でStageCountを変更
+            if (stats.StageCount > 0) {
+                if (input.GetKeyDown(VK_RIGHT)) {
+                    stats.StageCount++;
+                }
+            }
+            if (input.GetKeyDown(VK_LEFT)) {
+                stats.StageCount--;
+            }
+
+            if (auto *StageSelectText = world.TryGet<UIText>(StageSelectEntity_)) {
+                std::wstringstream ss;
+                ss << L"StageNo : " << stats.StageCount;
+                StageSelectText->text = ss.str();
+            }
+        });
+        
+    }
     }
     void OnRender(World &world) override {
         world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {

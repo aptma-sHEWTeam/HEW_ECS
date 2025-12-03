@@ -23,7 +23,7 @@ struct GameUIUpdater : Behaviour {
 
 
     void OnUpdate(World &w, Entity self, float dt) override {
-        w.ForEach<GameStats>([&](Entity e, GameStats &stats) {
+        w.ForEach<GameStatus>([&](Entity e, GameStatus &stats) {
             // 経過時間の更新
             if (!stats.isPaused) {
                 stats.elapsedTime += dt;
