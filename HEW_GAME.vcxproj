@@ -283,6 +283,7 @@
     <ClInclude Include="include\util\Random.h" />
     <ClInclude Include="MouseCoordinate.h" />
     <ClInclude Include="RoomUIComponents.h" />
+    <ClInclude Include="StageStatus.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include=".github\ISSUE_TEMPLATE\01_task.yml" />
