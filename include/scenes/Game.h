@@ -48,7 +48,7 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
         }
 
         if (auto *tPlayer = w.TryGet<Transform>(player)) {
-            tPlayer->position = {tStart.position.x, 0.0f, tStart.position.z};//プレイヤーの生成場所
+            tPlayer->position = {tStart.position.x, 0.0f, tStart.position.z}; //プレイヤーの生成場所
 
             if (auto *vPlayer = w.TryGet<PlayerVelocity>(player)) {
                 vPlayer->velocity = {0.0f, 0.0f};
@@ -56,7 +56,7 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
         }
 
         if (resetTimer) {
-            w.ForEach<GameStats>([](Entity, GameStats &stats) {
+            w.ForEach<GameStatus>([](Entity, GameStatus &stats) {
                 stats.elapsedTime = 0.0f;
             });
         }
@@ -65,11 +65,11 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
     });
 }
 
-inline void CheckTimeLimit(World &w,Entity player, float timeLimitSeconds) {
-    w.ForEach<GameStats>([&](Entity e, GameStats &stats) {
+inline void CheckTimeLimit(World &w, Entity player, float timeLimitSeconds) {
+    w.ForEach<GameStatus>([&](Entity e, GameStatus &stats) {
         if (stats.elapsedTime >= timeLimitSeconds) {
             DEBUGLOG("時間切れ");
-            ResetPlayerToStart(w,player,true);
+            ResetPlayerToStart(w, player, true);
         }
     });
 }
@@ -82,7 +82,7 @@ struct PlayerCollisionHandler : ICollisionHandler {
     void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override {
         if (w.Has<EnemyTag>(other)) {
             DEBUGLOG("プレイヤーが敵と衝突 - 侵入深度: " + std::to_string(info.penetrationDepth));
-            w.ForEach<GameStats>([](Entity, GameStats &stats) { stats.score += 10; });
+            w.ForEach<GameStatus>([](Entity, GameStatus &stats) { stats.score += 10; });
         }
         if (w.Has<GoalTag>(other)) {
             w.ForEach<StageProgress>([](Entity, StageProgress &sp) { sp.requestAdvance = true; });
@@ -110,7 +110,7 @@ REGISTER_COLLISION_HANDLER_TYPE(EnemyCollisionHandler)
  * @brief 壁の衝突イベントを処理
  */
 struct WallCollisionHandler : ICollisionHandler {
-    void OnCollisionEnter(World& w, Entity self, Entity other, const CollisionInfo& info) override {
+    void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override {
         if (w.Has<PlayerTag>(other)) {
             DEBUGLOG("壁がプレイヤーと衝突 - スタート地点へ戻しタイマーをリセット");
             ResetPlayerToStart(w, other, true);
@@ -124,11 +124,11 @@ REGISTER_COLLISION_HANDLER_TYPE(WallCollisionHandler)
  * @brief ステージの壁の衝突イベントを処理
  */
 struct FloorWallCollisionHandler : ICollisionHandler {
-    void OnCollisionEnter(World& w, Entity self, Entity other, const CollisionInfo& info) override {
-         if (w.Has<PlayerTag>(other)) {
+    void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override {
+        if (w.Has<PlayerTag>(other)) {
             DEBUGLOG("壁がプレイヤーと衝突 - スタート地点へ戻しタイマーをリセット");
-             ResetPlayerToStart(w,other,true);
-          }
+            ResetPlayerToStart(w, other, true);
+        }
     }
 };
 REGISTER_COLLISION_HANDLER_TYPE(FloorWallCollisionHandler)
@@ -138,18 +138,15 @@ REGISTER_COLLISION_HANDLER_TYPE(FloorWallCollisionHandler)
  *
  * @brief 加速板の衝突イベントを処理
  */
-struct DashBordCollisionHandler :ICollisionHandler
-{
-   void OnCollisionEnter(World& w, Entity self, Entity other, const CollisionInfo& info)override
-   {
+struct DashBordCollisionHandler : ICollisionHandler {
+    void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override {
         auto *v = w.TryGet<PlayerVelocity>(other);
-        if (w.Has<PlayerTag>(other))
-        {
+        if (w.Has<PlayerTag>(other)) {
             DEBUGLOG("プレイヤーが加速板と接触 - プレイヤー加速-");
 
             v->isBoosting = true;
         }
-   }
+    }
 };
 REGISTER_COLLISION_HANDLER_TYPE(DashBordCollisionHandler)
 
@@ -200,8 +197,6 @@ class GameScene : public IScene {
 
     inline static ConfigVar<std::string> cfg_PlayerFBXPass{"Player", "PlayerFBXPass", "Assets/Models/Player/obj_player3.fbx"};
 
-    inline static ConfigVar<std::string> cfg_StagePath{"Stage", "CSVPath", "Assets/StageData/StageCollision/DebugStage1/room1.csv"};
-
     inline static ConfigVar<std::string> cfg_RoomPath{"UI", "RoomPNGPass", "Assets/Textures/Count.png"};
 
     inline static ConfigVar<float> cfg_CollisionCellSize{"Game", "CollisionCellSize", 20.0f};
@@ -238,7 +233,7 @@ class GameScene : public IScene {
         }
 
         RenderingSystem::GetInstance().Initialize(gfx->Dev());
-        RenderingSystem::GetInstance().SetAmbientLight({ 0.1f, 0.1f, 0.15f }, 1.0f);
+        RenderingSystem::GetInstance().SetAmbientLight({0.1f, 0.1f, 0.15f}, 1.0f);
 
         if (!textSystem_.Init(*gfx)) {
             DEBUGLOG_ERROR("TextSystem の初期化に失敗しました");
@@ -255,11 +250,7 @@ class GameScene : public IScene {
         float screenWidth = static_cast<float>(gfx->Width());
         float screenHeight = static_cast<float>(gfx->Height());
 
-        Entity gameStats = world.Create().With<GameStats>().Build();
-        ownedEntities_.push_back(gameStats);
-
-        Entity stageProgress = world.Create().With<StageProgress>().Build();
-        ownedEntities_.push_back(stageProgress);
+       
 
         Entity collisionSystem = world.Create().With<CollisionDetectionSystem>(cfg_CollisionCellSize.Get()).Build();
         ownedEntities_.push_back(collisionSystem);
@@ -268,11 +259,13 @@ class GameScene : public IScene {
         Entity modelLoaderSystem = world.Create().With<ModelLoadingSystem>().Build();
         ownedEntities_.push_back(modelLoaderSystem);
 
-        Entity stageEntity_ = world.Create().With<StageCreate>(cfg_StagePath.Get()).Build();
-        ownedEntities_.push_back(stageEntity_);
+        world.ForEach<StageProgress>([&](Entity e, StageProgress &status) {
+            std::string Stagepath = "Assets/StageData/StageCollision/DebugStage" + std::to_string(status.selectStage) + "/room1.csv";
+            Entity stageEntity_ = world.Create().With<StageCreate>(Stagepath).Build();
+            ownedEntities_.push_back(stageEntity_);
+        });
 
         world.Create().With<DirectionalLight>();
-
 
         CreatePlayer(world);
         CreateUI(world, screenWidth, screenHeight);
@@ -285,7 +278,7 @@ class GameScene : public IScene {
     void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
 
         // ゲームの一時停止と再開
-        world.ForEach<GameStats>([&](Entity, GameStats &stats) {
+        world.ForEach<GameStatus>([&](Entity, GameStatus &stats) {
             if (input.GetKeyDown(VK_ESCAPE) || input.GetKeyDown('P')) {
                 stats.isPaused = !stats.isPaused;
                 DEBUGLOG(stats.isPaused ? "ゲームが一時停止されました" : "ゲームが再開されました");
@@ -368,18 +361,18 @@ class GameScene : public IScene {
 
     void CreatePlayer(World &world) {
         float s = cfg_PlayerScale;
-        Transform transform { {0.0f, 0.0f, cfg_PlayerStartY }, {0.0f, 0.0f, 0.0f}, {s, s, s} };
+        Transform transform{{0.0f, 0.0f, cfg_PlayerStartY}, {0.0f, 0.0f, 0.0f}, {s, s, s}};
 
         Entity player = world.Create()
-            .With<Transform>(transform)
-            .With<Model>(cfg_PlayerFBXPass)
-            .With<PlayerTag>()
-            .With<PlayerVelocity>()
-            .With<PlayerMovement>()
-            .With<PlayerGuide>()
-            .With<CollisionSphere>(0.4f)
-            .With<PlayerCollisionHandler>()
-            .Build();
+                            .With<Transform>(transform)
+                            .With<Model>(cfg_PlayerFBXPass)
+                            .With<PlayerTag>()
+                            .With<PlayerVelocity>()
+                            .With<PlayerMovement>()
+                            .With<PlayerGuide>()
+                            .With<CollisionSphere>(0.4f)
+                            .With<PlayerCollisionHandler>()
+                            .Build();
 
         playerEntity_ = player;
         ownedEntities_.push_back(player);
@@ -429,27 +422,48 @@ class GameScene : public IScene {
                     float worldY = 0.0f;
                     float worldZ = offsetZ - (static_cast<float>(y) * tileSize);
 
-                    const DirectX::XMFLOAT3 blockposition = { worldX, worldY, worldZ };
+                    const DirectX::XMFLOAT3 blockposition = {worldX, worldY, worldZ};
 
                     // ステージの境界には常に壁を生成
-                    if (y == 0) { CreatFloorWall(world, { worldX, worldY, worldZ + tileSize }); } // 下
-                    if (y == max_y_index) { CreatFloorWall(world, { worldX, worldY, worldZ - tileSize }); } // 上
-                    if (x == 0) { CreatFloorWall(world, { worldX - tileSize, worldY, worldZ }); } // 左
-                    if (x == max_x_index) { CreatFloorWall(world, { worldX + tileSize, worldY, worldZ }); } // 右
+                    if (y == 0) {
+                        CreatFloorWall(world, {worldX, worldY, worldZ + tileSize});
+                    } // 下
+                    if (y == max_y_index) {
+                        CreatFloorWall(world, {worldX, worldY, worldZ - tileSize});
+                    } // 上
+                    if (x == 0) {
+                        CreatFloorWall(world, {worldX - tileSize, worldY, worldZ});
+                    } // 左
+                    if (x == max_x_index) {
+                        CreatFloorWall(world, {worldX + tileSize, worldY, worldZ});
+                    } // 右
 
                     // ステージマップに応じたオブジェクトの生成
                     if (blockType != 0) {
                         switch (blockType) {
-                            case 1: CreateStart(world, blockposition); break; // スタート地点
-                            case 2: CreateGoal(world, blockposition); break; // ゴール地点
-                            case 3: CreateWall(world, blockposition); break; // 通常の壁
-                            case 5: CreateRightDownCorner(world, blockposition); break; // 通常の壁
-                            case 6: CreateLeftDownCorner(world, blockposition); break; // 通常の壁
-                            case 7: CreateLeftUpCorner(world, blockposition); break; // 通常の壁
-                            case 8: CreateRightUpCorner(world, blockposition); break; // 通常の壁
+                            case 1:
+                                CreateStart(world, blockposition);
+                                break; // スタート地点
+                            case 2:
+                                CreateGoal(world, blockposition);
+                                break; // ゴール地点
+                            case 3:
+                                CreateWall(world, blockposition);
+                                break; // 通常の壁
+                            case 5:
+                                CreateRightDownCorner(world, blockposition);
+                                break; // 通常の壁
+                            case 6:
+                                CreateLeftDownCorner(world, blockposition);
+                                break; // 通常の壁
+                            case 7:
+                                CreateLeftUpCorner(world, blockposition);
+                                break; // 通常の壁
+                            case 8:
+                                CreateRightUpCorner(world, blockposition);
+                                break; // 通常の壁
                         }
                     }
-
                 }
             }
         });
@@ -468,15 +482,15 @@ class GameScene : public IScene {
                 float x = i * tileSize - half + tileSize * 0.5f;
                 float z = j * tileSize - half + tileSize * 0.5f;
 
-                Transform transform { { x, yOffset, z }, { 0.0f, 0.0f, 0.0f }, { tileSize, cfg_FloorThickness, tileSize } };
+                Transform transform{{x, yOffset, z}, {0.0f, 0.0f, 0.0f}, {tileSize, cfg_FloorThickness, tileSize}};
                 MeshRenderer renderer;
                 renderer.meshType = MeshType::Cube;
-                renderer.color = DirectX::XMFLOAT3 { cfg_FloorR, cfg_FloorG, cfg_FloorB };
+                renderer.color = DirectX::XMFLOAT3{cfg_FloorR, cfg_FloorG, cfg_FloorB};
 
                 Entity floor = world.Create()
-                    .With<Transform>(transform)
-                    .With<MeshRenderer>(renderer)
-                    .Build();
+                                   .With<Transform>(transform)
+                                   .With<MeshRenderer>(renderer)
+                                   .Build();
 
                 ownedEntities_.push_back(floor);
             }
@@ -489,33 +503,31 @@ class GameScene : public IScene {
         diffPosition.y = position.y - 1.0f;
         diffPosition.z = position.z;
 
-        Transform t{ diffPosition, {0, 0, 0}, {1, 1, 1} };
+        Transform t{diffPosition, {0, 0, 0}, {1, 1, 1}};
         MeshRenderer r;
         r.meshType = MeshType::Cube;
-        r.color = DirectX::XMFLOAT3{ cfg_StartR, cfg_StartG, cfg_StartB };
+        r.color = DirectX::XMFLOAT3{cfg_StartR, cfg_StartG, cfg_StartB};
 
         EmissiveMaterial emissive{
-            DirectX::XMFLOAT3{ cfg_StartEmissiveR, cfg_StartEmissiveG, cfg_StartEmissiveB },
-            cfg_StartEmissiveIntensity
-        };
+            DirectX::XMFLOAT3{cfg_StartEmissiveR, cfg_StartEmissiveG, cfg_StartEmissiveB},
+            cfg_StartEmissiveIntensity};
 
-        EmissivePulse pulse{ cfg_StartPulseMin, cfg_StartPulseMax, cfg_StartPulseSpeed };
+        EmissivePulse pulse{cfg_StartPulseMin, cfg_StartPulseMax, cfg_StartPulseSpeed};
 
         PointLight light{
-            DirectX::XMFLOAT3{ cfg_StartEmissiveR, cfg_StartEmissiveG, cfg_StartEmissiveB },
+            DirectX::XMFLOAT3{cfg_StartEmissiveR, cfg_StartEmissiveG, cfg_StartEmissiveB},
             cfg_StartEmissiveIntensity,
-            cfg_StartLightRange
-        };
+            cfg_StartLightRange};
 
         Entity e = world.Create()
-            .With<Transform>(t)
-            .With<MeshRenderer>(r)
-            .With<EmissiveMaterial>(emissive)
-            .With<EmissivePulse>(pulse)
-            .With<PointLight>(light)
-            .With<StartTag>()
-            .With<CollisionBox>(DirectX::XMFLOAT3{ 1.0f, 2.0f, 1.0f })
-            .Build();
+                       .With<Transform>(t)
+                       .With<MeshRenderer>(r)
+                       .With<EmissiveMaterial>(emissive)
+                       .With<EmissivePulse>(pulse)
+                       .With<PointLight>(light)
+                       .With<StartTag>()
+                       .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                       .Build();
 
         startEntity_ = e;
         stageOwnedEntities_.push_back(e);
@@ -527,34 +539,31 @@ class GameScene : public IScene {
         diffPosition.y = position.y - 1.0f;
         diffPosition.z = position.z;
 
-        Transform t{ diffPosition, {0, 0, 0}, {1, 1, 1} };
+        Transform t{diffPosition, {0, 0, 0}, {1, 1, 1}};
         MeshRenderer r;
         r.meshType = MeshType::Cube;
-        r.color = DirectX::XMFLOAT3{ cfg_GoalR, cfg_GoalG, cfg_GoalB };
+        r.color = DirectX::XMFLOAT3{cfg_GoalR, cfg_GoalG, cfg_GoalB};
 
         EmissiveMaterial emissive{
-            DirectX::XMFLOAT3{ cfg_GoalEmissiveR, cfg_GoalEmissiveG, cfg_GoalEmissiveB },
-            cfg_GoalEmissiveIntensity
-        };
+            DirectX::XMFLOAT3{cfg_GoalEmissiveR, cfg_GoalEmissiveG, cfg_GoalEmissiveB},
+            cfg_GoalEmissiveIntensity};
 
-        EmissivePulse pulse{ cfg_GoalPulseMin, cfg_GoalPulseMax, cfg_GoalPulseSpeed };
+        EmissivePulse pulse{cfg_GoalPulseMin, cfg_GoalPulseMax, cfg_GoalPulseSpeed};
 
         PointLight light{
-            DirectX::XMFLOAT3{ cfg_GoalEmissiveR, cfg_GoalEmissiveG, cfg_GoalEmissiveB },
+            DirectX::XMFLOAT3{cfg_GoalEmissiveR, cfg_GoalEmissiveG, cfg_GoalEmissiveB},
             cfg_GoalEmissiveIntensity,
-            cfg_GoalLightRange
-        };
+            cfg_GoalLightRange};
 
         Entity e = world.Create()
-            .With<Transform>(t)
-            .With<MeshRenderer>(r)
-            .With<EmissiveMaterial>(emissive)
-            .With<EmissivePulse>(pulse)
-            .With<PointLight>(light)
-            .With<GoalTag>()
-            .With<CollisionBox>(DirectX::XMFLOAT3{ 1.0f, 2.0f, 1.0f })
-            .Build();
-
+                       .With<Transform>(t)
+                       .With<MeshRenderer>(r)
+                       .With<EmissiveMaterial>(emissive)
+                       .With<EmissivePulse>(pulse)
+                       .With<PointLight>(light)
+                       .With<GoalTag>()
+                       .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                       .Build();
 
         goalEntity_ = e;
         stageOwnedEntities_.push_back(e);
@@ -564,15 +573,15 @@ class GameScene : public IScene {
         Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::Cube;
-        renderer.color = DirectX::XMFLOAT3 { cfg_WallR, cfg_WallG, cfg_WallB };
+        renderer.color = DirectX::XMFLOAT3{cfg_WallR, cfg_WallG, cfg_WallB};
 
         Entity wallEntity = world.Create()
-            .With<Transform>(transform)
-            .With<MeshRenderer>(renderer)
-            .With<WallTag>()
-            .With<CollisionBox>(DirectX::XMFLOAT3 { 1.0f, 2.0f, 1.0f })
-            .With<WallCollisionHandler>()
-            .Build();
+                                .With<Transform>(transform)
+                                .With<MeshRenderer>(renderer)
+                                .With<WallTag>()
+                                .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                                .With<WallCollisionHandler>()
+                                .Build();
 
         stageOwnedEntities_.push_back(wallEntity);
     }
@@ -649,23 +658,22 @@ class GameScene : public IScene {
         Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::Cube;
-        renderer.color = DirectX::XMFLOAT3 { cfg_FloorWallR, cfg_FloorWallG, cfg_FloorWallB };
+        renderer.color = DirectX::XMFLOAT3{cfg_FloorWallR, cfg_FloorWallG, cfg_FloorWallB};
 
         Entity worldwallEntity = world.Create()
-            .With<Transform>(transform)
-            .With<MeshRenderer>(renderer)
-            .With<WallTag>()
-            .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
-            .With<FloorWallCollisionHandler>()
-            .Build();
+                                     .With<Transform>(transform)
+                                     .With<MeshRenderer>(renderer)
+                                     .With<WallTag>()
+                                     .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                                     .With<FloorWallCollisionHandler>()
+                                     .Build();
 
         stageOwnedEntities_.push_back(worldwallEntity);
     }
 
     //加速板
-    void CreateDashBord(World& world)
-    {
-        Transform transform{{-7.0f,0.0f,0.0f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
+    void CreateDashBord(World &world) {
+        Transform transform{{-7.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
         MeshRenderer renderer;
 
         renderer.meshType = MeshType::Cube;
@@ -698,7 +706,7 @@ class GameScene : public IScene {
         CreateStageMap(world);
 
         //加速板(仮置き)
-      //  CreateDashBord(world);
+        //  CreateDashBord(world);
 
         // 簡易ライトベイク（アンビエント＋ディレクショナル＋ポイントライトの影なし近似）
         BakeStageLighting(world);
@@ -714,31 +722,38 @@ class GameScene : public IScene {
         using namespace DirectX;
 
         // 1) 環境光
-        XMFLOAT3 ambient{ 0.15f, 0.15f, 0.2f };
+        XMFLOAT3 ambient{0.15f, 0.15f, 0.2f};
         float ambientIntensity = 1.0f;
 
         // 2) ディレクショナルライト（最初の1つ）
         bool hasDir = false;
-        XMFLOAT3 dirDir{ 0.0f, -1.0f, 0.0f };
-        XMFLOAT3 dirColor{ 1.0f, 1.0f, 1.0f };
-        world.ForEach<DirectionalLight>([&](Entity, DirectionalLight &dl){
+        XMFLOAT3 dirDir{0.0f, -1.0f, 0.0f};
+        XMFLOAT3 dirColor{1.0f, 1.0f, 1.0f};
+        world.ForEach<DirectionalLight>([&](Entity, DirectionalLight &dl) {
             dirDir = dl.direction;
-            dirColor = XMFLOAT3{ dl.color.x, dl.color.y, dl.color.z };
+            dirColor = XMFLOAT3{dl.color.x, dl.color.y, dl.color.z};
             hasDir = true;
         });
 
         // 3) ポイントライト収集
-        struct PL { XMFLOAT3 pos; XMFLOAT3 col; float range; float I; float kc, kl, kq; };
+        struct PL {
+            XMFLOAT3 pos;
+            XMFLOAT3 col;
+            float range;
+            float I;
+            float kc, kl, kq;
+        };
         std::vector<PL> lights;
-        world.ForEach<Transform, PointLight>([&](Entity, Transform &t, PointLight &pl){
-            if (!pl.enabled) return;
-            lights.push_back(PL{ t.position, pl.color, pl.range, pl.intensity, pl.constantAttenuation, pl.linearAttenuation, pl.quadraticAttenuation });
+        world.ForEach<Transform, PointLight>([&](Entity, Transform &t, PointLight &pl) {
+            if (!pl.enabled)
+                return;
+            lights.push_back(PL{t.position, pl.color, pl.range, pl.intensity, pl.constantAttenuation, pl.linearAttenuation, pl.quadraticAttenuation});
         });
 
-        auto saturate = [](float v){ return std::max(0.0f, std::min(1.0f, v)); };
-        auto mul3 = [](const XMFLOAT3&a, const XMFLOAT3&b){ return XMFLOAT3{ a.x*b.x, a.y*b.y, a.z*b.z }; };
-        auto add3 = [](const XMFLOAT3&a, const XMFLOAT3&b){ return XMFLOAT3{ a.x+b.x, a.y+b.y, a.z+b.z }; };
-        auto scale3 = [](const XMFLOAT3&a, float s){ return XMFLOAT3{ a.x*s, a.y*s, a.z*s }; };
+        auto saturate = [](float v) { return std::max(0.0f, std::min(1.0f, v)); };
+        auto mul3 = [](const XMFLOAT3 &a, const XMFLOAT3 &b) { return XMFLOAT3{a.x * b.x, a.y * b.y, a.z * b.z}; };
+        auto add3 = [](const XMFLOAT3 &a, const XMFLOAT3 &b) { return XMFLOAT3{a.x + b.x, a.y + b.y, a.z + b.z}; };
+        auto scale3 = [](const XMFLOAT3 &a, float s) { return XMFLOAT3{a.x * s, a.y * s, a.z * s}; };
 
         // Up法線で近似（床や壁の簡易ベイク）
         XMFLOAT3 upN{0.0f, 1.0f, 0.0f};
@@ -749,10 +764,12 @@ class GameScene : public IScene {
         }
 
         for (auto e : stageOwnedEntities_) {
-            if (!world.IsAlive(e)) continue;
+            if (!world.IsAlive(e))
+                continue;
             auto *t = world.TryGet<Transform>(e);
             auto *mr = world.TryGet<MeshRenderer>(e);
-            if (!t || !mr) continue;
+            if (!t || !mr)
+                continue;
 
             // ベースカラー
             XMFLOAT3 base = mr->color;
@@ -773,7 +790,8 @@ class GameScene : public IScene {
                 XMVECTOR lp = XMLoadFloat3(&L.pos);
                 XMVECTOR d = XMVectorSubtract(lp, pos);
                 float dist = XMVectorGetX(XMVector3Length(d));
-                if (dist > L.range) continue;
+                if (dist > L.range)
+                    continue;
                 float att = 1.0f / std::max(1e-4f, L.kc + L.kl * dist + L.kq * dist * dist);
                 accum = add3(accum, scale3(L.col, L.I * att));
             }
@@ -787,8 +805,6 @@ class GameScene : public IScene {
         }
     }
 
-
-
     TextSystem textSystem_;
     ImageSystem imageSystem_;
     std::vector<Entity> ownedEntities_;
@@ -800,5 +816,5 @@ class GameScene : public IScene {
     Entity worldwall_{};
     Entity goalEntity_{};
     Entity gimmickEntity_{};
-    DirectX::XMFLOAT3 cameraPosition_ = { 0.0f, 10.0f, -10.0f };
+    DirectX::XMFLOAT3 cameraPosition_ = {0.0f, 10.0f, -10.0f};
 };
