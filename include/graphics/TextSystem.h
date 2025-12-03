@@ -23,6 +23,7 @@
 
 #pragma comment(lib, "d2d1.lib")
 #pragma comment(lib, "dwrite.lib")
+#pragma comment(lib, "windowscodecs.lib")
 
 /**
  * @class TextSystem
@@ -84,6 +85,17 @@ class TextSystem {
         std::string formatId = "default";                ///< 使用するフォーマットID
     };
 
+    // 画像描画用パラメータ
+    struct ImageParams {
+        float x = 0.0f;          ///< X座標
+        float y = 0.0f;          ///< Y座標
+        float width = 100.0f;    ///< 描画領域の幅
+        float height = 100.0f;   ///< 描画領域の高さ
+        float opacity = 1.0f;     ///< 透過(0..1)
+        bool keepAspect = true;   ///< アスペクト比維持
+        std::wstring filePath;    ///< 画像ファイルパス
+    };
+
     TextSystem() = default;
     ~TextSystem() {
         Shutdown();
@@ -115,6 +127,16 @@ class TextSystem {
      * BeginDraw()とEndDraw()の間で呼び出す必要があります。
      */
     void DrawText(const TextParams &params);
+
+    // 画像描画API
+    /**
+     * @brief 画像を描画
+     * @param[in] params 描画パラメータ
+     *
+     * @details
+     * 透過、サイズ制御、オプションのアスペクト比維持をサポートします。
+     */
+    bool DrawImage(const ImageParams &params);
 
     /**
   * @brief 描画開始
@@ -151,15 +173,19 @@ class TextSystem {
     Microsoft::WRL::ComPtr<ID2D1DeviceContext> d2dContext_;
     Microsoft::WRL::ComPtr<ID2D1Bitmap1> targetBitmap_;
     Microsoft::WRL::ComPtr<IDWriteFactory> dwriteFactory_;
+    Microsoft::WRL::ComPtr<IWICImagingFactory> wicFactory_;
+
     std::unordered_map<std::string, Microsoft::WRL::ComPtr<IDWriteTextFormat>> textFormats_;
     std::unordered_map<uint32_t, Microsoft::WRL::ComPtr<ID2D1SolidColorBrush>> brushCache_;
+    std::unordered_map<std::wstring, Microsoft::WRL::ComPtr<ID2D1Bitmap1>> bitmapCache_;
 
     bool initialized_ = false;
     GfxDevice *gfx_ = nullptr;
 
     ID2D1SolidColorBrush *GetOrCreateBrush(const DirectX::XMFLOAT4 &color);
     uint32_t ColorToHash(const DirectX::XMFLOAT4 &color) const;
-
-    // 現在のバックバッファに合わせてターゲットビットマップを再作成
     void RefreshTargetBitmap();
+
+    // 画像読み込み（キャッシュ利用）
+    bool LoadBitmapFromFile(const std::wstring &filePath, Microsoft::WRL::ComPtr<ID2D1Bitmap1> &outBitmap);
 };

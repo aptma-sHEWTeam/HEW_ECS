@@ -214,6 +214,7 @@
     <ClCompile Include="src\components\Collision.cpp" />
     <ClCompile Include="src\config\ConfigManager.cpp" />
     <ClCompile Include="src\ecs\World.cpp" />
+    <ClCompile Include="src\graphics\ImageSystem.cpp" />
     <ClCompile Include="src\graphics\ModelLoader.cpp" />
     <ClCompile Include="src\graphics\TextSystem.cpp" />
     <ClCompile Include="src\input\GamepadSystem.cpp" />
@@ -246,6 +247,7 @@
     <ClInclude Include="include\components\Transform.h" />
     <ClInclude Include="include\components\TransformHierarchy.h" />
     <ClInclude Include="include\components\UIComponents.h" />
+    <ClInclude Include="include\components\UIImageComponents.h" />
     <ClInclude Include="include\config\ConfigManager.h" />
     <ClInclude Include="include\config\ConfigVar.h" />
     <ClInclude Include="include\ecs\Entity.h" />
@@ -253,6 +255,7 @@
     <ClInclude Include="include\graphics\Camera.h" />
     <ClInclude Include="include\graphics\DebugDraw.h" />
     <ClInclude Include="include\graphics\GfxDevice.h" />
+    <ClInclude Include="include\graphics\ImageSystem.h" />
     <ClInclude Include="include\graphics\ModelLoader.h" />
     <ClInclude Include="include\graphics\RenderSystem.h" />
     <ClInclude Include="include\graphics\TextSystem.h" />

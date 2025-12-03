@@ -9,6 +9,7 @@
 #include <dxgi.h>
 #include <dxgi1_2.h>
 #include <vector>
+#include <wincodec.h>
 
 bool TextSystem::Init(GfxDevice &gfx) {
     if (initialized_) {
@@ -47,6 +48,17 @@ bool TextSystem::Init(GfxDevice &gfx) {
         reinterpret_cast<IUnknown **>(dwriteFactory_.GetAddressOf()));
     if (FAILED(hr)) {
         DEBUGLOG_ERROR("Failed to create DWrite Factory");
+        return false;
+    }
+
+    // WIC Imaging Factory (for image decoding)
+    hr = CoCreateInstance(
+        CLSID_WICImagingFactory,
+        nullptr,
+        CLSCTX_INPROC_SERVER,
+        IID_PPV_ARGS(wicFactory_.GetAddressOf()));
+    if (FAILED(hr)) {
+        DEBUGLOG_ERROR("Failed to create WIC Imaging Factory");
         return false;
     }
 
@@ -211,6 +223,7 @@ void TextSystem::Shutdown() {
     d2dContext_.Reset();
     d2dDevice_.Reset();
     dwriteFactory_.Reset();
+    wicFactory_.Reset();
     d2dFactory_.Reset();
 
     initialized_ = false;
@@ -268,4 +281,78 @@ void TextSystem::RefreshTargetBitmap() {
         return;
     }
     d2dContext_->SetTarget(targetBitmap_.Get());
+}
+
+bool TextSystem::LoadBitmapFromFile(const std::wstring &filePath, Microsoft::WRL::ComPtr<ID2D1Bitmap1> &outBitmap) {
+    if (!wicFactory_ || !d2dContext_) return false;
+
+    // Cache check
+    auto it = bitmapCache_.find(filePath);
+    if (it != bitmapCache_.end()) {
+        outBitmap = it->second;
+        return true;
+    }
+
+    Microsoft::WRL::ComPtr<IWICBitmapDecoder> decoder;
+    HRESULT hr = wicFactory_->CreateDecoderFromFilename(
+        filePath.c_str(), nullptr, GENERIC_READ, WICDecodeMetadataCacheOnDemand, decoder.GetAddressOf());
+    if (FAILED(hr)) {
+        DEBUGLOG_ERROR("WIC: CreateDecoderFromFilename failed");
+        return false;
+    }
+
+    Microsoft::WRL::ComPtr<IWICBitmapFrameDecode> frame;
+    hr = decoder->GetFrame(0, frame.GetAddressOf());
+    if (FAILED(hr)) return false;
+
+    Microsoft::WRL::ComPtr<IWICFormatConverter> converter;
+    hr = wicFactory_->CreateFormatConverter(converter.GetAddressOf());
+    if (FAILED(hr)) return false;
+
+    hr = converter->Initialize(
+        frame.Get(), GUID_WICPixelFormat32bppPBGRA, WICBitmapDitherTypeNone,
+        nullptr, 0.0f, WICBitmapPaletteTypeCustom);
+    if (FAILED(hr)) return false;
+
+    D2D1_BITMAP_PROPERTIES1 props = D2D1::BitmapProperties1(
+        D2D1_BITMAP_OPTIONS_NONE,
+        D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+
+    Microsoft::WRL::ComPtr<ID2D1Bitmap1> bitmap;
+    hr = d2dContext_->CreateBitmapFromWicBitmap(converter.Get(), &props, bitmap.GetAddressOf());
+    if (FAILED(hr)) return false;
+
+    bitmapCache_[filePath] = bitmap;
+    outBitmap = bitmap;
+    return true;
+}
+
+bool TextSystem::DrawImage(const ImageParams &params) {
+    if (!d2dContext_) return false;
+    Microsoft::WRL::ComPtr<ID2D1Bitmap1> bitmap;
+    if (!LoadBitmapFromFile(params.filePath, bitmap)) return false;
+
+    D2D1_SIZE_F bmpSize = bitmap->GetSize();
+    float dstW = params.width;
+    float dstH = params.height;
+    float x = params.x;
+    float y = params.y;
+
+    if (params.keepAspect && bmpSize.width > 0 && bmpSize.height > 0) {
+        float aspect = bmpSize.width / bmpSize.height;
+        float targetAspect = dstW / dstH;
+        if (targetAspect > aspect) {
+            // fit height
+            dstW = dstH * aspect;
+            x += (params.width - dstW) * 0.5f;
+        } else {
+            // fit width
+            dstH = dstW / aspect;
+            y += (params.height - dstH) * 0.5f;
+        }
+    }
+
+    D2D1_RECT_F destRect = D2D1::RectF(x, y, x + dstW, y + dstH);
+    d2dContext_->DrawBitmap(bitmap.Get(), &destRect, params.opacity);
+    return true;
 }
