@@ -49,6 +49,16 @@ struct PlayerVelocity : Behaviour {
     inline static ConfigVar<float> cfg_Speed{"Player", "MoveSpeed", 8.0f};
     
     float Acceleration = cfg_AccelerateMagnification;///< 加速度の倍率
+     
+    float speed      = cfg_Speed;                         ///< 移動速度(単位/秒) - 速度を上げて動きを明確に
+    float SlowFactor = 2.0f;
+    bool isBoosting     = false;                         ///< 加速中か判定
+    bool isDecelerating = false;                         ///< 減速中か判定
+
+    float DebugSpeed = 0.0f;                            ///<　デバックログ用
+
+    
+    float Acceleration = cfg_AccelerateMagnification;///< 加速度の倍率
     float MinSpeed = cfg_MinChargeSpeed;
      
     float speed      = cfg_Speed;                         ///< 移動速度(単位/秒) - 速度を上げて動きを明確に
@@ -85,6 +95,22 @@ struct PlayerVelocity : Behaviour {
         {
             //速度の大きさ取得
             float currentSpeed = std::sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
+            DebugSpeed = velocity.x;
+             float newSpeed = currentSpeed - SlowFactor;
+
+            float decelerate_x = velocity.x / currentSpeed;
+            float decelerate_y = velocity.y / currentSpeed;
+            DebugSpeed = decelerate_x * newSpeed;
+            velocity.y = decelerate_y * newSpeed;
+          
+           
+        }
+
+        //減速処理
+        if(isDecelerating)
+        {
+            //速度の大きさ取得
+            float currentSpeed = std::sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
          
             //2つの値から大きい値を返す関数
             float newSpeed = std::max(MinSpeed,currentSpeed - SlowFactor);
@@ -106,6 +132,32 @@ struct PlayerVelocity : Behaviour {
         t->position.z += v->velocity.y * dt ;
 
 
+
+        const float limitX = cfg_LimitX;
+        const float limitY = cfg_LimitY;
+        if (t->position.x < -limitX)
+            t->position.x = -limitX;
+        if (t->position.x > limitX)
+            t->position.x = limitX;
+        if (t->position.z < -limitY)
+            t->position.z = -limitY;
+        if (t->position.z > limitY)
+            t->position.z = limitY;
+
+        //加速するか否か
+        if (isBoosting)
+        {
+            v->velocity.x = Acceleration;
+            v->velocity.y = Acceleration;
+        }
+    }
+
+    void UpdatePosition(World &w,Entity self,float dt)
+    {
+        auto *t = w.TryGet<Transform>(self);
+        auto *v = w.TryGet<PlayerVelocity>(self);
+        t->position.x += v->velocity.x * dt;
+        t->position.z += v->velocity.y * dt ;
 
         const float limitX = cfg_LimitX;
         const float limitY = cfg_LimitY;
@@ -355,6 +407,8 @@ struct PlayerMovement : Behaviour {
             }
 
             v->UpdatePosition(w,self,dt);
+
+            v->UpdatePosition(w,self,dt);
            
             
         }
@@ -362,6 +416,9 @@ struct PlayerMovement : Behaviour {
         if (inputDir.x != 0.0f || inputDir.y != 0.0f)
         {
             v->UpdateVelocity(inputDir);
+        }
+    }
+
         } 
         
     }

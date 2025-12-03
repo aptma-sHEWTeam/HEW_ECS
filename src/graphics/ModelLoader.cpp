@@ -5,6 +5,8 @@
 #include <assimp/postprocess.h>
 #include <DirectXMath.h>
 #include <filesystem>
+#include <algorithm>
+#include <cctype>
 
 // 頂点構造体
 struct SimpleVertex {
@@ -70,7 +72,7 @@ std::vector<ModelPrefabNode> ModelLoader::LoadModel(const std::string& filePath)
     }
 
     // シーンのルートノードから再帰的に処理
-    ProcessNode(scene->mRootNode, -1, scene, directory, nodes, gfx);
+    ProcessNode(scene->mRootNode, -1, scene, directory, filePath, nodes, gfx);
 
     if (nodes.empty()) {
         std::string msg = "Model contains no renderable nodes: " + filePath;
@@ -89,6 +91,7 @@ void ModelLoader::ProcessNode(
     int parentIndex,
     const aiScene* scene,
     const std::string& directory,
+    const std::string& modelFilePath,
     std::vector<ModelPrefabNode>& outNodes,
     GfxDevice& gfx) {
 
@@ -108,7 +111,7 @@ void ModelLoader::ProcessNode(
     // このノードが保持するメッシュ（複数ある場合は1つ目をこのノードに、2つ目以降は子ノードとして複製）
     if (node->mNumMeshes > 0) {
         aiMesh* mesh = scene->mMeshes[node->mMeshes[0]];
-        baseNode.component = ProcessMesh(mesh, scene, directory, "", gfx);
+        baseNode.component = ProcessMesh(mesh, scene, directory, modelFilePath, gfx);
         baseNode.hasMesh = baseNode.component.indexCount > 0;
     }
 
@@ -120,14 +123,14 @@ void ModelLoader::ProcessNode(
         ModelPrefabNode extra = baseNode;
         extra.parentIndex = currentIndex;
         aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-        extra.component = ProcessMesh(mesh, scene, directory, "", gfx);
+        extra.component = ProcessMesh(mesh, scene, directory, modelFilePath, gfx);
         extra.hasMesh = extra.component.indexCount > 0;
         outNodes.push_back(extra);
     }
 
     // 子ノードを再帰処理
     for (unsigned int i = 0; i < node->mNumChildren; ++i) {
-        ProcessNode(node->mChildren[i], currentIndex, scene, directory, outNodes, gfx);
+        ProcessNode(node->mChildren[i], currentIndex, scene, directory, modelFilePath, outNodes, gfx);
     }
 }
 
@@ -215,6 +218,53 @@ ModelComponent ModelLoader::ProcessMesh(
         aiColor3D color (0.f,0.f,0.f);
         if(AI_SUCCESS == material->Get(AI_MATKEY_COLOR_DIFFUSE, color)) {
             mc.color = {color.r, color.g, color.b};
+        }
+
+        // スペキュラー/反射系パラメータを可能な限り読み取る
+        aiColor3D specColor(0.f, 0.f, 0.f);
+        if (AI_SUCCESS == material->Get(AI_MATKEY_COLOR_SPECULAR, specColor)) {
+            mc.specularColor = { specColor.r, specColor.g, specColor.b };
+        }
+
+        float reflectance = 0.0f;
+        material->Get(AI_MATKEY_REFLECTIVITY, reflectance); // 0〜1 を想定
+        mc.reflectance = reflectance;
+
+        aiColor3D reflColor(1.f, 1.f, 1.f);
+        if (AI_SUCCESS == material->Get(AI_MATKEY_COLOR_REFLECTIVE, reflColor)) {
+            mc.reflectionColor = { reflColor.r, reflColor.g, reflColor.b };
+        }
+
+        // shininess があればスペキュラーを有効化する目安とする
+        float shininess = 0.0f;
+        material->Get(AI_MATKEY_SHININESS, shininess);
+
+        // reflectance が0なら、specularColorから簡易F0を推定
+        if (mc.reflectance <= 0.0f) {
+            float avgSpec = (mc.specularColor.x + mc.specularColor.y + mc.specularColor.z) / 3.0f;
+            mc.reflectance = std::min(1.0f, std::max(0.0f, avgSpec));
+        }
+
+        bool hasSpec = (mc.specularColor.x > 0.0f || mc.specularColor.y > 0.0f || mc.specularColor.z > 0.0f);
+        // 減衰は shininess を0-1に粗く正規化（32を標準とみなす）。最低でも reflectance や specColor があればオン。
+        float attenuationFromShininess = std::min(1.0f, shininess / 32.0f);
+        if (hasSpec || mc.reflectance > 0.0f || shininess > 0.0f) {
+            mc.specularAttenuation = std::max(attenuationFromShininess, 0.2f); // 最低限効かせる
+        } else {
+            mc.specularAttenuation = 0.0f;
+        }
+
+        // プレイヤーモデルはMaya同様の純白・非スペキュラーに強制
+        std::string lowered = modelFilePath;
+        std::transform(lowered.begin(), lowered.end(), lowered.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        if (lowered.find("player") != std::string::npos) {
+            // Maya通り、テクスチャは使いつつライティングを切る
+            mc.color = {1.0f, 1.0f, 1.0f};
+            mc.useLighting = 0.0f;           // アンリット
+            mc.specularAttenuation = 0.0f;   // スペキュラー無し
+            mc.reflectance = 0.0f;
+            mc.reflectionColor = {1.0f, 1.0f, 1.0f};
+            mc.specularColor = {1.0f, 1.0f, 1.0f};
         }
     }
 

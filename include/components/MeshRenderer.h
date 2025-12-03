@@ -182,6 +182,44 @@ struct MeshRenderer {
      * @note デフォルトは明るい水色{0.3, 0.7, 1.0}
      */
     DirectX::XMFLOAT3 color{ 0.3f, 0.7f, 1.0f };
+
+    /**
+     * @var specularAttenuation
+     * @brief スペキュラー全体の強さ(0以下でスペキュラー無効)
+     *
+     * @note デフォルトは0.0f (無効)
+     */
+    float specularAttenuation = 0.0f;
+
+    /**
+     * @var specularColor
+     * @brief ハイライトの色
+     */
+    DirectX::XMFLOAT3 specularColor{ 1.0f, 1.0f, 1.0f };
+
+    /**
+     * @var reflectance
+     * @brief フレネルのF0相当(0〜1)
+     */
+    float reflectance = 0.0f;
+
+    /**
+     * @var reflectionColor
+     * @brief 反射カラーの乗算
+     */
+    DirectX::XMFLOAT3 reflectionColor{ 1.0f, 1.0f, 1.0f };
+
+    /**
+     * @var specularEccentricity
+     * @brief 偏心度(-1〜1目安)。0で等方。
+     */
+    float specularEccentricity = 0.0f;
+
+    /**
+     * @var useLighting
+     * @brief 0でアンリット(ライト影響なし)
+     */
+    float useLighting = 1.0f;
     
     /**
      * @var texture

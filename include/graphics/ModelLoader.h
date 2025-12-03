@@ -20,6 +20,7 @@ private:
         int parentIndex,
         const aiScene* scene,
         const std::string& directory,
+        const std::string& modelFilePath,
         std::vector<ModelPrefabNode>& outNodes,
         GfxDevice& gfx);
 

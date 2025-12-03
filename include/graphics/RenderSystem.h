@@ -77,11 +77,17 @@ struct RenderSystem {
      * @brief ピクセルシェーダー用オブジェクト定数バッファ
      */
     struct PSConstants {
-        DirectX::XMFLOAT4 color; ///< マテリアルカラー
-        float useTexture;        ///< テクスチャ使用フラグ
-        float useNormalMap;      ///< ノーマルマップ使用フラグ
-        float specularPower;     ///< スペキュラ強度
-        float padding;           ///< パディング
+        DirectX::XMFLOAT4 color;         ///< マテリアルカラー
+        float useTexture;                ///< テクスチャ使用フラグ
+        float useNormalMap;              ///< ノーマルマップ使用フラグ
+        float useLighting;               ///< ライティング有効フラグ
+        float specularAttenuation;       ///< スペキュラー減衰(0以下で無効)
+        float specularEccentricity;      ///< 偏心度(-1〜1目安)
+        DirectX::XMFLOAT3 specularColor; ///< ハイライト色
+        float paddingA;                  ///< パディング
+        DirectX::XMFLOAT3 reflectionColor; ///< 反射カラー
+        float reflectance;               ///< 反射率(F0相当)
+        float paddingEnd[3] = {0.0f, 0.0f, 0.0f}; ///< 16バイト境界合わせ
     };
 
     /**
@@ -364,8 +370,14 @@ struct RenderSystem {
                 float4 gColor;
                 float gUseTexture;
                 float gUseNormalMap;
-                float gSpecularPower;
+                float gUseLighting;
+                float gSpecularAttenuation;
+                float gSpecularEccentricity;
+                float3 gSpecularColor;
                 float padding_obj;
+                float3 gReflectionColor;
+                float gReflectance;
+                float3 gPaddingEnd;
             };
 
             cbuffer PerFrameLighting : register(b1) {
@@ -394,7 +406,18 @@ struct RenderSystem {
                 float3 worldPos : WORLDPOS;
             };
 
-            float3 ApplyPointLight(PointLightGPU L, float3 worldPos, float3 normal, float3 viewDir, float3 baseColor, float specPower)
+            float3 ApplyPointLight(PointLightGPU L,
+                                   float3 worldPos,
+                                   float3 normal,
+                                   float3 viewDir,
+                                   float3 baseColor,
+                                   float3 tangent,
+                                   float3 bitangent,
+                                   float specAtten,
+                                   float specEcc,
+                                   float3 specColor,
+                                   float3 reflectionColor,
+                                   float reflectance)
             {
                 if (L.enabled < 0.5)
                     return 0.0.xxx;
@@ -406,20 +429,54 @@ struct RenderSystem {
                 float NdotL = max(0.0, dot(normal, lightDir));
                 float att = 1.0 / max(L.constantAtt + L.linearAtt * dist + L.quadraticAtt * dist * dist, 1e-4);
                 float3 diffuse = baseColor * L.color * (NdotL * L.intensity * att);
+                if (specAtten <= 0.0001 || reflectance <= 0.0001)
+                    return diffuse;
                 // Blinn-Phong specular
                 float3 halfDir = normalize(lightDir + viewDir);
-                float spec = pow(max(0.0, dot(normal, halfDir)), specPower);
-                float3 specular = L.color * (spec * L.intensity * att);
+                float ndoth = max(0.0, dot(normal, halfDir));
+                // 簡易偏心補正: T/B 方向の成分で重み付け
+                float3 t = normalize(tangent);
+                float3 b = normalize(bitangent);
+                float2 hTB = float2(dot(t, halfDir), dot(b, halfDir));
+                float eccWeight = saturate(1.0 + specEcc * (hTB.x * hTB.x - hTB.y * hTB.y));
+                float spec = pow(ndoth, 32.0) * eccWeight; // 基本の鋭さは固定
+                // Fresnel Schlick
+                float3 F0 = specColor * reflectance;
+                float fresnel = pow(1.0 - max(0.0, dot(viewDir, halfDir)), 5.0);
+                float3 F = F0 + (1.0.xxx - F0) * fresnel;
+                float3 specular = F * (spec * L.color * L.intensity * att * specAtten) * reflectionColor;
                 return diffuse + specular;
             }
 
-            float3 ApplyDirectional(float3 dir, float3 color, float intensity, float3 normal, float3 viewDir, float3 baseColor, float specPower)
+            float3 ApplyDirectional(float3 dir,
+                                    float3 color,
+                                    float intensity,
+                                    float3 normal,
+                                    float3 viewDir,
+                                    float3 baseColor,
+                                    float3 tangent,
+                                    float3 bitangent,
+                                    float specAtten,
+                                    float specEcc,
+                                    float3 specColor,
+                                    float3 reflectionColor,
+                                    float reflectance)
             {
                 float NdotL = max(0.0, dot(normal, -normalize(dir)));
                 float3 diffuse = baseColor * color * (NdotL * intensity);
+                if (specAtten <= 0.0001 || reflectance <= 0.0001)
+                    return diffuse;
                 float3 halfDir = normalize(-normalize(dir) + viewDir);
-                float spec = pow(max(0.0, dot(normal, halfDir)), specPower);
-                float3 specular = color * (spec * intensity);
+                float ndoth = max(0.0, dot(normal, halfDir));
+                float3 t = normalize(tangent);
+                float3 b = normalize(bitangent);
+                float2 hTB = float2(dot(t, halfDir), dot(b, halfDir));
+                float eccWeight = saturate(1.0 + specEcc * (hTB.x * hTB.x - hTB.y * hTB.y));
+                float spec = pow(ndoth, 32.0) * eccWeight;
+                float3 F0 = specColor * reflectance;
+                float fresnel = pow(1.0 - max(0.0, dot(viewDir, halfDir)), 5.0);
+                float3 F = F0 + (1.0.xxx - F0) * fresnel;
+                float3 specular = F * (spec * intensity * specAtten) * reflectionColor;
                 return diffuse + specular;
             }
 
@@ -438,16 +495,21 @@ struct RenderSystem {
 
                 float3 viewDir = normalize(gEyePos - i.worldPos);
 
+                // アンリットならライト計算スキップ
+                if (gUseLighting < 0.5) {
+                    return float4(base.rgb + gEmissiveColor * gEmissiveIntensity, base.a);
+                }
+
                 float3 colorAccum = base.rgb * gAmbientColor * gAmbientIntensity;
 
                 if (gDirLightEnabled > 0.5)
                 {
-                    colorAccum += ApplyDirectional(gDirLightDir, gDirLightColor, gDirLightIntensity, normal, viewDir, base.rgb, gSpecularPower);
+                    colorAccum += ApplyDirectional(gDirLightDir, gDirLightColor, gDirLightIntensity, normal, viewDir, base.rgb, i.tan, i.bitan, gSpecularAttenuation, gSpecularEccentricity, gSpecularColor, gReflectionColor, gReflectance);
                 }
 
                 [unroll]
                 for (int idx = 0; idx < gActivePointLights; ++idx) {
-                    colorAccum += ApplyPointLight(gPointLights[idx], i.worldPos, normal, viewDir, base.rgb, gSpecularPower);
+                    colorAccum += ApplyPointLight(gPointLights[idx], i.worldPos, normal, viewDir, base.rgb, i.tan, i.bitan, gSpecularAttenuation, gSpecularEccentricity, gSpecularColor, gReflectionColor, gReflectance);
                 }
 
                 // emissive additive
@@ -956,7 +1018,16 @@ struct RenderSystem {
 
             // 定数バッファの更新
             UpdateVSConstants(gfx, worldMatrix, cam, mc.uvOffset, mc.uvScale);
-            UpdatePSConstants(gfx, mc.color, mc.texture, mc.normalTexture, 32.0f);
+            UpdatePSConstants(gfx,
+                              mc.color,
+                              mc.texture,
+                              mc.normalTexture,
+                              mc.useLighting,
+                              mc.specularAttenuation,
+                              mc.specularColor,
+                              mc.reflectance,
+                              mc.reflectionColor,
+                              mc.specularEccentricity);
 
             // エミッシブ/マテリアルの設定
             RenderingSystem::GetInstance().SetMaterialForEntity(gfx.Ctx(), e, w);
@@ -998,7 +1069,16 @@ struct RenderSystem {
 
             // 定数バッファの更新
             UpdateVSConstants(gfx, worldMatrix, cam, mr.uvOffset, mr.uvScale);
-            UpdatePSConstants(gfx, mr.color, mr.texture, TextureManager::INVALID_TEXTURE, 32.0f);
+            UpdatePSConstants(gfx,
+                              mr.color,
+                              mr.texture,
+                              TextureManager::INVALID_TEXTURE,
+                              mr.useLighting,
+                              mr.specularAttenuation,
+                              mr.specularColor,
+                              mr.reflectance,
+                              mr.reflectionColor,
+                              mr.specularEccentricity);
 
             // エミッシブ/マテリアルの設定
             RenderingSystem::GetInstance().SetMaterialForEntity(gfx.Ctx(), e, w);
@@ -1076,12 +1156,27 @@ struct RenderSystem {
     /**
      * @brief PS定数バッファの更新
      */
-    void UpdatePSConstants(GfxDevice &gfx, const DirectX::XMFLOAT3 &color, TextureManager::TextureHandle texture, TextureManager::TextureHandle normalTexture, float specularPower) {
+    void UpdatePSConstants(GfxDevice &gfx,
+                           const DirectX::XMFLOAT3 &color,
+                           TextureManager::TextureHandle texture,
+                           TextureManager::TextureHandle normalTexture,
+                           float useLighting,
+                           float specularAttenuation,
+                           const DirectX::XMFLOAT3 &specularColor,
+                           float reflectance,
+                           const DirectX::XMFLOAT3 &reflectionColor,
+                           float specularEccentricity) {
         PSConstants psCbuf;
         psCbuf.color = DirectX::XMFLOAT4{color.x, color.y, color.z, 1.0f};
         psCbuf.useTexture = (texture != TextureManager::INVALID_TEXTURE) ? 1.0f : 0.0f;
         psCbuf.useNormalMap = (normalTexture != TextureManager::INVALID_TEXTURE) ? 1.0f : 0.0f;
-        psCbuf.specularPower = specularPower;
+        psCbuf.useLighting = useLighting;
+        psCbuf.specularAttenuation = specularAttenuation;
+        psCbuf.specularEccentricity = specularEccentricity;
+        psCbuf.specularColor = specularColor;
+        psCbuf.reflectionColor = reflectionColor;
+        psCbuf.reflectance = reflectance;
+        psCbuf.paddingEnd[0] = psCbuf.paddingEnd[1] = psCbuf.paddingEnd[2] = 0.0f;
 
         gfx.Ctx()->UpdateSubresource(psCb_.Get(), 0, nullptr, &psCbuf, 0, 0);
     }
