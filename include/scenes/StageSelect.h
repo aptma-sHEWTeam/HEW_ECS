@@ -14,6 +14,7 @@
 #include "components/UIComponents.h"
 #include "components/StageComponents.h"
 #include "graphics/TextSystem.h"
+#include "graphics/ImageSystem.h"
 #include "systems/UISystem.h"
 #include "app/ServiceLocator.h"
 
@@ -47,6 +48,10 @@ class StageSlectScene : public IScene {
             DEBUGLOG_ERROR("[StageSelect] TextSystem init failed");
             return;
         }
+        if (!imageSystem_.Init(*gfx)) {
+            DEBUGLOG_ERROR("[StageSelect] ImageSystem init failed");
+            return;
+        }
         CreateTextFormats();
 
         float screenWidth = static_cast<float>(gfx->Width());
@@ -63,6 +68,7 @@ class StageSlectScene : public IScene {
         Entity uiRenderSystem = world.Create().With<UIRenderSystem>().Build();
         if (auto *renderSys = world.TryGet<UIRenderSystem>(uiRenderSystem)) {
             renderSys->SetTextSystem(&textSystem_);
+            renderSys->SetImageSystem(&imageSystem_);
             renderSys->SetScreenSize(screenWidth, screenHeight);
         }
         ownedEntities_.push_back(uiRenderSystem);
@@ -132,6 +138,7 @@ class StageSlectScene : public IScene {
             StageSelectEntity_ = {};
         }
         textSystem_.Shutdown();
+        imageSystem_.Shutdown();
     }
 
   private:
@@ -164,6 +171,7 @@ class StageSlectScene : public IScene {
     }
 
     TextSystem textSystem_{};
+    ImageSystem imageSystem_{};
     std::vector<Entity> ownedEntities_{};
     Entity StageSelectEntity_{};
 };
