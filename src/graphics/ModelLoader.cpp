@@ -4,6 +4,7 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 #include <DirectXMath.h>
+#include <filesystem>
 
 // 頂点構造体
 struct SimpleVertex {
@@ -54,7 +55,11 @@ std::vector<ModelPrefabNode> ModelLoader::LoadModel(const std::string& filePath)
 
     // エラーチェック
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-        DEBUGLOG_ERROR("Assimp Error: " + std::string(importer.GetErrorString()));
+        std::string err = "Assimp Error: " + std::string(importer.GetErrorString()) + " | file=" + filePath;
+        DEBUGLOG_ERROR(err);
+#ifdef _DEBUG
+        MessageBoxA(nullptr, err.c_str(), "Model Load Error", MB_OK | MB_ICONERROR);
+#endif
         return nodes;
     }
 
@@ -66,6 +71,14 @@ std::vector<ModelPrefabNode> ModelLoader::LoadModel(const std::string& filePath)
 
     // シーンのルートノードから再帰的に処理
     ProcessNode(scene->mRootNode, -1, scene, directory, nodes, gfx);
+
+    if (nodes.empty()) {
+        std::string msg = "Model contains no renderable nodes: " + filePath;
+        DEBUGLOG_WARNING(msg);
+#ifdef _DEBUG
+        MessageBoxA(nullptr, msg.c_str(), "Model Load Warning", MB_OK | MB_ICONWARNING);
+#endif
+    }
 
     DEBUGLOG_CATEGORY(DebugLog::Category::Render, "Model loaded: " + filePath + ", Nodes: " + std::to_string(nodes.size()));
     return nodes;
@@ -95,7 +108,7 @@ void ModelLoader::ProcessNode(
     // このノードが保持するメッシュ（複数ある場合は1つ目をこのノードに、2つ目以降は子ノードとして複製）
     if (node->mNumMeshes > 0) {
         aiMesh* mesh = scene->mMeshes[node->mMeshes[0]];
-        baseNode.component = ProcessMesh(mesh, scene, directory, gfx);
+        baseNode.component = ProcessMesh(mesh, scene, directory, "", gfx);
         baseNode.hasMesh = baseNode.component.indexCount > 0;
     }
 
@@ -107,7 +120,7 @@ void ModelLoader::ProcessNode(
         ModelPrefabNode extra = baseNode;
         extra.parentIndex = currentIndex;
         aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-        extra.component = ProcessMesh(mesh, scene, directory, gfx);
+        extra.component = ProcessMesh(mesh, scene, directory, "", gfx);
         extra.hasMesh = extra.component.indexCount > 0;
         outNodes.push_back(extra);
     }
@@ -122,6 +135,7 @@ ModelComponent ModelLoader::ProcessMesh(
     aiMesh* mesh,
     const aiScene* scene,
     const std::string& directory,
+    const std::string& modelFilePath,
     GfxDevice& gfx) {
     std::vector<SimpleVertex> vertices;
     std::vector<unsigned short> indices;
@@ -194,8 +208,8 @@ ModelComponent ModelLoader::ProcessMesh(
     if (mesh->mMaterialIndex >= 0) {
         aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
         // 現時点ではDiffuseテクスチャのみをロード
-        mc.texture = LoadMaterialTextures(material, aiTextureType_DIFFUSE, directory);
-        mc.normalTexture = LoadMaterialTextures(material, aiTextureType_NORMALS, directory);
+        mc.texture = LoadMaterialTextures(material, aiTextureType_DIFFUSE, directory, modelFilePath);
+        mc.normalTexture = LoadMaterialTextures(material, aiTextureType_NORMALS, directory, modelFilePath);
 
         // マテリアルから色情報を取得 (Ambient/Diffuse/Specularなど、ここではDiffuseを代表として使用)
         aiColor3D color (0.f,0.f,0.f);
@@ -207,10 +221,37 @@ ModelComponent ModelLoader::ProcessMesh(
     return mc;
 }
 
+static std::string TryAlternativeTexturePaths(const std::string& primaryFullPath, const std::string& directory, const std::string& filename) {
+    // 1) primaryFullPath
+    if (std::filesystem::exists(primaryFullPath)) return primaryFullPath;
+
+    // 2) directory + "/" + filename (already primary), try variations of separators
+    std::string alt1 = directory + "\\" + filename;
+    if (std::filesystem::exists(alt1)) return alt1;
+
+    // 3) filename relative to directory not existing, try file in model folder root with common image extensions
+    std::filesystem::path dirPath(directory);
+    std::vector<std::string> exts{ ".png", ".jpg", ".jpeg", ".bmp", ".tga" };
+    std::filesystem::path base = std::filesystem::path(filename).stem();
+    for (const auto& ext : exts) {
+        std::filesystem::path candidate = dirPath / (base.string() + ext);
+        if (std::filesystem::exists(candidate)) return candidate.string();
+    }
+
+    // 4) If filename includes subdirs that don't exist, fallback to basename in directory
+    std::filesystem::path fnamePath(filename);
+    std::filesystem::path basename = fnamePath.filename();
+    std::filesystem::path candidate = dirPath / basename;
+    if (std::filesystem::exists(candidate)) return candidate.string();
+
+    return primaryFullPath; // fallback
+}
+
 TextureManager::TextureHandle ModelLoader::LoadMaterialTextures(
     aiMaterial* mat,
     aiTextureType type,
-    const std::string& directory
+    const std::string& directory,
+    const std::string& modelFilePath
 ) {
     auto& texMgr = ServiceLocator::Get<TextureManager>();
     TextureManager::TextureHandle textureHandle = TextureManager::INVALID_TEXTURE;
@@ -218,17 +259,19 @@ TextureManager::TextureHandle ModelLoader::LoadMaterialTextures(
         aiString str;
         mat->GetTexture(type, i, &str);
         std::string filename = str.C_Str();
-        
-        // テクスチャパスを構築 (モデルファイルと同じディレクトリを基準)
-        std::string fullPath = directory + "/" + filename;
-        
-        // テクスチャマネージャーでロード
-        textureHandle = texMgr.LoadFromFile(fullPath.c_str());
+
+        // Build primary texture path relative to the model directory
+        std::string fullPath = directory.empty() ? filename : (directory + "/" + filename);
+
+        // Fallback: if not found, try same-named image in the FBX folder
+        std::string resolved = TryAlternativeTexturePaths(fullPath, directory, filename);
+
+        textureHandle = texMgr.LoadFromFile(resolved.c_str());
         if (textureHandle != TextureManager::INVALID_TEXTURE) {
-            DEBUGLOG_CATEGORY(DebugLog::Category::Render, "Loaded texture: " + fullPath);
-            break; // 最初のテクスチャのみを使用
+            DEBUGLOG_CATEGORY(DebugLog::Category::Render, "Loaded texture: " + resolved);
+            break; // use first available texture
         } else {
-            DEBUGLOG_WARNING("Failed to load texture: " + fullPath);
+            DEBUGLOG_WARNING("Failed to load texture: " + resolved);
         }
     }
     return textureHandle;

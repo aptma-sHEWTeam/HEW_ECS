@@ -70,6 +70,7 @@ struct UIText : IComponent {
     std::wstring text = L"Label";                    ///< 表示するテキスト
     DirectX::XMFLOAT4 color{1.0f, 1.0f, 1.0f, 1.0f}; ///< テキストの色(RGBA)
     std::string formatId = "default";                ///< TextSystemのフォーマットID
+    float fontSize = 0.0f;                            ///< フォントサイズ上書き(>0 で適用)
 
     explicit UIText(const std::wstring &txt = L"Label")
         : text(txt) {}

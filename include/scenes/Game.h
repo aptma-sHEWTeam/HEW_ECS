@@ -16,6 +16,7 @@
 #include "components/GameTags.h"
 #include "components/PlayerComponents.h"
 #include "components/UIComponents.h"
+#include "components/UIImageComponents.h"
 #include "components/CountUIComponent.h"
 #include "components/Rotator.h"
 #include "components/Light.h"
@@ -28,6 +29,7 @@
 #include "input/GamepadSystem.h"
 #include "systems/UISystem.h"
 #include "graphics/TextSystem.h"
+#include "graphics/ImageSystem.h"
 #include "app/ServiceLocator.h"
 #include "SenesUIController.h"
 #include "systems/ModelLoadingSystem.h"
@@ -196,7 +198,7 @@ class GameScene : public IScene {
     inline static ConfigVar<float> cfg_UICountG{"UI", "CountColorG", 1.0f};
     inline static ConfigVar<float> cfg_UICountB{"UI", "CountColorB", 1.0f};
 
-    inline static ConfigVar<std::string> cfg_PlayerFBXPass{"Player", "PlayerFBXPass", "Assets/Models/aaa.fbx"};
+    inline static ConfigVar<std::string> cfg_PlayerFBXPass{"Player", "PlayerFBXPass", "Assets/Models/Player/obj_player.fbx"};
 
     inline static ConfigVar<std::string> cfg_StagePath{"Stage", "CSVPath", "Assets/StageData/StageCollision/DebugStage1/room1.csv"};
 
@@ -240,6 +242,11 @@ class GameScene : public IScene {
 
         if (!textSystem_.Init(*gfx)) {
             DEBUGLOG_ERROR("TextSystem の初期化に失敗しました");
+            return;
+        }
+
+        if (!imageSystem_.Init(*gfx)) {
+            DEBUGLOG_ERROR("ImageSystem の初期化に失敗しました");
             return;
         }
 
@@ -351,6 +358,7 @@ class GameScene : public IScene {
         ownedEntities_.clear();
 
         textSystem_.Shutdown();
+        imageSystem_.Shutdown();
         DEBUGLOG("GameWithUIScene のクリーンアップが完了しました");
     }
 
@@ -782,6 +790,7 @@ class GameScene : public IScene {
 
 
     TextSystem textSystem_;
+    ImageSystem imageSystem_;
     std::vector<Entity> ownedEntities_;
     std::vector<Entity> stageOwnedEntities_;
     Entity playerEntity_{};
