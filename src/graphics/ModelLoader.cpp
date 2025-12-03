@@ -254,18 +254,8 @@ ModelComponent ModelLoader::ProcessMesh(
             mc.specularAttenuation = 0.0f;
         }
 
-        // プレイヤーモデルはMaya同様の純白・非スペキュラーに強制
-        std::string lowered = modelFilePath;
-        std::transform(lowered.begin(), lowered.end(), lowered.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-        if (lowered.find("player") != std::string::npos) {
-            // Maya通り、テクスチャは使いつつライティングを切る
-            mc.color = {1.0f, 1.0f, 1.0f};
-            mc.useLighting = 0.0f;           // アンリット
-            mc.specularAttenuation = 0.0f;   // スペキュラー無し
-            mc.reflectance = 0.0f;
-            mc.reflectionColor = {1.0f, 1.0f, 1.0f};
-            mc.specularColor = {1.0f, 1.0f, 1.0f};
-        }
+        // 以前は「player」含みのモデルをアンリット強制していたが、
+        // シェーディングが当たらず真っ白になるため解除する。
     }
 
     return mc;
