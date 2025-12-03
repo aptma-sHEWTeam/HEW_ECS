@@ -49,9 +49,10 @@ struct PlayerVelocity : Behaviour {
     inline static ConfigVar<float> cfg_Speed{"Player", "MoveSpeed", 8.0f};
     
     float Acceleration = cfg_AccelerateMagnification;///< 加速度の倍率
+    float MinSpeed = cfg_MinChargeSpeed;
      
     float speed      = cfg_Speed;                         ///< 移動速度(単位/秒) - 速度を上げて動きを明確に
-    float SlowFactor = 2.0f;
+    float SlowFactor = 1.0f;
     bool isBoosting     = false;                         ///< 加速中か判定
     bool isDecelerating = false;                         ///< 減速中か判定
 
@@ -84,15 +85,16 @@ struct PlayerVelocity : Behaviour {
         {
             //速度の大きさ取得
             float currentSpeed = std::sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
-            DebugSpeed = velocity.x;
-             float newSpeed = currentSpeed - SlowFactor;
+         
+            //2つの値から大きい値を返す関数
+            float newSpeed = std::max(MinSpeed,currentSpeed - SlowFactor);
 
             float decelerate_x = velocity.x / currentSpeed;
             float decelerate_y = velocity.y / currentSpeed;
-            DebugSpeed = decelerate_x * newSpeed;
+            velocity.x = decelerate_x * newSpeed;
             velocity.y = decelerate_y * newSpeed;
-          
-           
+            DEBUGLOG("velocity.x: " + std::to_string(velocity.x));
+            DEBUGLOG("velocity.y: " + std::to_string(velocity.y));
         }
     }
 
@@ -102,6 +104,8 @@ struct PlayerVelocity : Behaviour {
         auto *v = w.TryGet<PlayerVelocity>(self);
         t->position.x += v->velocity.x * dt;
         t->position.z += v->velocity.y * dt ;
+
+
 
         const float limitX = cfg_LimitX;
         const float limitY = cfg_LimitY;
@@ -225,7 +229,9 @@ struct PlayerMovement : Behaviour {
         minChargeSpeedFactor = cfg_MinChargeSpeed;
         chargeMaxTime = cfg_ChargeMaxTime;
 
+
         DirectX::XMFLOAT2 inputDir = {0.0f, 0.0f};
+        v->UpdateVelocity(inputDir);
 
         if (input_) {
             if (input_->GetKey('W') || input_->GetKey(VK_UP)) {
@@ -349,12 +355,15 @@ struct PlayerMovement : Behaviour {
             }
 
             v->UpdatePosition(w,self,dt);
+           
+            
         }
 
         if (inputDir.x != 0.0f || inputDir.y != 0.0f)
         {
             v->UpdateVelocity(inputDir);
-        }
+        } 
+        
     }
 
     float CalcMoveRotation()

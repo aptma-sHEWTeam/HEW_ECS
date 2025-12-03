@@ -380,7 +380,7 @@ class GameScene : public IScene {
             .With<CollisionSphere>(0.4f)
             .With<PlayerCollisionHandler>()
             .Build();
-
+        
         playerEntity_ = player;
         ownedEntities_.push_back(player);
     }
