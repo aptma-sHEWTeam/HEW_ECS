@@ -332,29 +332,34 @@ struct PlayerMovement : Behaviour {
 // ========================================================
 
 struct PlayerGuide : Behaviour {
+    // Config Variables
+    inline static ConfigVar<float> cfg_GuideScaleX{"Player", "GuideScaleX", 0.4f};
+    inline static ConfigVar<float> cfg_GuideScaleY{"Player", "GuideScaleY", 0.4f};
+    inline static ConfigVar<float> cfg_GuideScaleZ{"Player", "GuideScaleZ", 0.4f};
+    inline static ConfigVar<float> cfg_GuideOffsetDistance{"Player", "GuideOffsetDistance", 0.5f};
+    inline static ConfigVar<int> cfg_GuideQuantity{"Player", "GuideQuantity", 3};
+
     // コンポーネント保存用変数
     PlayerMovement *playerMove{};
     Transform *selfTransform{};
-    Transform *guidTransform{};
-    Entity guidEntity{};
+    Transform *guidTransforms[3];
+    Entity guidEntities[3];
 
-    // Config Variables
-    inline static ConfigVar<float> cfg_GuideScaleX{"Player", "GuideScaleX", 2.5f};
-    inline static ConfigVar<float> cfg_GuideScaleY{"Player", "GuideScaleY", 1.0f};
-    inline static ConfigVar<float> cfg_GuideScaleZ{"Player", "GuideScaleZ", 0.1f};
-    inline static ConfigVar<float> cfg_GuideOffsetDistance{"Player", "GuideOffsetDistance", 2.0f};
-
+    int GuideQuantity = cfg_GuideQuantity;
     void Create(World &world, const DirectX::XMFLOAT3 &position) {
-        Transform t{position, {0, 0, 0}, {0, 0, 0}};
-
         MeshRenderer renderer;
-        renderer.meshType = MeshType::Cube;
+        renderer.meshType = MeshType::Sphere;
         renderer.color = DirectX::XMFLOAT3{1, 0, 0};
 
-        guidEntity = world.Create()
-                         .With<Transform>(t)
-                         .With<MeshRenderer>(renderer)
-                         .Build();
+
+        for (int i = 0; i < GuideQuantity; i++)
+        {
+            Transform t{position, {0, 0, 0}, {0, 0, 0}};
+            guidEntities[i] = world.Create()
+                                  .With<Transform>(t)
+                                  .With<MeshRenderer>(renderer)
+                                  .Build();
+        }
     };
 
     void OnStart(World &w, Entity self) override {
@@ -367,21 +372,43 @@ struct PlayerGuide : Behaviour {
     void OnUpdate(World &w, Entity self, float dt) override {
         playerMove = w.TryGet<PlayerMovement>(self);
         selfTransform = w.TryGet<Transform>(self);
-        guidTransform = w.TryGet<Transform>(guidEntity);
-        if (!playerMove || !selfTransform || !guidTransform)
-            return;
+        
+        
+        bool allValid = true;           ///<必要なものがすべて取得できたか確認
+        for (int i = 0; i < GuideQuantity; i++) 
+        {
+            guidTransforms[i] = w.TryGet<Transform>(guidEntities[i]);
+            if (!guidTransforms[i]) 
+            {
+                allValid = false;
+            }
+        }
+      
+        if (!playerMove || !selfTransform || !allValid)
+                return;
 
-        guidTransform->position = selfTransform->position;
-
+        //プレイヤー移動方向計算
         float rad = std::atan2f(playerMove->lastStickDir_.y, playerMove->lastStickDir_.x);
-        guidTransform->rotation.y = -rad * (180.0f / DirectX::XM_PI);
 
-        if (!playerMove->isCharging_) {
-            guidTransform->scale = {0, 0, 0};
-        } else {
-            guidTransform->scale = {cfg_GuideScaleX.Get(), cfg_GuideScaleY.Get(), cfg_GuideScaleZ.Get()};
-            guidTransform->position.x += std::cosf(rad) * cfg_GuideOffsetDistance.Get();
-            guidTransform->position.z += std::sinf(rad) * cfg_GuideOffsetDistance.Get();
+        for (int i = 0; i < GuideQuantity; i++)
+        {
+            Transform *currentGuide = guidTransforms[i];
+
+            if (!playerMove->isCharging_) 
+            {
+                currentGuide->scale = {0, 0, 0};
+            } 
+            else 
+            {   
+                currentGuide->scale = {cfg_GuideScaleX.Get(), cfg_GuideScaleY.Get(), cfg_GuideScaleZ.Get()};
+
+                currentGuide->position = selfTransform->position;
+                currentGuide->rotation.y = -rad * (180.0f / DirectX::XM_PI);
+
+                float offsetDistance = cfg_GuideOffsetDistance.Get() * i + 1;
+                currentGuide->position.x += std::cosf(rad) * offsetDistance;
+                currentGuide->position.z += std::sinf(rad) * offsetDistance;
+            }
         }
     }
 };
