@@ -698,7 +698,7 @@ class GameScene : public IScene {
         CreateStageMap(world);
 
         //加速板(仮置き)
-      //  CreateDashBord(world);
+        CreateDashBord(world);
 
         // 簡易ライトベイク（アンビエント＋ディレクショナル＋ポイントライトの影なし近似）
         BakeStageLighting(world);
