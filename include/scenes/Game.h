@@ -195,7 +195,7 @@ class GameScene : public IScene {
     inline static ConfigVar<float> cfg_UICountG{"UI", "CountColorG", 1.0f};
     inline static ConfigVar<float> cfg_UICountB{"UI", "CountColorB", 1.0f};
 
-    inline static ConfigVar<std::string> cfg_PlayerFBXPass{"Player", "PlayerFBXPass", "Assets/Models/Player/obj_player3.fbx"};
+    inline static ConfigVar<std::string> cfg_PlayerFBXPass{"Player", "PlayerFBXPass", "Assets/Models/Player/obj_player.fbx"};
 
     inline static ConfigVar<std::string> cfg_RoomPath{"UI", "RoomPNGPass", "Assets/Textures/Count.png"};
 
@@ -250,7 +250,7 @@ class GameScene : public IScene {
         float screenWidth = static_cast<float>(gfx->Width());
         float screenHeight = static_cast<float>(gfx->Height());
 
-       
+
 
         Entity collisionSystem = world.Create().With<CollisionDetectionSystem>(cfg_CollisionCellSize.Get()).Build();
         ownedEntities_.push_back(collisionSystem);
@@ -267,10 +267,10 @@ class GameScene : public IScene {
 
         world.Create().With<DirectionalLight>();
 
-        
+
         CreatePlayer(world);
         CreateUI(world, screenWidth, screenHeight);
-       
+
         SetupStage(world, 1);
 
         DEBUGLOG("GameWithUIScene の初期化が正常に完了しました");
@@ -374,7 +374,7 @@ class GameScene : public IScene {
             .With<CollisionSphere>(0.4f)
             .With<PlayerCollisionHandler>()
             .Build();
-        
+
         playerEntity_ = player;
         ownedEntities_.push_back(player);
     }
@@ -668,7 +668,7 @@ class GameScene : public IScene {
             .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
             .With<FloorWallCollisionHandler>()
             .Build();
-       
+
         stageOwnedEntities_.push_back(worldwallEntity);
     }
 
@@ -677,7 +677,7 @@ class GameScene : public IScene {
     {
         Transform transform{{-7.0f,0.0f,0.0f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
         MeshRenderer renderer;
-        
+
         renderer.meshType = MeshType::Cube;
         renderer.color = DirectX::XMFLOAT3{0.0f, 0.0f, 1.0f};
 
