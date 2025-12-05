@@ -243,6 +243,7 @@
     <ClInclude Include="include\components\ModelComponent.h" />
     <ClInclude Include="include\components\PlayerComponents.h" />
     <ClInclude Include="include\components\Rotator.h" />
+    <ClInclude Include="include\components\SkyboxLight.h" />
     <ClInclude Include="include\components\StageComponents.h" />
     <ClInclude Include="include\components\Transform.h" />
     <ClInclude Include="include\components\TransformHierarchy.h" />
@@ -282,6 +283,7 @@
     <ClInclude Include="include\util\Random.h" />
     <ClInclude Include="MouseCoordinate.h" />
     <ClInclude Include="RoomUIComponents.h" />
+    <ClInclude Include="StageStatus.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include=".github\ISSUE_TEMPLATE\01_task.yml" />

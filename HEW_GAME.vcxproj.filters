@@ -270,6 +270,7 @@
     <ClInclude Include="RoomUIComponents.h" />
     <ClInclude Include="include\components\UIImageComponents.h" />
     <ClInclude Include="include\graphics\ImageSystem.h" />
+    <ClInclude Include="include\components\SkyboxLight.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\app\ResourceManager.cpp">

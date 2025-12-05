@@ -12,7 +12,9 @@
 
 #include "config/ConfigVar.h"
 #include "components/UIComponents.h"
+#include "components/StageComponents.h"
 #include "graphics/TextSystem.h"
+#include "graphics/ImageSystem.h"
 #include "systems/UISystem.h"
 #include "app/ServiceLocator.h"
 
@@ -30,9 +32,13 @@ class StageSlectScene : public IScene {
     inline static ConfigVar<float> cfg_UICountG{"UI", "CountColorG", 1.0f};
     inline static ConfigVar<float> cfg_UICountB{"UI", "CountColorB", 1.0f};
 
-    int StageCount = 0;
-
     void OnEnter(World &world) override {
+
+         Entity gameStats = world.Create().With<GameStatus>().Build();
+        
+
+        Entity stageProgress = world.Create().With<StageProgress>().Build();
+       
         auto *gfx = ServiceLocator::TryGet<GfxDevice>();
         if (!gfx) {
             DEBUGLOG_ERROR("[StageSelect] GfxDevice not found");
@@ -42,10 +48,18 @@ class StageSlectScene : public IScene {
             DEBUGLOG_ERROR("[StageSelect] TextSystem init failed");
             return;
         }
+        if (!imageSystem_.Init(*gfx)) {
+            DEBUGLOG_ERROR("[StageSelect] ImageSystem init failed");
+            return;
+        }
         CreateTextFormats();
 
         float screenWidth = static_cast<float>(gfx->Width());
         float screenHeight = static_cast<float>(gfx->Height());
+
+        world.Create().With<GameStatus>().Build();
+
+        world.Create().With<StageProgress>().Build();
 
         // UICanvas & Systems
         Entity canvas = world.Create().With<UICanvas>().Build();
@@ -54,6 +68,7 @@ class StageSlectScene : public IScene {
         Entity uiRenderSystem = world.Create().With<UIRenderSystem>().Build();
         if (auto *renderSys = world.TryGet<UIRenderSystem>(uiRenderSystem)) {
             renderSys->SetTextSystem(&textSystem_);
+            renderSys->SetImageSystem(&imageSystem_);
             renderSys->SetScreenSize(screenWidth, screenHeight);
         }
         ownedEntities_.push_back(uiRenderSystem);
@@ -80,11 +95,30 @@ class StageSlectScene : public IScene {
         world.Tick(deltaTime);
 
         //enterを押したらシーン移動
-        if (input.GetKeyDown(VK_BACK)) {
+        if (input.GetKeyDown(VK_RETURN)) {
             DEBUGLOG("Enter pressed!");
             auto *maneger = ServiceLocator::TryGet<SceneManager>();
             maneger->ChangeScene("Game", world);
         }
+
+        world.ForEach<StageProgress>([&](Entity e, StageProgress &stats) {
+            //右、左でStageCountを変更
+            if (stats.selectStage > 0) {
+                if (input.GetKeyDown(VK_RIGHT)) {
+                    stats.selectStage++;
+                }
+            }
+            if (input.GetKeyDown(VK_LEFT)) {
+                stats.selectStage--;
+            }
+
+            if (auto *StageSelectText = world.TryGet<UIText>(StageSelectEntity_)) {
+                std::wstringstream ss;
+                ss << L"StageNo : " << stats.selectStage;
+                StageSelectText->text = ss.str();
+            }
+        });
+        
     }
     void OnRender(World &world) override {
         world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
@@ -104,6 +138,7 @@ class StageSlectScene : public IScene {
             StageSelectEntity_ = {};
         }
         textSystem_.Shutdown();
+        imageSystem_.Shutdown();
     }
 
   private:
@@ -136,6 +171,7 @@ class StageSlectScene : public IScene {
     }
 
     TextSystem textSystem_{};
+    ImageSystem imageSystem_{};
     std::vector<Entity> ownedEntities_{};
     Entity StageSelectEntity_{};
 };
