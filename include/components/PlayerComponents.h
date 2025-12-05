@@ -21,6 +21,7 @@
 #include <DirectXMath.h>
 #include <cmath>
 #include <algorithm>
+#include <vector>
 
 #include "config/ConfigVar.h"
 
@@ -57,12 +58,16 @@ struct PlayerVelocity : Behaviour {
     float DebugSpeed = 0.0f;                          ///< デバッグ用
 
     DirectX::XMFLOAT2 velocity = {0.0f, 0.0f}; ///< 現在の移動ベロシティ
+    DirectX::XMFLOAT2 boostDir = {0.0f, 0.0f}; ///< ブースト方向（正規化）
+    float boostSpeed = 2.0f;                   ///< ブースト速度（単位/秒）
 
     void SetVelocity(DirectX::XMFLOAT2 speed) {
         velocity = speed;
     }
 
     void UpdateVelocity(const DirectX::XMFLOAT2 &inputDir) {
+        float currentSpeed = std::sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
+        
         if (inputDir.x != 0.0f || inputDir.y != 0.0f) {
             float length = std::sqrt(inputDir.x * inputDir.x + inputDir.y * inputDir.y);
             if (length > 0.0f && !isDecelerating) {
@@ -72,7 +77,6 @@ struct PlayerVelocity : Behaviour {
                 velocity.y = normal_y * speed;
             }
         }
-
         // 減速処理
         if (isDecelerating) {
             float currentSpeed = std::sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
@@ -87,41 +91,50 @@ struct PlayerVelocity : Behaviour {
         }
     }
 
+    // 外部から指定方向・指定速度でブースト開始
+    void StartBoost(const DirectX::XMFLOAT2 &dir, float spd) {
+        float len = std::sqrt(dir.x * dir.x + dir.y * dir.y);
+        if (len > 0.0f) {
+            boostDir.x = dir.x / len;
+            boostDir.y = dir.y / len;
+        } else {
+            boostDir = {0.0f, 0.0f};
+        }
+        boostSpeed = spd;
+        isBoosting = true;
+        isDecelerating = false;
+    }
+
+    void StopBoost() {
+        isBoosting = false;
+        boostSpeed = 0.0f;
+    }
+
     void UpdatePosition(World &w, Entity self, float dt) {
         auto *t = w.TryGet<Transform>(self);
         auto *v = w.TryGet<PlayerVelocity>(self);
-        if (!t || !v)
-            return;
+        if (!t || !v) return;
+
+        // ブースト中は方向・最高速度を強制適用
+        if (isBoosting) {
+            v->velocity.x = boostDir.x * boostSpeed;
+            v->velocity.y = boostDir.y * boostSpeed;
+            v->isDecelerating = false;
+        }
 
         t->position.x += v->velocity.x * dt;
         t->position.z += v->velocity.y * dt;
 
         const float limitX = cfg_LimitX;
         const float limitY = cfg_LimitY;
-        if (t->position.x < -limitX)
-            t->position.x = -limitX;
-        if (t->position.x > limitX)
-            t->position.x = limitX;
-        if (t->position.z < -limitY)
-            t->position.z = -limitY;
-        if (t->position.z > limitY)
-            t->position.z = limitY;
-
-        // 加速中なら速度を上書き
-        if (isBoosting) {
-            v->velocity.x = Acceleration;
-            v->velocity.y = Acceleration;
-        }
+        if (t->position.x < -limitX) t->position.x = -limitX;
+        if (t->position.x > limitX)  t->position.x =  limitX;
+        if (t->position.z < -limitY) t->position.z = -limitY;
+        if (t->position.z > limitY)  t->position.z =  limitY;
     }
 
-    DirectX::XMFLOAT2 GetVelocity() {
-        return velocity;
-    }
-
-    float GetVelocitySqrted() {
-        float l = std::sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
-        return l;
-    }
+    DirectX::XMFLOAT2 GetVelocity() { return velocity; }
+    float GetVelocitySqrted() { return std::sqrt(velocity.x * velocity.x + velocity.y * velocity.y); }
 };
 
 // ========================================================
@@ -129,8 +142,8 @@ struct PlayerVelocity : Behaviour {
 // ========================================================
 
 struct PlayerMovement : Behaviour {
-    InputSystem *input_ = nullptr;     ///< 入力システムへのポインタ
-    GamepadSystem *gamepad_ = nullptr; ///< ゲームパッドシステムへのポインタ
+    InputSystem *input_ = nullptr;
+    GamepadSystem *gamepad_ = nullptr;
     CollisionSphere *collision_ = nullptr;
 
     // チャージ挙動設定
@@ -159,14 +172,8 @@ struct PlayerMovement : Behaviour {
     bool historyLocked_ = false; ///< 履歴記録が完了したらロック
 
     void ResetAngleHistory() {
-        for (int i = 0; i < PlayerConstants::ANGLE_HISTORY_SIZE; ++i) {
-            angleHistory[i] = 0.0f;
-        }
-        angleIndex = 0;
-        angleFilled = false;
-        sumSin = 0.0f;
-        sumCos = 0.0f;
-        historyLocked_ = false;
+        for (int i = 0; i < PlayerConstants::ANGLE_HISTORY_SIZE; ++i) angleHistory[i] = 0.0f;
+        angleIndex = 0; angleFilled = false; sumSin = 0.0f; sumCos = 0.0f; historyLocked_ = false;
     }
 
     /**
@@ -183,8 +190,7 @@ struct PlayerMovement : Behaviour {
     void OnUpdate(World &w, Entity self, float dt) override {
         auto *t = w.TryGet<Transform>(self);
         auto *v = w.TryGet<PlayerVelocity>(self);
-        if (!t || !v || (!input_ && !gamepad_))
-            return;
+        if (!t || !v || (!input_ && !gamepad_)) return;
 
         v->speed = PlayerVelocity::cfg_Speed;
         minChargeSpeedFactor = cfg_MinChargeSpeed;
@@ -194,18 +200,10 @@ struct PlayerMovement : Behaviour {
         v->UpdateVelocity(inputDir);
 
         if (input_) {
-            if (input_->GetKey('W') || input_->GetKey(VK_UP)) {
-                inputDir.y += 1.0f;
-            }
-            if (input_->GetKey('S') || input_->GetKey(VK_DOWN)) {
-                inputDir.y -= 1.0f;
-            }
-            if (input_->GetKey('A') || input_->GetKey(VK_LEFT)) {
-                inputDir.x -= 1.0f;
-            }
-            if (input_->GetKey('D') || input_->GetKey(VK_RIGHT)) {
-                inputDir.x += 1.0f;
-            }
+            if (input_->GetKey('W') || input_->GetKey(VK_UP))    inputDir.y += 1.0f;
+            if (input_->GetKey('S') || input_->GetKey(VK_DOWN))  inputDir.y -= 1.0f;
+            if (input_->GetKey('A') || input_->GetKey(VK_LEFT))  inputDir.x -= 1.0f;
+            if (input_->GetKey('D') || input_->GetKey(VK_RIGHT)) inputDir.x += 1.0f;
         }
 
         if (gamepad_) {
@@ -225,46 +223,29 @@ struct PlayerMovement : Behaviour {
             bool effectiveCharging = chargingSys && chargingNowLocal;
             frame++;
 
-            if (effectiveCharging && !wasChargingPrev_) {
-                ResetAngleHistory();
-            }
+            if (effectiveCharging && !wasChargingPrev_) ResetAngleHistory();
 
             if (effectiveCharging) {
                 isCharging_ = true;
                 v->isDecelerating = true;
 
-                if (collision_) {
-                    collision_->radius *= 0.01f;
-                }
-                float charge = gamepad_->GetLeftStickChargeAmount(chargeMaxTime);
-                (void) charge;
+                if (collision_) { collision_->radius *= 0.01f; }
+                float charge = gamepad_->GetLeftStickChargeAmount(chargeMaxTime); (void)charge;
 
                 static float moveAmount = cfg_ChargeMoveAmount;
-
                 if (frame % 2 == 0) {
                     t->position.x += moveAmount;
-                    if (t->position.x >= moveAmount || t->position.x <= -moveAmount) {
-                        moveAmount = -moveAmount;
-                    }
+                    if (t->position.x >= moveAmount || t->position.x <= -moveAmount) moveAmount = -moveAmount;
                 }
 
                 if (!historyLocked_ && mag > PlayerConstants::EPSILON) {
                     float ang = std::atan2f(lastStickDir_.y, lastStickDir_.x);
-
-                    if (angleFilled) {
-                        sumSin -= std::sinf(angleHistory[angleIndex]);
-                        sumCos -= std::cosf(angleHistory[angleIndex]);
-                    }
-
+                    if (angleFilled) { sumSin -= std::sinf(angleHistory[angleIndex]); sumCos -= std::cosf(angleHistory[angleIndex]); }
                     angleHistory[angleIndex] = ang;
                     sumSin += std::sinf(ang);
                     sumCos += std::cosf(ang);
-
                     angleIndex = (angleIndex + 1) % PlayerConstants::ANGLE_HISTORY_SIZE;
-                    if (angleIndex == 0) {
-                        angleFilled = true;
-                        historyLocked_ = true;
-                    }
+                    if (angleIndex == 0) { angleFilled = true; historyLocked_ = true; }
                 }
             }
 
@@ -273,48 +254,34 @@ struct PlayerMovement : Behaviour {
 
             if (releasedSys || releasedLocal) {
                 int count = angleFilled ? PlayerConstants::ANGLE_HISTORY_SIZE : angleIndex;
-
                 if (count > 0) {
                     float avgRad = std::atan2f(sumSin / count, sumCos / count);
-
                     float dirX = std::cosf(avgRad);
                     float dirY = std::sinf(avgRad);
-
                     float dirLen = std::sqrt(dirX * dirX + dirY * dirY);
                     if (dirLen > PlayerConstants::EPSILON) {
-                        v->velocity.x = (dirX / dirLen) * v->speed;
-                        v->velocity.y = (dirY / dirLen) * v->speed;
-
-                        float yawRad = std::atan2(v->velocity.y, v->velocity.x);
-                        t->rotation.y = yawRad * (180.0f / DirectX::XM_PI);
-
+                        DirectX::XMFLOAT2 boostDir{dirX / dirLen, dirY / dirLen};
+                        float maxBoost = v->speed * v->Acceleration;
+                        v->StartBoost(boostDir, maxBoost);
                         isCharging_ = false;
                         v->isDecelerating = false;
                     }
                 }
-
                 ResetAngleHistory();
             }
 
             wasCharging_ = chargingNowLocal;
             wasChargingPrev_ = effectiveCharging;
 
-            if (!flickOnly) {
-                inputDir.x += -gx;
-                inputDir.y += -gy;
-            }
+            if (!flickOnly) { inputDir.x += -gx; inputDir.y += -gy; }
 
             v->UpdatePosition(w, self, dt);
         }
 
-        if (inputDir.x != 0.0f || inputDir.y != 0.0f) {
-            v->UpdateVelocity(inputDir);
-        }
+        if (inputDir.x != 0.0f || inputDir.y != 0.0f) v->UpdateVelocity(inputDir);
     }
 
-    float CalcMoveRotation() {
-        return std::atan2f(lastStickDir_.y, lastStickDir_.x) * (180.0f / DirectX::XM_PI);
-    }
+    float CalcMoveRotation() { return std::atan2f(lastStickDir_.y, lastStickDir_.x) * (180.0f / DirectX::XM_PI); }
 };
 
 // ========================================================
@@ -322,30 +289,38 @@ struct PlayerMovement : Behaviour {
 // ========================================================
 
 struct PlayerGuide : Behaviour {
+    // Config Variables
+    inline static ConfigVar<float> cfg_GuideScaleX{"Player", "GuideScaleX", 0.4f};
+    inline static ConfigVar<float> cfg_GuideScaleY{"Player", "GuideScaleY", 0.4f};
+    inline static ConfigVar<float> cfg_GuideScaleZ{"Player", "GuideScaleZ", 0.4f};
+    inline static ConfigVar<float> cfg_GuideOffsetDistance{"Player", "GuideOffsetDistance", 0.5f};
+    inline static ConfigVar<int> cfg_GuideQuantity{"Player", "GuideQuantity", 3};
+
     // コンポーネント保存用変数
     PlayerMovement *playerMove{};
     Transform *selfTransform{};
-    Transform *guidTransform{};
-    Entity guidEntity{};
+    std::vector<Transform*> guidTransforms;
+    std::vector<Entity> guidEntities;
 
-    // Config Variables
-    inline static ConfigVar<float> cfg_GuideScaleX{"Player", "GuideScaleX", 2.5f};
-    inline static ConfigVar<float> cfg_GuideScaleY{"Player", "GuideScaleY", 1.0f};
-    inline static ConfigVar<float> cfg_GuideScaleZ{"Player", "GuideScaleZ", 0.1f};
-    inline static ConfigVar<float> cfg_GuideOffsetDistance{"Player", "GuideOffsetDistance", 2.0f};
-
+    int GuideQuantity = cfg_GuideQuantity;
     void Create(World &world, const DirectX::XMFLOAT3 &position) {
-        Transform t{position, {0, 0, 0}, {0, 0, 0}};
-
         MeshRenderer renderer;
-        renderer.meshType = MeshType::Cube;
+        renderer.meshType = MeshType::Sphere;
         renderer.color = DirectX::XMFLOAT3{1, 0, 0};
 
-        guidEntity = world.Create()
-                         .With<Transform>(t)
-                         .With<MeshRenderer>(renderer)
-                         .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
-                         .Build();
+        guidEntities.clear();
+        guidTransforms.clear();
+        guidEntities.reserve(static_cast<size_t>(GuideQuantity));
+        guidTransforms.reserve(static_cast<size_t>(GuideQuantity));
+        for (int i = 0; i < GuideQuantity; i++) {
+            Transform t{position, {0, 0, 0}, {0, 0, 0}};
+            Entity e = world.Create()
+                               .With<Transform>(t)
+                               .With<MeshRenderer>(renderer)
+                               .Build();
+            guidEntities.push_back(e);
+            guidTransforms.push_back(nullptr);
+        }
     };
 
     void OnStart(World &w, Entity self) override {
@@ -358,21 +333,39 @@ struct PlayerGuide : Behaviour {
     void OnUpdate(World &w, Entity self, float dt) override {
         playerMove = w.TryGet<PlayerMovement>(self);
         selfTransform = w.TryGet<Transform>(self);
-        guidTransform = w.TryGet<Transform>(guidEntity);
-        if (!playerMove || !selfTransform || !guidTransform)
-            return;
+        
+        
+        bool allValid = true;           ///<必要なものがすべて取得できたか確認
+        if (static_cast<int>(guidEntities.size()) != GuideQuantity) {
+            // GuideQuantity が変更された場合に再生成
+            Create(w, selfTransform ? selfTransform->position : DirectX::XMFLOAT3{0,0,0});
+        }
+        for (int i = 0; i < GuideQuantity; i++) {
+            guidTransforms[i] = w.TryGet<Transform>(guidEntities[i]);
+            if (!guidTransforms[i]) { allValid = false; }
+        }
+      
+        if (!playerMove || !selfTransform || !allValid)
+                return;
 
-        guidTransform->position = selfTransform->position;
-
+        //プレイヤー移動方向計算
         float rad = std::atan2f(playerMove->lastStickDir_.y, playerMove->lastStickDir_.x);
-        guidTransform->rotation.y = -rad * (180.0f / DirectX::XM_PI);
 
-        if (!playerMove->isCharging_) {
-            guidTransform->scale = {0, 0, 0};
-        } else {
-            guidTransform->scale = {cfg_GuideScaleX.Get(), cfg_GuideScaleY.Get(), cfg_GuideScaleZ.Get()};
-            guidTransform->position.x += std::cosf(rad) * cfg_GuideOffsetDistance.Get();
-            guidTransform->position.z += std::sinf(rad) * cfg_GuideOffsetDistance.Get();
+        for (int i = 0; i < GuideQuantity; i++) {
+            Transform *currentGuide = guidTransforms[i];
+
+            if (!playerMove->isCharging_) {
+                currentGuide->scale = {0, 0, 0};
+            } else {   
+                currentGuide->scale = {cfg_GuideScaleX.Get(), cfg_GuideScaleY.Get(), cfg_GuideScaleZ.Get()};
+
+                currentGuide->position = selfTransform->position;
+                currentGuide->rotation.y = -rad * (180.0f / DirectX::XM_PI);
+
+                float offsetDistance = cfg_GuideOffsetDistance.Get() * i + 1;
+                currentGuide->position.x += std::cosf(rad) * offsetDistance;
+                currentGuide->position.z += std::sinf(rad) * offsetDistance;
+            }
         }
     }
 };

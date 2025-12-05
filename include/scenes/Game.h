@@ -274,9 +274,10 @@ class GameScene : public IScene {
 
         world.Create().With<DirectionalLight>();
 
+        
         CreatePlayer(world);
         CreateUI(world, screenWidth, screenHeight);
-
+       
         SetupStage(world, 1);
 
         DEBUGLOG("GameWithUIScene の初期化が正常に完了しました");
@@ -371,16 +372,16 @@ class GameScene : public IScene {
         Transform transform{{0.0f, 0.0f, cfg_PlayerStartY}, {0.0f, 0.0f, 0.0f}, {s, s, s}};
 
         Entity player = world.Create()
-                            .With<Transform>(transform)
-                            .With<Model>(cfg_PlayerFBXPass)
-                            .With<PlayerTag>()
-                            .With<PlayerVelocity>()
-                            .With<PlayerMovement>()
-                            .With<PlayerGuide>()
-                            .With<CollisionSphere>(0.4f)
-                            .With<PlayerCollisionHandler>()
-                            .Build();
-
+            .With<Transform>(transform)
+            .With<Model>(cfg_PlayerFBXPass)
+            .With<PlayerTag>()
+            .With<PlayerVelocity>()
+            .With<PlayerMovement>()
+            .With<PlayerGuide>()
+            .With<CollisionSphere>(0.4f)
+            .With<PlayerCollisionHandler>()
+            .Build();
+        
         playerEntity_ = player;
         ownedEntities_.push_back(player);
     }
@@ -694,6 +695,13 @@ class GameScene : public IScene {
         renderer.meshType = MeshType::Cube;
 
         Entity worldwallEntity = world.Create()
+            .With<Transform>(transform)
+            .With<MeshRenderer>(renderer)
+            .With<WallTag>()
+            .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+            .With<FloorWallCollisionHandler>()
+            .Build();
+       
                                      .With<Transform>(transform)
                                      .With<MeshRenderer>(renderer)
                                      .With<Model>(cfg_WallFBXPass)
@@ -706,10 +714,13 @@ class GameScene : public IScene {
     }
 
     //加速板
+    void CreateDashBord(World& world)
+    {
+        Transform transform{{-7.0f,0.0f,0.0f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
     void CreateDashBoard(World &world, const DirectX::XMFLOAT3 &position,int blockType) {
         Transform transform{{position}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
         MeshRenderer renderer;
-
+        
         renderer.meshType = MeshType::Cube;
         renderer.color = DirectX::XMFLOAT3{0.0f, 0.0f, 1.0f};
 
@@ -756,7 +767,7 @@ class GameScene : public IScene {
         CreateStageMap(world);
 
         //加速板(仮置き)
-        //  CreateDashBord(world);
+        CreateDashBord(world);
 
         // 簡易ライトベイク（アンビエント＋ディレクショナル＋ポイントライトの影なし近似）
         BakeStageLighting(world);
@@ -855,6 +866,8 @@ class GameScene : public IScene {
         }
     }
 
+
+
     TextSystem textSystem_;
     ImageSystem imageSystem_;
     std::vector<Entity> ownedEntities_;
@@ -866,5 +879,5 @@ class GameScene : public IScene {
     Entity worldwall_{};
     Entity goalEntity_{};
     Entity gimmickEntity_{};
-    DirectX::XMFLOAT3 cameraPosition_ = {0.0f, 10.0f, -10.0f};
+    DirectX::XMFLOAT3 cameraPosition_ = { 0.0f, 10.0f, -10.0f };
 };
