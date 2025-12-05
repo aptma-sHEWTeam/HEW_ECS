@@ -292,6 +292,10 @@ struct App {
                 
                 if (isWindowFocused_) {
                     try {
+                        // GameSceneにWorld参照を渡す（遅延リスポーンなどで使用）
+                        if (auto* gs = dynamic_cast<GameScene*>(sceneManager_.GetCurrentScene())) {
+                            gs->SetWorldRef(&world_);
+                        }
                         sceneManager_.Update(world_, input_, fixedDeltaTime);
                     } catch (const std::exception& e) {
                         DEBUGLOG("[CRITICAL ERROR] シーン更新中に例外が発生: " + std::string(e.what()));
@@ -299,11 +303,11 @@ struct App {
                     }
                 }
 
-                accumulator -= fixedDeltaTime;
+            accumulator -= fixedDeltaTime;
 
-                auto updateEndTime = std::chrono::high_resolution_clock::now();
-                std::chrono::duration<float> updateDuration = updateEndTime - updateStartTime;
-                currentMetrics_.updateTime = updateDuration.count();
+            auto updateEndTime = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<float> updateDuration = updateEndTime - updateStartTime;
+            currentMetrics_.updateTime = updateDuration.count();
             }
 
             // ========== RENDER PHASE (Variable Step) ==========
@@ -315,6 +319,11 @@ struct App {
 #if ENABLE_DEBUG_VISUALS
             DrawDebugInfo();
 #endif // ENABLE_DEBUG_VISUALS
+
+            // アクティブなシーンがGameSceneなら、そのカメラを使用
+            if (auto* gs = dynamic_cast<GameScene*>(sceneManager_.GetCurrentScene())) {
+                camera_ = gs->GetCamera();
+            }
 
             renderer_.Render(world_, camera_);
             sceneManager_.Render(world_);

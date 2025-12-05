@@ -11,6 +11,7 @@
 
 #include <sstream>
 #include <iomanip>
+#include <cstdlib>
 
 #include "config/ConfigVar.h"
 #include "components/GameTags.h"
@@ -34,13 +35,22 @@
 #include "SenesUIController.h"
 #include "systems/ModelLoadingSystem.h"
 #include "graphics/TextureManager.h"
+#include "graphics/Camera.h"
 
+// 前方宣言
+class GameScene;
+
+// GameSceneへのグローバルアクセス用ポインタ
+inline GameScene* g_GameScene = nullptr;
+
+/**
+ * @brief プレイヤーをスタート地点にリセット（速度も完全リセット）
+ */
 inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false) {
     if (!w.IsAlive(player)) {
-
         return;
     }
-
+    
     bool done = false;
     w.ForEach<StartTag, Transform>([&](Entity, StartTag &, Transform &tStart) {
         if (done) {
@@ -48,13 +58,26 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
         }
 
         if (auto *tPlayer = w.TryGet<Transform>(player)) {
-            tPlayer->position = {tStart.position.x, 0.0f, tStart.position.z}; //プレイヤーの生成場所
+            tPlayer->position = {tStart.position.x, 0.0f, tStart.position.z};
 
+            // 速度を完全リセット
             if (auto *vPlayer = w.TryGet<PlayerVelocity>(player)) {
                 vPlayer->velocity = {0.0f, 0.0f};
+                vPlayer->isBoosting = false;
+                vPlayer->isDecelerating = false;
+                vPlayer->boostSpeed = 0.0f;
+                vPlayer->boostDir = {0.0f, 0.0f};
+            }
+
+            // PlayerMovementの状態もリセット
+            if (auto *pmPlayer = w.TryGet<PlayerMovement>(player)) {
+                pmPlayer->isCharging_ = false;
+                pmPlayer->wasCharging_ = false;
+                pmPlayer->wasChargingPrev_ = false;
+                pmPlayer->ResetAngleHistory();
             }
         }
-
+        
         if (resetTimer) {
             w.ForEach<GameStatus>([](Entity, GameStatus &stats) {
                 stats.elapsedTime = 0.0f;
@@ -74,16 +97,30 @@ inline void CheckTimeLimit(World &w, Entity player, float timeLimitSeconds) {
     });
 }
 
+// =========================================
+// カメラリアクションタイプ（前方定義）
+// =========================================
+enum class CameraReactionType {
+    None,       ///< リアクションなし
+    Shake,      ///< 揺れ（ランダム）
+    Impulse,    ///< 衝撃（一方向へ跳ねる）
+    Zoom,       ///< ズームイン/アウト
+    Tilt        ///< 傾き
+};
+
+// =========================================
+// 壁衝突リスポーン用ConfigVars
+// =========================================
+inline ConfigVar<float> cfg_WallHitShakeIntensity{"Game", "WallHitShakeIntensity", 0.5f};
+inline ConfigVar<float> cfg_WallHitShakeDuration{"Game", "WallHitShakeDuration", 0.3f};
+inline ConfigVar<float> cfg_WallHitRespawnDelay{"Game", "WallHitRespawnDelay", 0.4f};
+
 /**
  * @struct PlayerCollisionHandler
  * @brief プレイヤーの衝突イベントを処理
  */
 struct PlayerCollisionHandler : ICollisionHandler {
     void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override {
-        if (w.Has<EnemyTag>(other)) {
-            DEBUGLOG("プレイヤーが敵と衝突 - 侵入深度: " + std::to_string(info.penetrationDepth));
-            w.ForEach<GameStatus>([](Entity, GameStatus &stats) { stats.score += 10; });
-        }
         if (w.Has<GoalTag>(other)) {
             w.ForEach<StageProgress>([](Entity, StageProgress &sp) { sp.requestAdvance = true; });
             DEBUGLOG("プレイヤーがゴールに到達");
@@ -107,35 +144,24 @@ REGISTER_COLLISION_HANDLER_TYPE(EnemyCollisionHandler)
 
 /**
  * @struct WallCollisionHandler
- * @brief 壁の衝突イベントを処理
+ * @brief 壁の衝突イベントを処理（カメラシェイク→遅延リスポーン）
  */
 struct WallCollisionHandler : ICollisionHandler {
-    void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override {
-        if (w.Has<PlayerTag>(other)) {
-            DEBUGLOG("壁がプレイヤーと衝突 - スタート地点へ戻しタイマーをリセット");
-            ResetPlayerToStart(w, other, true);
-        }
-    };
+    void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override;
 };
 REGISTER_COLLISION_HANDLER_TYPE(WallCollisionHandler)
 
 /**
- * @struct FloorWallColisionHandler
- * @brief ステージの壁の衝突イベントを処理
+ * @struct FloorWallCollisionHandler
+ * @brief ステージの壁の衝突イベントを処理（カメラシェイク→遅延リスポーン）
  */
 struct FloorWallCollisionHandler : ICollisionHandler {
-    void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override {
-        if (w.Has<PlayerTag>(other)) {
-            DEBUGLOG("壁がプレイヤーと衝突 - スタート地点へ戻しタイマーをリセット");
-            ResetPlayerToStart(w, other, true);
-        }
-    }
+    void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override;
 };
 REGISTER_COLLISION_HANDLER_TYPE(FloorWallCollisionHandler)
 
 /**
  * @struct DashBordCollisionHandler
- *
  * @brief 加速板の衝突イベントを処理
  */
 struct DashBordCollisionHandler : ICollisionHandler {
@@ -143,7 +169,6 @@ struct DashBordCollisionHandler : ICollisionHandler {
         auto *v = w.TryGet<PlayerVelocity>(other);
         if (w.Has<PlayerTag>(other)) {
             DEBUGLOG("プレイヤーが加速板と接触 - プレイヤー加速-");
-
             v->isBoosting = true;
         }
     }
@@ -222,9 +247,25 @@ class GameScene : public IScene {
     inline static ConfigVar<float> cfg_StartLightRange{"Game", "StartLightRange", 5.0f};
     inline static ConfigVar<float> cfg_GoalLightRange{"Game", "GoalLightRange", 8.0f};
 
+    // =========================================
+    // カメラリアクション用ConfigVars
+    // =========================================
+    inline static ConfigVar<float> cfg_CameraShakeFreqX{"Camera", "ShakeFreqX", 35.0f};
+    inline static ConfigVar<float> cfg_CameraShakeFreqY{"Camera", "ShakeFreqY", 28.0f};
+    inline static ConfigVar<float> cfg_CameraShakeFreqZ{"Camera", "ShakeFreqZ", 41.0f};
+    inline static ConfigVar<float> cfg_CameraShakeDecay{"Camera", "ShakeDecay", 3.0f};
+    inline static ConfigVar<float> cfg_CameraShakeRandomness{"Camera", "ShakeRandomness", 0.3f};
+    inline static ConfigVar<float> cfg_CameraShakeYScale{"Camera", "ShakeYScale", 0.5f};
+    inline static ConfigVar<float> cfg_CameraImpulseDecay{"Camera", "ImpulseDecay", 5.0f};
+    inline static ConfigVar<float> cfg_CameraZoomSpeed{"Camera", "ZoomSpeed", 2.0f};
+    inline static ConfigVar<float> cfg_CameraFollowSmooth{"Camera", "FollowSmooth", 5.0f};
+
     void OnEnter(World &world) override {
         DEBUGLOG("<<<<< GameScene::OnEnter CALLED! >>>>>");
         DEBUGLOG("GameWithUIScene::OnEnter() 開始");
+
+        // グローバルポインタを設定
+        g_GameScene = this;
 
         auto *gfx = ServiceLocator::TryGet<GfxDevice>();
         if (!gfx) {
@@ -250,23 +291,31 @@ class GameScene : public IScene {
         float screenWidth = static_cast<float>(gfx->Width());
         float screenHeight = static_cast<float>(gfx->Height());
 
-
+        // カメラ初期化
+        camera_ = Camera::LookAtLH(
+            DirectX::XM_PIDIV4,
+            screenWidth / screenHeight,
+            0.1f,
+            1000.0f,
+            cameraPosition_,
+            DirectX::XMFLOAT3{0.0f, 0.0f, 0.0f},
+            DirectX::XMFLOAT3{0.0f, 1.0f, 0.0f}
+        );
+        baseFovY_ = camera_.fovY;
 
         Entity collisionSystem = world.Create().With<CollisionDetectionSystem>(cfg_CollisionCellSize.Get()).Build();
         ownedEntities_.push_back(collisionSystem);
 
-        // ModelLoadingSystem を追加して Model -> ModelComponent 変換を有効化
         Entity modelLoaderSystem = world.Create().With<ModelLoadingSystem>().Build();
         ownedEntities_.push_back(modelLoaderSystem);
 
         world.ForEach<StageProgress>([&](Entity e, StageProgress &status) {
             std::string Stagepath = "Assets/StageData/StageCollision/DebugStage" + std::to_string(status.selectStage) + "/room1.csv";
-            Entity stageEntity_ = world.Create().With<StageCreate>(Stagepath).Build();
-            ownedEntities_.push_back(stageEntity_);
+            Entity stageEntity = world.Create().With<StageCreate>(Stagepath).Build();
+            ownedEntities_.push_back(stageEntity);
         });
 
         world.Create().With<DirectionalLight>();
-
 
         CreatePlayer(world);
         CreateUI(world, screenWidth, screenHeight);
@@ -278,7 +327,6 @@ class GameScene : public IScene {
 
     void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
 
-        // ゲームの一時停止と再開
         world.ForEach<GameStatus>([&](Entity, GameStatus &stats) {
             if (input.GetKeyDown(VK_ESCAPE) || input.GetKeyDown('P')) {
                 stats.isPaused = !stats.isPaused;
@@ -290,7 +338,6 @@ class GameScene : public IScene {
             }
         });
 
-        // ステージの進行
         world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
             if (sp.requestAdvance) {
                 sp.requestAdvance = false;
@@ -300,7 +347,6 @@ class GameScene : public IScene {
             }
         });
 
-        // プレイヤーの移動
         world.ForEach<PlayerMovement>([&](Entity, PlayerMovement &pm) {
             if (!pm.input_) {
                 pm.input_ = &input;
@@ -310,19 +356,23 @@ class GameScene : public IScene {
             }
         });
 
-        // UI インタラクションの設定
         world.ForEach<UIInteractionSystem>([&](Entity, UIInteractionSystem &sys) {
             if (!sys.input_) {
                 sys.input_ = &input;
             }
         });
 
-        // エミッシブのパルス更新（毎フレーム）
         RenderingSystem::GetInstance().UpdateEmissivePulse(world, deltaTime);
+
+        // 遅延リスポーン処理
+        UpdateDelayedRespawn(deltaTime, world);
+
+        // カメラリアクション更新
+        UpdateCameraReaction(deltaTime, world);
+        RenderingSystem::GetInstance().UpdateLights(world, camera_.position);
 
         world.Tick(deltaTime);
 
-        //制限時間が過ぎていたらリセット
         if (world.IsAlive(playerEntity_)) {
             CheckTimeLimit(world, playerEntity_, cfg_LimitTime);
         }
@@ -342,6 +392,9 @@ class GameScene : public IScene {
     void OnExit(World &world) override {
         DEBUGLOG("GameWithUIScene::OnExit() 開始");
 
+        // グローバルポインタをクリア
+        g_GameScene = nullptr;
+
         RenderingSystem::GetInstance().Shutdown();
 
         for (const auto &entity : ownedEntities_) {
@@ -355,6 +408,77 @@ class GameScene : public IScene {
         imageSystem_.Shutdown();
         DEBUGLOG("GameWithUIScene のクリーンアップが完了しました");
     }
+
+    // =========================================
+    // カメラリアクション公開API
+    // =========================================
+
+    void TriggerCameraShake(float intensity, float duration) {
+        reactionType_ = CameraReactionType::Shake;
+        shakeIntensity_ = intensity;
+        reactionTime_ = duration;
+        reactionElapsed_ = 0.0f;
+    }
+
+    void TriggerCameraImpulse(float dirX, float dirY, float dirZ, float intensity, float duration) {
+        reactionType_ = CameraReactionType::Impulse;
+        impulseDir_ = {dirX, dirY, dirZ};
+        impulseIntensity_ = intensity;
+        reactionTime_ = duration;
+        reactionElapsed_ = 0.0f;
+    }
+
+    void TriggerCameraZoom(float zoomAmount, float duration) {
+        reactionType_ = CameraReactionType::Zoom;
+        zoomAmount_ = zoomAmount;
+        reactionTime_ = duration;
+        reactionElapsed_ = 0.0f;
+    }
+
+    void StopCameraReaction() {
+        reactionType_ = CameraReactionType::None;
+        camera_.position = cameraPosition_;
+        camera_.fovY = baseFovY_;
+        camera_.Proj = DirectX::XMMatrixPerspectiveFovLH(camera_.fovY, camera_.aspect, camera_.nearZ, camera_.farZ);
+        camera_.Update();
+    }
+
+    const Camera& GetCamera() const { return camera_; }
+
+    void SetCameraBasePosition(const DirectX::XMFLOAT3& pos) {
+        cameraPosition_ = pos;
+    }
+
+    /**
+     * @brief 壁衝突時の処理（カメラシェイク＋遅延リスポーン）
+     * @param player リスポーンするプレイヤーエンティティ
+     */
+    void OnWallHit(Entity player) {
+        if (pendingRespawn_) return; // 既にリスポーン待ち中
+
+        // プレイヤーの速度を即座に止める
+        if (world_ && world_->IsAlive(player)) {
+            if (auto *v = world_->TryGet<PlayerVelocity>(player)) {
+                v->velocity = {0.0f, 0.0f};
+                v->isBoosting = false;
+                v->isDecelerating = false;
+                v->boostSpeed = 0.0f;
+            }
+        }
+
+        // カメラシェイク開始
+        TriggerCameraShake(cfg_WallHitShakeIntensity.Get(), cfg_WallHitShakeDuration.Get());
+
+        // 遅延リスポーン設定
+        pendingRespawn_ = true;
+        respawnPlayer_ = player;
+        respawnTimer_ = cfg_WallHitRespawnDelay.Get();
+
+        DEBUGLOG("壁に衝突 - カメラシェイク開始、リスポーン待機中");
+    }
+
+    // Worldへの参照を設定（OnUpdate内で使用）
+    void SetWorldRef(World* w) { world_ = w; }
 
   private:
     void CreateTextFormats();
@@ -379,20 +503,6 @@ class GameScene : public IScene {
         ownedEntities_.push_back(player);
     }
 
-    /**
-     * @brief ステージ生成関数
-     * @deteail 読み込んだCSVファイルのデータを基にステージを生成する
-     *          新しい生成物を設定するときはこの関数内のswitch文に設定する
-     *          例：
-     *              if (blockType != 0) {
-     *                  switch (blockType) {
-     *                      case 1: CreateStart(world, blockposition); break; // スタート地点
-     *                      case 2: CreateGoal(world, blockposition); break; // ゴール地点
-     *                      case 3: CreateWall(world, blockposition); break; // 通常の壁
-     *                      case 4: CreateAccell(world,blockposition); break; //新規のブロック
-     *                  }
-     *              }
-     */
     void CreateStageMap(World &world) {
         world.ForEach<StageCreate>([&](Entity, StageCreate &stagecreate) {
             float tileSize = 1.0f;
@@ -410,59 +520,40 @@ class GameScene : public IScene {
             const float offsetX = (mapWidth * tileSize) * 0.5f - (tileSize * 0.5f);
             const float offsetZ = (mapHeight * tileSize) * 0.5f - (tileSize * 0.5f);
 
-            // ステージの床を生成
             CreateFloor(world, static_cast<int>(mapWidth), tileSize);
 
-            // ステージマップに基づいてオブジェクトを生成
             for (int y = 0; y < stagecreate.stageMap.size(); ++y) {
                 for (int x = 0; x < stagecreate.stageMap[y].size(); ++x) {
                     int blockType = stagecreate.stageMap[y][x];
 
-                    // タイルのワールド座標を計算
                     float worldX = (static_cast<float>(x) * tileSize) - offsetX;
                     float worldY = 0.0f;
                     float worldZ = offsetZ - (static_cast<float>(y) * tileSize);
 
                     const DirectX::XMFLOAT3 blockposition = {worldX, worldY, worldZ};
 
-                    // ステージの境界には常に壁を生成
                     if (y == 0) {
                         CreatFloorWall(world, {worldX, worldY, worldZ + tileSize});
-                    } // 下
+                    }
                     if (y == max_y_index) {
                         CreatFloorWall(world, {worldX, worldY, worldZ - tileSize});
-                    } // 上
+                    }
                     if (x == 0) {
                         CreatFloorWall(world, {worldX - tileSize, worldY, worldZ});
-                    } // 左
+                    }
                     if (x == max_x_index) {
                         CreatFloorWall(world, {worldX + tileSize, worldY, worldZ});
-                    } // 右
+                    }
 
-                    // ステージマップに応じたオブジェクトの生成
                     if (blockType != 0) {
                         switch (blockType) {
-                            case 1:
-                                CreateStart(world, blockposition);
-                                break; // スタート地点
-                            case 2:
-                                CreateGoal(world, blockposition);
-                                break; // ゴール地点
-                            case 3:
-                                CreateWall(world, blockposition);
-                                break; // 通常の壁
-                            case 5:
-                                CreateRightDownCorner(world, blockposition);
-                                break; // 通常の壁
-                            case 6:
-                                CreateLeftDownCorner(world, blockposition);
-                                break; // 通常の壁
-                            case 7:
-                                CreateLeftUpCorner(world, blockposition);
-                                break; // 通常の壁
-                            case 8:
-                                CreateRightUpCorner(world, blockposition);
-                                break; // 通常の壁
+                            case 1: CreateStart(world, blockposition); break;
+                            case 2: CreateGoal(world, blockposition); break;
+                            case 3: CreateWall(world, blockposition); break;
+                            case 5: CreateRightDownCorner(world, blockposition); break;
+                            case 6: CreateLeftDownCorner(world, blockposition); break;
+                            case 7: CreateLeftUpCorner(world, blockposition); break;
+                            case 8: CreateRightUpCorner(world, blockposition); break;
                         }
                     }
                 }
@@ -672,9 +763,7 @@ class GameScene : public IScene {
         stageOwnedEntities_.push_back(worldwallEntity);
     }
 
-    //加速板
-    void CreateDashBord(World& world)
-    {
+    void CreateDashBord(World& world) {
         Transform transform{{-7.0f,0.0f,0.0f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
         MeshRenderer renderer;
 
@@ -693,7 +782,6 @@ class GameScene : public IScene {
     }
 
     void SetupStage(World &world, int stage) {
-        // ステージリセット: 現在のステージに関連するエンティティを破棄
         for (const auto &entity : stageOwnedEntities_) {
             if (world.IsAlive(entity)) {
                 world.DestroyEntityWithCause(entity, World::Cause::StageReset);
@@ -704,30 +792,21 @@ class GameScene : public IScene {
         startEntity_ = {};
         goalEntity_ = {};
 
-        // 新しいステージのマップを生成
         CreateStageMap(world);
-
-        //加速板(仮置き)
         CreateDashBord(world);
-
-        // 簡易ライトベイク（アンビエント＋ディレクショナル＋ポイントライトの影なし近似）
         BakeStageLighting(world);
 
-        // プレイヤーをスタート地点にリセット
         if (world.IsAlive(playerEntity_)) {
             ResetPlayerToStart(world, playerEntity_);
         }
     }
 
-    // 簡易ライトベイク（影なし近似）: ステージ生成直後にメッシュカラーへ反映
     void BakeStageLighting(World &world) {
         using namespace DirectX;
 
-        // 1) 環境光
         XMFLOAT3 ambient{0.15f, 0.15f, 0.2f};
         float ambientIntensity = 1.0f;
 
-        // 2) ディレクショナルライト（最初の1つ）
         bool hasDir = false;
         XMFLOAT3 dirDir{0.0f, -1.0f, 0.0f};
         XMFLOAT3 dirColor{1.0f, 1.0f, 1.0f};
@@ -737,7 +816,6 @@ class GameScene : public IScene {
             hasDir = true;
         });
 
-        // 3) ポイントライト収集
         struct PL {
             XMFLOAT3 pos;
             XMFLOAT3 col;
@@ -757,7 +835,6 @@ class GameScene : public IScene {
         auto add3 = [](const XMFLOAT3 &a, const XMFLOAT3 &b) { return XMFLOAT3{a.x + b.x, a.y + b.y, a.z + b.z}; };
         auto scale3 = [](const XMFLOAT3 &a, float s) { return XMFLOAT3{a.x * s, a.y * s, a.z * s}; };
 
-        // Up法線で近似（床や壁の簡易ベイク）
         XMFLOAT3 upN{0.0f, 1.0f, 0.0f};
         XMVECTOR vUp = XMLoadFloat3(&upN);
         XMVECTOR vDir = XMLoadFloat3(&dirDir);
@@ -773,20 +850,15 @@ class GameScene : public IScene {
             if (!t || !mr)
                 continue;
 
-            // ベースカラー
             XMFLOAT3 base = mr->color;
-
-            // アンビエント
             XMFLOAT3 accum = scale3(ambient, ambientIntensity);
 
-            // ディレクショナル（Up法線近似）
             if (hasDir) {
                 XMVECTOR n = vUp;
                 float ndotl = saturate(DirectX::XMVectorGetX(DirectX::XMVector3Dot(n, XMVectorNegate(vDir))));
                 accum = add3(accum, scale3(dirColor, ndotl));
             }
 
-            // ポイントライト（位置のみ、法線考慮なし・距離減衰のみ）
             XMVECTOR pos = XMLoadFloat3(&t->position);
             for (const auto &L : lights) {
                 XMVECTOR lp = XMLoadFloat3(&L.pos);
@@ -798,7 +870,6 @@ class GameScene : public IScene {
                 accum = add3(accum, scale3(L.col, L.I * att));
             }
 
-            // ベースカラーへ乗算し、0..1にクランプ
             XMFLOAT3 shaded = mul3(base, accum);
             shaded.x = saturate(shaded.x);
             shaded.y = saturate(shaded.y);
@@ -807,8 +878,139 @@ class GameScene : public IScene {
         }
     }
 
+    // =========================================
+    // 遅延リスポーン処理
+    // =========================================
+    void UpdateDelayedRespawn(float dt, World& world) {
+        world_ = &world; // World参照を保持
 
+        if (!pendingRespawn_) return;
 
+        respawnTimer_ -= dt;
+        if (respawnTimer_ <= 0.0f) {
+            // リスポーン実行
+            ResetPlayerToStart(world, respawnPlayer_, true);
+            pendingRespawn_ = false;
+            respawnPlayer_ = {};
+            DEBUGLOG("リスポーン完了");
+        }
+    }
+
+    // =========================================
+    // カメラリアクションの内部更新
+    // =========================================
+    void UpdateCameraReaction(float dt, World& world) {
+        DirectX::XMFLOAT3 playerPos = {0.0f, 0.0f, 0.0f};
+        if (world.IsAlive(playerEntity_)) {
+            if (auto* pt = world.TryGet<Transform>(playerEntity_)) {
+                playerPos = pt->position;
+            }
+        }
+
+        float smooth = cfg_CameraFollowSmooth.Get() * dt;
+        smooth = std::min(smooth, 1.0f);
+        currentTarget_.x += (playerPos.x - currentTarget_.x) * smooth;
+        currentTarget_.y += (playerPos.y - currentTarget_.y) * smooth;
+        currentTarget_.z += (playerPos.z - currentTarget_.z) * smooth;
+
+        camera_.target = currentTarget_;
+
+        switch (reactionType_) {
+            case CameraReactionType::Shake:
+                UpdateShake(dt);
+                break;
+            case CameraReactionType::Impulse:
+                UpdateImpulse(dt);
+                break;
+            case CameraReactionType::Zoom:
+                UpdateZoom(dt);
+                break;
+            case CameraReactionType::None:
+            default:
+                camera_.position = cameraPosition_;
+                camera_.fovY = baseFovY_;
+                break;
+        }
+
+        camera_.Proj = DirectX::XMMatrixPerspectiveFovLH(camera_.fovY, camera_.aspect, camera_.nearZ, camera_.farZ);
+        camera_.Update();
+    }
+
+    void UpdateShake(float dt) {
+        reactionElapsed_ += dt;
+
+        if (reactionElapsed_ >= reactionTime_) {
+            reactionType_ = CameraReactionType::None;
+            camera_.position = cameraPosition_;
+            return;
+        }
+
+        float decay = cfg_CameraShakeDecay.Get();
+        float decayFactor = std::exp(-decay * reactionElapsed_);
+        float currentIntensity = shakeIntensity_ * decayFactor;
+
+        float freqX = cfg_CameraShakeFreqX.Get();
+        float freqY = cfg_CameraShakeFreqY.Get();
+        float freqZ = cfg_CameraShakeFreqZ.Get();
+        float randomness = cfg_CameraShakeRandomness.Get();
+        float yScale = cfg_CameraShakeYScale.Get();
+
+        float randX = (static_cast<float>(std::rand() % 100) / 100.0f - 0.5f) * 2.0f * randomness;
+        float randY = (static_cast<float>(std::rand() % 100) / 100.0f - 0.5f) * 2.0f * randomness;
+        float randZ = (static_cast<float>(std::rand() % 100) / 100.0f - 0.5f) * 2.0f * randomness;
+
+        float sx = (std::sin(reactionElapsed_ * freqX) * (1.0f - randomness) + randX) * currentIntensity;
+        float sy = (std::cos(reactionElapsed_ * freqY) * (1.0f - randomness) + randY) * currentIntensity * yScale;
+        float sz = (std::sin(reactionElapsed_ * freqZ) * (1.0f - randomness) + randZ) * currentIntensity;
+
+        camera_.position = {
+            cameraPosition_.x + sx,
+            cameraPosition_.y + sy,
+            cameraPosition_.z + sz
+        };
+    }
+
+    void UpdateImpulse(float dt) {
+        reactionElapsed_ += dt;
+
+        if (reactionElapsed_ >= reactionTime_) {
+            reactionType_ = CameraReactionType::None;
+            camera_.position = cameraPosition_;
+            return;
+        }
+
+        float decay = cfg_CameraImpulseDecay.Get();
+        float t = reactionElapsed_ / reactionTime_;
+        float bounce = std::cos(t * DirectX::XM_PI * 2.0f) * std::exp(-decay * reactionElapsed_);
+        float currentIntensity = impulseIntensity_ * bounce;
+
+        camera_.position = {
+            cameraPosition_.x + impulseDir_.x * currentIntensity,
+            cameraPosition_.y + impulseDir_.y * currentIntensity,
+            cameraPosition_.z + impulseDir_.z * currentIntensity
+        };
+    }
+
+    void UpdateZoom(float dt) {
+        reactionElapsed_ += dt;
+
+        if (reactionElapsed_ >= reactionTime_) {
+            reactionType_ = CameraReactionType::None;
+            camera_.fovY = baseFovY_;
+            return;
+        }
+
+        float t = reactionElapsed_ / reactionTime_;
+        float zoomCurve = std::sin(t * DirectX::XM_PI);
+        camera_.fovY = baseFovY_ - zoomAmount_ * zoomCurve;
+
+        camera_.fovY = std::max(DirectX::XM_PIDIV4 * 0.25f, std::min(DirectX::XM_PIDIV2 * 1.5f, camera_.fovY));
+        camera_.position = cameraPosition_;
+    }
+
+    // =========================================
+    // メンバー変数
+    // =========================================
     TextSystem textSystem_;
     ImageSystem imageSystem_;
     std::vector<Entity> ownedEntities_;
@@ -821,4 +1023,55 @@ class GameScene : public IScene {
     Entity goalEntity_{};
     Entity gimmickEntity_{};
     DirectX::XMFLOAT3 cameraPosition_ = { 0.0f, 10.0f, -10.0f };
+    DirectX::XMFLOAT3 currentTarget_ = {0.0f, 0.0f, 0.0f};
+    Camera camera_{};
+    float baseFovY_ = DirectX::XM_PIDIV4;
+
+    // カメラリアクション状態
+    CameraReactionType reactionType_ = CameraReactionType::None;
+    float reactionTime_ = 0.0f;
+    float reactionElapsed_ = 0.0f;
+
+    // シェイク用
+    float shakeIntensity_ = 0.0f;
+
+    // 衝撃用
+    DirectX::XMFLOAT3 impulseDir_ = {0.0f, 0.0f, 0.0f};
+    float impulseIntensity_ = 0.0f;
+
+    // ズーム用
+    float zoomAmount_ = 0.0f;
+
+    // 遅延リスポーン用
+    bool pendingRespawn_ = false;
+    Entity respawnPlayer_{};
+    float respawnTimer_ = 0.0f;
+    World* world_ = nullptr;
 };
+
+// =========================================
+// 衝突ハンドラーの実装（GameScene定義後）
+// =========================================
+inline void WallCollisionHandler::OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) {
+    if (w.Has<PlayerTag>(other)) {
+        DEBUGLOG("壁がプレイヤーと衝突 - カメラシェイク＋遅延リスポーン");
+        if (g_GameScene) {
+            g_GameScene->OnWallHit(other);
+        } else {
+            // フォールバック：即座にリスポーン
+            ResetPlayerToStart(w, other, true);
+        }
+    }
+}
+
+inline void FloorWallCollisionHandler::OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) {
+    if (w.Has<PlayerTag>(other)) {
+        DEBUGLOG("ステージ壁がプレイヤーと衝突 - カメラシェイク＋遅延リスポーン");
+        if (g_GameScene) {
+            g_GameScene->OnWallHit(other);
+        } else {
+            // フォールバック：即座にリスポーン
+            ResetPlayerToStart(w, other, true);
+        }
+    }
+}
