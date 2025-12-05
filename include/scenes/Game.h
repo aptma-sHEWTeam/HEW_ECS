@@ -417,6 +417,16 @@ class GameScene : public IScene {
                             case 6: CreateLeftDownCorner(world, blockposition); break;      // 左下が直角の三角形
                             case 7: CreateLeftUpCorner(world, blockposition); break;        // 左上が直角の三角形
                             case 8: CreateRightUpCorner(world, blockposition); break;       // 右上が直角の三角形
+                            case 10: CreateMoveWall(world, blockposition); break;       // 動く障害物１
+                            case 11: CreateMoveWall(world, blockposition); break;       // 動く障害物２
+                            case 12: CreateMoveWall(world, blockposition); break;       // 動く障害物３
+                            case 13: CreateMoveWall(world, blockposition); break;       // 動く障害物４
+                            case 14: CreateMoveWall(world, blockposition); break;       // 動く障害物５
+                            case 15: CreateMoveWall(world, blockposition); break;       // 動く障害物６
+                            case 16: CreateMoveWall(world, blockposition); break;       // 動く障害物７
+                            case 17: CreateMoveWall(world, blockposition); break;       // 動く障害物８
+                            case 18: CreateMoveWall(world, blockposition); break;       // 動く障害物９
+                            case 19: CreateMoveWall(world, blockposition); break;       // 動く障害物10
                         }
                     }
 
@@ -609,6 +619,23 @@ class GameScene : public IScene {
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
                                 .With<CollisionRightIsoTriPrism>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                                .With<WallCollisionHandler>()
+                                .Build();
+
+        stageOwnedEntities_.push_back(wallEntity);
+    }
+
+    void CreateMoveWall(World &world, const DirectX::XMFLOAT3 &position) {
+        Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
+        MeshRenderer renderer;
+        renderer.meshType = MeshType::Cube;
+        renderer.color = DirectX::XMFLOAT3{cfg_WallR, cfg_WallG, cfg_WallB};
+
+        Entity wallEntity = world.Create()
+                                .With<Transform>(transform)
+                                .With<MeshRenderer>(renderer)
+                                .With<WallTag>()
+                                .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                                 .With<WallCollisionHandler>()
                                 .Build();
 

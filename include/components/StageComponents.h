@@ -158,6 +158,76 @@ struct TimeLoad : IComponent{
     TimeLoad& operator=(const TimeLoad &) = delete;
 };
 
+struct LoadMove : IComponent {
+    /**
+     * @brief ファイルストリーム
+     */
+    ifstream m_file;
+
+    /**
+     * @brief 動くブロックのデータを格納するベクター
+     */
+    vector<vector<int>> moveBlock;
+
+     /**
+     * @brief　コンストラクタ
+     */
+    LoadMove() {
+        m_file.open("Assets/StageData/UniqueObj/Move/DebugStage1/room1.csv");
+        if (!m_file.is_open())
+            cerr << "Error: Could not open Assets/StageData/UniqueObj/Move/DebugStage1/room1.csv" << endl;
+        else {
+            loadBlockMove();
+        }
+    }
+
+    void loadBlockMove() {
+        string line;
+        while (getline(m_file, line)) {
+            vector<int> row;
+            stringstream sstream(line);
+            string cell;
+
+            while (getline(sstream, cell, ',')) {
+                try {
+                    row.push_back(stoi(cell));
+                } catch (const std::invalid_argument &error) {
+                    cerr << "無効な数値: " << cell << " (" << error.what() << ")" << endl;
+                } catch (const std::out_of_range &error) {
+                    cerr << "範囲外の数値: " << cell << " (" << error.what() << ")" << endl;
+                }
+            }
+            moveBlock.push_back(row);
+        }
+        m_file.close();
+    }
+
+    LoadMove(const LoadMove &) = delete;
+    LoadMove &operator=(const LoadMove &) = delete;
+
+
+};
+
+struct UpdateMoveBlock : Behaviour {
+    void UpdateMove(World& w, int blockType) {
+        w.ForEach<LoadMove>([](Entity, LoadMove &loadmove) {
+            for (int y = 0; y < loadmove.moveBlock.size() - 1; ++y) {
+                for (int x = 0; x < loadmove.moveBlock.size() - 1; ++x) {
+
+                    int posx = static_cast<int>(loadmove.moveBlock[0][y]);
+                    int posy = static_cast<int>(loadmove.moveBlock[1][y]);
+                    int waittime = static_cast<int>(loadmove.moveBlock[2][y]);
+                    int idletime = static_cast<int>(loadmove.moveBlock[3][y]);
+                    int movetime = static_cast<int>(loadmove.moveBlock[4][y]);
+                }
+                
+            }
+
+        });
+    }
+
+};
+
 
 
 
