@@ -21,6 +21,7 @@
 #include <DirectXMath.h>
 #include <cmath>
 #include <algorithm>
+#include <vector>
 
 #include "config/ConfigVar.h"
 
@@ -298,8 +299,8 @@ struct PlayerGuide : Behaviour {
     // コンポーネント保存用変数
     PlayerMovement *playerMove{};
     Transform *selfTransform{};
-    Transform *guidTransforms[3];
-    Entity guidEntities[3];
+    std::vector<Transform*> guidTransforms;
+    std::vector<Entity> guidEntities;
 
     int GuideQuantity = cfg_GuideQuantity;
     void Create(World &world, const DirectX::XMFLOAT3 &position) {
@@ -307,14 +308,18 @@ struct PlayerGuide : Behaviour {
         renderer.meshType = MeshType::Sphere;
         renderer.color = DirectX::XMFLOAT3{1, 0, 0};
 
-
-        for (int i = 0; i < GuideQuantity; i++)
-        {
+        guidEntities.clear();
+        guidTransforms.clear();
+        guidEntities.reserve(static_cast<size_t>(GuideQuantity));
+        guidTransforms.reserve(static_cast<size_t>(GuideQuantity));
+        for (int i = 0; i < GuideQuantity; i++) {
             Transform t{position, {0, 0, 0}, {0, 0, 0}};
-            guidEntities[i] = world.Create()
-                                  .With<Transform>(t)
-                                  .With<MeshRenderer>(renderer)
-                                  .Build();
+            Entity e = world.Create()
+                               .With<Transform>(t)
+                               .With<MeshRenderer>(renderer)
+                               .Build();
+            guidEntities.push_back(e);
+            guidTransforms.push_back(nullptr);
         }
     };
 
@@ -331,13 +336,13 @@ struct PlayerGuide : Behaviour {
         
         
         bool allValid = true;           ///<必要なものがすべて取得できたか確認
-        for (int i = 0; i < GuideQuantity; i++) 
-        {
+        if (static_cast<int>(guidEntities.size()) != GuideQuantity) {
+            // GuideQuantity が変更された場合に再生成
+            Create(w, selfTransform ? selfTransform->position : DirectX::XMFLOAT3{0,0,0});
+        }
+        for (int i = 0; i < GuideQuantity; i++) {
             guidTransforms[i] = w.TryGet<Transform>(guidEntities[i]);
-            if (!guidTransforms[i]) 
-            {
-                allValid = false;
-            }
+            if (!guidTransforms[i]) { allValid = false; }
         }
       
         if (!playerMove || !selfTransform || !allValid)
@@ -346,16 +351,12 @@ struct PlayerGuide : Behaviour {
         //プレイヤー移動方向計算
         float rad = std::atan2f(playerMove->lastStickDir_.y, playerMove->lastStickDir_.x);
 
-        for (int i = 0; i < GuideQuantity; i++)
-        {
+        for (int i = 0; i < GuideQuantity; i++) {
             Transform *currentGuide = guidTransforms[i];
 
-            if (!playerMove->isCharging_) 
-            {
+            if (!playerMove->isCharging_) {
                 currentGuide->scale = {0, 0, 0};
-            } 
-            else 
-            {   
+            } else {   
                 currentGuide->scale = {cfg_GuideScaleX.Get(), cfg_GuideScaleY.Get(), cfg_GuideScaleZ.Get()};
 
                 currentGuide->position = selfTransform->position;
