@@ -468,65 +468,35 @@ class GameScene : public IScene {
                                 CreateRightUpCorner(world, blockposition);
                                 break; // 右上が直角の三角形
                             case 10:
-                                CreateMoveWall(world, blockposition, blockType);
-                                break; // 動く障害物１
                             case 11:
-                                CreateMoveWall(world, blockposition, blockType);
-                                break; // 動く障害物２
                             case 12:
-                                CreateMoveWall(world, blockposition, blockType);
-                                break; // 動く障害物３
                             case 13:
-                                CreateMoveWall(world, blockposition, blockType);
-                                break; // 動く障害物４
                             case 14:
-                                CreateMoveWall(world, blockposition, blockType);
-                                break; // 動く障害物５
                             case 15:
-                                CreateMoveWall(world, blockposition, blockType);
-                                break; // 動く障害物６
                             case 16:
-                                CreateMoveWall(world, blockposition, blockType);
-                                break; // 動く障害物７
                             case 17:
-                                CreateMoveWall(world, blockposition, blockType);
-                                break; // 動く障害物８
                             case 18:
-                                CreateMoveWall(world, blockposition, blockType);
-                                break; // 動く障害物９
                             case 19:
-                                CreateMoveWall(world, blockposition, blockType);
-                                break; // 動く障害物10
+                                if (blockType >= 10 && blockType < 20) {
+                                    CreateMoveWall(world, blockposition, blockType);
+                                    break; // 動く障害物10
+                                }
                             case 30:
-                                CreateDashBoard(world, blockposition, blockType);
-                                break; // 加速板１
                             case 31:
-                                CreateDashBoard(world, blockposition, blockType);
-                                break; // 加速板２
                             case 32:
-                                CreateDashBoard(world, blockposition, blockType);
-                                break; // 加速板３
                             case 33:
-                                CreateDashBoard(world, blockposition, blockType);
-                                break; // 加速板４
                             case 34:
-                                CreateDashBoard(world, blockposition, blockType);
-                                break; // 加速板５
                             case 35:
-                                CreateDashBoard(world, blockposition, blockType);
-                                break; // 加速板６
                             case 36:
-                                CreateDashBoard(world, blockposition, blockType);
-                                break; // 加速板７
                             case 37:
-                                CreateDashBoard(world, blockposition, blockType);
-                                break; // 加速板８
                             case 38:
-                                CreateDashBoard(world, blockposition, blockType);
-                                break; // 加速板９
                             case 39:
-                                CreateDashBoard(world, blockposition, blockType);
-                                break; // 加速板10
+                                if (blockType >= 30 && blockType < 40) {
+                                    CreateDashBoard(world, blockposition, blockType);
+                                    break; // 加速板10
+                                }
+                            default:
+                                break; 
                         }
                     }
                 }
