@@ -271,6 +271,10 @@
     <ClInclude Include="include\components\UIImageComponents.h" />
     <ClInclude Include="include\graphics\ImageSystem.h" />
     <ClInclude Include="include\components\SkyboxLight.h" />
+    <ClInclude Include="StageStatus.h" />
+    <ClInclude Include="include\components\CameraComponent.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\app\ResourceManager.cpp">

@@ -805,6 +805,13 @@ class GameScene : public IScene {
         }
     }
 
+    void ShakeAction(World& world) {
+        world.ForEach<Camera>([&](Entity e, Camera &camera) {
+
+        });
+
+    }
+
     TextSystem textSystem_;
     ImageSystem imageSystem_;
     std::vector<Entity> ownedEntities_;

@@ -34,9 +34,8 @@ class StageSlectScene : public IScene {
 
     void OnEnter(World &world) override {
 
-         Entity gameStats = world.Create().With<GameStatus>().Build();
+        Entity gameStats = world.Create().With<GameStatus>().Build();
         
-
         Entity stageProgress = world.Create().With<StageProgress>().Build();
        
         auto *gfx = ServiceLocator::TryGet<GfxDevice>();
