@@ -158,6 +158,10 @@ struct TimeLoad : IComponent{
     TimeLoad& operator=(const TimeLoad &) = delete;
 };
 
+/**
+ * @struct LoadMove
+ * @brief 移動するブロックの移動量をCSVファイルから読み込むコンポーネント
+ */
 struct LoadMove : IComponent {
     /**
      * @brief ファイルストリーム
@@ -208,7 +212,24 @@ struct LoadMove : IComponent {
 
 };
 
+/**
+ * @struct MoveBlockStatus
+ * @brief 移動するブロックのステータス管理
+ */
+struct MoveBlockStatus : IComponent {
+    int blockID;        //各ブロックのステージID
+    int initPosX;       //ブロックの初期x座標
+    int initPosY;       //ブロックの初期y座標
+    int PosX;           //ブロックの目指すx座標
+    int PosY;           //ブロックの目指すy座標
+    int waittime;       //ブロックの初期待機時間
+    int idletime;       //ブロックの到着後待機時間
+    int movetime;       //ブロックの移動にかかる時間
+};
+
 struct UpdateMoveBlock : Behaviour {
+    struct StageCreate stageMap;
+
     void UpdateMove(World& w, int blockType) {
         w.ForEach<LoadMove>([](Entity, LoadMove &loadmove) {
             for (int y = 0; y < loadmove.moveBlock.size() - 1; ++y) {
@@ -228,6 +249,65 @@ struct UpdateMoveBlock : Behaviour {
 
 };
 
+/**
+ * @struct LoadAngle
+ * @brief 加速板の角度を取得する 
+ */
+struct LoadAngle : IComponent {
+    /**
+     * @brief アングルファイルストリーム
+     */
+    ifstream m_file;
 
+    /*
+    *  @brief 時間のデータを格納するベクター
+    */
+    vector<vector<int>> stageAngle;
+
+    /**
+     * @brief　コンストラクタ
+     */
+    LoadAngle() {
+        m_file.open("Assets/StageData/UniqueObj/SpeedUp/DebugStage1/room1.csv");
+        if (!m_file.is_open())
+            cerr << "Error: Could not open Assets/StageData/UniqueObj/SpeedUp/DebugStage1/room1.csv" << endl;
+        else {
+            loadStageAngle();
+        }
+    }
+
+    void loadStageAngle() {
+        string line;
+        while (getline(m_file, line)) {
+            vector<int> row;
+            stringstream sstream(line);
+            string cell;
+
+            while (getline(sstream, cell, ',')) {
+                try {
+                    row.push_back(stoi(cell));
+                } catch (const std::invalid_argument &error) {
+                    cerr << "無効な数値: " << cell << " (" << error.what() << ")" << endl;
+                } catch (const std::out_of_range &error) {
+                    cerr << "範囲外の数値: " << cell << " (" << error.what() << ")" << endl;
+                }
+            }
+            stageAngle.push_back(row);
+        }
+        m_file.close();
+    }
+
+    LoadAngle(const LoadAngle &) = delete;
+    LoadAngle &operator=(const LoadAngle &) = delete;
+};
+
+/**
+ * @struct DashBoardAngle
+ * @brief 加速板のステータス管理
+ */
+struct DashBoardStatus : IComponent {
+    int blockID = 0;        //各ブロックのステージID
+    float accelAngle = 0.0f;     //加速の方向
+};
 
 

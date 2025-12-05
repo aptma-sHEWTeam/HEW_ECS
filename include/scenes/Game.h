@@ -140,8 +140,13 @@ REGISTER_COLLISION_HANDLER_TYPE(FloorWallCollisionHandler)
  */
 struct DashBordCollisionHandler : ICollisionHandler {
     void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override {
-        auto *v = w.TryGet<PlayerVelocity>(other);
+        auto *v = w.TryGet<PlayerVelocity>(other);              //速度コンポーネント取得
+        auto *dash = w.TryGet<DashBoardStatus>(self);           //加速板のステータス取得
         if (w.Has<PlayerTag>(other)) {
+            if (v && dash) {
+                float accelAngle = dash->accelAngle;
+            }
+
             DEBUGLOG("プレイヤーが加速板と接触 - プレイヤー加速-");
 
             v->isBoosting = true;
@@ -196,6 +201,8 @@ class GameScene : public IScene {
     inline static ConfigVar<float> cfg_UICountB{"UI", "CountColorB", 1.0f};
 
     inline static ConfigVar<std::string> cfg_PlayerFBXPass{"Player", "PlayerFBXPass", "Assets/Models/Player/obj_player3.fbx"};
+    inline static ConfigVar<std::string> cfg_FloorFBXPass{"Game", "FloorFBXPass", "Assets/Models/StageObj/Ground/obj_ground.fbx"};
+    inline static ConfigVar<std::string> cfg_WallFBXPass{"Game", "WallFBXPass", "Assets/Models/StageObj/Wall/obj_wall.fbx"};
 
     inline static ConfigVar<std::string> cfg_RoomPath{"UI", "RoomPNGPass", "Assets/Textures/Count.png"};
 
@@ -409,8 +416,7 @@ class GameScene : public IScene {
             const float offsetX = (mapWidth * tileSize) * 0.5f - (tileSize * 0.5f);
             const float offsetZ = (mapHeight * tileSize) * 0.5f - (tileSize * 0.5f);
 
-            // ステージの床を生成
-            CreateFloor(world, static_cast<int>(mapWidth), tileSize);
+           
 
             // ステージマップに基づいてオブジェクトを生成
             for (int y = 0; y < stagecreate.stageMap.size(); ++y) {
@@ -423,6 +429,9 @@ class GameScene : public IScene {
                     float worldZ = offsetZ - (static_cast<float>(y) * tileSize);
 
                     const DirectX::XMFLOAT3 blockposition = {worldX, worldY, worldZ};
+
+                     // ステージの床を生成
+                    CreateFloor(world, blockposition);
 
                     // ステージの境界には常に壁を生成
                     if (y == 0) {
@@ -441,27 +450,6 @@ class GameScene : public IScene {
                     // ステージマップに応じたオブジェクトの生成
                     if (blockType != 0) {
                         switch (blockType) {
-                            case 1:
-                                CreateStart(world, blockposition);
-                                break; // スタート地点
-                            case 2:
-                                CreateGoal(world, blockposition);
-                                break; // ゴール地点
-                            case 3:
-                                CreateWall(world, blockposition);
-                                break; // 通常の壁
-                            case 5:
-                                CreateRightDownCorner(world, blockposition);
-                                break; // 通常の壁
-                            case 6:
-                                CreateLeftDownCorner(world, blockposition);
-                                break; // 通常の壁
-                            case 7:
-                                CreateLeftUpCorner(world, blockposition);
-                                break; // 通常の壁
-                            case 8:
-                                CreateRightUpCorner(world, blockposition);
-                                break; // 通常の壁
                             case 1: CreateStart(world, blockposition); break;               // スタート地点
                             case 2: CreateGoal(world, blockposition); break;                // ゴール地点
                             case 3: CreateWall(world, blockposition); break;                // 通常の壁
@@ -469,16 +457,26 @@ class GameScene : public IScene {
                             case 6: CreateLeftDownCorner(world, blockposition); break;      // 左下が直角の三角形
                             case 7: CreateLeftUpCorner(world, blockposition); break;        // 左上が直角の三角形
                             case 8: CreateRightUpCorner(world, blockposition); break;       // 右上が直角の三角形
-                            case 10: CreateMoveWall(world, blockposition); break;       // 動く障害物１
-                            case 11: CreateMoveWall(world, blockposition); break;       // 動く障害物２
-                            case 12: CreateMoveWall(world, blockposition); break;       // 動く障害物３
-                            case 13: CreateMoveWall(world, blockposition); break;       // 動く障害物４
-                            case 14: CreateMoveWall(world, blockposition); break;       // 動く障害物５
-                            case 15: CreateMoveWall(world, blockposition); break;       // 動く障害物６
-                            case 16: CreateMoveWall(world, blockposition); break;       // 動く障害物７
-                            case 17: CreateMoveWall(world, blockposition); break;       // 動く障害物８
-                            case 18: CreateMoveWall(world, blockposition); break;       // 動く障害物９
-                            case 19: CreateMoveWall(world, blockposition); break;       // 動く障害物10
+                            case 10: CreateMoveWall(world, blockposition, blockType); break;       // 動く障害物１
+                            case 11: CreateMoveWall(world, blockposition, blockType); break;       // 動く障害物２
+                            case 12: CreateMoveWall(world, blockposition, blockType); break;       // 動く障害物３
+                            case 13: CreateMoveWall(world, blockposition, blockType); break;       // 動く障害物４
+                            case 14: CreateMoveWall(world, blockposition, blockType); break;       // 動く障害物５
+                            case 15: CreateMoveWall(world, blockposition, blockType); break;       // 動く障害物６
+                            case 16: CreateMoveWall(world, blockposition, blockType); break;       // 動く障害物７
+                            case 17: CreateMoveWall(world, blockposition, blockType); break;       // 動く障害物８
+                            case 18: CreateMoveWall(world, blockposition, blockType); break;       // 動く障害物９
+                            case 19: CreateMoveWall(world, blockposition, blockType); break;       // 動く障害物10
+                            case 30: CreateDashBoard(world, blockposition, blockType); break;      // 加速板１
+                            case 31: CreateDashBoard(world, blockposition, blockType); break;      // 加速板２
+                            case 32: CreateDashBoard(world, blockposition, blockType); break;      // 加速板３
+                            case 33: CreateDashBoard(world, blockposition, blockType); break;      // 加速板４
+                            case 34: CreateDashBoard(world, blockposition, blockType); break;      // 加速板５
+                            case 35: CreateDashBoard(world, blockposition, blockType); break;      // 加速板６
+                            case 36: CreateDashBoard(world, blockposition, blockType); break;      // 加速板７
+                            case 37: CreateDashBoard(world, blockposition, blockType); break;      // 加速板８
+                            case 38: CreateDashBoard(world, blockposition, blockType); break;      // 加速板９
+                            case 39: CreateDashBoard(world, blockposition, blockType); break;      // 加速板10
                         }
                     }
                 }
@@ -486,32 +484,27 @@ class GameScene : public IScene {
         });
     }
 
-    void CreateFloor(World &world, int gridSize, float tileSize) {
-        if (gridSize <= 0.0f || tileSize <= 0.0f) {
-            return;
-        }
+    void CreateFloor(World &world, const DirectX::XMFLOAT3 &position) {
+        DirectX::XMFLOAT3 floorPos = {
+            position.x,
+            position.y - 1,
+            position.z,
+        };
 
-        const float yOffset = cfg_FloorYOffset;
-        const float half = (gridSize * tileSize) * 0.5f;
-
-        for (int i = 0; i < gridSize; ++i) {
-            for (int j = 0; j < gridSize; ++j) {
-                float x = i * tileSize - half + tileSize * 0.5f;
-                float z = j * tileSize - half + tileSize * 0.5f;
-
-                Transform transform{{x, yOffset, z}, {0.0f, 0.0f, 0.0f}, {tileSize, cfg_FloorThickness, tileSize}};
+                Transform transform{{floorPos}, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_FloorThickness, 1.0f}};
                 MeshRenderer renderer;
                 renderer.meshType = MeshType::Cube;
-                renderer.color = DirectX::XMFLOAT3{cfg_FloorR, cfg_FloorG, cfg_FloorB};
+                //renderer.color = DirectX::XMFLOAT3{cfg_FloorR, cfg_FloorG, cfg_FloorB};
 
                 Entity floor = world.Create()
                                    .With<Transform>(transform)
+                                   .With<Model>(cfg_FloorFBXPass)
                                    .With<MeshRenderer>(renderer)
                                    .Build();
 
                 ownedEntities_.push_back(floor);
-            }
-        }
+        
+
     }
 
     void CreateStart(World &world, const DirectX::XMFLOAT3 &position) {
@@ -590,10 +583,11 @@ class GameScene : public IScene {
         Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::Cube;
-        renderer.color = DirectX::XMFLOAT3{cfg_WallR, cfg_WallG, cfg_WallB};
+       // renderer.color = DirectX::XMFLOAT3{cfg_WallR, cfg_WallG, cfg_WallB};
 
         Entity wallEntity = world.Create()
                                 .With<Transform>(transform)
+                                .With<Model>(cfg_WallFBXPass)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
                                 .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
@@ -671,7 +665,7 @@ class GameScene : public IScene {
         stageOwnedEntities_.push_back(wallEntity);
     }
 
-    void CreateMoveWall(World &world, const DirectX::XMFLOAT3 &position) {
+    void CreateMoveWall(World &world, const DirectX::XMFLOAT3 &position,int blockType) {
         Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::Cube;
@@ -685,6 +679,12 @@ class GameScene : public IScene {
                                 .With<WallCollisionHandler>()
                                 .Build();
 
+        world.ForEach<LoadMove>([&](Entity, LoadMove& loadmove) {
+            MoveBlockStatus status;
+            status.blockID = blockType;
+            }
+        );
+
         stageOwnedEntities_.push_back(wallEntity);
     }
 
@@ -692,11 +692,11 @@ class GameScene : public IScene {
         Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::Cube;
-        renderer.color = DirectX::XMFLOAT3{cfg_FloorWallR, cfg_FloorWallG, cfg_FloorWallB};
 
         Entity worldwallEntity = world.Create()
                                      .With<Transform>(transform)
                                      .With<MeshRenderer>(renderer)
+                                     .With<Model>(cfg_WallFBXPass)
                                      .With<WallTag>()
                                      .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                                      .With<FloorWallCollisionHandler>()
@@ -706,22 +706,38 @@ class GameScene : public IScene {
     }
 
     //加速板
-    void CreateDashBord(World &world) {
-        Transform transform{{-7.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
+    void CreateDashBoard(World &world, const DirectX::XMFLOAT3 &position,int blockType) {
+        Transform transform{{position}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
         MeshRenderer renderer;
 
         renderer.meshType = MeshType::Cube;
         renderer.color = DirectX::XMFLOAT3{0.0f, 0.0f, 1.0f};
 
-        Entity dashBordEntity = world.Create()
+        DashBoardStatus status;
+        status.blockID = blockType;
+        float angle = 0.0f;
+
+        world.ForEach<LoadAngle>([&](Entity, LoadAngle &loadAngle) {
+            for (const auto &row : loadAngle.stageAngle) {
+                if (row.size() > 1) {
+                    angle = static_cast<float>(row[1]);
+                    break;
+                }
+            }
+        });
+
+        status.accelAngle = angle;
+
+        Entity dashBoardEntity = world.Create()
                                     .With<Transform>(transform)
                                     .With<MeshRenderer>(renderer)
                                     .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                                     .With<GimmickTag>()
                                     .With<DashBordCollisionHandler>()
+                                    .With<DashBoardStatus>(status)
                                     .Build();
 
-        stageOwnedEntities_.push_back(dashBordEntity);
+        stageOwnedEntities_.push_back(dashBoardEntity);
     }
 
     void SetupStage(World &world, int stage) {
