@@ -29,6 +29,13 @@ struct ModelComponent {
     TextureManager::TextureHandle normalTexture = TextureManager::INVALID_TEXTURE;
     // 基本色 (テクスチャがない場合、または色調補正用)
     DirectX::XMFLOAT3 color{ 1.0f, 1.0f, 1.0f };
+    // スペキュラー設定 (デフォルトは無効になるよう0)
+    float specularAttenuation = 0.0f;                  // 0以下でスペキュラー無効
+    DirectX::XMFLOAT3 specularColor{ 1.0f, 1.0f, 1.0f }; // ハイライト色
+    float reflectance = 0.0f;                          // Fresnel F0 相当(0-1)
+    DirectX::XMFLOAT3 reflectionColor{ 1.0f, 1.0f, 1.0f }; // 反射カラー乗算
+    float specularEccentricity = 0.0f;                  // -1〜1 目安。0で等方。
+    float useLighting = 1.0f;                           // 0でアンリット
     // UVオフセットとスケール (将来的に必要に応じて拡張)
     DirectX::XMFLOAT2 uvOffset{ 0.0f, 0.0f };
     DirectX::XMFLOAT2 uvScale{ 1.0f, 1.0f };

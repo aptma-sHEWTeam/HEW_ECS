@@ -4,6 +4,9 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 #include <DirectXMath.h>
+#include <filesystem>
+#include <algorithm>
+#include <cctype>
 
 // 頂点構造体
 struct SimpleVertex {
@@ -54,7 +57,11 @@ std::vector<ModelPrefabNode> ModelLoader::LoadModel(const std::string& filePath)
 
     // エラーチェック
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-        DEBUGLOG_ERROR("Assimp Error: " + std::string(importer.GetErrorString()));
+        std::string err = "Assimp Error: " + std::string(importer.GetErrorString()) + " | file=" + filePath;
+        DEBUGLOG_ERROR(err);
+#ifdef _DEBUG
+        MessageBoxA(nullptr, err.c_str(), "Model Load Error", MB_OK | MB_ICONERROR);
+#endif
         return nodes;
     }
 
@@ -65,7 +72,15 @@ std::vector<ModelPrefabNode> ModelLoader::LoadModel(const std::string& filePath)
     }
 
     // シーンのルートノードから再帰的に処理
-    ProcessNode(scene->mRootNode, -1, scene, directory, nodes, gfx);
+    ProcessNode(scene->mRootNode, -1, scene, directory, filePath, nodes, gfx);
+
+    if (nodes.empty()) {
+        std::string msg = "Model contains no renderable nodes: " + filePath;
+        DEBUGLOG_WARNING(msg);
+#ifdef _DEBUG
+        MessageBoxA(nullptr, msg.c_str(), "Model Load Warning", MB_OK | MB_ICONWARNING);
+#endif
+    }
 
     DEBUGLOG_CATEGORY(DebugLog::Category::Render, "Model loaded: " + filePath + ", Nodes: " + std::to_string(nodes.size()));
     return nodes;
@@ -76,6 +91,7 @@ void ModelLoader::ProcessNode(
     int parentIndex,
     const aiScene* scene,
     const std::string& directory,
+    const std::string& modelFilePath,
     std::vector<ModelPrefabNode>& outNodes,
     GfxDevice& gfx) {
 
@@ -95,7 +111,7 @@ void ModelLoader::ProcessNode(
     // このノードが保持するメッシュ（複数ある場合は1つ目をこのノードに、2つ目以降は子ノードとして複製）
     if (node->mNumMeshes > 0) {
         aiMesh* mesh = scene->mMeshes[node->mMeshes[0]];
-        baseNode.component = ProcessMesh(mesh, scene, directory, gfx);
+        baseNode.component = ProcessMesh(mesh, scene, directory, modelFilePath, gfx);
         baseNode.hasMesh = baseNode.component.indexCount > 0;
     }
 
@@ -107,14 +123,14 @@ void ModelLoader::ProcessNode(
         ModelPrefabNode extra = baseNode;
         extra.parentIndex = currentIndex;
         aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-        extra.component = ProcessMesh(mesh, scene, directory, gfx);
+        extra.component = ProcessMesh(mesh, scene, directory, modelFilePath, gfx);
         extra.hasMesh = extra.component.indexCount > 0;
         outNodes.push_back(extra);
     }
 
     // 子ノードを再帰処理
     for (unsigned int i = 0; i < node->mNumChildren; ++i) {
-        ProcessNode(node->mChildren[i], currentIndex, scene, directory, outNodes, gfx);
+        ProcessNode(node->mChildren[i], currentIndex, scene, directory, modelFilePath, outNodes, gfx);
     }
 }
 
@@ -122,6 +138,7 @@ ModelComponent ModelLoader::ProcessMesh(
     aiMesh* mesh,
     const aiScene* scene,
     const std::string& directory,
+    const std::string& modelFilePath,
     GfxDevice& gfx) {
     std::vector<SimpleVertex> vertices;
     std::vector<unsigned short> indices;
@@ -194,23 +211,87 @@ ModelComponent ModelLoader::ProcessMesh(
     if (mesh->mMaterialIndex >= 0) {
         aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
         // 現時点ではDiffuseテクスチャのみをロード
-        mc.texture = LoadMaterialTextures(material, aiTextureType_DIFFUSE, directory);
-        mc.normalTexture = LoadMaterialTextures(material, aiTextureType_NORMALS, directory);
+        mc.texture = LoadMaterialTextures(material, aiTextureType_DIFFUSE, directory, modelFilePath);
+        mc.normalTexture = LoadMaterialTextures(material, aiTextureType_NORMALS, directory, modelFilePath);
 
         // マテリアルから色情報を取得 (Ambient/Diffuse/Specularなど、ここではDiffuseを代表として使用)
         aiColor3D color (0.f,0.f,0.f);
         if(AI_SUCCESS == material->Get(AI_MATKEY_COLOR_DIFFUSE, color)) {
             mc.color = {color.r, color.g, color.b};
         }
+
+        // スペキュラー/反射系パラメータを可能な限り読み取る
+        aiColor3D specColor(0.f, 0.f, 0.f);
+        if (AI_SUCCESS == material->Get(AI_MATKEY_COLOR_SPECULAR, specColor)) {
+            mc.specularColor = { specColor.r, specColor.g, specColor.b };
+        }
+
+        float reflectance = 0.0f;
+        material->Get(AI_MATKEY_REFLECTIVITY, reflectance); // 0〜1 を想定
+        mc.reflectance = reflectance;
+
+        aiColor3D reflColor(1.f, 1.f, 1.f);
+        if (AI_SUCCESS == material->Get(AI_MATKEY_COLOR_REFLECTIVE, reflColor)) {
+            mc.reflectionColor = { reflColor.r, reflColor.g, reflColor.b };
+        }
+
+        // shininess があればスペキュラーを有効化する目安とする
+        float shininess = 0.0f;
+        material->Get(AI_MATKEY_SHININESS, shininess);
+
+        // reflectance が0なら、specularColorから簡易F0を推定
+        if (mc.reflectance <= 0.0f) {
+            float avgSpec = (mc.specularColor.x + mc.specularColor.y + mc.specularColor.z) / 3.0f;
+            mc.reflectance = std::min(1.0f, std::max(0.0f, avgSpec));
+        }
+
+        bool hasSpec = (mc.specularColor.x > 0.0f || mc.specularColor.y > 0.0f || mc.specularColor.z > 0.0f);
+        // 減衰は shininess を0-1に粗く正規化（32を標準とみなす）。最低でも reflectance や specColor があればオン。
+        float attenuationFromShininess = std::min(1.0f, shininess / 32.0f);
+        if (hasSpec || mc.reflectance > 0.0f || shininess > 0.0f) {
+            mc.specularAttenuation = std::max(attenuationFromShininess, 0.2f); // 最低限効かせる
+        } else {
+            mc.specularAttenuation = 0.0f;
+        }
+
+        // 以前は「player」含みのモデルをアンリット強制していたが、
+        // シェーディングが当たらず真っ白になるため解除する。
     }
 
     return mc;
 }
 
+static std::string TryAlternativeTexturePaths(const std::string& primaryFullPath, const std::string& directory, const std::string& filename) {
+    // 1) primaryFullPath
+    if (std::filesystem::exists(primaryFullPath)) return primaryFullPath;
+
+    // 2) directory + "/" + filename (already primary), try variations of separators
+    std::string alt1 = directory + "\\" + filename;
+    if (std::filesystem::exists(alt1)) return alt1;
+
+    // 3) filename relative to directory not existing, try file in model folder root with common image extensions
+    std::filesystem::path dirPath(directory);
+    std::vector<std::string> exts{ ".png", ".jpg", ".jpeg", ".bmp", ".tga" };
+    std::filesystem::path base = std::filesystem::path(filename).stem();
+    for (const auto& ext : exts) {
+        std::filesystem::path candidate = dirPath / (base.string() + ext);
+        if (std::filesystem::exists(candidate)) return candidate.string();
+    }
+
+    // 4) If filename includes subdirs that don't exist, fallback to basename in directory
+    std::filesystem::path fnamePath(filename);
+    std::filesystem::path basename = fnamePath.filename();
+    std::filesystem::path candidate = dirPath / basename;
+    if (std::filesystem::exists(candidate)) return candidate.string();
+
+    return primaryFullPath; // fallback
+}
+
 TextureManager::TextureHandle ModelLoader::LoadMaterialTextures(
     aiMaterial* mat,
     aiTextureType type,
-    const std::string& directory
+    const std::string& directory,
+    const std::string& modelFilePath
 ) {
     auto& texMgr = ServiceLocator::Get<TextureManager>();
     TextureManager::TextureHandle textureHandle = TextureManager::INVALID_TEXTURE;
@@ -218,17 +299,19 @@ TextureManager::TextureHandle ModelLoader::LoadMaterialTextures(
         aiString str;
         mat->GetTexture(type, i, &str);
         std::string filename = str.C_Str();
-        
-        // テクスチャパスを構築 (モデルファイルと同じディレクトリを基準)
-        std::string fullPath = directory + "/" + filename;
-        
-        // テクスチャマネージャーでロード
-        textureHandle = texMgr.LoadFromFile(fullPath.c_str());
+
+        // Build primary texture path relative to the model directory
+        std::string fullPath = directory.empty() ? filename : (directory + "/" + filename);
+
+        // Fallback: if not found, try same-named image in the FBX folder
+        std::string resolved = TryAlternativeTexturePaths(fullPath, directory, filename);
+
+        textureHandle = texMgr.LoadFromFile(resolved.c_str());
         if (textureHandle != TextureManager::INVALID_TEXTURE) {
-            DEBUGLOG_CATEGORY(DebugLog::Category::Render, "Loaded texture: " + fullPath);
-            break; // 最初のテクスチャのみを使用
+            DEBUGLOG_CATEGORY(DebugLog::Category::Render, "Loaded texture: " + resolved);
+            break; // use first available texture
         } else {
-            DEBUGLOG_WARNING("Failed to load texture: " + fullPath);
+            DEBUGLOG_WARNING("Failed to load texture: " + resolved);
         }
     }
     return textureHandle;

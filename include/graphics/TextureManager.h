@@ -154,9 +154,10 @@ public:
         );
 
         if (FAILED(hr)) {
-            char msg[512];
-            sprintf_s(msg, "Failed to load image file: %s", filepath);
-            MessageBoxA(nullptr, msg, "Texture Load Error", MB_OK | MB_ICONERROR);
+            DEBUGLOG_ERROR(std::string("Failed to load image file: ") + filepath);
+#ifdef _DEBUG
+            MessageBoxA(nullptr, (std::string("Failed to load image file: ") + filepath).c_str(), "Texture Load Error", MB_OK | MB_ICONERROR);
+#endif
             return INVALID_TEXTURE;
         }
 
@@ -238,7 +239,10 @@ public:
         Microsoft::WRL::ComPtr<ID3D11Texture2D> texture;
         HRESULT hr = gfx_->Dev()->CreateTexture2D(&texDesc, &initData, &texture);
         if (FAILED(hr)) {
+            DEBUGLOG_ERROR("Failed to create texture2D");
+#ifdef _DEBUG
             MessageBoxA(nullptr, "Failed to create texture2D", "Texture Error", MB_OK | MB_ICONERROR);
+#endif
             return INVALID_TEXTURE;
         }
 
@@ -251,7 +255,10 @@ public:
         Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv;
         hr = gfx_->Dev()->CreateShaderResourceView(texture.Get(), &srvDesc, &srv);
         if (FAILED(hr)) {
+            DEBUGLOG_ERROR("Failed to create SRV");
+#ifdef _DEBUG
             MessageBoxA(nullptr, "Failed to create SRV", "Texture Error", MB_OK | MB_ICONERROR);
+#endif
             return INVALID_TEXTURE;
         }
 

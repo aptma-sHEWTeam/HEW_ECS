@@ -267,6 +267,10 @@
     <ClInclude Include="include\util\Random.h">
       <Filter>Header Files\util</Filter>
     </ClInclude>
+    <ClInclude Include="RoomUIComponents.h" />
+    <ClInclude Include="include\components\UIImageComponents.h" />
+    <ClInclude Include="include\graphics\ImageSystem.h" />
+    <ClInclude Include="include\components\SkyboxLight.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\app\ResourceManager.cpp">
@@ -302,6 +306,7 @@
     <ClCompile Include="src\systems\SpatialHashGrid.cpp">
       <Filter>Source Files\systems</Filter>
     </ClCompile>
+    <ClCompile Include="src\graphics\ImageSystem.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="README.md" />
