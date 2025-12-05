@@ -8,6 +8,7 @@
 #include "components/UIImageComponents.h"
 #include "graphics/TextSystem.h"
 #include "graphics/ImageSystem.h"
+#include "graphics/TextureManager.h"
 #include "input/InputSystem.h"
 #include "ecs/World.h"
 #include <DirectXMath.h>
@@ -51,7 +52,7 @@ struct UIRenderSystem {
                 if (!w.Has<UIButton>(e)) DrawText(t, txt);
             });
 
-            // Images
+            // Images (handle優先, それ以外はfilePath)
             w.ForEach<UITransform, UIImage>([&](Entity, UITransform &t, UIImage &img) {
                 DrawImage(t, img);
             });
@@ -84,7 +85,11 @@ struct UIRenderSystem {
     }
     void DrawImage(const UITransform &transform, const UIImage &img) {
         DirectX::XMFLOAT2 pos = transform.GetScreenPosition(screenWidth_, screenHeight_);
-        ImageSystem::Params p; p.filePath = img.filePath; p.x = pos.x; p.y = pos.y; p.width = transform.size.x; p.height = transform.size.y; p.opacity = img.opacity; p.keepAspect = img.keepAspect; imageSystem_->Draw(p);
+        if (img.textureHandle != TextureManager::INVALID_TEXTURE) {
+            imageSystem_->Draw(img.textureHandle, pos.x, pos.y, transform.size.x, transform.size.y, img.opacity, img.keepAspect);
+        } else {
+            ImageSystem::Params p; p.filePath = img.filePath; p.x = pos.x; p.y = pos.y; p.width = transform.size.x; p.height = transform.size.y; p.opacity = img.opacity; p.keepAspect = img.keepAspect; imageSystem_->Draw(p);
+        }
     }
 };
 

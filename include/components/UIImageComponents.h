@@ -6,12 +6,15 @@
 #include "components/Component.h"
 #include <string>
 #include <DirectXMath.h>
+#include "graphics/TextureManager.h"
 
 struct UIImage : IComponent {
     std::wstring filePath;           ///< 画像ファイルパス
     float opacity = 1.0f;            ///< 透過(0..1)
     bool keepAspect = true;          ///< アスペクト比維持
-    DirectX::XMFLOAT4 tint{1,1,1,1}; ///< 将来のティント用(未使用)
+    DirectX::XMFLOAT4 tint{1,1,1,1}; ///< 画像へのカラー乗算
+    // 追加: TextureManagerハンドルでの描画に対応（filePathより優先）
+    TextureManager::TextureHandle textureHandle = TextureManager::INVALID_TEXTURE;
 
     UIImage() = default;
     explicit UIImage(const std::wstring &path) : filePath(path) {}
