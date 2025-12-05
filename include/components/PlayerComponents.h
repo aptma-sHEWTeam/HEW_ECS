@@ -57,6 +57,8 @@ struct PlayerVelocity : Behaviour {
     float DebugSpeed = 0.0f;                          ///< デバッグ用
 
     DirectX::XMFLOAT2 velocity = {0.0f, 0.0f}; ///< 現在の移動ベロシティ
+    DirectX::XMFLOAT2 boostDir = {0.0f, 0.0f}; ///< ブースト方向（正規化）
+    float boostSpeed = 0.0f;                   ///< ブースト速度（単位/秒）
 
     void SetVelocity(DirectX::XMFLOAT2 speed) {
         velocity = speed;
@@ -72,6 +74,25 @@ struct PlayerVelocity : Behaviour {
                 velocity.y = normal_y * speed;
             }
         }
+
+    // 外部から指定方向・指定速度でブースト開始
+    void StartBoost(const DirectX::XMFLOAT2 &dir, float spd) {
+        float len = std::sqrt(dir.x * dir.x + dir.y * dir.y);
+        if (len > 0.0f) {
+            boostDir.x = dir.x / len;
+            boostDir.y = dir.y / len;
+        } else {
+            boostDir = {0.0f, 0.0f};
+        }
+        boostSpeed = spd;
+        isBoosting = true;
+        isDecelerating = false;
+    }
+
+    void StopBoost() {
+        isBoosting = false;
+        boostSpeed = 0.0f;
+    }
 
         // 減速処理
         if (isDecelerating) {
@@ -109,8 +130,20 @@ struct PlayerVelocity : Behaviour {
 
         // 加速中なら速度を上書き
         if (isBoosting) {
-            v->velocity.x = Acceleration;
-            v->velocity.y = Acceleration;
+            float curSpeed = std::sqrt(v->velocity.x * v->velocity.x + v->velocity.y * v->velocity.y);
+            if (curSpeed > 0.0f) {
+                float boosted = curSpeed * Acceleration;
+                float nx = v->velocity.x / curSpeed;
+                float ny = v->velocity.y / curSpeed;
+                v->velocity.x = nx * boosted;
+                v->velocity.y = ny * boosted;
+            } else {
+                // 速度がゼロの場合、前進方向がないため、通常速度を加速倍率で適用
+                v->velocity.x = speed * Acceleration;
+                v->velocity.y = 0.0f;
+            }
+            // ブースト中は減速しない
+            v->isDecelerating = false;
         }
     }
 
