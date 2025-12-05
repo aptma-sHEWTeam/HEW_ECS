@@ -10,6 +10,7 @@
 #include <d2d1.h>
 #include <d2d1_1.h>
 #include <d2d1_1helper.h>
+#include <wincodec.h> // WIC enums and GUIDs
 #include <wrl/client.h>
 #include <unordered_map>
 #include <string>
@@ -131,7 +132,7 @@ private:
             return false;
         }
         Microsoft::WRL::ComPtr<IWICBitmap> wicBitmap;
-        HRESULT hr = wicFactory_->CreateBitmap(desc.Width, desc.Height, GUID_WICPixelFormat32bppPRGBA, WICBitmapCreateCacheOptionNoCache, &wicBitmap);
+        HRESULT hr = wicFactory_->CreateBitmap(desc.Width, desc.Height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnDemand, &wicBitmap);
         if (FAILED(hr)) {
             gfx_->Ctx()->Unmap(staging.Get(), 0);
             return false;
