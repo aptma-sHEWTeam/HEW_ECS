@@ -358,11 +358,18 @@ class GameScene : public IScene {
     void OnWallHit(Entity player, World &world) {
         if (pendingRespawn_) return;
 
+        if (auto* playerStatus = world.TryGet<PlayerStatus>(playerEntity_))
+        {
+            playerStatus->isStartAfterWallHit = true;
+            DEBUGLOG("isStartAfterWallHitがtrueになりました");
+        }
+
         if (auto *pv = world.TryGet<PlayerVelocity>(playerEntity_)) {
             if (static_cast<bool>(pv->velocity.x + pv->velocity.y)) {
                 float vecX = pv->velocity.x / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
                 float vecY = pv->velocity.y / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
                 TriggerCameraImpulse(vecX, 0.0f, vecY, 0.2f, 0.04f);
+
             }
         }
 
@@ -403,6 +410,7 @@ class GameScene : public IScene {
                             .With<PlayerTag>()
                             .With<PlayerVelocity>()
                             .With<PlayerMovement>()
+                            .With<PlayerStatus>()
                             .With<PlayerGuide>()
                             .With<CollisionSphere>(0.4f)
                             .With<PlayerCollisionHandler>()
@@ -1046,13 +1054,25 @@ class GameScene : public IScene {
     // 遅延リスポーン・カメラリアクション更新
     // =========================================
 
-    void UpdateDelayedRespawn(float dt, World &world) {
+    void UpdateDelayedRespawn(float dt, World &world) 
+    {
+
+
+        if (auto *movement = world.TryGet<PlayerMovement>(playerEntity_))
+        {
+            movement->isCharging_ = false;
+        }
         if (!pendingRespawn_) return;
         respawnTimer_ -= dt;
         if (respawnTimer_ <= 0.0f) {
             ResetPlayerToStart(world, respawnPlayer_, true);
             pendingRespawn_ = false;
             respawnTimer_ = 0.0f;
+        }
+        if (auto* playerStatus = world.TryGet<PlayerStatus>(playerEntity_))
+        {
+            playerStatus->isStartAfterWallHit = false;
+            DEBUGLOG("isStartAfterWallHitがfalseになりました " );
         }
     }
 
