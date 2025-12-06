@@ -1,7 +1,7 @@
-/**
+ï»¿/**
  * @file CameraReaction.h
- * @brief ƒJƒƒ‰ƒŠƒAƒNƒVƒ‡ƒ“iƒVƒFƒCƒNAƒCƒ“ƒpƒ‹ƒXAƒY[ƒ€“™j‚Ì’è‹`
- * @author R“à—z
+ * @brief ã‚«ãƒ¡ãƒ©ãƒªã‚¢ã‚¯ã‚·ãƒ§ãƒ³ï¼ˆã‚·ã‚§ã‚¤ã‚¯ã€ã‚¤ãƒ³ãƒ‘ãƒ«ã‚¹ã€ã‚ºãƒ¼ãƒ ç­‰ï¼‰ã®å®šç¾©
+ * @author å±±å†…é™½
  * @date 2025
  * @version 1.0
  */
@@ -10,44 +10,44 @@
 #include "config/ConfigVar.h"
 
 /**
- * @brief ƒJƒƒ‰ƒŠƒAƒNƒVƒ‡ƒ“ƒ^ƒCƒv
+ * @brief ã‚«ãƒ¡ãƒ©ãƒªã‚¢ã‚¯ã‚·ãƒ§ãƒ³ã‚¿ã‚¤ãƒ—
  */
 enum class CameraReactionType {
-    None,       ///< ƒŠƒAƒNƒVƒ‡ƒ“‚È‚µ
-    Shake,      ///< —h‚êiƒ‰ƒ“ƒ_ƒ€j
-    Impulse,    ///< ÕŒ‚iˆê•ûŒü‚Ö’µ‚Ë‚éj
-    Zoom,       ///< ƒY[ƒ€ƒCƒ“/ƒAƒEƒg
-    Tilt        ///< ŒX‚«
+    None,       ///< ãƒªã‚¢ã‚¯ã‚·ãƒ§ãƒ³ãªã—
+    Shake,      ///< æºã‚Œï¼ˆãƒ©ãƒ³ãƒ€ãƒ ï¼‰
+    Impulse,    ///< è¡æ’ƒï¼ˆä¸€æ–¹å‘ã¸è·³ã­ã‚‹ï¼‰
+    Zoom,       ///< ã‚ºãƒ¼ãƒ ã‚¤ãƒ³/ã‚¢ã‚¦ãƒˆ
+    Tilt        ///< å‚¾ã
 };
 
 // =========================================
-// ƒJƒƒ‰ƒŠƒAƒNƒVƒ‡ƒ“—pConfigVars
+// ã‚«ãƒ¡ãƒ©ãƒªã‚¢ã‚¯ã‚·ãƒ§ãƒ³ç”¨ConfigVars
 // =========================================
-/** @brief ƒJƒƒ‰ƒVƒFƒCƒN‚ÌX²•ûŒü‚Ì—h‚ê‚Ìü”g” */
+/** @brief ã‚«ãƒ¡ãƒ©ã‚·ã‚§ã‚¤ã‚¯æ™‚ã®Xè»¸æ–¹å‘ã®æºã‚Œã®å‘¨æ³¢æ•° */
 inline ConfigVar<float> cfg_CameraShakeFreqX{"Camera", "ShakeFreqX", 35.0f};
-/** @brief ƒJƒƒ‰ƒVƒFƒCƒN‚ÌY²•ûŒü‚Ì—h‚ê‚Ìü”g” */
+/** @brief ã‚«ãƒ¡ãƒ©ã‚·ã‚§ã‚¤ã‚¯æ™‚ã®Yè»¸æ–¹å‘ã®æºã‚Œã®å‘¨æ³¢æ•° */
 inline ConfigVar<float> cfg_CameraShakeFreqY{"Camera", "ShakeFreqY", 28.0f};
-/** @brief ƒJƒƒ‰ƒVƒFƒCƒN‚ÌZ²•ûŒü‚Ì—h‚ê‚Ìü”g” */
+/** @brief ã‚«ãƒ¡ãƒ©ã‚·ã‚§ã‚¤ã‚¯æ™‚ã®Zè»¸æ–¹å‘ã®æºã‚Œã®å‘¨æ³¢æ•° */
 inline ConfigVar<float> cfg_CameraShakeFreqZ{"Camera", "ShakeFreqZ", 41.0f};
-/** @brief ƒJƒƒ‰ƒVƒFƒCƒNŒø‰Ê‚ÌŒ¸Š—¦B‘å‚«‚¢‚Ù‚Ç‘‚­û‚Ü‚é */
+/** @brief ã‚«ãƒ¡ãƒ©ã‚·ã‚§ã‚¤ã‚¯åŠ¹æœã®æ¸›è¡°ç‡ã€‚å¤§ãã„ã»ã©æ—©ãåã¾ã‚‹ */
 inline ConfigVar<float> cfg_CameraShakeDecay{"Camera", "ShakeDecay", 3.0f};
-/** @brief ƒJƒƒ‰ƒVƒFƒCƒN‚Ìƒ‰ƒ“ƒ_ƒ€«‚Ì‹­‚³B0‚ÅŠ®‘S‚Èsin”gA1‚ÅŠ®‘S‚Èƒ‰ƒ“ƒ_ƒ€ */
+/** @brief ã‚«ãƒ¡ãƒ©ã‚·ã‚§ã‚¤ã‚¯ã®ãƒ©ãƒ³ãƒ€ãƒ æ€§ã®å¼·ã•ã€‚0ã§å®Œå…¨ãªsinæ³¢ã€1ã§å®Œå…¨ãªãƒ©ãƒ³ãƒ€ãƒ  */
 inline ConfigVar<float> cfg_CameraShakeRandomness{"Camera", "ShakeRandomness", 0.3f};
-/** @brief ƒJƒƒ‰ƒVƒFƒCƒN‚ÌY²•ûŒü‚Ì—h‚ê‚ÌƒXƒP[ƒ‹i‘¼²‚Æ‚Ì‘Š‘Îj */
+/** @brief ã‚«ãƒ¡ãƒ©ã‚·ã‚§ã‚¤ã‚¯æ™‚ã®Yè»¸æ–¹å‘ã®æºã‚Œã®ã‚¹ã‚±ãƒ¼ãƒ«ï¼ˆä»–è»¸ã¨ã®ç›¸å¯¾ï¼‰ */
 inline ConfigVar<float> cfg_CameraShakeYScale{"Camera", "ShakeYScale", 0.5f};
-/** @brief ƒJƒƒ‰‚ÌÕŒ‚iƒCƒ“ƒpƒ‹ƒXjŒø‰Ê‚ÌŒ¸Š—¦B‘å‚«‚¢‚Ù‚Ç‘‚­û‚Ü‚é */
+/** @brief ã‚«ãƒ¡ãƒ©ã®è¡æ’ƒï¼ˆã‚¤ãƒ³ãƒ‘ãƒ«ã‚¹ï¼‰åŠ¹æœã®æ¸›è¡°ç‡ã€‚å¤§ãã„ã»ã©æ—©ãåã¾ã‚‹ */
 inline ConfigVar<float> cfg_CameraImpulseDecay{"Camera", "ImpulseDecay", 5.0f};
-/** @brief ƒJƒƒ‰‚ÌƒY[ƒ€ƒCƒ“/ƒAƒEƒg ƒAƒjƒ[ƒVƒ‡ƒ“‚Ì‘¬“x */
+/** @brief ã‚«ãƒ¡ãƒ©ã®ã‚ºãƒ¼ãƒ ã‚¤ãƒ³/ã‚¢ã‚¦ãƒˆ ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ã®é€Ÿåº¦ */
 inline ConfigVar<float> cfg_CameraZoomSpeed{"Camera", "ZoomSpeed", 2.0f};
-/** @brief ƒJƒƒ‰‚ªƒvƒŒƒCƒ„[‚ğ’Ç]‚·‚éÛ‚ÌŠŠ‚ç‚©‚³B‘å‚«‚¢‚Ù‚Ç‘f‘‚­’Ç]‚·‚é */
+/** @brief ã‚«ãƒ¡ãƒ©ãŒãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã‚’è¿½å¾“ã™ã‚‹éš›ã®æ»‘ã‚‰ã‹ã•ã€‚å¤§ãã„ã»ã©ç´ æ—©ãè¿½å¾“ã™ã‚‹ */
 inline ConfigVar<float> cfg_CameraFollowSmooth{"Camera", "FollowSmooth", 5.0f};
 
 // =========================================
-// •ÇÕ“ËƒŠƒXƒ|[ƒ“—pConfigVars
+// å£è¡çªãƒªã‚¹ãƒãƒ¼ãƒ³ç”¨ConfigVars
 // =========================================
-/** @brief •ÇÕ“Ë‚ÌƒJƒƒ‰ƒVƒFƒCƒN‚Ì‹­‚³ */
+/** @brief å£è¡çªæ™‚ã®ã‚«ãƒ¡ãƒ©ã‚·ã‚§ã‚¤ã‚¯ã®å¼·ã• */
 inline ConfigVar<float> cfg_WallHitShakeIntensity{"Game", "WallHitShakeIntensity", 0.5f};
-/** @brief •ÇÕ“Ë‚ÌƒJƒƒ‰ƒVƒFƒCƒN‚Ì‘±ŠÔ */
+/** @brief å£è¡çªæ™‚ã®ã‚«ãƒ¡ãƒ©ã‚·ã‚§ã‚¤ã‚¯ã®æŒç¶šæ™‚é–“ */
 inline ConfigVar<float> cfg_WallHitShakeDuration{"Game", "WallHitShakeDuration", 0.3f};
-/** @brief •ÇÕ“ËŒãAƒvƒŒƒCƒ„[‚ªƒŠƒXƒ|[ƒ“‚·‚é‚Ü‚Å‚Ì’x‰„ŠÔ */
+/** @brief å£è¡çªå¾Œã€ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ãŒãƒªã‚¹ãƒãƒ¼ãƒ³ã™ã‚‹ã¾ã§ã®é…å»¶æ™‚é–“ */
 inline ConfigVar<float> cfg_WallHitRespawnDelay{"Game", "WallHitRespawnDelay", 0.4f};
