@@ -163,6 +163,7 @@ class GameScene : public IScene {
 
         // カメラリアクションを更新
         UpdateCameraReaction(deltaTime, world);
+        ChargCameraAction(world);
         RenderingSystem::GetInstance().UpdateLights(world, camera_.position);
 
         // ECSワールドのTickを進める
@@ -268,7 +269,7 @@ class GameScene : public IScene {
     /** @brief カメラの基準位置を設定 */
     void SetCameraBasePosition(const DirectX::XMFLOAT3& pos) { cameraPosition_ = pos; }
 
-    void ChargCameraAction(Entity e,World &world) {
+    void ChargCameraAction(World &world) {
         world.ForEach<PlayerMovement>([&](Entity e, PlayerMovement &player) {
             float gx = player.gamepad_->GetLeftStickX();
             float gy = player.gamepad_->GetLeftStickY();
