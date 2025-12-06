@@ -3,6 +3,7 @@
 #include "ecs/Entity.h"
 #include "ecs/World.h"
 #include "graphics/TextureManager.h"
+#include "graphics/RenderSystem.h"
 #include <vector>
 #include <cmath>
 
@@ -275,4 +276,73 @@ struct UVAnimation : Behaviour {
         if (currentOffset.x < 0.0f) currentOffset.x += 1.0f;
         if (currentOffset.y < 0.0f) currentOffset.y += 1.0f;
     }
+};
+
+struct SpriteSheetAnimation : Behaviour 
+{
+    int frameCount = 1;
+    float frameTime = 0.1f;
+    bool isLooping = true;
+    bool isPlaying = true;
+
+    float currentTime = 0.0f;
+    int currentFrame = 0;
+    bool isFinished = false;
+
+    //描画時にUIImageが参照するuv    {x,y,w,h}
+    std::vector<std::array<float, 4>>uv{};
+
+    void OnUpdate(World& w, Entity self, float dt) override
+    {
+        if (!isPlaying || frameCount <= 0)
+            return;
+
+        currentTime += dt;
+
+        if (currentTime >= frameTime)
+        {
+            currentTime -= frameTime;
+            currentFrame++;
+
+            if (currentTime >= frameCount)
+            {
+                if (isLooping)
+                {
+                    currentFrame = 0;
+                }
+
+                else
+                {
+                    currentFrame = frameCount - 1;
+                    isPlaying = false;
+                    isFinished = true;
+                }
+            }
+            UpdateUV();
+        }
+
+        UIImage *img = w.TryGet<UIImage>(self);
+        if (img && currentFrame < uv.size())
+        {
+            img->uvRect = uv[currentFrame];
+        }
+    }
+    
+    //アニメーションの配置処理
+    void UpdateUV()
+    {
+        uv.resize(frameCount);
+
+        float width = 1.0f / frameCount;
+        
+        for (int i = 0; i < frameCount;i++)
+        {
+            uv[i][0] = width * (i + 1); //U幅
+            uv[i][1] = 0.0f;            //V幅
+            uv[i][2] = width;           //U座標
+            uv[i][3] = 1.0f;            //V座標
+
+        }
+    }
+    
 };
