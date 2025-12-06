@@ -268,11 +268,22 @@ class GameScene : public IScene {
     /** @brief カメラの基準位置を設定 */
     void SetCameraBasePosition(const DirectX::XMFLOAT3& pos) { cameraPosition_ = pos; }
 
-    void ChargCameraAction(Entity player,World &world) {
+    void ChargCameraAction(Entity e,World &world) {
         world.ForEach<PlayerMovement>([&](Entity e, PlayerMovement &player) {
+            float gx = player.gamepad_->GetLeftStickX();
+            float gy = player.gamepad_->GetLeftStickY();
+            float mag = std::sqrt(gx * gx + gy * gy);
+
+            if (mag > PlayerConstants::EPSILON) {
+                player.lastStickDir_.x = -(gx / mag);
+                player.lastStickDir_.y = -(gy / mag);
+            }
+
+            const float releaseThreshold = cfg_ReleaseThreshold;
+            bool chargingNowLocal = (mag > releaseThreshold);
+
             bool releasedSys = player.gamepad_->IsLeftStickReleased();
             bool releasedLocal = (player.wasCharging_ && !chargingNowLocal);
-
             if (releasedSys || releasedLocal) {
                 if (auto *pv = world.TryGet<PlayerVelocity>(playerEntity_)) {
                     if (static_cast<bool>(pv->velocity.x + pv->velocity.y)) {
@@ -297,7 +308,7 @@ class GameScene : public IScene {
             if (static_cast<bool>(pv->velocity.x + pv->velocity.y)) {
                 float vecX = pv->velocity.x / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
                 float vecY = pv->velocity.y / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
-                TriggerCameraImpulse(vecX, 0.0f, vecY, 0.2f, 0.1f);
+                TriggerCameraImpulse(vecX, 0.0f, vecY, 0.2f, 0.04f);
             }
         }
 
