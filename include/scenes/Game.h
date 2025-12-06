@@ -499,7 +499,7 @@ class GameScene : public IScene {
         DEBUGLOG("GameWithUIScene のクリーンアップが完了しました");
     }
 
-    // =========================================
+   // =========================================
     // カメラリアクション公開API
     // =========================================
 
@@ -511,8 +511,9 @@ class GameScene : public IScene {
     void TriggerCameraShake(float intensity, float duration) {
         reactionType_ = CameraReactionType::Shake;
         shakeIntensity_ = intensity;
-        reactionTime_ = duration;
-        reactionElapsed_ = 0.0f; // 経過時間をリセット
+        // シェイク専用のタイマーに設定
+        shakeTime_ = duration;
+        shakeElapsed_ = 0.0f;
     }
 
     /**
@@ -527,8 +528,9 @@ class GameScene : public IScene {
         reactionType_ = CameraReactionType::Impulse;
         impulseDir_ = {dirX, dirY, dirZ};
         impulseIntensity_ = intensity;
-        reactionTime_ = duration;
-        reactionElapsed_ = 0.0f; // 経過時間をリセット
+        // インパルス専用のタイマーに設定
+        impulseTime_ = duration;
+        impulseElapsed_ = 0.0f;
     }
 
     /**
@@ -539,8 +541,9 @@ class GameScene : public IScene {
     void TriggerCameraZoom(float zoomAmount, float duration) {
         reactionType_ = CameraReactionType::Zoom;
         zoomAmount_ = zoomAmount;
-        reactionTime_ = duration;
-        reactionElapsed_ = 0.0f; // 経過時間をリセット
+        // ズーム専用のタイマーに設定
+        zoomTime_ = duration;
+        zoomElapsed_ = 0.0f;
     }
 
     /**
@@ -548,11 +551,17 @@ class GameScene : public IScene {
      */
     void StopCameraReaction() {
         reactionType_ = CameraReactionType::None;
-        camera_.position = cameraPosition_; // カメラ位置を基準位置に戻す
-        camera_.fovY = baseFovY_;           // 視野角を基準値に戻す
-        // プロジェクション行列を更新
+        camera_.position = cameraPosition_;
+        camera_.fovY = baseFovY_;
+        // すべてのリアクションタイマーをリセット
+        shakeElapsed_ = 0.0f;
+        shakeTime_ = 0.0f;
+        impulseElapsed_ = 0.0f;
+        impulseTime_ = 0.0f;
+        zoomElapsed_ = 0.0f;
+        zoomTime_ = 0.0f;
         camera_.Proj = DirectX::XMMatrixPerspectiveFovLH(camera_.fovY, camera_.aspect, camera_.nearZ, camera_.farZ);
-        camera_.Update(); // ビュー行列、ビュープロジェクション行列を再計算
+        camera_.Update();
     }
 
     /**
@@ -574,7 +583,7 @@ class GameScene : public IScene {
      * @details プレイヤーの速度を止め、カメラを揺らし、一定時間後にリスポーン処理を予約する
      * @param player リスポーンするプレイヤーエンティティ
      */
-    void OnWallHit(Entity player) {
+    void OnWallHit(Entity player,World &world) {
         if (pendingRespawn_) return; // 既にリスポーン処理が進行中なら何もしない
 
         // プレイヤーの速度を即座に0にする
@@ -586,10 +595,14 @@ class GameScene : public IScene {
                 v->boostSpeed = 0.0f;
             }
         }
-
         // 設定ファイルから読み込んだ値でカメラシェイクを開始
-        TriggerCameraShake(cfg_WallHitShakeIntensity.Get(), cfg_WallHitShakeDuration.Get());
-
+     
+        if (auto *pv = world.TryGet<PlayerVelocity>(playerEntity_)) {
+         // float vecX = pv->velocity.x /   
+          // TriggerCameraImpulse(pv->velocity.x,pv->velocity.y,0.0,impulseIntensity_,reactionTime_);
+           TriggerCameraImpulse(1, 0, 0, 2, 0.2f);
+        };
+  
         // 遅延リスポーンを設定
         pendingRespawn_ = true;
         respawnPlayer_ = player;
@@ -1200,43 +1213,37 @@ class GameScene : public IScene {
      * @param dt 前フレームからの経過時間
      */
     void UpdateShake(float dt) {
-        reactionElapsed_ += dt;
+        // シェイクの専用タイマーを使用
+        shakeElapsed_ += dt;
 
-        // 持続時間が過ぎたらリアクションを終了
-        if (reactionElapsed_ >= reactionTime_) {
+        if (shakeElapsed_ >= shakeTime_) {
             reactionType_ = CameraReactionType::None;
             camera_.position = cameraPosition_;
             return;
         }
 
-        // 時間経過とともに揺れを減衰させる
         float decay = cfg_CameraShakeDecay.Get();
-        float decayFactor = std::exp(-decay * reactionElapsed_);
+        float decayFactor = std::exp(-decay * shakeElapsed_);
         float currentIntensity = shakeIntensity_ * decayFactor;
 
-        // 設定ファイルから揺れのパラメータを取得
         float freqX = cfg_CameraShakeFreqX.Get();
         float freqY = cfg_CameraShakeFreqY.Get();
         float freqZ = cfg_CameraShakeFreqZ.Get();
         float randomness = cfg_CameraShakeRandomness.Get();
         float yScale = cfg_CameraShakeYScale.Get();
 
-        // 揺れにランダム性を加える
         float randX = (static_cast<float>(std::rand() % 100) / 100.0f - 0.5f) * 2.0f * randomness;
         float randY = (static_cast<float>(std::rand() % 100) / 100.0f - 0.5f) * 2.0f * randomness;
         float randZ = (static_cast<float>(std::rand() % 100) / 100.0f - 0.5f) * 2.0f * randomness;
 
-        // sin/cos波とランダム値を合成して各軸の揺れ量を計算
-        float sx = (std::sin(reactionElapsed_ * freqX) * (1.0f - randomness) + randX) * currentIntensity;
-        float sy = (std::cos(reactionElapsed_ * freqY) * (1.0f - randomness) + randY) * currentIntensity * yScale;
-        float sz = (std::sin(reactionElapsed_ * freqZ) * (1.0f - randomness) + randZ) * currentIntensity;
+        float sx = (std::sin(shakeElapsed_ * freqX) * (1.0f - randomness) + randX) * currentIntensity;
+        float sy = (std::cos(shakeElapsed_ * freqY) * (1.0f - randomness) + randY) * currentIntensity * yScale;
+        float sz = (std::sin(shakeElapsed_ * freqZ) * (1.0f - randomness) + randZ) * currentIntensity;
 
-        // 基準位置に揺れ量を加算して最終的なカメラ位置を決定
         camera_.position = {
             cameraPosition_.x + sx,
             cameraPosition_.y + sy,
-            cameraPosition_.z + sz
-        };
+            cameraPosition_.z + sz};
     }
 
     /**
@@ -1244,28 +1251,33 @@ class GameScene : public IScene {
      * @param dt 前フレームからの経過時間
      */
     void UpdateImpulse(float dt) {
-        reactionElapsed_ += dt;
+        // インパルスの専用タイマーを使用
+        impulseElapsed_ += dt;
 
-        // 持続時間が過ぎたらリアクションを終了
-        if (reactionElapsed_ >= reactionTime_) {
+        if (impulseElapsed_ >= impulseTime_) {
             reactionType_ = CameraReactionType::None;
             camera_.position = cameraPosition_;
             return;
         }
 
-        // 時間経過とともに衝撃を減衰させる
         float decay = cfg_CameraImpulseDecay.Get();
-        float t = reactionElapsed_ / reactionTime_;
-        // cos波と指数関数的減衰を組み合わせて、跳ね返るような動きを表現
-        float bounce = std::cos(t * DirectX::XM_PI * 2.0f) * std::exp(-decay * reactionElapsed_);
-        float currentIntensity = impulseIntensity_ * bounce;
+        DirectX::XMFLOAT3 dir = impulseDir_;
+        float len = std::sqrt(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z);
+        if (len > 1e-6f) {
+            dir.x /= len;
+            dir.y /= len;
+            dir.z /= len;
+        }
 
-        // 基準位置に衝撃による変位を加算
+        float t = impulseElapsed_ / std::max(1e-6f, impulseTime_);
+        float rise = std::min(1.0f, t * 2.0f);
+        float fall = std::exp(-decay * impulseElapsed_);
+        float currentIntensity = impulseIntensity_ * rise * fall;
+
         camera_.position = {
-            cameraPosition_.x + impulseDir_.x * currentIntensity,
-            cameraPosition_.y + impulseDir_.y * currentIntensity,
-            cameraPosition_.z + impulseDir_.z * currentIntensity
-        };
+            cameraPosition_.x + dir.x * currentIntensity,
+            cameraPosition_.y + dir.y * currentIntensity,
+            cameraPosition_.z + dir.z * currentIntensity};
     }
 
     /**
@@ -1273,65 +1285,74 @@ class GameScene : public IScene {
      * @param dt 前フレームからの経過時間
      */
     void UpdateZoom(float dt) {
-        reactionElapsed_ += dt;
+        // ズームの専用タイマーを使用
+        zoomElapsed_ += dt;
 
-        // 持続時間が過ぎたらリアクションを終了
-        if (reactionElapsed_ >= reactionTime_) {
+        if (zoomElapsed_ >= zoomTime_) {
             reactionType_ = CameraReactionType::None;
             camera_.fovY = baseFovY_;
             return;
         }
 
-        // sinカーブを使って滑らかなズームイン・アウトを表現
-        float t = reactionElapsed_ / reactionTime_;
+        float t = zoomElapsed_ / std::max(1e-6f, zoomTime_);
         float zoomCurve = std::sin(t * DirectX::XM_PI);
         camera_.fovY = baseFovY_ - zoomAmount_ * zoomCurve;
 
-        // 視野角が極端な値にならないようにクランプ
         camera_.fovY = std::max(DirectX::XM_PIDIV4 * 0.25f, std::min(DirectX::XM_PIDIV2 * 1.5f, camera_.fovY));
-        // ズーム中はカメラ位置は動かさない
         camera_.position = cameraPosition_;
     }
 
     // =========================================
     // メンバー変数
     // =========================================
-    TextSystem textSystem_; //!< テキスト描画システム
-    ImageSystem imageSystem_; //!< 画像描画システム
-    std::vector<Entity> ownedEntities_; //!< シーンが所有し、終了時に破棄するエンティティのリスト
-    std::vector<Entity> stageOwnedEntities_; //!< 現在のステージが所有し、ステージリセット時に破棄するエンティティのリスト
-    Entity playerEntity_{}; //!< プレイヤーエンティティへの参照
-    Entity stageEntity_{}; //!< ステージデータ読み込みエンティティへの参照
-    Entity startEntity_{}; //!< スタート地点エンティティへの参照
-    Entity wall_{}; //!< (未使用？) 壁エンティティへの参照
-    Entity worldwall_{}; //!< (未使用？) 外周壁エンティティへの参照
-    Entity goalEntity_{}; //!< ゴールエンティティへの参照
-    Entity gimmickEntity_{}; //!< (未使用？) ギミックエンティティへの参照
-    DirectX::XMFLOAT3 cameraPosition_ = { 0.0f, 10.0f, -10.0f }; //!< カメラの基準となる位置
-    DirectX::XMFLOAT3 currentTarget_ = {0.0f, 0.0f, 0.0f}; //!< カメラの現在の注視点（プレイヤーを滑らかに追従する）
-    Camera camera_{}; //!< カメラオブジェクト
-    float baseFovY_ = DirectX::XM_PIDIV4; //!< カメラの基準となる垂直視野角
+    TextSystem textSystem_;                                    //!< テキスト描画システム
+    ImageSystem imageSystem_;                                  //!< 画像描画システム
+    std::vector<Entity> ownedEntities_;                        //!< シーンが所有し、終了時に破棄するエンティティのリスト
+    std::vector<Entity> stageOwnedEntities_;                   //!< 現在のステージが所有し、ステージリセット時に破棄するエンティティのリスト
+    Entity playerEntity_{};                                    //!< プレイヤーエンティティへの参照
+    Entity stageEntity_{};                                     //!< ステージデータ読み込みエンティティへの参照
+    Entity startEntity_{};                                     //!< スタート地点エンティティへの参照
+    Entity wall_{};                                            //!< (未使用？) 壁エンティティへの参照
+    Entity worldwall_{};                                       //!< (未使用？) 外周壁エンティティへの参照
+    Entity goalEntity_{};                                      //!< ゴールエンティティへの参照
+    Entity gimmickEntity_{};                                   //!< (未使用？) ギミックエンティティへの参照
+    DirectX::XMFLOAT3 cameraPosition_ = {0.0f, 30.0f, -7.0f}; //!< カメラの基準となる位置
+    DirectX::XMFLOAT3 currentTarget_ = {0.0f, 0.0f, 0.0f};     //!< カメラの現在の注視点（プレイヤーを滑らかに追従する）
+    Camera camera_{};                                          //!< カメラオブジェクト
+    float baseFovY_ = DirectX::XM_PIDIV4;                      //!< カメラの基準となる垂直視野角
 
     // カメラリアクション状態
     CameraReactionType reactionType_ = CameraReactionType::None; //!< 現在のカメラリアクションの種類
-    float reactionTime_ = 0.0f; //!< リアクションの総持続時間
-    float reactionElapsed_ = 0.0f; //!< リアクションの経過時間
+    float reactionTime_ = 0.0f;                                  //!< リアクションの総持続時間
+    float reactionElapsed_ = 0.0f;                               //!< リアクションの経過時間
 
     // シェイク用
     float shakeIntensity_ = 0.0f; //!< シェイクの強さ
 
     // 衝撃用
     DirectX::XMFLOAT3 impulseDir_ = {0.0f, 0.0f, 0.0f}; //!< 衝撃の方向
-    float impulseIntensity_ = 0.0f; //!< 衝撃の強さ
+    float impulseIntensity_ = 0.0f;                     //!< 衝撃の強さ
 
     // ズーム用
     float zoomAmount_ = 0.0f; //!< ズーム量（視野角の変化量）
 
     // 遅延リスポーン用
     bool pendingRespawn_ = false; //!< 遅延リスポーンが予約されているかどうかのフラグ
-    Entity respawnPlayer_{}; //!< リスポーン対象のプレイヤーエンティティ
-    float respawnTimer_ = 0.0f; //!< リスポーンまでの残り時間
-    World* world_ = nullptr; //!< ワールドへのポインタ（Update外の処理で必要）
+    Entity respawnPlayer_{};      //!< リスポーン対象のプレイヤーエンティティ
+    float respawnTimer_ = 0.0f;   //!< リスポーンまでの残り時間
+    World *world_ = nullptr;      //!< ワールドへのポインタ（Update外の処理で必要）
+
+    // シェイク専用タイマー
+    float shakeTime_ = 0.0f;
+    float shakeElapsed_ = 0.0f;
+
+    // インパルス専用タイマー
+    float impulseTime_ = 0.0f;
+    float impulseElapsed_ = 0.0f;
+
+    // ズーム専用タイマー
+    float zoomTime_ = 0.0f;
+    float zoomElapsed_ = 0.0f;
 };
 
 // =========================================
@@ -1341,7 +1362,7 @@ inline void WallCollisionHandler::OnCollisionEnter(World &w, Entity self, Entity
     if (w.Has<PlayerTag>(other)) {
         DEBUGLOG("壁がプレイヤーと衝突 - カメラシェイク＋遅延リスポーン");
         if (g_GameScene) {
-            g_GameScene->OnWallHit(other);
+            g_GameScene->OnWallHit(other,w);
         } else {
             // フォールバック：即座にリスポーン
             ResetPlayerToStart(w, other, true);
@@ -1353,7 +1374,7 @@ inline void FloorWallCollisionHandler::OnCollisionEnter(World &w, Entity self, E
     if (w.Has<PlayerTag>(other)) {
         DEBUGLOG("ステージ壁がプレイヤーと衝突 - カメラシェイク＋遅延リスポーン");
         if (g_GameScene) {
-            g_GameScene->OnWallHit(other);
+            g_GameScene->OnWallHit(other,w);
         } else {
             // フォールバック：即座にリスポーン
             ResetPlayerToStart(w, other, true);
