@@ -302,17 +302,18 @@ struct PlayerGuide : Behaviour {
     std::vector<Transform*> guidTransforms;
     std::vector<Entity> guidEntities;
 
-    int GuideQuantity = cfg_GuideQuantity;
     void Create(World &world, const DirectX::XMFLOAT3 &position) {
         MeshRenderer renderer;
         renderer.meshType = MeshType::Sphere;
         renderer.color = DirectX::XMFLOAT3{1, 0, 0};
 
+        int guideQuantity = cfg_GuideQuantity.Get();
         guidEntities.clear();
         guidTransforms.clear();
-        guidEntities.reserve(static_cast<size_t>(GuideQuantity));
-        guidTransforms.reserve(static_cast<size_t>(GuideQuantity));
-        for (int i = 0; i < GuideQuantity; i++) {
+        guidEntities.reserve(static_cast<size_t>(guideQuantity));
+        guidTransforms.reserve(static_cast<size_t>(guideQuantity));
+
+        for (int i = 0; i < guideQuantity; i++) {
             Transform t{position, {0, 0, 0}, {0, 0, 0}};
             Entity e = world.Create()
                                .With<Transform>(t)
@@ -321,7 +322,7 @@ struct PlayerGuide : Behaviour {
             guidEntities.push_back(e);
             guidTransforms.push_back(nullptr);
         }
-    };
+    }
 
     void OnStart(World &w, Entity self) override {
         selfTransform = w.TryGet<Transform>(self);
@@ -333,36 +334,38 @@ struct PlayerGuide : Behaviour {
     void OnUpdate(World &w, Entity self, float dt) override {
         playerMove = w.TryGet<PlayerMovement>(self);
         selfTransform = w.TryGet<Transform>(self);
-        
-        
-        bool allValid = true;           ///<必要なものがすべて取得できたか確認
-        if (static_cast<int>(guidEntities.size()) != GuideQuantity) {
-            // GuideQuantity が変更された場合に再生成
-            Create(w, selfTransform ? selfTransform->position : DirectX::XMFLOAT3{0,0,0});
-        }
-        for (int i = 0; i < GuideQuantity; i++) {
-            guidTransforms[i] = w.TryGet<Transform>(guidEntities[i]);
-            if (!guidTransforms[i]) { allValid = false; }
-        }
-      
-        if (!playerMove || !selfTransform || !allValid)
-                return;
 
-        //プレイヤー移動方向計算
+        bool allValid = true;
+        int guideQuantity = cfg_GuideQuantity.Get();
+
+        if (static_cast<int>(guidEntities.size()) != guideQuantity) {
+            Create(w, selfTransform ? selfTransform->position : DirectX::XMFLOAT3{0, 0, 0});
+        }
+
+        for (int i = 0; i < guideQuantity; i++) {
+            guidTransforms[i] = w.TryGet<Transform>(guidEntities[i]);
+            if (!guidTransforms[i]) {
+                allValid = false;
+            }
+        }
+
+        if (!playerMove || !selfTransform || !allValid)
+            return;
+
         float rad = std::atan2f(playerMove->lastStickDir_.y, playerMove->lastStickDir_.x);
 
-        for (int i = 0; i < GuideQuantity; i++) {
+        for (int i = 0; i < guideQuantity; i++) {
             Transform *currentGuide = guidTransforms[i];
 
             if (!playerMove->isCharging_) {
                 currentGuide->scale = {0, 0, 0};
-            } else {   
+            } else {
                 currentGuide->scale = {cfg_GuideScaleX.Get(), cfg_GuideScaleY.Get(), cfg_GuideScaleZ.Get()};
 
                 currentGuide->position = selfTransform->position;
                 currentGuide->rotation.y = -rad * (180.0f / DirectX::XM_PI);
 
-                float offsetDistance = cfg_GuideOffsetDistance.Get() * i + 1;
+                float offsetDistance = cfg_GuideOffsetDistance.Get() * (i + 1);
                 currentGuide->position.x += std::cosf(rad) * offsetDistance;
                 currentGuide->position.z += std::sinf(rad) * offsetDistance;
             }

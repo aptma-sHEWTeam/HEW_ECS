@@ -78,7 +78,7 @@ static std::string Trim(const std::string& str) {
 }
 
 void ConfigManager::LoadTOML() {
-    fs::path tomlPath = fs::path(m_AssetPath) / "config.toml";
+    fs::path tomlPath = fs::path(m_AssetPath) / "Settings/config.toml";
     if (!fs::exists(tomlPath)) {
         m_IsDirty = true; // File doesn't exist, so we need to write defaults
         return;
@@ -129,7 +129,7 @@ void ConfigManager::LoadTOML() {
 }
 
 void ConfigManager::SaveTOML() {
-    fs::path tomlPath = fs::path(m_AssetPath) / "config.toml";
+    fs::path tomlPath = fs::path(m_AssetPath) / "Settings/config.toml";
     std::ofstream file(tomlPath);
     if (!file.is_open()) return;
 

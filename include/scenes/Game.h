@@ -11,6 +11,7 @@
 
 #include <sstream>
 #include <iomanip>
+#include <cstdlib>
 
 #include "config/ConfigVar.h"
 #include "components/GameTags.h"
@@ -34,45 +35,113 @@
 #include "SenesUIController.h"
 #include "systems/ModelLoadingSystem.h"
 #include "graphics/TextureManager.h"
+#include "graphics/Camera.h"
 
+// 前方宣言
+class GameScene;
+
+// GameSceneへのグローバルアクセス用ポインタ
+inline GameScene* g_GameScene = nullptr;
+
+/**
+ * @brief プレイヤーをスタート地点にリセット（速度も完全リセット）
+ * @param w ワールドへの参照
+ * @param player リセット対象のプレイヤーエンティティ
+ * @param resetTimer trueの場合、ゲームタイマーもリセットする
+ */
 inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false) {
+    // プレイヤーエンティティが有効かどうかをチェック
     if (!w.IsAlive(player)) {
-
         return;
     }
-
+    
+    // スタート地点を見つけて処理を一度だけ実行するためのフラグ
     bool done = false;
+    // スタート地点のタグとトランスフォームを持つエンティティを検索
     w.ForEach<StartTag, Transform>([&](Entity, StartTag &, Transform &tStart) {
+        // 既に処理済みならスキップ
         if (done) {
             return;
         }
 
+        // プレイヤーのTransformコンポーネントを取得
         if (auto *tPlayer = w.TryGet<Transform>(player)) {
-            tPlayer->position = {tStart.position.x, 0.0f, tStart.position.z}; //プレイヤーの生成場所
+            // プレイヤーの位置をスタート地点のX, Z座標に設定（Yは0で固定）
+            tPlayer->position = {tStart.position.x, 0.0f, tStart.position.z};
 
+            // プレイヤーの速度コンポーネントを取得
             if (auto *vPlayer = w.TryGet<PlayerVelocity>(player)) {
+                // 速度とブースト関連のステータスを完全にリセット
                 vPlayer->velocity = {0.0f, 0.0f};
+                vPlayer->isBoosting = false;
+                vPlayer->isDecelerating = false;
+                vPlayer->boostSpeed = 0.0f;
+                vPlayer->boostDir = {0.0f, 0.0f};
+            }
+
+            // プレイヤーの移動コンポーネントを取得
+            if (auto *pmPlayer = w.TryGet<PlayerMovement>(player)) {
+                // チャージ関連のステータスをリセット
+                pmPlayer->isCharging_ = false;
+                pmPlayer->wasCharging_ = false;
+                pmPlayer->wasChargingPrev_ = false;
+                // 角度の履歴もリセットして、移動方向の計算を初期化
+                pmPlayer->ResetAngleHistory();
             }
         }
-
+        
+        // タイマーリセットが要求されている場合
         if (resetTimer) {
+            // GameStatusコンポーネントを持つエンティティを検索
             w.ForEach<GameStatus>([](Entity, GameStatus &stats) {
+                // 経過時間を0にリセット
                 stats.elapsedTime = 0.0f;
             });
         }
 
+        // 処理完了フラグを立て、以降のスタート地点が見つかっても処理しないようにする
         done = true;
     });
 }
 
+/**
+ * @brief 制限時間をチェックし、超過した場合はプレイヤーをリセットする
+ * @param w ワールドへの参照
+ * @param player チェック対象のプレイヤーエンティティ
+ * @param timeLimitSeconds 制限時間（秒）
+ */
 inline void CheckTimeLimit(World &w, Entity player, float timeLimitSeconds) {
+    // GameStatusコンポーネントを持つエンティティを検索
     w.ForEach<GameStatus>([&](Entity e, GameStatus &stats) {
+        // 経過時間が制限時間を超えたかチェック
         if (stats.elapsedTime >= timeLimitSeconds) {
             DEBUGLOG("時間切れ");
+            // プレイヤーをスタート地点にリセット（タイマーもリセット）
             ResetPlayerToStart(w, player, true);
         }
     });
 }
+
+// =========================================
+// カメラリアクションタイプ（前方定義）
+// =========================================
+enum class CameraReactionType {
+    None,       ///< リアクションなし
+    Shake,      ///< 揺れ（ランダム）
+    Impulse,    ///< 衝撃（一方向へ跳ねる）
+    Zoom,       ///< ズームイン/アウト
+    Tilt        ///< 傾き
+};
+
+// =========================================
+// 壁衝突リスポーン用ConfigVars
+// =========================================
+/** @brief 壁衝突時のカメラシェイクの強さ */
+inline ConfigVar<float> cfg_WallHitShakeIntensity{"Game", "WallHitShakeIntensity", 0.5f};
+/** @brief 壁衝突時のカメラシェイクの持続時間 */
+inline ConfigVar<float> cfg_WallHitShakeDuration{"Game", "WallHitShakeDuration", 0.3f};
+/** @brief 壁衝突後、プレイヤーがリスポーンするまでの遅延時間 */
+inline ConfigVar<float> cfg_WallHitRespawnDelay{"Game", "WallHitRespawnDelay", 0.4f};
 
 /**
  * @struct PlayerCollisionHandler
@@ -80,10 +149,6 @@ inline void CheckTimeLimit(World &w, Entity player, float timeLimitSeconds) {
  */
 struct PlayerCollisionHandler : ICollisionHandler {
     void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override {
-        if (w.Has<EnemyTag>(other)) {
-            DEBUGLOG("プレイヤーが敵と衝突 - 侵入深度: " + std::to_string(info.penetrationDepth));
-            w.ForEach<GameStatus>([](Entity, GameStatus &stats) { stats.score += 10; });
-        }
         if (w.Has<GoalTag>(other)) {
             w.ForEach<StageProgress>([](Entity, StageProgress &sp) { sp.requestAdvance = true; });
             DEBUGLOG("プレイヤーがゴールに到達");
@@ -107,35 +172,24 @@ REGISTER_COLLISION_HANDLER_TYPE(EnemyCollisionHandler)
 
 /**
  * @struct WallCollisionHandler
- * @brief 壁の衝突イベントを処理
+ * @brief 壁の衝突イベントを処理（カメラシェイク→遅延リスポーン）
  */
 struct WallCollisionHandler : ICollisionHandler {
-    void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override {
-        if (w.Has<PlayerTag>(other)) {
-            DEBUGLOG("壁がプレイヤーと衝突 - スタート地点へ戻しタイマーをリセット");
-            ResetPlayerToStart(w, other, true);
-        }
-    };
+    void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override;
 };
 REGISTER_COLLISION_HANDLER_TYPE(WallCollisionHandler)
 
 /**
- * @struct FloorWallColisionHandler
- * @brief ステージの壁の衝突イベントを処理
+ * @struct FloorWallCollisionHandler
+ * @brief ステージの壁の衝突イベントを処理（カメラシェイク→遅延リスポーン）
  */
 struct FloorWallCollisionHandler : ICollisionHandler {
-    void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override {
-        if (w.Has<PlayerTag>(other)) {
-            DEBUGLOG("壁がプレイヤーと衝突 - スタート地点へ戻しタイマーをリセット");
-            ResetPlayerToStart(w, other, true);
-        }
-    }
+    void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override;
 };
 REGISTER_COLLISION_HANDLER_TYPE(FloorWallCollisionHandler)
 
 /**
  * @struct DashBordCollisionHandler
- *
  * @brief 加速板の衝突イベントを処理
  */
 struct DashBordCollisionHandler : ICollisionHandler {
@@ -148,7 +202,6 @@ struct DashBordCollisionHandler : ICollisionHandler {
             }
 
             DEBUGLOG("プレイヤーが加速板と接触 - プレイヤー加速-");
-
             v->isBoosting = true;
         }
     }
@@ -200,7 +253,7 @@ class GameScene : public IScene {
     inline static ConfigVar<float> cfg_UICountG{"UI", "CountColorG", 1.0f};
     inline static ConfigVar<float> cfg_UICountB{"UI", "CountColorB", 1.0f};
 
-    inline static ConfigVar<std::string> cfg_PlayerFBXPass{"Player", "PlayerFBXPass", "Assets/Models/Player/obj_player3.fbx"};
+    inline static ConfigVar<std::string> cfg_PlayerFBXPass{"Player", "PlayerFBXPass", "Assets/Models/Player/obj_player.fbx"};
     inline static ConfigVar<std::string> cfg_FloorFBXPass{"Game", "FloorFBXPass", "Assets/Models/StageObj/Ground/obj_ground.fbx"};
     inline static ConfigVar<std::string> cfg_WallFBXPass{"Game", "WallFBXPass", "Assets/Models/StageObj/Wall/obj_wall.fbx"};
 
@@ -229,47 +282,87 @@ class GameScene : public IScene {
     inline static ConfigVar<float> cfg_StartLightRange{"Game", "StartLightRange", 5.0f};
     inline static ConfigVar<float> cfg_GoalLightRange{"Game", "GoalLightRange", 8.0f};
 
+    // =========================================
+    // カメラリアクション用ConfigVars
+    // =========================================
+    /** @brief カメラシェイク時のX軸方向の揺れの周波数 */
+    inline static ConfigVar<float> cfg_CameraShakeFreqX{"Camera", "ShakeFreqX", 35.0f};
+    /** @brief カメラシェイク時のY軸方向の揺れの周波数 */
+    inline static ConfigVar<float> cfg_CameraShakeFreqY{"Camera", "ShakeFreqY", 28.0f};
+    /** @brief カメラシェイク時のZ軸方向の揺れの周波数 */
+    inline static ConfigVar<float> cfg_CameraShakeFreqZ{"Camera", "ShakeFreqZ", 41.0f};
+    /** @brief カメラシェイク効果の減衰率。大きいほど早く収まる */
+    inline static ConfigVar<float> cfg_CameraShakeDecay{"Camera", "ShakeDecay", 3.0f};
+    /** @brief カメラシェイクのランダム性の強さ。0で完全なsin波、1で完全なランダム */
+    inline static ConfigVar<float> cfg_CameraShakeRandomness{"Camera", "ShakeRandomness", 0.3f};
+    /** @brief カメラシェイク時のY軸方向の揺れのスケール（他軸との相対） */
+    inline static ConfigVar<float> cfg_CameraShakeYScale{"Camera", "ShakeYScale", 0.5f};
+    /** @brief カメラの衝撃（インパルス）効果の減衰率。大きいほど早く収まる */
+    inline static ConfigVar<float> cfg_CameraImpulseDecay{"Camera", "ImpulseDecay", 5.0f};
+    /**
+     * @brief カメラのズームイン/アウト アニメーションの速度
+     */
+    inline static ConfigVar<float> cfg_CameraZoomSpeed{"Camera", "ZoomSpeed", 2.0f};
+    /** @brief カメラがプレイヤーを追従する際の滑らかさ。大きいほど素早く追従する */
+    inline static ConfigVar<float> cfg_CameraFollowSmooth{"Camera", "FollowSmooth", 5.0f};
+
+    /**
+     * @brief シーン開始時に呼び出される初期化処理
+     * @details レンダリングシステム、UIシステム、カメラ、各種エンティティ（プレイヤー、ステージなど）の生成と設定を行う
+     * @param world ECSワールドへの参照
+     */
     void OnEnter(World &world) override {
         DEBUGLOG("<<<<< GameScene::OnEnter CALLED! >>>>>");
         DEBUGLOG("GameWithUIScene::OnEnter() 開始");
 
+        // このシーンインスタンスへのグローバルポインタを設定
+        g_GameScene = this;
+
+        // サービスロケーターからグラフィックスデバイスを取得
         auto *gfx = ServiceLocator::TryGet<GfxDevice>();
         if (!gfx) {
             DEBUGLOG_ERROR("GfxDevice が見つかりません");
             return;
         }
 
+        // レンダリングシステムの初期化と環境光の設定
         RenderingSystem::GetInstance().Initialize(gfx->Dev());
         RenderingSystem::GetInstance().SetAmbientLight({0.1f, 0.1f, 0.15f}, 1.0f);
 
+        // テキスト描画システムの初期化
         if (!textSystem_.Init(*gfx)) {
             DEBUGLOG_ERROR("TextSystem の初期化に失敗しました");
             return;
         }
 
+        // 画像描画システムの初期化
         if (!imageSystem_.Init(*gfx)) {
             DEBUGLOG_ERROR("ImageSystem の初期化に失敗しました");
             return;
         }
 
+        // UI用のテキストフォーマットを作成
         CreateTextFormats();
 
+        // 画面サイズを取得
         float screenWidth = static_cast<float>(gfx->Width());
         float screenHeight = static_cast<float>(gfx->Height());
 
         Entity collisionSystem = world.Create().With<CollisionDetectionSystem>(cfg_CollisionCellSize.Get()).Build();
         ownedEntities_.push_back(collisionSystem);
 
-        // ModelLoadingSystem を追加して Model -> ModelComponent 変換を有効化
+        // モデル読み込みシステムをエンティティとして生成し、シーンが所有
         Entity modelLoaderSystem = world.Create().With<ModelLoadingSystem>().Build();
         ownedEntities_.push_back(modelLoaderSystem);
 
+        // ステージ進行状況に応じて、対応するステージデータを読み込むエンティティを生成
         world.ForEach<StageProgress>([&](Entity e, StageProgress &status) {
             std::string Stagepath = "Assets/StageData/StageCollision/DebugStage" + std::to_string(status.selectStage) + "/room1.csv";
-            Entity stageEntity_ = world.Create().With<StageCreate>(Stagepath).Build();
-            ownedEntities_.push_back(stageEntity_);
+            Entity stageEntity = world.Create().With<StageCreate>(Stagepath).Build();
+            ownedEntities_.push_back(stageEntity);
         });
 
+        // 平行光源をエンティティとして生成
         world.Create().With<DirectionalLight>();
 
         CreatePlayer(world);
@@ -280,31 +373,40 @@ class GameScene : public IScene {
         DEBUGLOG("GameWithUIScene の初期化が正常に完了しました");
     }
 
+    /**
+     * @brief 毎フレーム呼び出される更新処理
+     * @details 入力処理、ゲームロジックの更新、物理演算、カメラの更新などを行う
+     * @param world ECSワールドへの参照
+     * @param input 入力システムへの参照
+     * @param deltaTime 前フレームからの経過時間
+     */
     void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
 
-        // ゲームの一時停止と再開
+        // ゲームの一時停止/再開処理
         world.ForEach<GameStatus>([&](Entity, GameStatus &stats) {
+            // ESCキーまたはPキーでポーズ状態を切り替え
             if (input.GetKeyDown(VK_ESCAPE) || input.GetKeyDown('P')) {
                 stats.isPaused = !stats.isPaused;
                 DEBUGLOG(stats.isPaused ? "ゲームが一時停止されました" : "ゲームが再開されました");
             }
 
+            // ポーズ中なら、このフレームのdeltaTimeを0にして、ゲームの時間を止める
             if (stats.isPaused) {
                 deltaTime = 0.0f;
             }
         });
 
-        // ステージの進行
+        // ステージ進行リクエストの処理
         world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
             if (sp.requestAdvance) {
-                sp.requestAdvance = false;
-                sp.currentStage++;
+                sp.requestAdvance = false; // リクエストを消費
+                sp.currentStage++;         // ステージ番号をインクリメント
                 DEBUGLOG("ステージが進行しました: " + std::to_string(sp.currentStage));
-                SetupStage(world, sp.currentStage);
+                SetupStage(world, sp.currentStage); // 新しいステージをセットアップ
             }
         });
 
-        // プレイヤーの移動
+        // PlayerMovementコンポーネントに、入力システムとゲームパッドシステムへの参照を渡す
         world.ForEach<PlayerMovement>([&](Entity, PlayerMovement &pm) {
             if (!pm.input_) {
                 pm.input_ = &input;
@@ -314,40 +416,66 @@ class GameScene : public IScene {
             }
         });
 
-        // UI インタラクションの設定
+        // UIInteractionSystemに、入力システムへの参照を渡す
         world.ForEach<UIInteractionSystem>([&](Entity, UIInteractionSystem &sys) {
             if (!sys.input_) {
                 sys.input_ = &input;
             }
         });
 
-        // エミッシブのパルス更新（毎フレーム）
+        // 発光マテリアルのパルス効果を更新
         RenderingSystem::GetInstance().UpdateEmissivePulse(world, deltaTime);
 
+        // 遅延リスポーンのタイマーを更新
+        UpdateDelayedRespawn(deltaTime, world);
+
+        // カメラの揺れやズームなどのリアクションを更新
+        UpdateCameraReaction(deltaTime, world);
+        // ライトの状態を更新（カメラ位置に依存するライトもあるため）
+        RenderingSystem::GetInstance().UpdateLights(world, camera_.position);
+
+        // ECSワールドのTickを進め、各システムのUpdateを実行
         world.Tick(deltaTime);
 
-        //制限時間が過ぎていたらリセット
+        // プレイヤーが生存していれば、時間切れをチェック
         if (world.IsAlive(playerEntity_)) {
             CheckTimeLimit(world, playerEntity_, cfg_LimitTime);
         }
     }
 
+    /**
+     * @brief 毎フレーム呼び出される描画処理
+     * @details レンダリングシステムを呼び出し、ゲームオブジェクトやUIを描画する
+     * @param world ECSワールドへの参照
+     */
     void OnRender(World &world) override {
         auto *gfx = ServiceLocator::TryGet<GfxDevice>();
         if (gfx) {
+            // ライト情報をGPUの定数バッファにバインド
             RenderingSystem::GetInstance().BindLightBuffer(gfx->Ctx(), 1);
         }
 
+        // UIRenderSystemを実行してUIを描画
         world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
             sys.Render(world);
         });
     }
 
+    /**
+     * @brief シーン終了時に呼び出されるクリーンアップ処理
+     * @details このシーンで生成したエンティティやリソースを破棄・解放する
+     * @param world ECSワールドへの参照
+     */
     void OnExit(World &world) override {
         DEBUGLOG("GameWithUIScene::OnExit() 開始");
 
+        // グローバルポインタをクリア
+        g_GameScene = nullptr;
+
+        // レンダリングシステムをシャットダウン
         RenderingSystem::GetInstance().Shutdown();
 
+        // このシーンが所有するすべてのエンティティを破棄
         for (const auto &entity : ownedEntities_) {
             if (world.IsAlive(entity)) {
                 world.DestroyEntityWithCause(entity, World::Cause::SceneUnload);
@@ -355,19 +483,142 @@ class GameScene : public IScene {
         }
         ownedEntities_.clear();
 
+        // テキスト・画像システムをシャットダウン
         textSystem_.Shutdown();
         imageSystem_.Shutdown();
         DEBUGLOG("GameWithUIScene のクリーンアップが完了しました");
     }
 
+    // =========================================
+    // カメラリアクション公開API
+    // =========================================
+
+    /**
+     * @brief カメラシェイク（揺れ）を開始する
+     * @param intensity 揺れの強さ
+     * @param duration 持続時間（秒）
+     */
+    void TriggerCameraShake(float intensity, float duration) {
+        reactionType_ = CameraReactionType::Shake;
+        shakeIntensity_ = intensity;
+        reactionTime_ = duration;
+        reactionElapsed_ = 0.0f; // 経過時間をリセット
+    }
+
+    /**
+     * @brief カメラインパルス（衝撃）を開始する
+     * @param dirX 衝撃のX方向
+     * @param dirY 衝撃のY方向
+     * @param dirZ 衝撃のZ方向
+     * @param intensity 衝撃の強さ
+     * @param duration 持続時間（秒）
+     */
+    void TriggerCameraImpulse(float dirX, float dirY, float dirZ, float intensity, float duration) {
+        reactionType_ = CameraReactionType::Impulse;
+        impulseDir_ = {dirX, dirY, dirZ};
+        impulseIntensity_ = intensity;
+        reactionTime_ = duration;
+        reactionElapsed_ = 0.0f; // 経過時間をリセット
+    }
+
+    /**
+     * @brief カメラズームを開始する
+     * @param zoomAmount ズーム量（視野角の減少量）。正の値でズームイン。
+     * @param duration 持続時間（秒）
+     */
+    void TriggerCameraZoom(float zoomAmount, float duration) {
+        reactionType_ = CameraReactionType::Zoom;
+        zoomAmount_ = zoomAmount;
+        reactionTime_ = duration;
+        reactionElapsed_ = 0.0f; // 経過時間をリセット
+    }
+
+    /**
+     * @brief 現在のカメラリアクションをすべて停止し、カメラを通常状態に戻す
+     */
+    void StopCameraReaction() {
+        reactionType_ = CameraReactionType::None;
+        camera_.position = cameraPosition_; // カメラ位置を基準位置に戻す
+        camera_.fovY = baseFovY_;           // 視野角を基準値に戻す
+        // プロジェクション行列を更新
+        camera_.Proj = DirectX::XMMatrixPerspectiveFovLH(camera_.fovY, camera_.aspect, camera_.nearZ, camera_.farZ);
+        camera_.Update(); // ビュー行列、ビュープロジェクション行列を再計算
+    }
+
+    /**
+     * @brief 現在のカメラオブジェクトへのconst参照を取得する
+     * @return カメラオブジェクト
+     */
+    const Camera& GetCamera() const { return camera_; }
+
+    /**
+     * @brief カメラの基準位置を設定する
+     * @param pos 新しい基準位置
+     */
+    void SetCameraBasePosition(const DirectX::XMFLOAT3& pos) {
+        cameraPosition_ = pos;
+    }
+
+    /**
+     * @brief 壁衝突時の処理（カメラシェイク＋遅延リスポーン）
+     * @details プレイヤーの速度を止め、カメラを揺らし、一定時間後にリスポーン処理を予約する
+     * @param player リスポーンするプレイヤーエンティティ
+     */
+    void OnWallHit(Entity player) {
+        if (pendingRespawn_) return; // 既にリスポーン処理が進行中なら何もしない
+
+        // プレイヤーの速度を即座に0にする
+        if (world_ && world_->IsAlive(player)) {
+            if (auto *v = world_->TryGet<PlayerVelocity>(player)) {
+                v->velocity = {0.0f, 0.0f};
+                v->isBoosting = false;
+                v->isDecelerating = false;
+                v->boostSpeed = 0.0f;
+            }
+        }
+
+        // 設定ファイルから読み込んだ値でカメラシェイクを開始
+        TriggerCameraShake(cfg_WallHitShakeIntensity.Get(), cfg_WallHitShakeDuration.Get());
+
+        // 遅延リスポーンを設定
+        pendingRespawn_ = true;
+        respawnPlayer_ = player;
+        respawnTimer_ = cfg_WallHitRespawnDelay.Get();
+
+        DEBUGLOG("壁に衝突 - カメラシェイク開始、リスポーン待機中");
+    }
+
+    /**
+     * @brief OnUpdate内で使用するために、ワールドへのポインタを設定する
+     * @details OnWallHitなど、Updateループ外から呼び出される可能性があるメソッド内でワールドのエンティティを操作するために必要
+     * @param w ワールドへのポインタ
+     */
+    void SetWorldRef(World* w) { world_ = w; }
+
   private:
+    /**
+     * @brief UIで使用するテキストフォーマット（フォント、サイズ、色など）を事前作成する
+     */
     void CreateTextFormats();
+    /**
+     * @brief ゲーム内UI（スコア表示など）を生成する
+     * @param world ワールドへの参照
+     * @param screenWidth 画面の幅
+     * @param screenHeight 画面の高さ
+     */
     void CreateUI(World &world, float screenWidth, float screenHeight);
 
+    /**
+     * @brief プレイヤーエンティティを生成し、必要なコンポーネントを追加する
+     * @param world ワールドへの参照
+     */
     void CreatePlayer(World &world) {
+        // 設定ファイルからスケール値を取得
         float s = cfg_PlayerScale;
+        // 初期位置、回転、スケールを設定
         Transform transform{{0.0f, 0.0f, cfg_PlayerStartY}, {0.0f, 0.0f, 0.0f}, {s, s, s}};
 
+        // プレイヤーエンティティを生成し、各種コンポーネントをアタッチ
         Entity player = world.Create()
                             .With<Transform>(transform)
                             .With<Model>(cfg_PlayerFBXPass)
@@ -384,33 +635,28 @@ class GameScene : public IScene {
     }
 
     /**
-     * @brief ステージ生成関数
-     * @deteail 読み込んだCSVファイルのデータを基にステージを生成する
-     *          新しい生成物を設定するときはこの関数内のswitch文に設定する
-     *          例：
-     *              if (blockType != 0) {
-     *                  switch (blockType) {
-     *                      case 1: CreateStart(world, blockposition); break; // スタート地点
-     *                      case 2: CreateGoal(world, blockposition); break; // ゴール地点
-     *                      case 3: CreateWall(world, blockposition); break; // 通常の壁
-     *                      case 4: CreateAccell(world,blockposition); break; //新規のブロック
-     *                  }
-     *              }
+     * @brief ステージデータ（CSV）に基づいてステージのマップ（壁、スタート、ゴールなど）を生成する
+     * @param world ワールドへの参照
      */
     void CreateStageMap(World &world) {
+        // StageCreateコンポーネントを持つエンティティ（OnEnterで生成）からステージデータを取得
         world.ForEach<StageCreate>([&](Entity, StageCreate &stagecreate) {
-            float tileSize = 1.0f;
+            float tileSize = 1.0f; // 各タイルのサイズ
 
+            // ステージデータが空なら処理を中断
             if (stagecreate.stageMap.empty() || stagecreate.stageMap[0].empty()) {
                 return;
             }
 
+            // マップの幅と高さをタイル数で計算
             float mapWidth = static_cast<float>(stagecreate.stageMap[0].size());
             float mapHeight = static_cast<float>(stagecreate.stageMap.size());
 
+            // マップの最大インデックスを計算
             const int max_x_index = static_cast<int>(stagecreate.stageMap[0].size() - 1);
             const int max_y_index = static_cast<int>(stagecreate.stageMap.size() - 1);
 
+            // マップの中心がワールド座標の原点(0,0,0)に来るようにオフセットを計算
             const float offsetX = (mapWidth * tileSize) * 0.5f - (tileSize * 0.5f);
             const float offsetZ = (mapHeight * tileSize) * 0.5f - (tileSize * 0.5f);
 
@@ -419,10 +665,10 @@ class GameScene : public IScene {
                 for (int x = 0; x < stagecreate.stageMap[y].size(); ++x) {
                     int blockType = stagecreate.stageMap[y][x];
 
-                    // タイルのワールド座標を計算
+                    // タイルの2Dインデックス(x, y)を3Dワールド座標に変換
                     float worldX = (static_cast<float>(x) * tileSize) - offsetX;
                     float worldY = 0.0f;
-                    float worldZ = offsetZ - (static_cast<float>(y) * tileSize);
+                    float worldZ = offsetZ - (static_cast<float>(y) * tileSize); // Z軸は奥が正なので、yが大きくなるほどZは小さくなる
 
                     const DirectX::XMFLOAT3 blockposition = {worldX, worldY, worldZ};
 
@@ -432,19 +678,19 @@ class GameScene : public IScene {
                     // ステージの境界には常に壁を生成
                     if (y == 0) {
                         CreatFloorWall(world, {worldX, worldY, worldZ + tileSize});
-                    } // 下
+                    }
                     if (y == max_y_index) {
                         CreatFloorWall(world, {worldX, worldY, worldZ - tileSize});
-                    } // 上
+                    }
                     if (x == 0) {
                         CreatFloorWall(world, {worldX - tileSize, worldY, worldZ});
-                    } // 左
+                    }
                     if (x == max_x_index) {
                         CreatFloorWall(world, {worldX + tileSize, worldY, worldZ});
-                    } // 右
+                    }
 
-                    // ステージマップに応じたオブジェクトの生成
-                    if (blockType != 0) {
+                    // ブロックタイプに応じてオブジェクトを生成
+                    if (blockType != 0) { // 0は空白
                         switch (blockType) {
                             case 1:
                                 CreateStart(world, blockposition);
@@ -525,10 +771,15 @@ class GameScene : public IScene {
         ownedEntities_.push_back(floor);
     }
 
+    /**
+     * @brief スタート地点のオブジェクトを生成する
+     * @param world ワールドへの参照
+     * @param position 生成する位置
+     */
     void CreateStart(World &world, const DirectX::XMFLOAT3 &position) {
         DirectX::XMFLOAT3 diffPosition;
         diffPosition.x = position.x;
-        diffPosition.y = position.y - 1.0f;
+        diffPosition.y = position.y - 1.0f; // 少し下に配置
         diffPosition.z = position.z;
 
         Transform t{diffPosition, {0, 0, 0}, {1, 1, 1}};
@@ -536,35 +787,45 @@ class GameScene : public IScene {
         r.meshType = MeshType::Cube;
         r.color = DirectX::XMFLOAT3{cfg_StartR, cfg_StartG, cfg_StartB};
 
+        // 発光マテリアル
         EmissiveMaterial emissive{
             DirectX::XMFLOAT3{cfg_StartEmissiveR, cfg_StartEmissiveG, cfg_StartEmissiveB},
             cfg_StartEmissiveIntensity};
 
+        // 発光の強さを脈動させるコンポーネント
         EmissivePulse pulse{cfg_StartPulseMin, cfg_StartPulseMax, cfg_StartPulseSpeed};
 
+        // ポイントライト
         PointLight light{
             DirectX::XMFLOAT3{cfg_StartEmissiveR, cfg_StartEmissiveG, cfg_StartEmissiveB},
             cfg_StartEmissiveIntensity,
             cfg_StartLightRange};
 
+        // エンティティを生成し、各種コンポーネントをアタッチ
         Entity e = world.Create()
                        .With<Transform>(t)
                        .With<MeshRenderer>(r)
                        .With<EmissiveMaterial>(emissive)
                        .With<EmissivePulse>(pulse)
                        .With<PointLight>(light)
-                       .With<StartTag>()
+                       .With<StartTag>() // スタート地点識別用タグ
                        .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                        .Build();
 
+        // 生成したエンティティをステージオブジェクトとして管理
         startEntity_ = e;
         stageOwnedEntities_.push_back(e);
     }
 
+    /**
+     * @brief ゴール地点のオブジェクトを生成する
+     * @param world ワールドへの参照
+     * @param position 生成する位置
+     */
     void CreateGoal(World &world, const DirectX::XMFLOAT3 &position) {
         DirectX::XMFLOAT3 diffPosition;
         diffPosition.x = position.x;
-        diffPosition.y = position.y - 1.0f;
+        diffPosition.y = position.y - 1.0f; // 少し下に配置
         diffPosition.z = position.z;
 
         Transform t{diffPosition, {0, 0, 0}, {1, 1, 1}};
@@ -572,31 +833,41 @@ class GameScene : public IScene {
         r.meshType = MeshType::Cube;
         r.color = DirectX::XMFLOAT3{cfg_GoalR, cfg_GoalG, cfg_GoalB};
 
+        // 発光マテリアル
         EmissiveMaterial emissive{
             DirectX::XMFLOAT3{cfg_GoalEmissiveR, cfg_GoalEmissiveG, cfg_GoalEmissiveB},
             cfg_GoalEmissiveIntensity};
 
+        // 発光の強さを脈動させるコンポーネント
         EmissivePulse pulse{cfg_GoalPulseMin, cfg_GoalPulseMax, cfg_GoalPulseSpeed};
 
+        // ポイントライト
         PointLight light{
             DirectX::XMFLOAT3{cfg_GoalEmissiveR, cfg_GoalEmissiveG, cfg_GoalEmissiveB},
             cfg_GoalEmissiveIntensity,
             cfg_GoalLightRange};
 
+        // エンティティを生成し、各種コンポーネントをアタッチ
         Entity e = world.Create()
                        .With<Transform>(t)
                        .With<MeshRenderer>(r)
                        .With<EmissiveMaterial>(emissive)
                        .With<EmissivePulse>(pulse)
                        .With<PointLight>(light)
-                       .With<GoalTag>()
+                       .With<GoalTag>() // ゴール地点識別用タグ
                        .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                        .Build();
 
+        // 生成したエンティティをステージオブジェクトとして管理
         goalEntity_ = e;
         stageOwnedEntities_.push_back(e);
     }
 
+    /**
+     * @brief 通常の壁オブジェクト（四角柱）を生成する
+     * @param world ワールドへの参照
+     * @param position 生成する位置
+     */
     void CreateWall(World &world, const DirectX::XMFLOAT3 &position) {
         Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
         MeshRenderer renderer;
@@ -607,31 +878,42 @@ class GameScene : public IScene {
                                 .With<Transform>(transform)
                                 .With<Model>(cfg_WallFBXPass)
                                 .With<MeshRenderer>(renderer)
-                                .With<WallTag>()
+                                .With<WallTag>() // 壁識別用タグ
                                 .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
-                                .With<WallCollisionHandler>()
+                                .With<WallCollisionHandler>() // 壁専用の衝突ハンドラ
                                 .Build();
 
         stageOwnedEntities_.push_back(wallEntity);
     }
 
+    /**
+     * @brief 右下コーナー用の壁オブジェクト（三角柱）を生成する
+     * @param world ワールドへの参照
+     * @param position 生成する位置
+     */
     void CreateRightDownCorner(World &world, const DirectX::XMFLOAT3 &position) {
+        // 適切な向きになるように回転を設定
         Transform transform{position, {0.0f, 0.0f, 180.0f}, {1.0f, cfg_WallSize, 1.0f}};
         MeshRenderer renderer;
-        renderer.meshType = MeshType::RightIsoTriPrism;
+        renderer.meshType = MeshType::RightIsoTriPrism; // 直角二等辺三角柱メッシュ
         renderer.color = DirectX::XMFLOAT3{cfg_WallR, cfg_WallG, cfg_WallB};
 
         Entity wallEntity = world.Create()
                                 .With<Transform>(transform)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
-                                .With<CollisionRightIsoTriPrism>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                                .With<CollisionRightIsoTriPrism>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f}) // 三角柱用の当たり判定
                                 .With<WallCollisionHandler>()
                                 .Build();
 
         stageOwnedEntities_.push_back(wallEntity);
     }
 
+    /**
+     * @brief 左下コーナー用の壁オブジェクト（三角柱）を生成する
+     * @param world ワールドへの参照
+     * @param position 生成する位置
+     */
     void CreateLeftDownCorner(World &world, const DirectX::XMFLOAT3 &position) {
         Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
         MeshRenderer renderer;
@@ -649,7 +931,13 @@ class GameScene : public IScene {
         stageOwnedEntities_.push_back(wallEntity);
     }
 
+    /**
+     * @brief 左上コーナー用の壁オブジェクト（三角柱）を生成する
+     * @param world ワールドへの参照
+     * @param position 生成する位置
+     */
     void CreateLeftUpCorner(World &world, const DirectX::XMFLOAT3 &position) {
+        // 適切な向きになるように回転を設定
         Transform transform{position, {0.0f, 90.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::RightIsoTriPrism;
@@ -666,7 +954,13 @@ class GameScene : public IScene {
         stageOwnedEntities_.push_back(wallEntity);
     }
 
+    /**
+     * @brief 右上コーナー用の壁オブジェクト（三角柱）を生成する
+     * @param world ワールドへの参照
+     * @param position 生成する位置
+     */
     void CreateRightUpCorner(World &world, const DirectX::XMFLOAT3 &position) {
+        // 適切な向きになるように回転を設定
         Transform transform{position, {0.0f, 180.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::RightIsoTriPrism;
