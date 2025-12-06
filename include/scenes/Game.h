@@ -416,9 +416,30 @@ class GameScene : public IScene {
         world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
             if (sp.requestAdvance) {
                 sp.requestAdvance = false; // リクエストを消費
-                sp.currentStage++;         // ステージ番号をインクリメント
+
+                // 既存のステージローダー(StageCreate)を破棄してから次ステージ用ローダーを作成
+                std::vector<Entity> stageCreateEntities;
+                world.ForEach<StageCreate>([&](Entity e, StageCreate &) {
+                    stageCreateEntities.push_back(e);
+                });
+                for (auto e : stageCreateEntities) {
+                    if (world.IsAlive(e)) {
+                        world.DestroyEntityWithCause(e, World::Cause::StageReset);
+                    }
+                }
+
+                // 次のステージ番号を更新
+                sp.currentStage++;
+
+                // 次ステージのデータローダーを生成
+                std::string nextStagePath = "Assets/StageData/StageCollision/DebugStage" + std::to_string(sp.currentStage) + "/room1.csv";
+                Entity newStageEntity = world.Create().With<StageCreate>(nextStagePath).Build();
+                ownedEntities_.push_back(newStageEntity);
+
                 DEBUGLOG("ステージが進行しました: " + std::to_string(sp.currentStage));
-                SetupStage(world, sp.currentStage); // 新しいステージをセットアップ
+
+                // 新しいステージをセットアップ（古いステージのエンティティは内部で破棄される）
+                SetupStage(world, sp.currentStage);
             }
         });
 
