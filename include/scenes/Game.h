@@ -12,6 +12,7 @@
 #include <sstream>
 #include <iomanip>
 #include <cstdlib>
+#include <cmath>
 
 #include "config/ConfigVar.h"
 #include "components/GameTags.h"
@@ -529,7 +530,7 @@ class GameScene : public IScene {
         impulseDir_ = {dirX, dirY, dirZ};
         impulseIntensity_ = intensity;
         // インパルス専用のタイマーに設定
-        impulseTime_ = duration;
+        impulseTime_ = duration * 1.5f;
         impulseElapsed_ = 0.0f;
     }
 
@@ -586,6 +587,16 @@ class GameScene : public IScene {
     void OnWallHit(Entity player,World &world) {
         if (pendingRespawn_) return; // 既にリスポーン処理が進行中なら何もしない
 
+        // 設定ファイルから読み込んだ値でカメラシェイクを開始
+        if (auto *pv = world.TryGet<PlayerVelocity>(playerEntity_)) {
+            if (static_cast<bool>(pv->velocity.x + pv->velocity.y)) {
+                float vecX = pv->velocity.x / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
+                float vecY = pv->velocity.y / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
+
+                TriggerCameraImpulse(vecX, 0.0f, vecY, 0.2f, 0.1f);
+            }
+        };
+
         // プレイヤーの速度を即座に0にする
         if (world_ && world_->IsAlive(player)) {
             if (auto *v = world_->TryGet<PlayerVelocity>(player)) {
@@ -595,13 +606,7 @@ class GameScene : public IScene {
                 v->boostSpeed = 0.0f;
             }
         }
-        // 設定ファイルから読み込んだ値でカメラシェイクを開始
-     
-        if (auto *pv = world.TryGet<PlayerVelocity>(playerEntity_)) {
-         // float vecX = pv->velocity.x /   
-          // TriggerCameraImpulse(pv->velocity.x,pv->velocity.y,0.0,impulseIntensity_,reactionTime_);
-           TriggerCameraImpulse(1, 0, 0, 2, 0.2f);
-        };
+        
   
         // 遅延リスポーンを設定
         pendingRespawn_ = true;
@@ -1259,38 +1264,75 @@ class GameScene : public IScene {
             camera_.target = baseTarget_; // 注視点を基準へ戻す
             return;
         }
+        if (impulseElapsed_ < impulseTime_ * (2.0f / 3.0f)) {
+            float decay = cfg_CameraImpulseDecay.Get();
+            DirectX::XMFLOAT3 dir = impulseDir_;
+            float len = std::sqrt(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z);
+            if (len > 1e-6f) {
+                dir.x /= len;
+                dir.y /= len;
+                dir.z /= len;
+            }
 
-        float decay = cfg_CameraImpulseDecay.Get();
-        DirectX::XMFLOAT3 dir = impulseDir_;
-        float len = std::sqrt(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z);
-        if (len > 1e-6f) {
-            dir.x /= len;
-            dir.y /= len;
-            dir.z /= len;
+            float t = impulseElapsed_ / std::max(1e-6f, impulseTime_);
+            float rise = std::min(1.0f, t * 2.0f);
+            float fall = std::exp(-decay * impulseElapsed_);
+            float currentIntensity = impulseIntensity_ * rise * fall;
+
+            // オフセットを計算
+            const float dx = dir.x * currentIntensity;
+            const float dy = dir.y * currentIntensity;
+            const float dz = dir.z * currentIntensity;
+
+            // カメラ位置を平行移動
+            camera_.position = {
+                cameraPosition_.x + dx,
+                cameraPosition_.y + dy,
+                cameraPosition_.z + dz};
+            // 注視点も同じだけ平行移動（傾いて見えるのを防ぐ）
+            camera_.target = {
+                baseTarget_.x + dx,
+                baseTarget_.y + dy,
+                baseTarget_.z + dz};
+            
+        } 
+        else {
+            float decay = cfg_CameraImpulseDecay.Get();
+            DirectX::XMFLOAT3 dir = impulseDir_;
+            dir.x = -dir.x;
+            dir.y = -dir.y;
+            dir.z = -dir.z;
+            float len = std::sqrt(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z);
+            if (len > 1e-6f) {
+                dir.x /= len;
+                dir.y /= len;
+                dir.z /= len;
+            }
+
+            float t = impulseElapsed_ / std::max(1e-6f, impulseTime_);
+            float rise = std::min(1.0f, t * 2.0f);
+            float fall = std::exp(-decay * impulseElapsed_);
+            float currentIntensity = impulseIntensity_ * 2 * rise * fall;
+
+            // オフセットを計算
+            const float dx = dir.x * currentIntensity;
+            const float dy = dir.y * currentIntensity;
+            const float dz = dir.z * currentIntensity;
+
+            // カメラ位置を平行移動
+            camera_.position = {
+                cameraPosition_.x + dx,
+                cameraPosition_.y + dy,
+                cameraPosition_.z + dz};
+            // 注視点も同じだけ平行移動（傾いて見えるのを防ぐ）
+            camera_.target = {
+                baseTarget_.x + dx,
+                baseTarget_.y + dy,
+                baseTarget_.z + dz};
         }
-
-        float t = impulseElapsed_ / std::max(1e-6f, impulseTime_);
-        float rise = std::min(1.0f, t * 2.0f);
-        float fall = std::exp(-decay * impulseElapsed_);
-        float currentIntensity = impulseIntensity_ * rise * fall;
-
-        // オフセットを計算
-        const float dx = dir.x * currentIntensity;
-        const float dy = dir.y * currentIntensity;
-        const float dz = dir.z * currentIntensity;
-
-        // カメラ位置を平行移動
-        camera_.position = {
-            cameraPosition_.x + dx,
-            cameraPosition_.y + dy,
-            cameraPosition_.z + dz};
-        // 注視点も同じだけ平行移動（傾いて見えるのを防ぐ）
-        camera_.target = {
-            baseTarget_.x + dx,
-            baseTarget_.y + dy,
-            baseTarget_.z + dz};
+       
     }
-
+        
     /**
      * @brief カメラズーム効果を更新する
      * @param dt 前フレームからの経過時間
