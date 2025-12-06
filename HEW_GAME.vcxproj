@@ -231,6 +231,7 @@
     <ClInclude Include="include\app\DebugLog.h" />
     <ClInclude Include="include\app\ResourceManager.h" />
     <ClInclude Include="include\app\ServiceLocator.h" />
+    <ClInclude Include="include\components\CameraComponent.h" />
     <ClInclude Include="include\components\Collision.h" />
     <ClInclude Include="include\components\Component.h" />
     <ClInclude Include="include\components\CountUIComponent.h" />
