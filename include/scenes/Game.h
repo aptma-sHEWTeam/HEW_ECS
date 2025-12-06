@@ -1078,6 +1078,12 @@ class GameScene : public IScene {
             stageOwnedEntities_.push_back(dashBoardEntity);
         }
 
+        // 簡易ライトベイク（プレースホルダー。現在は何もしません）
+        void BakeStageLighting(World & /*world*/) {
+            // Intentionally left blank to resolve missing identifier error.
+            // Implement light baking logic here if needed.
+        }
+
         void SetupStage(World & world, int stage) {
             // ステージリセット: 現在のステージに関連するエンティティを破棄
             for (const auto &entity : stageOwnedEntities_) {
@@ -1102,30 +1108,42 @@ class GameScene : public IScene {
             }
         }
         
-        // 現在のリアクションタイプに応じて更新処理を呼び出す
-        switch (reactionType_) {
-            case CameraReactionType::Shake:
-                UpdateShake(dt);
-                break;
-            case CameraReactionType::Impulse:
-                UpdateImpulse(dt);
-                break;
-            case CameraReactionType::Zoom:
-                UpdateZoom(dt);
-                break;
-            case CameraReactionType::None:
-            default:
-                // リアクションがない場合は、カメラを基準位置・視野角に戻す
-                camera_.position = cameraPosition_;
-                camera_.fovY = baseFovY_;
-                break;
+        // 遅延リスポーンのタイマー更新
+        void UpdateDelayedRespawn(float dt, World &world) {
+            if (!pendingRespawn_) return;
+            respawnTimer_ -= dt;
+            if (respawnTimer_ <= 0.0f) {
+                ResetPlayerToStart(world, respawnPlayer_, true);
+                pendingRespawn_ = false;
+                respawnTimer_ = 0.0f;
+            }
         }
 
-        // 視野角の変更をプロジェクション行列に反映
-        camera_.Proj = DirectX::XMMatrixPerspectiveFovLH(camera_.fovY, camera_.aspect, camera_.nearZ, camera_.farZ);
-        // ビュー行列、ビュープロジェクション行列を再計算
-        camera_.Update();
-    }
+        // カメラリアクション更新
+        void UpdateCameraReaction(float dt, World &/*world*/) {
+            switch (reactionType_) {
+                case CameraReactionType::Shake:
+                    UpdateShake(dt);
+                    break;
+                case CameraReactionType::Impulse:
+                    UpdateImpulse(dt);
+                    break;
+                case CameraReactionType::Zoom:
+                    UpdateZoom(dt);
+                    break;
+                case CameraReactionType::None:
+                default:
+                    // リアクションがない場合は、カメラを基準位置・視野角に戻す
+                    camera_.position = cameraPosition_;
+                    camera_.fovY = baseFovY_;
+                    break;
+            }
+
+            // 視野角の変更をプロジェクション行列に反映
+            camera_.Proj = DirectX::XMMatrixPerspectiveFovLH(camera_.fovY, camera_.aspect, camera_.nearZ, camera_.farZ);
+            // ビュー行列、ビュープロジェクション行列を再計算
+            camera_.Update();
+        }
 
     /**
      * @brief カメラシェイク効果を更新する
@@ -1337,6 +1355,8 @@ inline void WallCollisionHandler::OnCollisionEnter(World &w, Entity self, Entity
             // フォールバック：即座にリスポーン
             ResetPlayerToStart(w, other, true);
         }
+    }
+}
 
 inline void FloorWallCollisionHandler::OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) {
     if (w.Has<PlayerTag>(other)) {
