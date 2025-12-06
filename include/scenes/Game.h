@@ -697,10 +697,6 @@ class GameScene : public IScene {
                                 .With<WallCollisionHandler>()
                                 .Build();
 
-        world.ForEach<LoadMove>([&](Entity, LoadMove &loadmove) {
-            MoveBlockStatus status;
-            status.blockID = blockType;
-        });
 
         stageOwnedEntities_.push_back(wallEntity);
     }

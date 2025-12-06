@@ -228,7 +228,6 @@ struct MoveBlockStatus : IComponent {
 };
 
 struct UpdateMoveBlock : Behaviour {
-    struct StageCreate stageMap;
 
     void UpdateMove(World& w, int blockType) {
         w.ForEach<LoadMove>([](Entity, LoadMove &loadmove) {
@@ -244,6 +243,17 @@ struct UpdateMoveBlock : Behaviour {
                 
             }
 
+        });
+
+         w.ForEach<StageCreate>([](Entity, StageCreate &stagecreate) {
+            for (int y = 0; y < stagecreate.stageMap.size(); ++y) {
+                for (int x = 0; x < stagecreate.stageMap[y].size(); ++x) {
+
+                    if (stagecreate.stageMap[x][y] >= 30 && stagecreate.stageMap[x][y] < 40) {
+                    
+                    }
+                }
+            }
         });
     }
 
