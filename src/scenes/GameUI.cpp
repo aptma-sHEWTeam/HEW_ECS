@@ -185,6 +185,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 
     // テスト画像描画: Asetts/Image/test.png を画面左上に表示
     UITransform imgTransform;
+    
     imgTransform.position = {20.0f, 20.0f};
     imgTransform.size = {256.0f, 256.0f};
     imgTransform.anchor = {0.0f, 0.0f};
