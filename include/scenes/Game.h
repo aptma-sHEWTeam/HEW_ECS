@@ -344,13 +344,13 @@ class GameScene : public IScene {
         // カメラを初期化
         // LookAtLH: 左手座標系で、指定した位置からターゲットを見るビュー行列を生成
         camera_ = Camera::LookAtLH(
-            DirectX::XM_PIDIV4,               // 視野角 (45度)
-            screenWidth / screenHeight,       // アスペクト比
-            0.1f,                             // 近クリップ面
-            1000.0f,                          // 遠クリップ面
-            cameraPosition_,                  // カメラの位置
-            DirectX::XMFLOAT3{0.0f, 0.0f, 0.0f}, // 注視点
-            DirectX::XMFLOAT3{0.0f, 1.0f, 0.0f}  // 上方向ベクトル
+            DirectX::XM_PIDIV4,
+            screenWidth / screenHeight,
+            0.1f,
+            1000.0f,
+            cameraPosition_,
+            baseTarget_,
+            DirectX::XMFLOAT3{0.0f, 1.0f, 0.0f}
         );
         // ズームエフェクトの基準となる初期視野角を保存
         baseFovY_ = camera_.fovY;
@@ -714,7 +714,7 @@ class GameScene : public IScene {
                     }
 
                     // ブロックタイプに応じてオブジェクトを生成
-                    if (blockType != 0) { // 0は空白
+                    if (blockType != 0) // 0は空白
                         switch (blockType) {
                             case 1: CreateStart(world, blockposition); break;
                             case 2: CreateGoal(world, blockposition); break;
@@ -724,7 +724,6 @@ class GameScene : public IScene {
                             case 7: CreateLeftUpCorner(world, blockposition); break;
                             case 8: CreateRightUpCorner(world, blockposition); break;
                         }
-                    }
                 }
             }
         });
@@ -1257,6 +1256,7 @@ class GameScene : public IScene {
         if (impulseElapsed_ >= impulseTime_) {
             reactionType_ = CameraReactionType::None;
             camera_.position = cameraPosition_;
+            camera_.target = baseTarget_; // 注視点を基準へ戻す
             return;
         }
 
@@ -1274,10 +1274,21 @@ class GameScene : public IScene {
         float fall = std::exp(-decay * impulseElapsed_);
         float currentIntensity = impulseIntensity_ * rise * fall;
 
+        // オフセットを計算
+        const float dx = dir.x * currentIntensity;
+        const float dy = dir.y * currentIntensity;
+        const float dz = dir.z * currentIntensity;
+
+        // カメラ位置を平行移動
         camera_.position = {
-            cameraPosition_.x + dir.x * currentIntensity,
-            cameraPosition_.y + dir.y * currentIntensity,
-            cameraPosition_.z + dir.z * currentIntensity};
+            cameraPosition_.x + dx,
+            cameraPosition_.y + dy,
+            cameraPosition_.z + dz};
+        // 注視点も同じだけ平行移動（傾いて見えるのを防ぐ）
+        camera_.target = {
+            baseTarget_.x + dx,
+            baseTarget_.y + dy,
+            baseTarget_.z + dz};
     }
 
     /**
@@ -1353,6 +1364,8 @@ class GameScene : public IScene {
     // ズーム専用タイマー
     float zoomTime_ = 0.0f;
     float zoomElapsed_ = 0.0f;
+
+    DirectX::XMFLOAT3 baseTarget_ = {0.0f, 0.0f, 0.0f}; // 注視点の基準値
 };
 
 // =========================================
