@@ -1,7 +1,7 @@
-/**
+ï»¿/**
  * @file CollisionHandlers.h
- * @brief ƒQ[ƒ€“àÕ“Ëƒnƒ“ƒhƒ‰[‚Ì’è‹`
- * @author R“à—z
+ * @brief ã‚²ãƒ¼ãƒ å†…è¡çªãƒãƒ³ãƒ‰ãƒ©ãƒ¼ã®å®šç¾©
+ * @author å±±å†…é™½
  * @date 2025
  * @version 1.0
  */
@@ -14,87 +14,87 @@
 #include "components/StageComponents.h"
 #include "components/GameStats.h"
 
-// ‘O•ûéŒ¾
+// å‰æ–¹å®£è¨€
 class GameScene;
 
-// GameScene‚Ö‚ÌƒOƒ[ƒoƒ‹ƒAƒNƒZƒX—pƒ|ƒCƒ“ƒ^
-// Œã•ûŒİŠ·«‚Ì‚½‚ßˆÛ
+// GameSceneã¸ã®ã‚°ãƒ­ãƒ¼ãƒãƒ«ã‚¢ã‚¯ã‚»ã‚¹ç”¨ãƒã‚¤ãƒ³ã‚¿
+// å¾Œæ–¹äº’æ›æ€§ã®ãŸã‚ç¶­æŒ
 inline GameScene* g_GameScene = nullptr;
 
 /**
- * @brief ƒvƒŒƒCƒ„[‚ğƒXƒ^[ƒg’n“_‚ÉƒŠƒZƒbƒgi‘¬“x‚àŠ®‘SƒŠƒZƒbƒgj
- * @param w ƒ[ƒ‹ƒh‚Ö‚ÌQÆ
- * @param player ƒŠƒZƒbƒg‘ÎÛ‚ÌƒvƒŒƒCƒ„[ƒGƒ“ƒeƒBƒeƒB
- * @param resetTimer true‚Ìê‡AƒQ[ƒ€ƒ^ƒCƒ}[‚àƒŠƒZƒbƒg‚·‚é
+ * @brief ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã‚’ã‚¹ã‚¿ãƒ¼ãƒˆåœ°ç‚¹ã«ãƒªã‚»ãƒƒãƒˆï¼ˆé€Ÿåº¦ã‚‚å®Œå…¨ãƒªã‚»ãƒƒãƒˆï¼‰
+ * @param w ãƒ¯ãƒ¼ãƒ«ãƒ‰ã¸ã®å‚ç…§
+ * @param player ãƒªã‚»ãƒƒãƒˆå¯¾è±¡ã®ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£
+ * @param resetTimer trueã®å ´åˆã€ã‚²ãƒ¼ãƒ ã‚¿ã‚¤ãƒãƒ¼ã‚‚ãƒªã‚»ãƒƒãƒˆã™ã‚‹
  */
 inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false) {
-    // ƒvƒŒƒCƒ„[ƒGƒ“ƒeƒBƒeƒB‚ª—LŒø‚©‚Ç‚¤‚©‚ğƒ`ƒFƒbƒN
+    // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£ãŒæœ‰åŠ¹ã‹ã©ã†ã‹ã‚’ãƒã‚§ãƒƒã‚¯
     if (!w.IsAlive(player)) {
         return;
     }
     
-    // ƒXƒ^[ƒg’n“_‚ğŒ©‚Â‚¯‚Äˆ—‚ğˆê“x‚¾‚¯Às‚·‚é‚½‚ß‚Ìƒtƒ‰ƒO
+    // ã‚¹ã‚¿ãƒ¼ãƒˆåœ°ç‚¹ã‚’è¦‹ã¤ã‘ã¦å‡¦ç†ã‚’ä¸€åº¦ã ã‘å®Ÿè¡Œã™ã‚‹ãŸã‚ã®ãƒ•ãƒ©ã‚°
     bool done = false;
-    // ƒXƒ^[ƒg’n“_‚Ìƒ^ƒO‚Æƒgƒ‰ƒ“ƒXƒtƒH[ƒ€‚ğ‚ÂƒGƒ“ƒeƒBƒeƒB‚ğŒŸõ
+    // ã‚¹ã‚¿ãƒ¼ãƒˆåœ°ç‚¹ã®ã‚¿ã‚°ã¨ãƒˆãƒ©ãƒ³ã‚¹ãƒ•ã‚©ãƒ¼ãƒ ã‚’æŒã¤ã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£ã‚’æ¤œç´¢
     w.ForEach<StartTag, Transform>([&](Entity, StartTag &, Transform &tStart) {
-        // Šù‚Éˆ—Ï‚İ‚È‚çƒXƒLƒbƒv
+        // æ—¢ã«å‡¦ç†æ¸ˆã¿ãªã‚‰ã‚¹ã‚­ãƒƒãƒ—
         if (done) {
             return;
         }
 
-        // ƒvƒŒƒCƒ„[‚ÌTransformƒRƒ“ƒ|[ƒlƒ“ƒg‚ğæ“¾
+        // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®Transformã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆã‚’å–å¾—
         if (auto *tPlayer = w.TryGet<Transform>(player)) {
-            // ƒvƒŒƒCƒ„[‚ÌˆÊ’u‚ğƒXƒ^[ƒg’n“_‚ÌX, ZÀ•W‚Éİ’èiY‚Í0‚ÅŒÅ’èj
-            tPlayer->position = {tStart.position.x, 0.0f, tStart.position.z};
+            // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®ä½ç½®ã‚’ã‚¹ã‚¿ãƒ¼ãƒˆåœ°ç‚¹ã®X, Zåº§æ¨™ã«è¨­å®šï¼ˆYã¯0ã§å›ºå®šï¼‰
+            tPlayer->position = DirectX::XMFLOAT3{tStart.position.x, 0.0f, tStart.position.z};
 
-            // ƒvƒŒƒCƒ„[‚Ì‘¬“xƒRƒ“ƒ|[ƒlƒ“ƒg‚ğæ“¾
+            // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®é€Ÿåº¦ã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆã‚’å–å¾—
             if (auto *vPlayer = w.TryGet<PlayerVelocity>(player)) {
-                // ‘¬“x‚Æƒu[ƒXƒgŠÖ˜A‚ÌƒXƒe[ƒ^ƒX‚ğŠ®‘S‚ÉƒŠƒZƒbƒg
-                vPlayer->velocity = {0.0f, 0.0f};
+                // é€Ÿåº¦ã¨ãƒ–ãƒ¼ã‚¹ãƒˆé–¢é€£ã®ã‚¹ãƒ†ãƒ¼ã‚¿ã‚¹ã‚’å®Œå…¨ã«ãƒªã‚»ãƒƒãƒˆ
+                vPlayer->velocity = DirectX::XMFLOAT2{0.0f, 0.0f};
                 vPlayer->isBoosting = false;
                 vPlayer->isDecelerating = false;
                 vPlayer->boostSpeed = 0.0f;
-                vPlayer->boostDir = {0.0f, 0.0f};
+                vPlayer->boostDir = DirectX::XMFLOAT2{0.0f, 0.0f};
             }
 
-            // ƒvƒŒƒCƒ„[‚ÌˆÚ“®ƒRƒ“ƒ|[ƒlƒ“ƒg‚ğæ“¾
+            // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®ç§»å‹•ã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆã‚’å–å¾—
             if (auto *pmPlayer = w.TryGet<PlayerMovement>(player)) {
-                // ƒ`ƒƒ[ƒWŠÖ˜A‚ÌƒXƒe[ƒ^ƒX‚ğƒŠƒZƒbƒg
+                // ãƒãƒ£ãƒ¼ã‚¸é–¢é€£ã®ã‚¹ãƒ†ãƒ¼ã‚¿ã‚¹ã‚’ãƒªã‚»ãƒƒãƒˆ
                 pmPlayer->isCharging_ = false;
                 pmPlayer->wasCharging_ = false;
                 pmPlayer->wasChargingPrev_ = false;
-                // Šp“x‚Ì—š—ğ‚àƒŠƒZƒbƒg‚µ‚ÄAˆÚ“®•ûŒü‚ÌŒvZ‚ğ‰Šú‰»
+                // è§’åº¦ã®å±¥æ­´ã‚‚ãƒªã‚»ãƒƒãƒˆã—ã¦ã€ç§»å‹•æ–¹å‘ã®è¨ˆç®—ã‚’åˆæœŸåŒ–
                 pmPlayer->ResetAngleHistory();
             }
         }
         
-        // ƒ^ƒCƒ}[ƒŠƒZƒbƒg‚ª—v‹‚³‚ê‚Ä‚¢‚éê‡
+        // ã‚¿ã‚¤ãƒãƒ¼ãƒªã‚»ãƒƒãƒˆãŒè¦æ±‚ã•ã‚Œã¦ã„ã‚‹å ´åˆ
         if (resetTimer) {
-            // GameStatusƒRƒ“ƒ|[ƒlƒ“ƒg‚ğ‚ÂƒGƒ“ƒeƒBƒeƒB‚ğŒŸõ
+            // GameStatusã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆã‚’æŒã¤ã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£ã‚’æ¤œç´¢
             w.ForEach<GameStatus>([](Entity, GameStatus &stats) {
-                // Œo‰ßŠÔ‚ğ0‚ÉƒŠƒZƒbƒg
+                // çµŒéæ™‚é–“ã‚’0ã«ãƒªã‚»ãƒƒãƒˆ
                 stats.elapsedTime = 0.0f;
             });
         }
 
-        // ˆ—Š®—¹ƒtƒ‰ƒO‚ğ—§‚ÄAˆÈ~‚ÌƒXƒ^[ƒg’n“_‚ªŒ©‚Â‚©‚Á‚Ä‚àˆ—‚µ‚È‚¢‚æ‚¤‚É‚·‚é
+        // å‡¦ç†å®Œäº†ãƒ•ãƒ©ã‚°ã‚’ç«‹ã¦ã€ä»¥é™ã®ã‚¹ã‚¿ãƒ¼ãƒˆåœ°ç‚¹ãŒè¦‹ã¤ã‹ã£ã¦ã‚‚å‡¦ç†ã—ãªã„ã‚ˆã†ã«ã™ã‚‹
         done = true;
     });
 }
 
 /**
- * @brief §ŒÀŠÔ‚ğƒ`ƒFƒbƒN‚µA’´‰ß‚µ‚½ê‡‚ÍƒvƒŒƒCƒ„[‚ğƒŠƒZƒbƒg‚·‚é
- * @param w ƒ[ƒ‹ƒh‚Ö‚ÌQÆ
- * @param player ƒ`ƒFƒbƒN‘ÎÛ‚ÌƒvƒŒƒCƒ„[ƒGƒ“ƒeƒBƒeƒB
- * @param timeLimitSeconds §ŒÀŠÔi•bj
+ * @brief åˆ¶é™æ™‚é–“ã‚’ãƒã‚§ãƒƒã‚¯ã—ã€è¶…éã—ãŸå ´åˆã¯ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã‚’ãƒªã‚»ãƒƒãƒˆã™ã‚‹
+ * @param w ãƒ¯ãƒ¼ãƒ«ãƒ‰ã¸ã®å‚ç…§
+ * @param player ãƒã‚§ãƒƒã‚¯å¯¾è±¡ã®ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£
+ * @param timeLimitSeconds åˆ¶é™æ™‚é–“ï¼ˆç§’ï¼‰
  */
 inline void CheckTimeLimit(World &w, Entity player, float timeLimitSeconds) {
-    // GameStatusƒRƒ“ƒ|[ƒlƒ“ƒg‚ğ‚ÂƒGƒ“ƒeƒBƒeƒB‚ğŒŸõ
+    // GameStatusã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆã‚’æŒã¤ã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£ã‚’æ¤œç´¢
     w.ForEach<GameStatus>([&](Entity e, GameStatus &stats) {
-        // Œo‰ßŠÔ‚ª§ŒÀŠÔ‚ğ’´‚¦‚½‚©ƒ`ƒFƒbƒN
+        // çµŒéæ™‚é–“ãŒåˆ¶é™æ™‚é–“ã‚’è¶…ãˆãŸã‹ãƒã‚§ãƒƒã‚¯
         if (stats.elapsedTime >= timeLimitSeconds) {
-            DEBUGLOG("ŠÔØ‚ê");
-            // ƒvƒŒƒCƒ„[‚ğƒXƒ^[ƒg’n“_‚ÉƒŠƒZƒbƒgiƒ^ƒCƒ}[‚àƒŠƒZƒbƒgj
+            DEBUGLOG("Timeout");
+            // ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã‚’ã‚¹ã‚¿ãƒ¼ãƒˆåœ°ç‚¹ã«ãƒªã‚»ãƒƒãƒˆï¼ˆã‚¿ã‚¤ãƒãƒ¼ã‚‚ãƒªã‚»ãƒƒãƒˆï¼‰
             ResetPlayerToStart(w, player, true);
         }
     });
@@ -102,13 +102,13 @@ inline void CheckTimeLimit(World &w, Entity player, float timeLimitSeconds) {
 
 /**
  * @struct PlayerCollisionHandler
- * @brief ƒvƒŒƒCƒ„[‚ÌÕ“ËƒCƒxƒ“ƒg‚ğˆ—
+ * @brief ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ã®è¡çªã‚¤ãƒ™ãƒ³ãƒˆã‚’å‡¦ç†
  */
 struct PlayerCollisionHandler : ICollisionHandler {
     void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override {
         if (w.Has<GoalTag>(other)) {
             w.ForEach<StageProgress>([](Entity, StageProgress &sp) { sp.requestAdvance = true; });
-            DEBUGLOG("ƒvƒŒƒCƒ„[‚ªƒS[ƒ‹‚É“’B");
+            DEBUGLOG("Player reached goal");
         }
     }
 };
@@ -116,12 +116,12 @@ REGISTER_COLLISION_HANDLER_TYPE(PlayerCollisionHandler)
 
 /**
  * @struct EnemyCollisionHandler
- * @brief “G‚ÌÕ“ËƒCƒxƒ“ƒg‚ğˆ—
+ * @brief æ•µã®è¡çªã‚¤ãƒ™ãƒ³ãƒˆã‚’å‡¦ç†
  */
 struct EnemyCollisionHandler : ICollisionHandler {
     void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override {
         if (w.Has<PlayerTag>(other)) {
-            DEBUGLOG("“G‚ªƒvƒŒƒCƒ„[‚ÆÕ“Ë");
+            DEBUGLOG("Enemy collided with player");
         }
     }
 };
@@ -129,7 +129,7 @@ REGISTER_COLLISION_HANDLER_TYPE(EnemyCollisionHandler)
 
 /**
  * @struct WallCollisionHandler
- * @brief •Ç‚ÌÕ“ËƒCƒxƒ“ƒg‚ğˆ—iƒJƒƒ‰ƒVƒFƒCƒN¨’x‰„ƒŠƒXƒ|[ƒ“j
+ * @brief å£ã®è¡çªã‚¤ãƒ™ãƒ³ãƒˆã‚’å‡¦ç†ï¼ˆã‚«ãƒ¡ãƒ©ã‚·ã‚§ã‚¤ã‚¯â†’é…å»¶ãƒªã‚¹ãƒãƒ¼ãƒ³ï¼‰
  */
 struct WallCollisionHandler : ICollisionHandler {
     void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override;
@@ -138,7 +138,7 @@ REGISTER_COLLISION_HANDLER_TYPE(WallCollisionHandler)
 
 /**
  * @struct FloorWallCollisionHandler
- * @brief ƒXƒe[ƒW‚Ì•Ç‚ÌÕ“ËƒCƒxƒ“ƒg‚ğˆ—iƒJƒƒ‰ƒVƒFƒCƒN¨’x‰„ƒŠƒXƒ|[ƒ“j
+ * @brief ã‚¹ãƒ†ãƒ¼ã‚¸ã®å£ã®è¡çªã‚¤ãƒ™ãƒ³ãƒˆã‚’å‡¦ç†ï¼ˆã‚«ãƒ¡ãƒ©ã‚·ã‚§ã‚¤ã‚¯â†’é…å»¶ãƒªã‚¹ãƒãƒ¼ãƒ³ï¼‰
  */
 struct FloorWallCollisionHandler : ICollisionHandler {
     void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override;
@@ -147,19 +147,17 @@ REGISTER_COLLISION_HANDLER_TYPE(FloorWallCollisionHandler)
 
 /**
  * @struct DashBordCollisionHandler
- * @brief ‰Á‘¬”Â‚ÌÕ“ËƒCƒxƒ“ƒg‚ğˆ—
+ * @brief åŠ é€Ÿæ¿ã®è¡çªã‚¤ãƒ™ãƒ³ãƒˆã‚’å‡¦ç†
  */
 struct DashBordCollisionHandler : ICollisionHandler {
     void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override {
-        auto *v = w.TryGet<PlayerVelocity>(other);              //‘¬“xƒRƒ“ƒ|[ƒlƒ“ƒgæ“¾
-        auto *dash = w.TryGet<DashBoardStatus>(self);           //‰Á‘¬”Â‚ÌƒXƒe[ƒ^ƒXæ“¾
+        auto *v = w.TryGet<PlayerVelocity>(other);              //é€Ÿåº¦ã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆå–å¾—
+        auto *dash = w.TryGet<DashBoardStatus>(self);           //åŠ é€Ÿæ¿ã®ã‚¹ãƒ†ãƒ¼ã‚¿ã‚¹å–å¾—
         if (w.Has<PlayerTag>(other)) {
             if (v && dash) {
-                float accelAngle = dash->accelAngle;
+                DEBUGLOG("ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼ãŒåŠ é€Ÿæ¿ã¨æ¥è§¦ - ãƒ—ãƒ¬ã‚¤ãƒ¤ãƒ¼åŠ é€Ÿ-");
+                v->isBoosting = true;
             }
-
-            DEBUGLOG("ƒvƒŒƒCƒ„[‚ª‰Á‘¬”Â‚ÆÚG - ƒvƒŒƒCƒ„[‰Á‘¬-");
-            v->isBoosting = true;
         }
     }
 };
