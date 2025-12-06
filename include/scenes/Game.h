@@ -194,8 +194,13 @@ REGISTER_COLLISION_HANDLER_TYPE(FloorWallCollisionHandler)
  */
 struct DashBordCollisionHandler : ICollisionHandler {
     void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override {
-        auto *v = w.TryGet<PlayerVelocity>(other);
+        auto *v = w.TryGet<PlayerVelocity>(other);              //速度コンポーネント取得
+        auto *dash = w.TryGet<DashBoardStatus>(self);           //加速板のステータス取得
         if (w.Has<PlayerTag>(other)) {
+            if (v && dash) {
+                float accelAngle = dash->accelAngle;
+            }
+
             DEBUGLOG("プレイヤーが加速板と接触 - プレイヤー加速-");
             v->isBoosting = true;
         }
@@ -249,6 +254,8 @@ class GameScene : public IScene {
     inline static ConfigVar<float> cfg_UICountB{"UI", "CountColorB", 1.0f};
 
     inline static ConfigVar<std::string> cfg_PlayerFBXPass{"Player", "PlayerFBXPass", "Assets/Models/Player/obj_player.fbx"};
+    inline static ConfigVar<std::string> cfg_FloorFBXPass{"Game", "FloorFBXPass", "Assets/Models/StageObj/Ground/obj_ground.fbx"};
+    inline static ConfigVar<std::string> cfg_WallFBXPass{"Game", "WallFBXPass", "Assets/Models/StageObj/Wall/obj_wall.fbx"};
 
     inline static ConfigVar<std::string> cfg_RoomPath{"UI", "RoomPNGPass", "Assets/Textures/Count.png"};
 
@@ -341,21 +348,6 @@ class GameScene : public IScene {
         float screenWidth = static_cast<float>(gfx->Width());
         float screenHeight = static_cast<float>(gfx->Height());
 
-        // カメラを初期化
-        // LookAtLH: 左手座標系で、指定した位置からターゲットを見るビュー行列を生成
-        camera_ = Camera::LookAtLH(
-            DirectX::XM_PIDIV4,               // 視野角 (45度)
-            screenWidth / screenHeight,       // アスペクト比
-            0.1f,                             // 近クリップ面
-            1000.0f,                          // 遠クリップ面
-            cameraPosition_,                  // カメラの位置
-            DirectX::XMFLOAT3{0.0f, 0.0f, 0.0f}, // 注視点
-            DirectX::XMFLOAT3{0.0f, 1.0f, 0.0f}  // 上方向ベクトル
-        );
-        // ズームエフェクトの基準となる初期視野角を保存
-        baseFovY_ = camera_.fovY;
-
-        // 衝突検出システムをエンティティとして生成し、シーンが所有
         Entity collisionSystem = world.Create().With<CollisionDetectionSystem>(cfg_CollisionCellSize.Get()).Build();
         ownedEntities_.push_back(collisionSystem);
 
@@ -373,11 +365,9 @@ class GameScene : public IScene {
         // 平行光源をエンティティとして生成
         world.Create().With<DirectionalLight>();
 
-        // プレイヤーとUIを生成
         CreatePlayer(world);
         CreateUI(world, screenWidth, screenHeight);
 
-        // 最初のステージをセットアップ
         SetupStage(world, 1);
 
         DEBUGLOG("GameWithUIScene の初期化が正常に完了しました");
@@ -630,17 +620,16 @@ class GameScene : public IScene {
 
         // プレイヤーエンティティを生成し、各種コンポーネントをアタッチ
         Entity player = world.Create()
-            .With<Transform>(transform)
-            .With<Model>(cfg_PlayerFBXPass) // 3Dモデル
-            .With<PlayerTag>()              // プレイヤー識別用タグ
-            .With<PlayerVelocity>()         // 速度管理
-            .With<PlayerMovement>()         // 移動ロジック
-            .With<PlayerGuide>()            // ガイド表示用
-            .With<CollisionSphere>(0.4f)    // 球状の当たり判定
-            .With<PlayerCollisionHandler>() // 衝突処理ハンドラ
-            .Build();
+                            .With<Transform>(transform)
+                            .With<Model>(cfg_PlayerFBXPass)
+                            .With<PlayerTag>()
+                            .With<PlayerVelocity>()
+                            .With<PlayerMovement>()
+                            .With<PlayerGuide>()
+                            .With<CollisionSphere>(0.4f)
+                            .With<PlayerCollisionHandler>()
+                            .Build();
 
-        // 生成したエンティティをシーンの管理下に置く
         playerEntity_ = player;
         ownedEntities_.push_back(player);
     }
@@ -671,10 +660,7 @@ class GameScene : public IScene {
             const float offsetX = (mapWidth * tileSize) * 0.5f - (tileSize * 0.5f);
             const float offsetZ = (mapHeight * tileSize) * 0.5f - (tileSize * 0.5f);
 
-            // 床を生成
-            CreateFloor(world, static_cast<int>(mapWidth), tileSize);
-
-            // 2次元配列のステージデータを走査
+            // ステージマップに基づいてオブジェクトを生成
             for (int y = 0; y < stagecreate.stageMap.size(); ++y) {
                 for (int x = 0; x < stagecreate.stageMap[y].size(); ++x) {
                     int blockType = stagecreate.stageMap[y][x];
@@ -686,7 +672,10 @@ class GameScene : public IScene {
 
                     const DirectX::XMFLOAT3 blockposition = {worldX, worldY, worldZ};
 
-                    // マップの外周に壁を自動生成
+                    // ステージの床を生成
+                    CreateFloor(world, blockposition);
+
+                    // ステージの境界には常に壁を生成
                     if (y == 0) {
                         CreatFloorWall(world, {worldX, worldY, worldZ + tileSize});
                     }
@@ -703,13 +692,57 @@ class GameScene : public IScene {
                     // ブロックタイプに応じてオブジェクトを生成
                     if (blockType != 0) { // 0は空白
                         switch (blockType) {
-                            case 1: CreateStart(world, blockposition); break;
-                            case 2: CreateGoal(world, blockposition); break;
-                            case 3: CreateWall(world, blockposition); break;
-                            case 5: CreateRightDownCorner(world, blockposition); break;
-                            case 6: CreateLeftDownCorner(world, blockposition); break;
-                            case 7: CreateLeftUpCorner(world, blockposition); break;
-                            case 8: CreateRightUpCorner(world, blockposition); break;
+                            case 1:
+                                CreateStart(world, blockposition);
+                                break; // スタート地点
+                            case 2:
+                                CreateGoal(world, blockposition);
+                                break; // ゴール地点
+                            case 3:
+                                CreateWall(world, blockposition);
+                                break; // 通常の壁
+                            case 5:
+                                CreateRightDownCorner(world, blockposition);
+                                break; // 右下が直角の三角形
+                            case 6:
+                                CreateLeftDownCorner(world, blockposition);
+                                break; // 左下が直角の三角形
+                            case 7:
+                                CreateLeftUpCorner(world, blockposition);
+                                break; // 左上が直角の三角形
+                            case 8:
+                                CreateRightUpCorner(world, blockposition);
+                                break; // 右上が直角の三角形
+                            case 10:
+                            case 11:
+                            case 12:
+                            case 13:
+                            case 14:
+                            case 15:
+                            case 16:
+                            case 17:
+                            case 18:
+                            case 19:
+                                if (blockType >= 10 && blockType < 20) {
+                                    CreateMoveWall(world, blockposition, blockType);
+                                    break; // 動く障害物10
+                                }
+                            case 30:
+                            case 31:
+                            case 32:
+                            case 33:
+                            case 34:
+                            case 35:
+                            case 36:
+                            case 37:
+                            case 38:
+                            case 39:
+                                if (blockType >= 30 && blockType < 40) {
+                                    CreateDashBoard(world, blockposition, blockType);
+                                    break; // 加速板10
+                                }
+                            default:
+                                break; 
                         }
                     }
                 }
@@ -717,42 +750,25 @@ class GameScene : public IScene {
         });
     }
 
-    /**
-     * @brief ステージの床を生成する
-     * @param world ワールドへの参照
-     * @param gridSize グリッドの一辺のタイル数
-     * @param tileSize 各タイルのサイズ
-     */
-    void CreateFloor(World &world, int gridSize, float tileSize) {
-        if (gridSize <= 0.0f || tileSize <= 0.0f) {
-            return;
-        }
+    void CreateFloor(World &world, const DirectX::XMFLOAT3 &position) {
+        DirectX::XMFLOAT3 floorPos = {
+            position.x,
+            position.y - 1,
+            position.z,
+        };
 
-        const float yOffset = cfg_FloorYOffset; // 床のY座標オフセット
-        const float half = (gridSize * tileSize) * 0.5f; // 全体の半分の幅
+        Transform transform{{floorPos}, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_FloorThickness, 1.0f}};
+        MeshRenderer renderer;
+        renderer.meshType = MeshType::Cube;
+        //renderer.color = DirectX::XMFLOAT3{cfg_FloorR, cfg_FloorG, cfg_FloorB};
 
-        // グリッド状に床タイルを配置
-        for (int i = 0; i < gridSize; ++i) {
-            for (int j = 0; j < gridSize; ++j) {
-                // 各タイルの中心座標を計算
-                float x = i * tileSize - half + tileSize * 0.5f;
-                float z = j * tileSize - half + tileSize * 0.5f;
+        Entity floor = world.Create()
+                           .With<Transform>(transform)
+                           .With<Model>(cfg_FloorFBXPass)
+                           .With<MeshRenderer>(renderer)
+                           .Build();
 
-                // TransformとMeshRendererを設定
-                Transform transform{{x, yOffset, z}, {0.0f, 0.0f, 0.0f}, {tileSize, cfg_FloorThickness, tileSize}};
-                MeshRenderer renderer;
-                renderer.meshType = MeshType::Cube;
-                renderer.color = DirectX::XMFLOAT3{cfg_FloorR, cfg_FloorG, cfg_FloorB};
-
-                // エンティティを生成し、シーンの管理下に置く
-                Entity floor = world.Create()
-                                   .With<Transform>(transform)
-                                   .With<MeshRenderer>(renderer)
-                                   .Build();
-
-                ownedEntities_.push_back(floor);
-            }
-        }
+        ownedEntities_.push_back(floor);
     }
 
     /**
@@ -856,10 +872,11 @@ class GameScene : public IScene {
         Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::Cube;
-        renderer.color = DirectX::XMFLOAT3{cfg_WallR, cfg_WallG, cfg_WallB};
+        // renderer.color = DirectX::XMFLOAT3{cfg_WallR, cfg_WallG, cfg_WallB};
 
         Entity wallEntity = world.Create()
                                 .With<Transform>(transform)
+                                .With<Model>(cfg_WallFBXPass)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>() // 壁識別用タグ
                                 .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
@@ -960,403 +977,197 @@ class GameScene : public IScene {
         stageOwnedEntities_.push_back(wallEntity);
     }
 
-    /**
-     * @brief ステージ外周の壁オブジェクトを生成する
-     * @param world ワールドへの参照
-     * @param position 生成する位置
-     */
+    void CreateMoveWall(World &world, const DirectX::XMFLOAT3 &position, int blockType) {
+        Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
+        MeshRenderer renderer;
+        renderer.meshType = MeshType::Cube;
+        renderer.color = DirectX::XMFLOAT3{cfg_WallR, cfg_WallG, cfg_WallB};
+
+        Entity wallEntity = world.Create()
+                                .With<Transform>(transform)
+                                .With<MeshRenderer>(renderer)
+                                .With<WallTag>()
+                                .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                                .With<WallCollisionHandler>()
+                                .Build();
+
+
+        stageOwnedEntities_.push_back(wallEntity);
+    }
+
     void CreatFloorWall(World &world, const DirectX::XMFLOAT3 &position) {
         Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::Cube;
-        renderer.color = DirectX::XMFLOAT3{cfg_FloorWallR, cfg_FloorWallG, cfg_FloorWallB};
 
         Entity worldwallEntity = world.Create()
-            .With<Transform>(transform)
-            .With<MeshRenderer>(renderer)
-            .With<WallTag>()
-            .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
-            .With<FloorWallCollisionHandler>() // 外周壁専用の衝突ハンドラ
-            .Build();
+                                     .With<Transform>(transform)
+                                     .With<MeshRenderer>(renderer)
+                                     .With<WallTag>()
+                                     .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                                     .With<FloorWallCollisionHandler>()
+                                     .Build();
 
         stageOwnedEntities_.push_back(worldwallEntity);
     }
 
-    /**
-     * @brief ダッシュボード（加速床）のギミックを生成する
-     * @param world ワールドへの参照
-     */
-    void CreateDashBord(World& world) {
-        Transform transform{{-7.0f,0.0f,0.0f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
-        MeshRenderer renderer;
+    //加速板
+        void CreateDashBoard(World & world, const DirectX::XMFLOAT3 &position, int blockType) {
+            Transform transform{{position}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
+            MeshRenderer renderer;
 
-        renderer.meshType = MeshType::Cube;
-        renderer.color = DirectX::XMFLOAT3{0.0f, 0.0f, 1.0f};
+            renderer.meshType = MeshType::Cube;
+            renderer.color = DirectX::XMFLOAT3{0.0f, 0.0f, 1.0f};
 
-        Entity dashBordEntity = world.Create()
-                                    .With<Transform>(transform)
-                                    .With<MeshRenderer>(renderer)
-                                    .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
-                                    .With<GimmickTag>() // ギミック識別用タグ
-                                    .With<DashBordCollisionHandler>() // 加速床専用の衝突ハンドラ
-                                    .Build();
+            DashBoardStatus status;
+            status.blockID = blockType;
+            float angle = 0.0f;
 
-        stageOwnedEntities_.push_back(dashBordEntity);
-    }
+            world.ForEach<LoadAngle>([&](Entity, LoadAngle &loadAngle) {
+                for (const auto &row : loadAngle.stageAngle) {
+                    if (row.size() > 1) {
+                        angle = static_cast<float>(row[1]);
+                        break;
+                    }
+                }
+            });
 
-    /**
-     * @brief 指定されたステージ番号のステージをセットアップする
-     * @details 古いステージのオブジェクトを破棄し、新しいステージを生成・設定する
-     * @param world ワールドへの参照
-     * @param stage セットアップするステージの番号
-     */
-    void SetupStage(World &world, int stage) {
-        // 現在のステージに属するエンティティをすべて破棄
-        for (const auto &entity : stageOwnedEntities_) {
-            if (world.IsAlive(entity)) {
-                world.DestroyEntityWithCause(entity, World::Cause::StageReset);
+            status.accelAngle = angle;
+
+            Entity dashBoardEntity = world.Create()
+                                         .With<Transform>(transform)
+                                         .With<MeshRenderer>(renderer)
+                                         .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                                         .With<GimmickTag>()
+                                         .With<DashBordCollisionHandler>()
+                                         .With<DashBoardStatus>(status)
+                                         .Build();
+
+            stageOwnedEntities_.push_back(dashBoardEntity);
+        }
+
+        void SetupStage(World & world, int stage) {
+            // ステージリセット: 現在のステージに関連するエンティティを破棄
+            for (const auto &entity : stageOwnedEntities_) {
+                if (world.IsAlive(entity)) {
+                    world.DestroyEntityWithCause(entity, World::Cause::StageReset);
+                }
+            }
+            stageOwnedEntities_.clear();
+
+            startEntity_ = {};
+            goalEntity_ = {};
+
+            // 新しいステージのマップを生成
+            CreateStageMap(world);
+
+            // 簡易ライトベイク（アンビエント＋ディレクショナル＋ポイントライトの影なし近似）
+            BakeStageLighting(world);
+
+            // プレイヤーをスタート地点にリセット
+            if (world.IsAlive(playerEntity_)) {
+                ResetPlayerToStart(world, playerEntity_);
             }
         }
-        stageOwnedEntities_.clear();
 
-        // スタート・ゴールエンティティの参照をリセット
-        startEntity_ = {};
-        goalEntity_ = {};
+        // 簡易ライトベイク（影なし近似）: ステージ生成直後にメッシュカラーへ反映
+        void BakeStageLighting(World & world) {
+            using namespace DirectX;
 
-        // 新しいステージマップとギミックを生成
-        CreateStageMap(world);
-        CreateDashBord(world);
-        // 静的なライティングを計算（ライトベーキング）
-        BakeStageLighting(world);
+            // 1) 環境光
+            XMFLOAT3 ambient{0.15f, 0.15f, 0.2f};
+            float ambientIntensity = 1.0f;
 
-        // プレイヤーが生存していれば、新しいステージのスタート地点にリセット
-        if (world.IsAlive(playerEntity_)) {
-            ResetPlayerToStart(world, playerEntity_);
-        }
-    }
+            // 2) ディレクショナルライト（最初の1つ）
+            bool hasDir = false;
+            XMFLOAT3 dirDir{0.0f, -1.0f, 0.0f};
+            XMFLOAT3 dirColor{1.0f, 1.0f, 1.0f};
+            world.ForEach<DirectionalLight>([&](Entity, DirectionalLight &dl) {
+                dirDir = dl.direction;
+                dirColor = XMFLOAT3{dl.color.x, dl.color.y, dl.color.z};
+                hasDir = true;
+            });
 
-    /**
-     * @brief 静的なライティングを事前に計算し、オブジェクトの色に焼き付ける（ライトベーキング）
-     * @details 動的な照明計算の負荷を軽減するため、動かないオブジェクトに対して光源の影響を予め計算しておく
-     * @param world ワールドへの参照
-     */
-    void BakeStageLighting(World &world) {
-        using namespace DirectX;
+            // 3) ポイントライト収集
+            struct PL {
+                XMFLOAT3 pos;
+                XMFLOAT3 col;
+                float range;
+                float I;
+                float kc, kl, kq;
+            };
+            std::vector<PL> lights;
+            world.ForEach<Transform, PointLight>([&](Entity, Transform &t, PointLight &pl) {
+                if (!pl.enabled)
+                    return;
+                lights.push_back(PL{t.position, pl.color, pl.range, pl.intensity, pl.constantAttenuation, pl.linearAttenuation, pl.quadraticAttenuation});
+            });
 
-        // 環境光の基本設定
-        XMFLOAT3 ambient{0.15f, 0.15f, 0.2f};
-        float ambientIntensity = 1.0f;
+            auto saturate = [](float v) { return std::max(0.0f, std::min(1.0f, v)); };
+            auto mul3 = [](const XMFLOAT3 &a, const XMFLOAT3 &b) { return XMFLOAT3{a.x * b.x, a.y * b.y, a.z * b.z}; };
+            auto add3 = [](const XMFLOAT3 &a, const XMFLOAT3 &b) { return XMFLOAT3{a.x + b.x, a.y + b.y, a.z + b.z}; };
+            auto scale3 = [](const XMFLOAT3 &a, float s) { return XMFLOAT3{a.x * s, a.y * s, a.z * s}; };
 
-        // 平行光源の情報を取得
-        bool hasDir = false;
-        XMFLOAT3 dirDir{0.0f, -1.0f, 0.0f};
-        XMFLOAT3 dirColor{1.0f, 1.0f, 1.0f};
-        world.ForEach<DirectionalLight>([&](Entity, DirectionalLight &dl) {
-            dirDir = dl.direction;
-            dirColor = XMFLOAT3{dl.color.x, dl.color.y, dl.color.z};
-            hasDir = true;
-        });
-
-        // ポイントライトの情報を収集
-        struct PL {
-            XMFLOAT3 pos;
-            XMFLOAT3 col;
-            float range;
-            float I;
-            float kc, kl, kq; // 距離減衰係数 (定数、線形、二次)
-        };
-        std::vector<PL> lights;
-        world.ForEach<Transform, PointLight>([&](Entity, Transform &t, PointLight &pl) {
-            if (!pl.enabled)
-                return;
-            lights.push_back(PL{t.position, pl.color, pl.range, pl.intensity, pl.constantAttenuation, pl.linearAttenuation, pl.quadraticAttenuation});
-        });
-
-        // 計算用ヘルパーラムダ
-        auto saturate = [](float v) { return std::max(0.0f, std::min(1.0f, v)); }; // 0-1の範囲にクランプ
-        auto mul3 = [](const XMFLOAT3 &a, const XMFLOAT3 &b) { return XMFLOAT3{a.x * b.x, a.y * b.y, a.z * b.z}; }; // 成分ごとの乗算
-        auto add3 = [](const XMFLOAT3 &a, const XMFLOAT3 &b) { return XMFLOAT3{a.x + b.x, a.y + b.y, a.z + b.z}; }; // 成分ごとの加算
-        auto scale3 = [](const XMFLOAT3 &a, float s) { return XMFLOAT3{a.x * s, a.y * s, a.z * s}; }; // スカラー倍
-
-        // 床や壁の法線は上向き(0,1,0)と仮定
-        XMFLOAT3 upN{0.0f, 1.0f, 0.0f};
-        XMVECTOR vUp = XMLoadFloat3(&upN);
-        XMVECTOR vDir = XMLoadFloat3(&dirDir);
-        if (hasDir) {
-            vDir = XMVector3Normalize(vDir); // 平行光源の方向ベクトルを正規化
-        }
-
-        // ステージに属する全エンティティを走査
-        for (auto e : stageOwnedEntities_) {
-            if (!world.IsAlive(e))
-                continue;
-            auto *t = world.TryGet<Transform>(e);
-            auto *mr = world.TryGet<MeshRenderer>(e);
-            if (!t || !mr) // TransformとMeshRendererがなければスキップ
-                continue;
-
-            XMFLOAT3 base = mr->color; // オブジェクトの基本色
-            XMFLOAT3 accum = scale3(ambient, ambientIntensity); // 光の累積バッファを環境光で初期化
-
-            // 平行光源の影響を加算 (ランバート反射)
+            // Up法線で近似（床や壁の簡易ベイク）
+            XMFLOAT3 upN{0.0f, 1.0f, 0.0f};
+            XMVECTOR vUp = XMLoadFloat3(&upN);
+            XMVECTOR vDir = XMLoadFloat3(&dirDir);
             if (hasDir) {
-                XMVECTOR n = vUp; // 法線は上向きと仮定
-                // 法線と、光源への逆ベクトルの内積を計算 (クランプ付き)
-                float ndotl = saturate(DirectX::XMVectorGetX(DirectX::XMVector3Dot(n, XMVectorNegate(vDir))));
-                accum = add3(accum, scale3(dirColor, ndotl));
+                vDir = XMVector3Normalize(vDir);
             }
 
-            // 各ポイントライトの影響を加算
-            XMVECTOR pos = XMLoadFloat3(&t->position);
-            for (const auto &L : lights) {
-                XMVECTOR lp = XMLoadFloat3(&L.pos);
-                XMVECTOR d = XMVectorSubtract(lp, pos); // ライトからオブジェクトへのベクトル
-                float dist = XMVectorGetX(XMVector3Length(d)); // 距離
-                if (dist > L.range) // ライトの範囲外ならスキップ
+            for (auto e : stageOwnedEntities_) {
+                if (!world.IsAlive(e))
                     continue;
-                // 距離による減衰を計算
-                float att = 1.0f / std::max(1e-4f, L.kc + L.kl * dist + L.kq * dist * dist);
-                accum = add3(accum, scale3(L.col, L.I * att));
-            }
+                auto *t = world.TryGet<Transform>(e);
+                auto *mr = world.TryGet<MeshRenderer>(e);
+                if (!t || !mr)
+                    continue;
 
-            // 最終的な色を計算 (基本色 * 光の累積)
-            XMFLOAT3 shaded = mul3(base, accum);
-            // 各色成分を0-1の範囲にクランプ
-            shaded.x = saturate(shaded.x);
-            shaded.y = saturate(shaded.y);
-            shaded.z = saturate(shaded.z);
-            // 計算結果をMeshRendererの色として設定
-            mr->color = shaded;
-        }
-    }
+                // ベースカラー
+                XMFLOAT3 base = mr->color;
 
-    // =========================================
-    // 遅延リスポーン処理
-    // =========================================
-    /**
-     * @brief 遅延リスポーンのタイマーを更新し、時間が来たらリスポーンを実行する
-     * @param dt 前フレームからの経過時間
-     * @param world ワールドへの参照
-     */
-    void UpdateDelayedRespawn(float dt, World& world) {
-        world_ = &world; // OnWallHitから呼ばれる場合も考慮し、常にWorld参照を保持
+                // アンビエント
+                XMFLOAT3 accum = scale3(ambient, ambientIntensity);
 
-        if (!pendingRespawn_) return; // リスポーンが予約されていなければ何もしない
+                // ディレクショナル（Up法線近似）
+                if (hasDir) {
+                    XMVECTOR n = vUp;
+                    float ndotl = saturate(DirectX::XMVectorGetX(DirectX::XMVector3Dot(n, XMVectorNegate(vDir))));
+                    accum = add3(accum, scale3(dirColor, ndotl));
+                }
 
-        respawnTimer_ -= dt;
-        if (respawnTimer_ <= 0.0f) {
-            // タイマーが0以下になったらリスポーンを実行
-            ResetPlayerToStart(world, respawnPlayer_, true); // タイマーもリセット
-            pendingRespawn_ = false;
-            respawnPlayer_ = {}; // 参照をクリア
-            DEBUGLOG("リスポーン完了");
-        }
-    }
+                // ポイントライト（位置のみ、法線考慮なし・距離減衰のみ）
+                XMVECTOR pos = XMLoadFloat3(&t->position);
+                for (const auto &L : lights) {
+                    XMVECTOR lp = XMLoadFloat3(&L.pos);
+                    XMVECTOR d = XMVectorSubtract(lp, pos);
+                    float dist = XMVectorGetX(XMVector3Length(d));
+                    if (dist > L.range)
+                        continue;
+                    float att = 1.0f / std::max(1e-4f, L.kc + L.kl * dist + L.kq * dist * dist);
+                    accum = add3(accum, scale3(L.col, L.I * att));
+                }
 
-    // =========================================
-    // カメラリアクションの内部更新
-    // =========================================
-    /**
-     * @brief カメラの追従とリアクション（シェイク、ズームなど）を更新する
-     * @param dt 前フレームからの経過時間
-     * @param world ワールドへの参照
-     */
-    void UpdateCameraReaction(float dt, World& world) {
-        // プレイヤーの現在位置を取得
-        DirectX::XMFLOAT3 playerPos = {0.0f, 0.0f, 0.0f};
-        if (world.IsAlive(playerEntity_)) {
-            if (auto* pt = world.TryGet<Transform>(playerEntity_)) {
-                playerPos = pt->position;
+                // ベースカラーへ乗算し、0..1にクランプ
+                XMFLOAT3 shaded = mul3(base, accum);
+                shaded.x = saturate(shaded.x);
+                shaded.y = saturate(shaded.y);
+                shaded.z = saturate(shaded.z);
+                mr->color = shaded;
             }
         }
-        
-        // 現在のリアクションタイプに応じて更新処理を呼び出す
-        switch (reactionType_) {
-            case CameraReactionType::Shake:
-                UpdateShake(dt);
-                break;
-            case CameraReactionType::Impulse:
-                UpdateImpulse(dt);
-                break;
-            case CameraReactionType::Zoom:
-                UpdateZoom(dt);
-                break;
-            case CameraReactionType::None:
-            default:
-                // リアクションがない場合は、カメラを基準位置・視野角に戻す
-                camera_.position = cameraPosition_;
-                camera_.fovY = baseFovY_;
-                break;
-        }
 
-        // 視野角の変更をプロジェクション行列に反映
-        camera_.Proj = DirectX::XMMatrixPerspectiveFovLH(camera_.fovY, camera_.aspect, camera_.nearZ, camera_.farZ);
-        // ビュー行列、ビュープロジェクション行列を再計算
-        camera_.Update();
-    }
-
-    /**
-     * @brief カメラシェイク効果を更新する
-     * @param dt 前フレームからの経過時間
-     */
-    void UpdateShake(float dt) {
-        reactionElapsed_ += dt;
-
-        // 持続時間が過ぎたらリアクションを終了
-        if (reactionElapsed_ >= reactionTime_) {
-            reactionType_ = CameraReactionType::None;
-            camera_.position = cameraPosition_;
-            return;
-        }
-
-        // 時間経過とともに揺れを減衰させる
-        float decay = cfg_CameraShakeDecay.Get();
-        float decayFactor = std::exp(-decay * reactionElapsed_);
-        float currentIntensity = shakeIntensity_ * decayFactor;
-
-        // 設定ファイルから揺れのパラメータを取得
-        float freqX = cfg_CameraShakeFreqX.Get();
-        float freqY = cfg_CameraShakeFreqY.Get();
-        float freqZ = cfg_CameraShakeFreqZ.Get();
-        float randomness = cfg_CameraShakeRandomness.Get();
-        float yScale = cfg_CameraShakeYScale.Get();
-
-        // 揺れにランダム性を加える
-        float randX = (static_cast<float>(std::rand() % 100) / 100.0f - 0.5f) * 2.0f * randomness;
-        float randY = (static_cast<float>(std::rand() % 100) / 100.0f - 0.5f) * 2.0f * randomness;
-        float randZ = (static_cast<float>(std::rand() % 100) / 100.0f - 0.5f) * 2.0f * randomness;
-
-        // sin/cos波とランダム値を合成して各軸の揺れ量を計算
-        float sx = (std::sin(reactionElapsed_ * freqX) * (1.0f - randomness) + randX) * currentIntensity;
-        float sy = (std::cos(reactionElapsed_ * freqY) * (1.0f - randomness) + randY) * currentIntensity * yScale;
-        float sz = (std::sin(reactionElapsed_ * freqZ) * (1.0f - randomness) + randZ) * currentIntensity;
-
-        // 基準位置に揺れ量を加算して最終的なカメラ位置を決定
-        camera_.position = {
-            cameraPosition_.x + sx,
-            cameraPosition_.y + sy,
-            cameraPosition_.z + sz
-        };
-    }
-
-    /**
-     * @brief カメラインパルス（衝撃）効果を更新する
-     * @param dt 前フレームからの経過時間
-     */
-    void UpdateImpulse(float dt) {
-        reactionElapsed_ += dt;
-
-        // 持続時間が過ぎたらリアクションを終了
-        if (reactionElapsed_ >= reactionTime_) {
-            reactionType_ = CameraReactionType::None;
-            camera_.position = cameraPosition_;
-            return;
-        }
-
-        // 時間経過とともに衝撃を減衰させる
-        float decay = cfg_CameraImpulseDecay.Get();
-        float t = reactionElapsed_ / reactionTime_;
-        // cos波と指数関数的減衰を組み合わせて、跳ね返るような動きを表現
-        float bounce = std::cos(t * DirectX::XM_PI * 2.0f) * std::exp(-decay * reactionElapsed_);
-        float currentIntensity = impulseIntensity_ * bounce;
-
-        // 基準位置に衝撃による変位を加算
-        camera_.position = {
-            cameraPosition_.x + impulseDir_.x * currentIntensity,
-            cameraPosition_.y + impulseDir_.y * currentIntensity,
-            cameraPosition_.z + impulseDir_.z * currentIntensity
-        };
-    }
-
-    /**
-     * @brief カメラズーム効果を更新する
-     * @param dt 前フレームからの経過時間
-     */
-    void UpdateZoom(float dt) {
-        reactionElapsed_ += dt;
-
-        // 持続時間が過ぎたらリアクションを終了
-        if (reactionElapsed_ >= reactionTime_) {
-            reactionType_ = CameraReactionType::None;
-            camera_.fovY = baseFovY_;
-            return;
-        }
-
-        // sinカーブを使って滑らかなズームイン・アウトを表現
-        float t = reactionElapsed_ / reactionTime_;
-        float zoomCurve = std::sin(t * DirectX::XM_PI);
-        camera_.fovY = baseFovY_ - zoomAmount_ * zoomCurve;
-
-        // 視野角が極端な値にならないようにクランプ
-        camera_.fovY = std::max(DirectX::XM_PIDIV4 * 0.25f, std::min(DirectX::XM_PIDIV2 * 1.5f, camera_.fovY));
-        // ズーム中はカメラ位置は動かさない
-        camera_.position = cameraPosition_;
-    }
-
-    // =========================================
-    // メンバー変数
-    // =========================================
-    TextSystem textSystem_; //!< テキスト描画システム
-    ImageSystem imageSystem_; //!< 画像描画システム
-    std::vector<Entity> ownedEntities_; //!< シーンが所有し、終了時に破棄するエンティティのリスト
-    std::vector<Entity> stageOwnedEntities_; //!< 現在のステージが所有し、ステージリセット時に破棄するエンティティのリスト
-    Entity playerEntity_{}; //!< プレイヤーエンティティへの参照
-    Entity stageEntity_{}; //!< ステージデータ読み込みエンティティへの参照
-    Entity startEntity_{}; //!< スタート地点エンティティへの参照
-    Entity wall_{}; //!< (未使用？) 壁エンティティへの参照
-    Entity worldwall_{}; //!< (未使用？) 外周壁エンティティへの参照
-    Entity goalEntity_{}; //!< ゴールエンティティへの参照
-    Entity gimmickEntity_{}; //!< (未使用？) ギミックエンティティへの参照
-    DirectX::XMFLOAT3 cameraPosition_ = { 0.0f, 10.0f, -10.0f }; //!< カメラの基準となる位置
-    DirectX::XMFLOAT3 currentTarget_ = {0.0f, 0.0f, 0.0f}; //!< カメラの現在の注視点（プレイヤーを滑らかに追従する）
-    Camera camera_{}; //!< カメラオブジェクト
-    float baseFovY_ = DirectX::XM_PIDIV4; //!< カメラの基準となる垂直視野角
-
-    // カメラリアクション状態
-    CameraReactionType reactionType_ = CameraReactionType::None; //!< 現在のカメラリアクションの種類
-    float reactionTime_ = 0.0f; //!< リアクションの総持続時間
-    float reactionElapsed_ = 0.0f; //!< リアクションの経過時間
-
-    // シェイク用
-    float shakeIntensity_ = 0.0f; //!< シェイクの強さ
-
-    // 衝撃用
-    DirectX::XMFLOAT3 impulseDir_ = {0.0f, 0.0f, 0.0f}; //!< 衝撃の方向
-    float impulseIntensity_ = 0.0f; //!< 衝撃の強さ
-
-    // ズーム用
-    float zoomAmount_ = 0.0f; //!< ズーム量（視野角の変化量）
-
-    // 遅延リスポーン用
-    bool pendingRespawn_ = false; //!< 遅延リスポーンが予約されているかどうかのフラグ
-    Entity respawnPlayer_{}; //!< リスポーン対象のプレイヤーエンティティ
-    float respawnTimer_ = 0.0f; //!< リスポーンまでの残り時間
-    World* world_ = nullptr; //!< ワールドへのポインタ（Update外の処理で必要）
-};
-
-// =========================================
-// 衝突ハンドラーの実装（GameScene定義後）
-// =========================================
-inline void WallCollisionHandler::OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) {
-    if (w.Has<PlayerTag>(other)) {
-        DEBUGLOG("壁がプレイヤーと衝突 - カメラシェイク＋遅延リスポーン");
-        if (g_GameScene) {
-            g_GameScene->OnWallHit(other);
-        } else {
-            // フォールバック：即座にリスポーン
-            ResetPlayerToStart(w, other, true);
-        }
-    }
-}
-
-inline void FloorWallCollisionHandler::OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) {
-    if (w.Has<PlayerTag>(other)) {
-        DEBUGLOG("ステージ壁がプレイヤーと衝突 - カメラシェイク＋遅延リスポーン");
-        if (g_GameScene) {
-            g_GameScene->OnWallHit(other);
-        } else {
-            // フォールバック：即座にリスポーン
-            ResetPlayerToStart(w, other, true);
-        }
-    }
-}
+        TextSystem textSystem_;
+        ImageSystem imageSystem_;
+        std::vector<Entity> ownedEntities_;
+        std::vector<Entity> stageOwnedEntities_;
+        Entity playerEntity_{};
+        Entity stageEntity_{};
+        Entity startEntity_{};
+        Entity wall_{};
+        Entity worldwall_{};
+        Entity goalEntity_{};
+        Entity gimmickEntity_{};
+        DirectX::XMFLOAT3 cameraPosition_ = {0.0f, 10.0f, -10.0f};
+    };
