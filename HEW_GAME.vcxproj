@@ -221,10 +221,15 @@
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\pch.cpp" />
     <ClCompile Include="src\scenes\GameUI.cpp" />
+    <ClCompile Include="src\systems\EmissiveRenderSystem.cpp" />
+    <ClCompile Include="src\systems\LightSystem.cpp" />
     <ClCompile Include="src\systems\SpatialHashGrid.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Hp.h" />
+    <ClInclude Include="MouseCoordinate.h" />
+    <ClInclude Include="RoomUIComponents.h" />
+    <ClInclude Include="StageStatus.h" />
     <ClInclude Include="include\animation\Animation.h" />
     <ClInclude Include="include\app\App.h" />
     <ClInclude Include="include\app\BuildConfig.h" />
@@ -235,6 +240,8 @@
     <ClInclude Include="include\components\Collision.h" />
     <ClInclude Include="include\components\Component.h" />
     <ClInclude Include="include\components\CountUIComponent.h" />
+    <ClInclude Include="include\components\EmissiveMaterial.h" />
+    <ClInclude Include="include\components\EmissivePulse.h" />
     <ClInclude Include="include\components\GameComponents.h" />
     <ClInclude Include="include\components\GameStats.h" />
     <ClInclude Include="include\components\GameTags.h" />
@@ -242,7 +249,9 @@
     <ClInclude Include="include\components\MeshRenderer.h" />
     <ClInclude Include="include\components\Model.h" />
     <ClInclude Include="include\components\ModelComponent.h" />
+    <ClInclude Include="include\components\ModelPrefab.h" />
     <ClInclude Include="include\components\PlayerComponents.h" />
+    <ClInclude Include="include\components\PointLight.h" />
     <ClInclude Include="include\components\Rotator.h" />
     <ClInclude Include="include\components\SkyboxLight.h" />
     <ClInclude Include="include\components\StageComponents.h" />
@@ -258,6 +267,8 @@
     <ClInclude Include="include\graphics\DebugDraw.h" />
     <ClInclude Include="include\graphics\GfxDevice.h" />
     <ClInclude Include="include\graphics\ImageSystem.h" />
+    <ClInclude Include="include\graphics\LightConstantBuffer.h" />
+    <ClInclude Include="include\graphics\MaterialConstantBuffer.h" />
     <ClInclude Include="include\graphics\ModelLoader.h" />
     <ClInclude Include="include\graphics\RenderSystem.h" />
     <ClInclude Include="include\graphics\TextSystem.h" />
@@ -272,19 +283,22 @@
     <ClInclude Include="include\samples\GamepadSample.h" />
     <ClInclude Include="include\samples\TransformHierarchySamples.h" />
     <ClInclude Include="include\samples\WorldImprovementDemo.h" />
+    <ClInclude Include="include\scenes\CameraReaction.h" />
+    <ClInclude Include="include\scenes\CollisionHandlers.h" />
     <ClInclude Include="include\scenes\Game.h" />
     <ClInclude Include="include\scenes\SceneManager.h" />
     <ClInclude Include="include\scenes\SenesUIController.h" />
+    <ClInclude Include="include\scenes\StageConfig.h" />
     <ClInclude Include="include\scenes\StageSelect.h" />
     <ClInclude Include="include\scenes\Tags.h" />
+    <ClInclude Include="include\systems\EmissiveRenderSystem.h" />
+    <ClInclude Include="include\systems\LightSystem.h" />
     <ClInclude Include="include\systems\ModelLoadingSystem.h" />
+    <ClInclude Include="include\systems\RenderingSystem.h" />
     <ClInclude Include="include\systems\SpatialHashGrid.h" />
     <ClInclude Include="include\systems\TransformHierarchySystem.h" />
     <ClInclude Include="include\systems\UISystem.h" />
     <ClInclude Include="include\util\Random.h" />
-    <ClInclude Include="MouseCoordinate.h" />
-    <ClInclude Include="RoomUIComponents.h" />
-    <ClInclude Include="StageStatus.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include=".github\ISSUE_TEMPLATE\01_task.yml" />
