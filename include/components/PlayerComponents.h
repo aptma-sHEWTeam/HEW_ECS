@@ -18,6 +18,7 @@
 #include "input/InputSystem.h"
 #include "input/GamepadSystem.h"
 #include "components/Collision.h"
+#include "scenes/Game.h"
 #include <DirectXMath.h>
 #include <cmath>
 #include <algorithm>
