@@ -1,111 +1,146 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
   <ItemGroup>
-    <Filter Include="Header Files">
-      <UniqueIdentifier>{977d4f9d-3c1d-4afc-bd7a-b803e554d34e}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\animation">
-      <UniqueIdentifier>{c5145ba3-599a-4118-8a00-2ac70c57f388}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\app">
-      <UniqueIdentifier>{73593a7f-bcad-43d1-986d-691764272ea5}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\components">
-      <UniqueIdentifier>{73ad076b-c48c-457d-82e7-0feedf1d4c56}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\config">
-      <UniqueIdentifier>{00d3a988-ebd3-434f-ad81-6f15896cebf5}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\ecs">
-      <UniqueIdentifier>{3a6a925f-bd18-4c69-9523-b6ee5623a968}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\graphics">
-      <UniqueIdentifier>{7771c9e2-9a82-421b-9044-6f56ba38d6ea}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\input">
-      <UniqueIdentifier>{e7128072-d647-4cd3-a7e3-c3f790feb4c4}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\samples">
-      <UniqueIdentifier>{01b9f658-c07d-4967-99c4-8ce51e89a73d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\scenes">
-      <UniqueIdentifier>{d4b41b99-7d04-42f5-bf48-85ce2c1d4b0d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\systems">
-      <UniqueIdentifier>{73b478ba-eab2-4ac8-b603-bab20efa138e}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Header Files\util">
-      <UniqueIdentifier>{156909e2-6c24-4405-b775-a61c465d1d5c}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files">
-      <UniqueIdentifier>{2372d660-16d6-4133-8a3b-e176e720d526}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\app">
-      <UniqueIdentifier>{63b1a0d9-3b47-40df-a8b1-0661812c64a6}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\components">
-      <UniqueIdentifier>{457bb58a-0dcc-4fad-8014-f569eaf11978}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\config">
-      <UniqueIdentifier>{d7254ceb-38dd-4baf-bbc8-27f5ece00180}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\ecs">
-      <UniqueIdentifier>{662c6b30-bfb9-4cf3-b47f-367328c48c9e}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\graphics">
-      <UniqueIdentifier>{6cc0f94d-25d6-4161-8ea8-ac42a61bf375}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\input">
-      <UniqueIdentifier>{8118ac9a-c9db-41b2-85a8-b787801ab812}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\scenes">
-      <UniqueIdentifier>{d9be106f-c6f0-4ffa-a5a2-d70f65e2ed88}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Source Files\systems">
-      <UniqueIdentifier>{f690b47b-72a2-42df-960e-3d35030f1448}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Docs">
-      <UniqueIdentifier>{656da903-e5c0-44df-8c2d-6bc61339405a}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Assets">
-      <UniqueIdentifier>{6f8a14f8-ad26-4103-a6ee-beaa6d1e57d6}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Assets\Models">
-      <UniqueIdentifier>{796d58ca-eafd-40fd-bc2e-7e5c3d79b045}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Assets\StageData">
-      <UniqueIdentifier>{4fd376b9-1ca5-4340-9ec8-cf253f028748}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Assets\StageTime">
-      <UniqueIdentifier>{d972af5e-247d-45c4-ab17-3276b2f4aba8}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Assets\Textures">
-      <UniqueIdentifier>{f203db5f-f491-45a0-9c8a-28db151f19fe}</UniqueIdentifier>
-    </Filter>
     <Filter Include=".github">
       <UniqueIdentifier>{34f9715f-923e-40e7-9d59-97f814f56102}</UniqueIdentifier>
     </Filter>
     <Filter Include=".github\ISSUE_TEMPLATE">
-      <UniqueIdentifier>{3ae8ddfa-8e29-4f5f-bc4f-d61cf4ca2c71}</UniqueIdentifier>
-    </Filter>
-    <Filter Include=".github\workflows">
-      <UniqueIdentifier>{04d01d87-d02f-4294-b6d8-b5c98d7524c7}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Scripts">
-      <UniqueIdentifier>{18c0822a-3c59-44ff-ad03-c080c63a3857}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Tools">
-      <UniqueIdentifier>{cd3e6670-a63c-4a92-8127-f365053cf46e}</UniqueIdentifier>
+      <UniqueIdentifier>{276a2d69-4e5d-474a-92f2-52990f8344dd}</UniqueIdentifier>
     </Filter>
     <Filter Include=".github\scripts">
-      <UniqueIdentifier>{4c801623-59e4-416d-820b-527975883309}</UniqueIdentifier>
+      <UniqueIdentifier>{afe3be08-9306-4a4e-95cf-f19fe90c8733}</UniqueIdentifier>
     </Filter>
+    <Filter Include=".github\workflows">
+      <UniqueIdentifier>{c178207f-b02d-4b74-a3d7-ea6970c08c33}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Assets">
+      <UniqueIdentifier>{6f8a14f8-ad26-4103-a6ee-beaa6d1e57d6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Assets\Textures">
+      <UniqueIdentifier>{f2b3392a-b58d-4a30-926a-ea95c9424282}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Docs">
+      <UniqueIdentifier>{656da903-e5c0-44df-8c2d-6bc61339405a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\animation">
+      <UniqueIdentifier>{12d4b8af-94ce-4f51-80f6-2053d2fd4ea7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\app">
+      <UniqueIdentifier>{b3bd14e7-8324-45d7-8472-db746e8b9de9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\components">
+      <UniqueIdentifier>{60e7dc88-078a-4b08-a319-57ba39ca66ab}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\config">
+      <UniqueIdentifier>{2786a016-bf81-47b0-a07a-0bfa94a62a3c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\ecs">
+      <UniqueIdentifier>{b71543f2-4d60-4b93-9aba-560818a5c20e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\graphics">
+      <UniqueIdentifier>{01947fec-bc03-4501-bfca-cbea5c349b8d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\input">
+      <UniqueIdentifier>{54880527-7f2d-4e5c-885a-5f3d6690fb1a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\samples">
+      <UniqueIdentifier>{b512eeb4-ad69-416b-90a8-c54c4ecca99f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\scenes">
+      <UniqueIdentifier>{6f6fe965-bbd1-4c04-86f1-06f6def6f2fd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\systems">
+      <UniqueIdentifier>{fbddfc70-3310-442e-aaf2-961c307b313e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\util">
+      <UniqueIdentifier>{33a14646-14ad-42f3-9fb2-86ee19f8f3bb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\app">
+      <UniqueIdentifier>{6f6952b2-0b2a-4bc7-8925-82d3bd5b215a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\components">
+      <UniqueIdentifier>{f8908e21-7791-44f6-8a61-81df25f37f5b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\config">
+      <UniqueIdentifier>{60f2ec53-288a-4cb3-8ce5-d783d0b1ce45}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\ecs">
+      <UniqueIdentifier>{e07d847b-baa2-437a-a51b-e09e56616f0a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\graphics">
+      <UniqueIdentifier>{605806f1-28fb-47b8-84cd-e90ff340a312}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\input">
+      <UniqueIdentifier>{b12a76e4-43f8-444e-8c66-b7e0d7a91dd3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\scenes">
+      <UniqueIdentifier>{9773ae32-288e-4bdb-b8f6-7e853749607f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\systems">
+      <UniqueIdentifier>{0f8c8194-9c91-4f60-9bfb-e03bf3043c35}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\app\ResourceManager.cpp">
+      <Filter>Source Files\app</Filter>
+    </ClCompile>
+    <ClCompile Include="src\components\Collision.cpp">
+      <Filter>Source Files\components</Filter>
+    </ClCompile>
+    <ClCompile Include="src\config\ConfigManager.cpp">
+      <Filter>Source Files\config</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ecs\World.cpp">
+      <Filter>Source Files\ecs</Filter>
+    </ClCompile>
+    <ClCompile Include="src\graphics\ImageSystem.cpp">
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="src\graphics\ModelLoader.cpp">
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="src\graphics\TextSystem.cpp">
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="src\input\GamepadSystem.cpp">
+      <Filter>Source Files\input</Filter>
+    </ClCompile>
+    <ClCompile Include="src\main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pch.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\scenes\GameUI.cpp">
+      <Filter>Source Files\scenes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\systems\EmissiveRenderSystem.cpp">
+      <Filter>Source Files\systems</Filter>
+    </ClCompile>
+    <ClCompile Include="src\systems\LightSystem.cpp">
+      <Filter>Source Files\systems</Filter>
+    </ClCompile>
+    <ClCompile Include="src\systems\SpatialHashGrid.cpp">
+      <Filter>Source Files\systems</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Hp.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="MouseCoordinate.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="RoomUIComponents.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="StageStatus.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\animation\Animation.h">
@@ -126,6 +161,9 @@
     <ClInclude Include="include\app\ServiceLocator.h">
       <Filter>Header Files\app</Filter>
     </ClInclude>
+    <ClInclude Include="include\components\CameraComponent.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
     <ClInclude Include="include\components\Collision.h">
       <Filter>Header Files\components</Filter>
     </ClInclude>
@@ -133,6 +171,12 @@
       <Filter>Header Files\components</Filter>
     </ClInclude>
     <ClInclude Include="include\components\CountUIComponent.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\EmissiveMaterial.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\EmissivePulse.h">
       <Filter>Header Files\components</Filter>
     </ClInclude>
     <ClInclude Include="include\components\GameComponents.h">
@@ -156,10 +200,19 @@
     <ClInclude Include="include\components\ModelComponent.h">
       <Filter>Header Files\components</Filter>
     </ClInclude>
+    <ClInclude Include="include\components\ModelPrefab.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
     <ClInclude Include="include\components\PlayerComponents.h">
       <Filter>Header Files\components</Filter>
     </ClInclude>
+    <ClInclude Include="include\components\PointLight.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
     <ClInclude Include="include\components\Rotator.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\SkyboxLight.h">
       <Filter>Header Files\components</Filter>
     </ClInclude>
     <ClInclude Include="include\components\StageComponents.h">
@@ -172,6 +225,9 @@
       <Filter>Header Files\components</Filter>
     </ClInclude>
     <ClInclude Include="include\components\UIComponents.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\UIImageComponents.h">
       <Filter>Header Files\components</Filter>
     </ClInclude>
     <ClInclude Include="include\config\ConfigManager.h">
@@ -193,6 +249,15 @@
       <Filter>Header Files\graphics</Filter>
     </ClInclude>
     <ClInclude Include="include\graphics\GfxDevice.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\graphics\ImageSystem.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\graphics\LightConstantBuffer.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\graphics\MaterialConstantBuffer.h">
       <Filter>Header Files\graphics</Filter>
     </ClInclude>
     <ClInclude Include="include\graphics\ModelLoader.h">
@@ -237,6 +302,12 @@
     <ClInclude Include="include\samples\WorldImprovementDemo.h">
       <Filter>Header Files\samples</Filter>
     </ClInclude>
+    <ClInclude Include="include\scenes\CameraReaction.h">
+      <Filter>Header Files\scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scenes\CollisionHandlers.h">
+      <Filter>Header Files\scenes</Filter>
+    </ClInclude>
     <ClInclude Include="include\scenes\Game.h">
       <Filter>Header Files\scenes</Filter>
     </ClInclude>
@@ -246,13 +317,25 @@
     <ClInclude Include="include\scenes\SenesUIController.h">
       <Filter>Header Files\scenes</Filter>
     </ClInclude>
+    <ClInclude Include="include\scenes\StageConfig.h">
+      <Filter>Header Files\scenes</Filter>
+    </ClInclude>
     <ClInclude Include="include\scenes\StageSelect.h">
       <Filter>Header Files\scenes</Filter>
     </ClInclude>
     <ClInclude Include="include\scenes\Tags.h">
       <Filter>Header Files\scenes</Filter>
     </ClInclude>
+    <ClInclude Include="include\systems\EmissiveRenderSystem.h">
+      <Filter>Header Files\systems</Filter>
+    </ClInclude>
+    <ClInclude Include="include\systems\LightSystem.h">
+      <Filter>Header Files\systems</Filter>
+    </ClInclude>
     <ClInclude Include="include\systems\ModelLoadingSystem.h">
+      <Filter>Header Files\systems</Filter>
+    </ClInclude>
+    <ClInclude Include="include\systems\RenderingSystem.h">
       <Filter>Header Files\systems</Filter>
     </ClInclude>
     <ClInclude Include="include\systems\SpatialHashGrid.h">
@@ -267,53 +350,51 @@
     <ClInclude Include="include\util\Random.h">
       <Filter>Header Files\util</Filter>
     </ClInclude>
-    <ClInclude Include="RoomUIComponents.h" />
-    <ClInclude Include="include\components\UIImageComponents.h" />
-    <ClInclude Include="include\graphics\ImageSystem.h" />
-    <ClInclude Include="include\components\SkyboxLight.h" />
-    <ClInclude Include="StageStatus.h" />
-    <ClInclude Include="include\components\CameraComponent.h">
-      <Filter>Header Files\components</Filter>
-    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\app\ResourceManager.cpp">
-      <Filter>Source Files\app</Filter>
-    </ClCompile>
-    <ClCompile Include="src\components\Collision.cpp">
-      <Filter>Source Files\components</Filter>
-    </ClCompile>
-    <ClCompile Include="src\config\ConfigManager.cpp">
-      <Filter>Source Files\config</Filter>
-    </ClCompile>
-    <ClCompile Include="src\ecs\World.cpp">
-      <Filter>Source Files\ecs</Filter>
-    </ClCompile>
-    <ClCompile Include="src\graphics\ModelLoader.cpp">
-      <Filter>Source Files\graphics</Filter>
-    </ClCompile>
-    <ClCompile Include="src\graphics\TextSystem.cpp">
-      <Filter>Source Files\graphics</Filter>
-    </ClCompile>
-    <ClCompile Include="src\input\GamepadSystem.cpp">
-      <Filter>Source Files\input</Filter>
-    </ClCompile>
-    <ClCompile Include="src\main.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\pch.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\scenes\GameUI.cpp">
-      <Filter>Source Files\scenes</Filter>
-    </ClCompile>
-    <ClCompile Include="src\systems\SpatialHashGrid.cpp">
-      <Filter>Source Files\systems</Filter>
-    </ClCompile>
-    <ClCompile Include="src\graphics\ImageSystem.cpp" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="README.md" />
+    <None Include=".github\ISSUE_TEMPLATE\01_task.yml">
+      <Filter>.github\ISSUE_TEMPLATE</Filter>
+    </None>
+    <None Include=".github\ISSUE_TEMPLATE\02_bug.yml">
+      <Filter>.github\ISSUE_TEMPLATE</Filter>
+    </None>
+    <None Include=".github\ISSUE_TEMPLATE\config.yml">
+      <Filter>.github\ISSUE_TEMPLATE</Filter>
+    </None>
+    <None Include=".github\scripts\get_project_fields.ps1">
+      <Filter>.github\scripts</Filter>
+    </None>
+    <None Include=".github\scripts\get_project_fields.sh">
+      <Filter>.github\scripts</Filter>
+    </None>
+    <None Include=".github\workflows\add_to_project.yml">
+      <Filter>.github\workflows</Filter>
+    </None>
+    <None Include=".github\workflows\add_to_project_safe.yml.example">
+      <Filter>.github\workflows</Filter>
+    </None>
+    <None Include=".github\workflows\apply_labels_on_title.yml">
+      <Filter>.github\workflows</Filter>
+    </None>
+    <None Include=".github\workflows\auto_ready_on_start.yml">
+      <Filter>.github\workflows</Filter>
+    </None>
+    <None Include=".github\workflows\build.yml">
+      <Filter>.github\workflows</Filter>
+    </None>
+    <None Include=".github\workflows\close_to_done.yml">
+      <Filter>.github\workflows</Filter>
+    </None>
+    <None Include=".github\workflows\notify_inprogress_digest.yml">
+      <Filter>.github\workflows</Filter>
+    </None>
+    <None Include=".github\workflows\sync-main-to-teams.yml">
+      <Filter>.github\workflows</Filter>
+    </None>
+    <None Include="Assets\Textures\test.png">
+      <Filter>Assets\Textures</Filter>
+    </None>
+    <None Include="README.md"/>
     <None Include="docs\ChargeSystem_Guide.md">
       <Filter>Docs</Filter>
     </None>
@@ -344,51 +425,9 @@
     <None Include="docs\UI_System_Guide.md">
       <Filter>Docs</Filter>
     </None>
-    <None Include="Assets\Textures\test.png">
-      <Filter>Assets\Textures</Filter>
-    </None>
-    <None Include=".github\ISSUE_TEMPLATE\01_task.yml">
-      <Filter>.github\ISSUE_TEMPLATE</Filter>
-    </None>
-    <None Include=".github\ISSUE_TEMPLATE\02_bug.yml">
-      <Filter>.github\ISSUE_TEMPLATE</Filter>
-    </None>
-    <None Include=".github\ISSUE_TEMPLATE\config.yml">
-      <Filter>.github\ISSUE_TEMPLATE</Filter>
-    </None>
-    <None Include=".github\workflows\build.yml">
-      <Filter>.github\workflows</Filter>
-    </None>
-    <None Include=".github\workflows\sync-main-to-teams.yml">
-      <Filter>.github\workflows</Filter>
-    </None>
-    <None Include=".github\scripts\get_project_fields.ps1">
-      <Filter>.github\scripts</Filter>
-    </None>
-    <None Include=".github\scripts\get_project_fields.sh">
-      <Filter>.github\scripts</Filter>
-    </None>
-    <None Include=".github\workflows\add_to_project.yml">
-      <Filter>.github\workflows</Filter>
-    </None>
-    <None Include=".github\workflows\add_to_project_safe.yml.example">
-      <Filter>.github\workflows</Filter>
-    </None>
-    <None Include=".github\workflows\apply_labels_on_title.yml">
-      <Filter>.github\workflows</Filter>
-    </None>
-    <None Include=".github\workflows\auto_ready_on_start.yml">
-      <Filter>.github\workflows</Filter>
-    </None>
-    <None Include=".github\workflows\close_to_done.yml">
-      <Filter>.github\workflows</Filter>
-    </None>
-    <None Include=".github\workflows\notify_inprogress_digest.yml">
-      <Filter>.github\workflows</Filter>
-    </None>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="debug_log.txt" />
-    <Text Include="x64\Debug\debug_log.txt" />
+    <Text Include="debug_log.txt"/>
+    <Text Include="x64\Debug\debug_log.txt"/>
   </ItemGroup>
 </Project>
