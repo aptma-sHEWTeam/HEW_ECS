@@ -151,7 +151,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                              .Build();
         ownedEntities_.push_back(stageEntity[i]);
     }
-
+     
     UITransform pauseTransform;
     pauseTransform.position = {0.0f, 0.0f};
     pauseTransform.size = {0.0f, 0.0f};
