@@ -13,6 +13,10 @@
 #include <iomanip>
 #include <cstdlib>
 #include <cmath>
+#include <fstream>
+#include <optional>
+#include <filesystem>
+#include <algorithm>
 
 // リファクタリング: 分離されたヘッダーをインクルード
 #include "scenes/CameraReaction.h"
@@ -77,8 +81,7 @@ class GameScene : public IScene {
 
         // レンダリングシステムの初期化と環境光の設定
         RenderingSystem::GetInstance().Initialize(gfx->Dev());
-        RenderingSystem::GetInstance().SetAmbientLight({0.1f, 0.1f, 0.15f}, 1.0f);
-
+        RenderingSystem::GetInstance().SetAmbientLight({0.08f, 0.08f, 0.08f}, 1.0f);
         // テキスト描画システムの初期化
         try {
             if (!textSystem_.Init(*gfx)) {
@@ -346,7 +349,7 @@ class GameScene : public IScene {
                 };
             }
         });
-        
+
     }
 
     /**
@@ -386,7 +389,7 @@ class GameScene : public IScene {
     // =========================================
     // 初期化ヘルパーメソッド
     // =========================================
-    
+
     void CreateTextFormats();
     void CreateUI(World &world, float screenWidth, float screenHeight);
 
@@ -464,6 +467,108 @@ class GameScene : public IScene {
         });
     }
 
+    std::optional<std::string> ResolveSpeedUpCsvPath(const std::string &stageCollisionCsvPath) {
+        namespace fs = std::filesystem;
+        fs::path collisionPath(stageCollisionCsvPath);
+        const fs::path stageDir = collisionPath.parent_path().filename();
+        if (stageDir.empty()) {
+            return std::nullopt;
+        }
+
+        fs::path speedUpPath = fs::path("Assets/StageData/UniqueObj/SpeedUp") / stageDir / collisionPath.filename();
+        std::error_code ec;
+        if (!fs::exists(speedUpPath, ec) || ec) {
+            return std::nullopt;
+        }
+
+        return speedUpPath.string();
+    }
+
+    std::optional<std::string> ResolveMovingObstacleCsvPath(const std::string &stageCollisionCsvPath) {
+        namespace fs = std::filesystem;
+        fs::path collisionPath(stageCollisionCsvPath);
+        const fs::path stageDir = collisionPath.parent_path().filename();
+        if (stageDir.empty()) {
+            return std::nullopt;
+        }
+
+        fs::path movePath = fs::path("Assets/StageData/UniqueObj/Move") / stageDir / collisionPath.filename();
+        std::error_code ec;
+        if (!fs::exists(movePath, ec) || ec) {
+            return std::nullopt;
+        }
+
+        return movePath.string();
+    }
+
+    std::vector<std::vector<int>> LoadAngleCsv(const std::string &csvPath) {
+        std::vector<std::vector<int>> angles;
+        std::ifstream file(csvPath);
+        if (!file.is_open()) {
+            DEBUGLOG_ERROR("[SpeedUp] 角度CSVが開けません: " + csvPath);
+            return angles;
+        }
+
+        std::string line;
+        while (std::getline(file, line)) {
+            if (line.empty()) {
+                continue;
+            }
+            std::vector<int> row;
+            std::stringstream ss(line);
+            std::string cell;
+            while (std::getline(ss, cell, ',')) {
+                try {
+                    row.push_back(std::stoi(cell));
+                } catch (const std::exception &ex) {
+                    DEBUGLOG_WARNING(std::string("[SpeedUp] CSVパース失敗: ") + cell + " (" + ex.what() + ")");
+                }
+            }
+            if (!row.empty()) {
+                angles.push_back(row);
+            }
+        }
+
+        return angles;
+    }
+
+    std::vector<MovingObstaclePattern> LoadMovingObstacleCsv(const std::string &csvPath) {
+        std::vector<MovingObstaclePattern> patterns;
+        std::ifstream file(csvPath);
+        if (!file.is_open()) {
+            DEBUGLOG_ERROR("[MoveObstacle] CSVが開けません: " + csvPath);
+            return patterns;
+        }
+
+        std::string line;
+        while (std::getline(file, line)) {
+            if (line.empty()) continue;
+            std::stringstream ss(line);
+            std::string cell;
+            std::array<float, 5> vals{};
+            int idx = 0;
+            while (std::getline(ss, cell, ',') && idx < 5) {
+                try {
+                    vals[idx] = std::stof(cell);
+                } catch (const std::exception &ex) {
+                    DEBUGLOG_WARNING(std::string("[MoveObstacle] CSVパース失敗: ") + cell + " (" + ex.what() + ")");
+                }
+                ++idx;
+            }
+            if (idx >= 5) {
+                MovingObstaclePattern p;
+                p.dirX = vals[0];
+                p.dirY = vals[1];
+                p.waitAtStart = vals[2];
+                p.waitAtEnd = vals[3];
+                p.travelTime = std::max(vals[4], 0.0001f);
+                patterns.push_back(p);
+            }
+        }
+
+        return patterns;
+    }
+
     // =========================================
     // ステージ生成メソッド
     // =========================================
@@ -525,6 +630,8 @@ class GameScene : public IScene {
                     CreateMoveWall(world, position, blockType);
                 } else if (blockType >= 30 && blockType < 40) {
                     CreateDashBoard(world, position, blockType);
+                } else if (blockType >= 50 && blockType < 60) {
+                    CreateMovingObstacle(world, position, blockType);
                 }
                 break;
         }
@@ -690,6 +797,109 @@ class GameScene : public IScene {
         stageOwnedEntities_.push_back(wallEntity);
     }
 
+    struct MovingObstacle : Behaviour {
+        DirectX::XMFLOAT3 startPos{};
+        DirectX::XMFLOAT3 endPos{};
+        DirectX::XMFLOAT3 delta{};
+        DirectX::XMFLOAT3 baseScale{1.0f, 1.0f, 1.0f};
+        float waitAtStart = 0.0f;
+        float waitAtEnd = 0.0f;
+        float travelTime = 1.0f;
+        float timer = 0.0f;
+        enum class State { WaitStart, MoveForward, WaitEnd, MoveBack } state = State::WaitStart;
+
+        void OnUpdate(World &w, Entity self, float dt) override {
+            auto *t = w.TryGet<Transform>(self);
+            if (!t) return;
+
+            // スケールが他所で変更されないよう固定
+            t->scale = baseScale;
+
+            timer += dt;
+
+            auto lerpVec = [](const DirectX::XMFLOAT3 &a, const DirectX::XMFLOAT3 &b, float r) {
+                return DirectX::XMFLOAT3{
+                    a.x + (b.x - a.x) * r,
+                    a.y + (b.y - a.y) * r,
+                    a.z + (b.z - a.z) * r};
+            };
+
+            switch (state) {
+                case State::WaitStart:
+                    if (timer >= waitAtStart) {
+                        timer = 0.0f;
+                        state = State::MoveForward;
+                    }
+                    break;
+                case State::MoveForward: {
+                    float ratio = std::clamp(timer / std::max(travelTime, 0.0001f), 0.0f, 1.0f);
+                    t->position = lerpVec(startPos, endPos, ratio);
+                    if (timer >= travelTime) {
+                        timer = 0.0f;
+                        state = State::WaitEnd;
+                        t->position = endPos;
+                    }
+                    break;
+                }
+                case State::WaitEnd:
+                    if (timer >= waitAtEnd) {
+                        timer = 0.0f;
+                        state = State::MoveBack;
+                    }
+                    break;
+                case State::MoveBack: {
+                    float ratio = std::clamp(timer / std::max(travelTime, 0.0001f), 0.0f, 1.0f);
+                    t->position = lerpVec(endPos, startPos, ratio);
+                    if (timer >= travelTime) {
+                        timer = 0.0f;
+                        state = State::WaitStart;
+                        t->position = startPos;
+                    }
+                    break;
+                }
+            }
+        }
+    };
+
+    void CreateMovingObstacle(World &world, const DirectX::XMFLOAT3 &position, int blockType) {
+        MovingObstacle obstacle;
+        obstacle.startPos = position;
+        obstacle.baseScale = DirectX::XMFLOAT3{1.0f, 1.0f, 1.0f};
+
+        // blockType 50ベースでパターンを取得
+        int patternIndex = blockType - 50;
+        world.ForEach<LoadMovingObstacle>([&](Entity, LoadMovingObstacle &data) {
+            if (patternIndex >= 0 && patternIndex < static_cast<int>(data.patterns.size())) {
+                const auto &p = data.patterns[patternIndex];
+                obstacle.delta = DirectX::XMFLOAT3{p.dirX, 0.0f, p.dirY}; // そのままの差分ベクトル
+                obstacle.endPos = DirectX::XMFLOAT3{
+                    position.x + obstacle.delta.x,
+                    position.y + obstacle.delta.y,
+                    position.z + obstacle.delta.z};
+                obstacle.waitAtStart = p.waitAtStart;
+                obstacle.waitAtEnd = p.waitAtEnd;
+                obstacle.travelTime = p.travelTime;
+            }
+        });
+
+        MeshRenderer renderer;
+        renderer.meshType = MeshType::Cube;
+        renderer.color = DirectX::XMFLOAT3{1.0f, 0.3f, 0.3f}; // 目立つ赤
+
+        Transform transform{position, {0.0f, 0.0f, 0.0f}, obstacle.baseScale};
+
+        Entity entity = world.Create()
+                              .With<Transform>(transform)
+                              .With<MeshRenderer>(renderer)
+                              .With<WallTag>()
+                              .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                              .With<WallCollisionHandler>()
+                              .With<MovingObstacle>(obstacle)
+                              .Build();
+
+        stageOwnedEntities_.push_back(entity);
+    }
+
     void CreateMoveWall(World &world, const DirectX::XMFLOAT3 &position, int blockType) {
         Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
         MeshRenderer renderer;
@@ -734,10 +944,11 @@ class GameScene : public IScene {
         float angle = 0.0f;
 
         world.ForEach<LoadAngle>([&](Entity, LoadAngle &loadAngle) {
-            for (const auto &row : loadAngle.stageAngle) {
-                if (row.size() > 1) {
-                    angle = static_cast<float>(row[1]);
-                    break;
+            const int angleIndex = blockType - 30;
+            if (angleIndex >= 0 && angleIndex < static_cast<int>(loadAngle.stageAngle.size())) {
+                const auto &row = loadAngle.stageAngle[angleIndex];
+                if (!row.empty()) {
+                    angle = static_cast<float>(row[0]);
                 }
             }
         });
@@ -770,6 +981,58 @@ class GameScene : public IScene {
 
         startEntity_ = {};
         goalEntity_ = {};
+
+        // ステージに紐づく加速角度CSVをロードしてLoadAngleコンポーネントに反映
+        world.ForEach<StageCreate>([&](Entity, StageCreate &stagecreate) {
+            auto angleCsvPath = ResolveSpeedUpCsvPath(stagecreate.csvPath);
+            std::vector<std::vector<int>> angles;
+            if (angleCsvPath) {
+                angles = LoadAngleCsv(*angleCsvPath);
+                if (angles.empty()) {
+                    DEBUGLOG_WARNING("[SpeedUp] 角度CSVが空、または読み込みに失敗しました: " + *angleCsvPath);
+                }
+            } else {
+                DEBUGLOG_WARNING("[SpeedUp] 角度CSVパスを解決できません: " + stagecreate.csvPath);
+            }
+
+            bool updated = false;
+            world.ForEach<LoadAngle>([&](Entity, LoadAngle &loadAngle) {
+                loadAngle.stageAngle = angles;
+                updated = true;
+            });
+
+            if (!updated) {
+                LoadAngle loadAngle;
+                loadAngle.stageAngle = angles;
+                Entity angleEntity = world.Create().With<LoadAngle>(loadAngle).Build();
+                stageOwnedEntities_.push_back(angleEntity);
+            }
+
+            // 動く障害物CSVもステージごとにロード
+            auto moveCsvPath = ResolveMovingObstacleCsvPath(stagecreate.csvPath);
+            std::vector<MovingObstaclePattern> movePatterns;
+            if (moveCsvPath) {
+                movePatterns = LoadMovingObstacleCsv(*moveCsvPath);
+                if (movePatterns.empty()) {
+                    DEBUGLOG_WARNING("[MoveObstacle] CSVが空、または読み込みに失敗しました: " + *moveCsvPath);
+                }
+            } else {
+                DEBUGLOG_WARNING("[MoveObstacle] CSVパスを解決できません: " + stagecreate.csvPath);
+            }
+
+            bool moveUpdated = false;
+            world.ForEach<LoadMovingObstacle>([&](Entity, LoadMovingObstacle &loadMove) {
+                loadMove.patterns = movePatterns;
+                moveUpdated = true;
+            });
+
+            if (!moveUpdated) {
+                LoadMovingObstacle loadMove;
+                loadMove.patterns = movePatterns;
+                Entity moveEntity = world.Create().With<LoadMovingObstacle>(loadMove).Build();
+                stageOwnedEntities_.push_back(moveEntity);
+            }
+        });
 
         CreateStageMap(world);
         BakeStageLighting(world);
