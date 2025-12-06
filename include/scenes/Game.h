@@ -584,6 +584,25 @@ class GameScene : public IScene {
         cameraPosition_ = pos;
     }
 
+    void ChargCameraAction(Entity player,World &world) {
+        world.ForEach<PlayerMovement>([&](Entity e, PlayerMovement &player) {
+            bool releasedSys = player.gamepad_->IsLeftStickReleased();
+            bool releasedLocal = (player.wasCharging_ && !chargingNowLocal);
+
+            if (releasedSys || releasedLocal) {
+                if (auto *pv = world.TryGet<PlayerVelocity>(playerEntity_)) {
+                    if (static_cast<bool>(pv->velocity.x + pv->velocity.y)) {
+                        float vecX = pv->velocity.x / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
+                        float vecY = pv->velocity.y / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
+
+                        TriggerCameraImpulse(vecX, 0.0f, vecY, 0.2f, 0.1f);
+                    }
+                };
+            }
+        });
+        
+    }
+
     /**
      * @brief 壁衝突時の処理（カメラシェイク＋遅延リスポーン）
      * @details プレイヤーの速度を止め、カメラを揺らし、一定時間後にリスポーン処理を予約する
