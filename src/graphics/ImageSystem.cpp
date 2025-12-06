@@ -133,19 +133,34 @@ bool ImageSystem::Draw(const Params &p) {
     float x = p.x;
     float y = p.y;
 
-    if (p.keepAspect && size.width > 0 && size.height > 0) {
-        float aspect = size.width / size.height;
-        float targetAspect = dstW / dstH;
-        if (targetAspect > aspect) {
-            dstW = dstH * aspect;
-            x += (p.width - dstW) * 0.5f;
-        } else {
-            dstH = dstW / aspect;
-            y += (p.height - dstH) * 0.5f;
+    // ソース矩形(ピクセル)の決定。srcX/Y/W/H が 0..1 の場合は正規化とみなして変換
+    D2D1_RECT_F src = D2D1::RectF(0.0f, 0.0f, size.width, size.height);
+    if (p.srcW > 0.0f && p.srcH > 0.0f) {
+        float sx = p.srcX;
+        float sy = p.srcY;
+        float sw = p.srcW;
+        float sh = p.srcH;
+        // 0..1 の正規化値とみなしてピクセルに変換
+        if (sx >= 0.0f && sx <= 1.0f && sy >= 0.0f && sy <= 1.0f && sw > 0.0f && sw <= 1.0f && sh > 0.0f && sh <= 1.0f) {
+            sx *= size.width;
+            sy *= size.height;
+            sw *= size.width;
+            sh *= size.height;
         }
+        src = D2D1::RectF(sx, sy, sx + sw, sy + sh);
+    }
+
+    if (p.keepAspect && (src.right - src.left) > 0 && (src.bottom - src.top) > 0) {
+        float sx = dstW / (src.right - src.left);
+        float sy = dstH / (src.bottom - src.top);
+        float s = sx < sy ? sx : sy;
+        dstW = (src.right - src.left) * s;
+        dstH = (src.bottom - src.top) * s;
+        x += (p.width - dstW) * 0.5f;
+        y += (p.height - dstH) * 0.5f;
     }
 
     D2D1_RECT_F dest = D2D1::RectF(x, y, x + dstW, y + dstH);
-    d2dContext_->DrawBitmap(bmp.Get(), &dest, p.opacity);
+    d2dContext_->DrawBitmap(bmp.Get(), &dest, p.opacity, D2D1_BITMAP_INTERPOLATION_MODE_LINEAR, &src);
     return true;
 }

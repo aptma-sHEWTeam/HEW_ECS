@@ -292,6 +292,15 @@ struct SpriteSheetAnimation : Behaviour
     //描画時にUIImageが参照するuv    {x,y,w,h}
     std::vector<std::array<float, 4>>uv{};
 
+    void OnStart(World& w, Entity self) override {
+        // 初期UVを構築し、最初のフレームを反映
+        UpdateUV();
+        UIImage* img = w.TryGet<UIImage>(self);
+        if (img && currentFrame >= 0 && currentFrame < static_cast<int>(uv.size())) {
+            img->uvRect = uv[currentFrame];
+        }
+    }
+
     void OnUpdate(World& w, Entity self, float dt) override
     {
         if (!isPlaying || frameCount <= 0)
@@ -304,13 +313,12 @@ struct SpriteSheetAnimation : Behaviour
             currentTime -= frameTime;
             currentFrame++;
 
-            if (currentTime >= frameCount)
+            if (currentFrame >= frameCount)
             {
                 if (isLooping)
                 {
                     currentFrame = 0;
                 }
-
                 else
                 {
                     currentFrame = frameCount - 1;
@@ -318,11 +326,15 @@ struct SpriteSheetAnimation : Behaviour
                     isFinished = true;
                 }
             }
+        }
+
+        // UV配列サイズとframeCountの不一致を補正
+        if (uv.size() != static_cast<size_t>(frameCount)) {
             UpdateUV();
         }
 
         UIImage *img = w.TryGet<UIImage>(self);
-        if (img && currentFrame < uv.size())
+        if (img && currentFrame >= 0 && currentFrame < static_cast<int>(uv.size()))
         {
             img->uvRect = uv[currentFrame];
         }
@@ -333,15 +345,16 @@ struct SpriteSheetAnimation : Behaviour
     {
         uv.resize(frameCount);
 
-        float width = 1.0f / frameCount;
+        if (frameCount <= 0) return;
+        float width = 1.0f / static_cast<float>(frameCount);
         
         for (int i = 0; i < frameCount;i++)
         {
-            uv[i][0] = width * (i + 1); //U幅
-            uv[i][1] = 0.0f;            //V幅
-            uv[i][2] = width;           //U座標
-            uv[i][3] = 1.0f;            //V座標
-
+            // uv = {x, y, w, h} (正規化座標)
+            uv[i][0] = width * static_cast<float>(i); // x
+            uv[i][1] = 0.0f;                          // y
+            uv[i][2] = width;                         // w
+            uv[i][3] = 1.0f;                          // h
         }
     }
     

@@ -299,6 +299,22 @@ public:
     }
 
     /**
+     * @brief テクスチャのピクセル寸法を取得
+     * @param[in] handle テクスチャハンドル
+     * @param[out] width 幅
+     * @param[out] height 高さ
+     * @return bool 取得に成功したか
+     */
+    bool GetSize(TextureHandle handle, uint32_t& width, uint32_t& height) const {
+        if (handle == INVALID_TEXTURE) return false;
+        auto it = textures_.find(handle);
+        if (it == textures_.end()) return false;
+        width = it->second.width;
+        height = it->second.height;
+        return true;
+    }
+
+    /**
      * @brief デフォルトテクスチャ(白色)を取得
      * @return TextureHandle 白色テクスチャのハンドル
      * 
