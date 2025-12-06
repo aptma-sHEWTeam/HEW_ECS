@@ -1,6 +1,6 @@
 /**
  * @file ImageSystem.h
- * @brief Direct2D + WIC ‰æ‘œ•`‰æƒVƒXƒeƒ€
+ * @brief Direct2D + WIC ç”»åƒæç”»ã‚·ã‚¹ãƒ†ãƒ 
  */
 #pragma once
 #include "graphics/GfxDevice.h"
@@ -21,14 +21,14 @@
 class ImageSystem {
 public:
     struct Params {
-        std::wstring filePath;  ///< ‰æ‘œƒtƒ@ƒCƒ‹ƒpƒX
-        float x = 0.0f;         ///< XÀ•W
-        float y = 0.0f;         ///< YÀ•W
-        float width = 100.0f;   ///< •`‰æ•
-        float height = 100.0f;  ///< •`‰æ‚‚³
-        float opacity = 1.0f;   ///< “§–¾(0..1)
-        bool keepAspect = true; ///< ƒAƒXƒyƒNƒgˆÛ
-        // ’Ç‰Á: ƒ\[ƒX‹éŒ`(ƒsƒNƒZƒ‹)w’è(ƒXƒvƒ‰ƒCƒgƒV[ƒg—p)B-1/-1/-1/-1 ‚Å–¢w’è
+        std::wstring filePath;  ///< ç”»åƒãƒ•ã‚¡ã‚¤ãƒ«ãƒ‘ã‚¹
+        float x = 0.0f;         ///< Xåº§æ¨™
+        float y = 0.0f;         ///< Yåº§æ¨™
+        float width = 100.0f;   ///< æç”»å¹…
+        float height = 100.0f;  ///< æç”»é«˜ã•
+        float opacity = 1.0f;   ///< é€æ˜(0..1)
+        bool keepAspect = true; ///< ã‚¢ã‚¹ãƒšã‚¯ãƒˆç¶­æŒ
+        // è¿½åŠ : ã‚½ãƒ¼ã‚¹çŸ©å½¢(ãƒ”ã‚¯ã‚»ãƒ«)æŒ‡å®š(ã‚¹ãƒ—ãƒ©ã‚¤ãƒˆã‚·ãƒ¼ãƒˆç”¨)ã€‚-1/-1/-1/-1 ã§æœªæŒ‡å®š
         float srcX = -1.0f;
         float srcY = -1.0f;
         float srcW = -1.0f;
@@ -41,10 +41,10 @@ public:
     void Shutdown();
     bool IsInitialized() const { return initialized_; }
 
-    // Šù‘¶: ƒtƒ@ƒCƒ‹ƒpƒX‚Å•`‰æ(ƒ\[ƒX‹éŒ`‘Î‰)
+    // æ—¢å­˜: ãƒ•ã‚¡ã‚¤ãƒ«ãƒ‘ã‚¹ã§æç”»(ã‚½ãƒ¼ã‚¹çŸ©å½¢å¯¾å¿œ)
     bool Draw(const Params &p);
 
-    // ’Ç‰Á: TextureManager‚Ìƒnƒ“ƒhƒ‹‚Å•`‰æ(ƒ\[ƒX‹éŒ`‘Î‰)
+    // è¿½åŠ : TextureManagerã®ãƒãƒ³ãƒ‰ãƒ«ã§æç”»(ã‚½ãƒ¼ã‚¹çŸ©å½¢å¯¾å¿œ)
     bool Draw(TextureManager::TextureHandle handle, float x, float y, float width, float height, float opacity = 1.0f, bool keepAspect = true,
               const D2D1_RECT_F *srcOverride = nullptr) {
         if (!initialized_ || !d2dContext_) return false;
@@ -152,7 +152,7 @@ private:
         for (UINT y = 0; y < desc.Height; ++y) {
             memcpy(dstData + y * dstStride, srcData + y * mapped.RowPitch, copyStride);
         }
-        lock->Release();
+        lock.Reset();
         gfx_->Ctx()->Unmap(staging.Get(), 0);
 
         D2D1_BITMAP_PROPERTIES1 bp = D2D1::BitmapProperties1(

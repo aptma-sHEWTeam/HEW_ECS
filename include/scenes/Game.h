@@ -41,6 +41,7 @@
 #include "systems/ModelLoadingSystem.h"
 #include "graphics/TextureManager.h"
 #include "graphics/Camera.h"
+#include <comdef.h>
 
 /**
  * @class GameScene
@@ -60,6 +61,13 @@ class GameScene : public IScene {
         // このシーンインスタンスへのグローバルポインタを設定
         g_GameScene = this;
 
+        // ステージ進行情報が無ければ生成
+        bool hasStageProgress = false;
+        world.ForEach<StageProgress>([&](Entity, StageProgress &) { hasStageProgress = true; });
+        if (!hasStageProgress) {
+            world.Create().With<StageProgress>().Build();
+        }
+
         // サービスロケーターからグラフィックスデバイスを取得
         auto *gfx = ServiceLocator::TryGet<GfxDevice>();
         if (!gfx) {
@@ -72,14 +80,34 @@ class GameScene : public IScene {
         RenderingSystem::GetInstance().SetAmbientLight({0.1f, 0.1f, 0.15f}, 1.0f);
 
         // テキスト描画システムの初期化
-        if (!textSystem_.Init(*gfx)) {
-            DEBUGLOG_ERROR("TextSystem の初期化に失敗しました");
+        try {
+            if (!textSystem_.Init(*gfx)) {
+                DEBUGLOG_ERROR("TextSystem の初期化に失敗しました");
+                return;
+            }
+        } catch (const _com_error& ex) {
+            std::wostringstream woss;
+            const wchar_t* wmsg = ex.ErrorMessage() ? ex.ErrorMessage() : L"unknown";
+            woss << L"TextSystem init _com_error hr=0x" << std::hex << ex.Error() << L" msg=" << wmsg;
+            std::wstring w = woss.str();
+            std::string n(w.begin(), w.end());
+            DEBUGLOG_ERROR(n);
             return;
         }
 
         // 画像描画システムの初期化
-        if (!imageSystem_.Init(*gfx)) {
-            DEBUGLOG_ERROR("ImageSystem の初期化に失敗しました");
+        try {
+            if (!imageSystem_.Init(*gfx)) {
+                DEBUGLOG_ERROR("ImageSystem の初期化に失敗しました");
+                return;
+            }
+        } catch (const _com_error& ex) {
+            std::wostringstream woss;
+            const wchar_t* wmsg = ex.ErrorMessage() ? ex.ErrorMessage() : L"unknown";
+            woss << L"ImageSystem init _com_error hr=0x" << std::hex << ex.Error() << L" msg=" << wmsg;
+            std::wstring w = woss.str();
+            std::string n(w.begin(), w.end());
+            DEBUGLOG_ERROR(n);
             return;
         }
 
@@ -111,10 +139,32 @@ class GameScene : public IScene {
         ownedEntities_.push_back(modelLoaderSystem);
 
         // ステージ進行状況に応じてステージデータを読み込む
+        int initialStage = 1;
+        const int maxStage = GetAvailableStageCount();
         world.ForEach<StageProgress>([&](Entity e, StageProgress &status) {
-            std::string Stagepath = "Assets/StageData/StageCollision/DebugStage" + std::to_string(status.selectStage) + "/room1.csv";
-            Entity stageEntity = world.Create().With<StageCreate>(Stagepath).Build();
-            ownedEntities_.push_back(stageEntity);
+            int desiredStage = status.selectStage > 0 ? status.selectStage : 1;
+            desiredStage = std::min(desiredStage, maxStage);
+            if (desiredStage != status.selectStage) {
+                DEBUGLOG_WARNING("[StageCreate] 要求ステージ " + std::to_string(status.selectStage) + " をクランプ: " + std::to_string(desiredStage));
+            }
+
+            status.selectStage = desiredStage;
+            status.currentStage = desiredStage;
+
+            auto stagePath = ResolveStageCsvPath(desiredStage);
+            if (!stagePath) {
+                DEBUGLOG_ERROR("[StageCreate] ステージ" + std::to_string(desiredStage) + "のCSVが見つかりません。Stage1へフォールバックします");
+                stagePath = ResolveStageCsvPath(1);
+            }
+
+            if (stagePath) {
+                Entity stageEntity = world.Create().With<StageCreate>(*stagePath).Build();
+                ownedEntities_.push_back(stageEntity);
+            } else {
+                DEBUGLOG_ERROR("[StageCreate] 有効なステージCSVが見つからず、ステージ生成をスキップしました");
+            }
+
+            initialStage = status.currentStage;
         });
 
         // 平行光源をエンティティとして生成
@@ -123,7 +173,7 @@ class GameScene : public IScene {
         CreatePlayer(world);
         CreateUI(world, screenWidth, screenHeight);
 
-        SetupStage(world, 1);
+        SetupStage(world, initialStage);
 
         DEBUGLOG("GameWithUIScene の初期化が正常に完了しました");
     }
@@ -337,6 +387,19 @@ class GameScene : public IScene {
             if (sp.requestAdvance) {
                 sp.requestAdvance = false;
 
+                const int maxStage = GetAvailableStageCount();
+                const int nextStageIndex = std::min(sp.currentStage + 1, maxStage);
+                if (nextStageIndex == sp.currentStage) {
+                    DEBUGLOG_WARNING("進行可能なステージが存在しません (current=" + std::to_string(sp.currentStage) + ", max=" + std::to_string(maxStage) + ")");
+                    return;
+                }
+
+                auto nextStagePath = ResolveStageCsvPath(nextStageIndex);
+                if (!nextStagePath) {
+                    DEBUGLOG_ERROR("[StageCreate] ステージ" + std::to_string(nextStageIndex) + "のCSVが見つからず、進行をキャンセルします");
+                    return;
+                }
+
                 std::vector<Entity> stageCreateEntities;
                 world.ForEach<StageCreate>([&](Entity e, StageCreate &) {
                     stageCreateEntities.push_back(e);
@@ -347,10 +410,10 @@ class GameScene : public IScene {
                     }
                 }
 
-                sp.currentStage++;
+                sp.currentStage = nextStageIndex;
+                sp.selectStage = nextStageIndex;
 
-                std::string nextStagePath = "Assets/StageData/StageCollision/DebugStage" + std::to_string(sp.currentStage) + "/room1.csv";
-                Entity newStageEntity = world.Create().With<StageCreate>(nextStagePath).Build();
+                Entity newStageEntity = world.Create().With<StageCreate>(*nextStagePath).Build();
                 ownedEntities_.push_back(newStageEntity);
 
                 DEBUGLOG("ステージが進行しました: " + std::to_string(sp.currentStage));

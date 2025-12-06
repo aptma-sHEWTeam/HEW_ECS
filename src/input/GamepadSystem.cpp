@@ -13,6 +13,7 @@
 #include <oleauto.h>
 #include <sstream>
 #include <chrono>
+#include <comdef.h>
 
 #pragma comment(lib, "wbemuuid.lib")
 #pragma comment(lib, "oleaut32.lib")
@@ -998,6 +999,7 @@ BOOL CALLBACK GamepadSystem::EnumDevicesCallback(LPCDIDEVICEINSTANCE lpddi, LPVO
 }
 
 bool GamepadSystem::IsXInputDevice(const GUID *pGuidProductFromDirectInput) {
+    try {
     IWbemLocator *pIWbemLocator = nullptr;
     IEnumWbemClassObject *pEnumDevices = nullptr;
     IWbemClassObject *pDevices[20] = {};
@@ -1007,9 +1009,19 @@ bool GamepadSystem::IsXInputDevice(const GUID *pGuidProductFromDirectInput) {
     BSTR bstrClassName = nullptr;
     bool bIsXinputDevice = false;
 
-    // CoInit
-    HRESULT hr = CoInitialize(nullptr);
+    // COM初期化（すでにMTA初期化済みならRPC_E_CHANGED_MODEを無視）
+    HRESULT hr = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
     bool bCleanupCOM = SUCCEEDED(hr);
+    if (hr == RPC_E_CHANGED_MODE) {
+        // 既に別のモードで初期化されている場合は終了処理不要
+        bCleanupCOM = false;
+        DEBUGLOG_WARNING("GamepadSystem::IsXInputDevice() - COM already initialized with different model (ignored)");
+    } else if (FAILED(hr)) {
+        std::ostringstream oss;
+        oss << "GamepadSystem::IsXInputDevice() - CoInitializeEx failed: hr=0x" << std::hex << hr;
+        DEBUGLOG_ERROR(oss.str());
+        return false;
+    }
 
     VARIANT var = {};
     VariantInit(&var);
@@ -1020,8 +1032,10 @@ bool GamepadSystem::IsXInputDevice(const GUID *pGuidProductFromDirectInput) {
                           CLSCTX_INPROC_SERVER,
                           __uuidof(IWbemLocator),
                           (LPVOID *) &pIWbemLocator);
-    if (FAILED(hr) || pIWbemLocator == nullptr)
+    if (FAILED(hr) || pIWbemLocator == nullptr) {
+        DEBUGLOG_ERROR("GamepadSystem::IsXInputDevice() - CoCreateInstance(WbemLocator) failed");
         goto LCleanup;
+    }
 
     bstrNamespace = SysAllocString(L"\\\\.\\root\\cimv2");
     if (bstrNamespace == nullptr)
@@ -1036,27 +1050,35 @@ bool GamepadSystem::IsXInputDevice(const GUID *pGuidProductFromDirectInput) {
     // WMI接続
     hr = pIWbemLocator->ConnectServer(bstrNamespace, nullptr, nullptr, 0L,
                                       0L, nullptr, nullptr, &pIWbemServices);
-    if (FAILED(hr) || pIWbemServices == nullptr)
+    if (FAILED(hr) || pIWbemServices == nullptr) {
+        DEBUGLOG_ERROR("GamepadSystem::IsXInputDevice() - ConnectServer failed");
         goto LCleanup;
+    }
 
     // セキュリティレベル設定
     hr = CoSetProxyBlanket(pIWbemServices,
                            RPC_C_AUTHN_WINNT, RPC_C_AUTHZ_NONE, nullptr,
                            RPC_C_AUTHN_LEVEL_CALL, RPC_C_IMP_LEVEL_IMPERSONATE,
                            nullptr, EOAC_NONE);
-    if (FAILED(hr))
+    if (FAILED(hr)) {
+        DEBUGLOG_ERROR("GamepadSystem::IsXInputDevice() - CoSetProxyBlanket failed");
         goto LCleanup;
+    }
 
     hr = pIWbemServices->CreateInstanceEnum(bstrClassName, 0, nullptr, &pEnumDevices);
-    if (FAILED(hr) || pEnumDevices == nullptr)
+    if (FAILED(hr) || pEnumDevices == nullptr) {
+        DEBUGLOG_ERROR("GamepadSystem::IsXInputDevice() - CreateInstanceEnum failed");
         goto LCleanup;
+    }
 
     // デバイスをループ
     for (;;) {
         ULONG uReturned = 0;
         hr = pEnumDevices->Next(10000, sizeof(pDevices) / sizeof(pDevices[0]), pDevices, &uReturned);
-        if (FAILED(hr))
+        if (FAILED(hr)) {
+            DEBUGLOG_ERROR("GamepadSystem::IsXInputDevice() - IEnumWbemClassObject::Next failed");
             goto LCleanup;
+        }
         if (uReturned == 0)
             break;
 
@@ -1109,6 +1131,15 @@ LCleanup:
         CoUninitialize();
 
     return bIsXinputDevice;
+    } catch (const _com_error& ex) {
+        std::wostringstream woss;
+        const wchar_t* wmsg = ex.ErrorMessage() ? ex.ErrorMessage() : L"unknown";
+        woss << L"GamepadSystem::IsXInputDevice() - _com_error caught. hr=0x" << std::hex << ex.Error() << L" msg=" << wmsg;
+        std::wstring w = woss.str();
+        std::string n(w.begin(), w.end());
+        DEBUGLOG_ERROR(n);
+        return false;
+    }
 }
 
 // ========================================================
