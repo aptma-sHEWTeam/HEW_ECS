@@ -3,6 +3,7 @@
 #include "ecs/Entity.h"
 #include "ecs/World.h"
 #include "graphics/TextureManager.h"
+#include "graphics/RenderSystem.h"
 #include <vector>
 #include <cmath>
 
@@ -275,4 +276,86 @@ struct UVAnimation : Behaviour {
         if (currentOffset.x < 0.0f) currentOffset.x += 1.0f;
         if (currentOffset.y < 0.0f) currentOffset.y += 1.0f;
     }
+};
+
+struct SpriteSheetAnimation : Behaviour 
+{
+    int frameCount = 1;
+    float frameTime = 0.1f;
+    bool isLooping = true;
+    bool isPlaying = true;
+
+    float currentTime = 0.0f;
+    int currentFrame = 0;
+    bool isFinished = false;
+
+    //描画時にUIImageが参照するuv    {x,y,w,h}
+    std::vector<std::array<float, 4>>uv{};
+
+    void OnStart(World& w, Entity self) override {
+        // 初期UVを構築し、最初のフレームを反映
+        UpdateUV();
+        UIImage* img = w.TryGet<UIImage>(self);
+        if (img && currentFrame >= 0 && currentFrame < static_cast<int>(uv.size())) {
+            img->uvRect = uv[currentFrame];
+        }
+    }
+
+    void OnUpdate(World& w, Entity self, float dt) override
+    {
+        if (!isPlaying || frameCount <= 0)
+            return;
+
+        currentTime += dt;
+
+        if (currentTime >= frameTime)
+        {
+            currentTime -= frameTime;
+            currentFrame++;
+
+            if (currentFrame >= frameCount)
+            {
+                if (isLooping)
+                {
+                    currentFrame = 0;
+                }
+                else
+                {
+                    currentFrame = frameCount - 1;
+                    isPlaying = false;
+                    isFinished = true;
+                }
+            }
+        }
+
+        // UV配列サイズとframeCountの不一致を補正
+        if (uv.size() != static_cast<size_t>(frameCount)) {
+            UpdateUV();
+        }
+
+        UIImage *img = w.TryGet<UIImage>(self);
+        if (img && currentFrame >= 0 && currentFrame < static_cast<int>(uv.size()))
+        {
+            img->uvRect = uv[currentFrame];
+        }
+    }
+    
+    //アニメーションの配置処理
+    void UpdateUV()
+    {
+        uv.resize(frameCount);
+
+        if (frameCount <= 0) return;
+        float width = 1.0f / static_cast<float>(frameCount);
+        
+        for (int i = 0; i < frameCount;i++)
+        {
+            // uv = {x, y, w, h} (正規化座標)
+            uv[i][0] = width * static_cast<float>(i); // x
+            uv[i][1] = 0.0f;                          // y
+            uv[i][2] = width;                         // w
+            uv[i][3] = 1.0f;                          // h
+        }
+    }
+    
 };

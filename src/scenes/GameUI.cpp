@@ -6,6 +6,7 @@
 #include "scenes/Game.h"
 #include "systems/UISystem.h"
 #include "graphics/TextSystem.h"
+#include "animation/Animation.h"
 #include "components/CountUIComponent.h"
 #include "components/UIImageComponents.h"
 
@@ -150,41 +151,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                              .Build();
         ownedEntities_.push_back(stageEntity[i]);
     }
-    /*
-    UIText titleText[2];
-
-    titleText[0].text     = {L"Fricker Game:"};
-    titleText[0].color    = {1.0f, 0.0f, 1.0f, 1.0f};
-    titleText[0].formatId = "title";
-    float titletextSize0  = 3.9f * sizeof(titleText[0].text);
-
-    titleText[1].text     = {L"Proto Type"};
-    titleText[1].color    = {0.7f, 0.0f, 0.7f, 1.0f};
-    titleText[1].formatId = "title";
-
-    UITransform titleTransform[2];
-
-    titleTransform[0].position = {10.0f, 60.0f};
-    titleTransform[0].size     = {300.0f, 30.0f};
-    titleTransform[0].anchor   = {0.0f,    0.0f};
-    titleTransform[0].pivot    = {0.0f,    0.0f};
-
-    titleTransform[1].position = {titleTransform[0].position.x + titletextSize0 , titleTransform[0].position.y};
-    titleTransform[1].size     = titleTransform[0].size;
-    titleTransform[1].anchor   = titleTransform[0].anchor;
-    titleTransform[1].pivot    = titleTransform[0].pivot;
-
-    Entity titleEntity[2];
-
-    for (int i = 0 ; i < 2; i++)
-    {
-        titleEntity[i] = world.Create()
-                                .With<UITransform>(titleTransform[i])
-                                .With<UIText>(titleText[i])
-                                .Build();
-        ownedEntities_.push_back(titleEntity[i]);
-    }*/
-
+     
     UITransform pauseTransform;
     pauseTransform.position = {0.0f, 0.0f};
     pauseTransform.size = {0.0f, 0.0f};
@@ -218,6 +185,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 
     // テスト画像描画: Asetts/Image/test.png を画面左上に表示
     UITransform imgTransform;
+    
     imgTransform.position = {20.0f, 20.0f};
     imgTransform.size = {256.0f, 256.0f};
     imgTransform.anchor = {0.0f, 0.0f};
@@ -232,4 +200,28 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                             .With<UIImage>(img)
                             .Build();
     ownedEntities_.push_back(imgEntity);
+
+    UITransform UIanimation;
+    UIanimation.position = {0.0f,0.0f};
+    UIanimation.size = {1000.0f, 1080.0f};
+    UIanimation.anchor = {0.0f, 0.0f};
+    UIanimation.pivot = {0.0f, 0.0f};
+
+    UIImage ani{L"./Assets/Textures/Fade/tex_fade.png"};
+    ani.opacity = 1.0f;
+    ani.keepAspect = true;
+    
+    SpriteSheetAnimation anim;
+    anim.frameCount = 18;
+    anim.frameTime = 0.1f;
+    anim.isLooping = true;
+
+   Entity animation = world.Create()
+                           .With<UITransform>(UIanimation)
+                           .With<UIImage>(ani)
+                           .With<UVAnimation>()
+                           .With<SpriteSheetAnimation>(anim)
+                           .Build();
+
+    ownedEntities_.push_back(animation);
 }
