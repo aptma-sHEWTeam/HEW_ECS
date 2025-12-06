@@ -26,9 +26,9 @@ public:
         float y = 0.0f;         ///< Y座標
         float width = 100.0f;   ///< 描画幅
         float height = 100.0f;  ///< 描画高さ
-        float opacity = 1.0f;   ///< 透過(0..1)
-        bool keepAspect = true; ///< アスペクト比維持
-        // 追加: ソース矩形（ピクセル）指定（スプライトシート用）。負値や0幅/高さで無効。
+        float opacity = 1.0f;   ///< 透明(0..1)
+        bool keepAspect = true; ///< アスペクト維持
+        // 追加: ソース矩形(ピクセル)指定(スプライトシート用)。-1/-1/-1/-1 で未指定
         float srcX = -1.0f;
         float srcY = -1.0f;
         float srcW = -1.0f;
@@ -41,10 +41,10 @@ public:
     void Shutdown();
     bool IsInitialized() const { return initialized_; }
 
-    // 既存: ファイルパスで描画（ソース矩形対応）
+    // 既存: ファイルパスで描画(ソース矩形対応)
     bool Draw(const Params &p);
 
-    // 追加: TextureManagerのハンドルで描画（ソース矩形対応）
+    // 追加: TextureManagerのハンドルで描画(ソース矩形対応)
     bool Draw(TextureManager::TextureHandle handle, float x, float y, float width, float height, float opacity = 1.0f, bool keepAspect = true,
               const D2D1_RECT_F *srcOverride = nullptr) {
         if (!initialized_ || !d2dContext_) return false;

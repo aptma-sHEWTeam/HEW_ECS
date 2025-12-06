@@ -12,6 +12,7 @@
 #include "input/InputSystem.h"
 #include "ecs/World.h"
 #include <DirectXMath.h>
+#include "app/ServiceLocator.h"
 
 /**
  * @struct UIRenderSystem
@@ -85,10 +86,31 @@ struct UIRenderSystem {
     }
     void DrawImage(const UITransform &transform, const UIImage &img) {
         DirectX::XMFLOAT2 pos = transform.GetScreenPosition(screenWidth_, screenHeight_);
+        const auto &uv = img.uvRect; // {x,y,w,h} normalized
         if (img.textureHandle != TextureManager::INVALID_TEXTURE) {
-            imageSystem_->Draw(img.textureHandle, pos.x, pos.y, transform.size.x, transform.size.y, img.opacity, img.keepAspect);
+            // ハンドル描画: ピクセル単位のsrcを計算
+            auto &texMgr = ServiceLocator::Get<TextureManager>();
+            uint32_t tw=0, th=0;
+            D2D1_RECT_F *srcPtr = nullptr;
+            D2D1_RECT_F src;
+            if (texMgr.GetSize(img.textureHandle, tw, th)) {
+                float sx = uv[0] * tw;
+                float sy = uv[1] * th;
+                float sw = uv[2] * tw;
+                float sh = uv[3] * th;
+                src = D2D1::RectF(sx, sy, sx + sw, sy + sh);
+                srcPtr = &src;
+            }
+            imageSystem_->Draw(img.textureHandle, pos.x, pos.y, transform.size.x, transform.size.y, img.opacity, img.keepAspect, srcPtr);
         } else {
-            ImageSystem::Params p; p.filePath = img.filePath; p.x = pos.x; p.y = pos.y; p.width = transform.size.x; p.height = transform.size.y; p.opacity = img.opacity; p.keepAspect = img.keepAspect; imageSystem_->Draw(p);
+            // ファイルパス描画: 正規化UVをParamsに渡す (ImageSystem側でピクセル変換)
+            ImageSystem::Params p; 
+            p.filePath = img.filePath; 
+            p.x = pos.x; p.y = pos.y; 
+            p.width = transform.size.x; p.height = transform.size.y; 
+            p.opacity = img.opacity; p.keepAspect = img.keepAspect;
+            p.srcX = uv[0]; p.srcY = uv[1]; p.srcW = uv[2]; p.srcH = uv[3];
+            imageSystem_->Draw(p);
         }
     }
 };
