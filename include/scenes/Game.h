@@ -291,7 +291,7 @@ class GameScene : public IScene {
                         float vecX = pv->velocity.x / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
                         float vecY = pv->velocity.y / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
 
-                        TriggerCameraImpulse(vecX, 0.0f, vecY, 0.2f, 0.1f);
+                        TriggerCameraImpulse(vecX, 0.0f, vecY, 0.1f, 0.07f);
                     }
                 };
             }
