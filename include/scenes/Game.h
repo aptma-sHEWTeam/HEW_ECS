@@ -340,11 +340,13 @@ class GameScene : public IScene {
             bool releasedLocal = (player.wasCharging_ && !chargingNowLocal);
             if (releasedSys || releasedLocal) {
                 if (auto *pv = world.TryGet<PlayerVelocity>(playerEntity_)) {
-                    if (static_cast<bool>(pv->velocity.x + pv->velocity.y)) {
-                        float vecX = pv->velocity.x / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
-                        float vecY = pv->velocity.y / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
-
-                        TriggerCameraImpulse(vecX, 0.0f, vecY, 0.2f, 0.1f);
+                    const float vx = pv->velocity.x;
+                    const float vy = pv->velocity.y;
+                    const float len = std::hypot(vx, vy);
+                    if (len > 1e-5f) {
+                        const float dirX = vx / len;
+                        const float dirY = vy / len;
+                        TriggerCameraImpulse(dirX, 0.0f, dirY, 0.2f, 0.1f);
                     }
                 };
             }
@@ -359,10 +361,13 @@ class GameScene : public IScene {
         if (pendingRespawn_) return;
 
         if (auto *pv = world.TryGet<PlayerVelocity>(playerEntity_)) {
-            if (static_cast<bool>(pv->velocity.x + pv->velocity.y)) {
-                float vecX = pv->velocity.x / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
-                float vecY = pv->velocity.y / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
-                TriggerCameraImpulse(vecX, 0.0f, vecY, 0.2f, 0.04f);
+            const float vx = pv->velocity.x;
+            const float vy = pv->velocity.y;
+            const float len = std::hypot(vx, vy);
+            if (len > 1e-5f) {
+                const float dirX = vx / len;
+                const float dirY = vy / len;
+                TriggerCameraImpulse(dirX, 0.0f, dirY, 0.2f, 0.04f);
             }
         }
 
