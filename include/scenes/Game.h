@@ -630,10 +630,13 @@ class GameScene : public IScene {
                    CreateMovingObstacle(world, position, blockType);
                 } else if (blockType >= 30 && blockType < 40) {
                     CreateDashBoard(world, position, blockType);
-                } else if (blockType >= 50 && blockType < 60) {
-                   //CreateMovingObstacle(world, position, blockType);
+                } else if (blockType == 50 || blockType == 51) {
+                    CreateObjectA(world, position, blockType);
+                } else if (blockType == 52 || blockType == 53) {
+                    CreateObjectB(world, position, blockType);
                 }
                 break;
+            case 54: CreateObjectC(world, position, blockType);
         }
     }
 
@@ -900,21 +903,55 @@ class GameScene : public IScene {
         stageOwnedEntities_.push_back(entity);
     }
 
-    void CreateMoveWall(World &world, const DirectX::XMFLOAT3 &position, int blockType) {
-        Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
+    void CreateObjectA(World & world, const DirectX::XMFLOAT3 &position, int blockType) {
+        Transform transform{position, {0.0f, 0.0f, 0.0f}, {2.0f, 1.0f, 1.5f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::Cube;
-        renderer.color = DirectX::XMFLOAT3{cfg_WallR, cfg_WallG, cfg_WallB};
+        renderer.color = DirectX::XMFLOAT3{1.0f,1.0f,0.0f}; //黄色
 
-        Entity wallEntity = world.Create()
-                                .With<Transform>(transform)
-                                .With<MeshRenderer>(renderer)
-                                .With<WallTag>()
-                                .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
-                                .With<WallCollisionHandler>()
-                                .Build();
+        Entity ObjectAEntity = world.Create()
+                                     .With<Transform>(transform)
+                                     .With<MeshRenderer>(renderer)
+                                     .With<WallTag>()
+                                     .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                                     .With<FloorWallCollisionHandler>()
+                                     .Build();
 
-        stageOwnedEntities_.push_back(wallEntity);
+        stageOwnedEntities_.push_back(ObjectAEntity);
+    }
+
+    void CreateObjectB(World &world, const DirectX::XMFLOAT3 &position, int blockType) {
+        Transform transform{position, {0.0f, 0.0f, 0.0f}, {3.0f, 2.0f, 2.0f}};
+        MeshRenderer renderer;
+        renderer.meshType = MeshType::Cube;
+        renderer.color = DirectX::XMFLOAT3{0.0f, 1.0f, 1.0f}; //シアン
+
+        Entity ObjectAEntity = world.Create()
+                                   .With<Transform>(transform)
+                                   .With<MeshRenderer>(renderer)
+                                   .With<WallTag>()
+                                   .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                                   .With<FloorWallCollisionHandler>()
+                                   .Build();
+
+        stageOwnedEntities_.push_back(ObjectAEntity);
+    }
+
+    void CreateObjectC(World &world, const DirectX::XMFLOAT3 &position, int blockType) {
+        Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
+        MeshRenderer renderer;
+        renderer.meshType = MeshType::Cube;
+        renderer.color = DirectX::XMFLOAT3{1.0f, 0.0f, 1.0f}; //マゼンタ
+
+        Entity ObjectAEntity = world.Create()
+                                   .With<Transform>(transform)
+                                   .With<MeshRenderer>(renderer)
+                                   .With<WallTag>()
+                                   .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                                   .With<FloorWallCollisionHandler>()
+                                   .Build();
+
+        stageOwnedEntities_.push_back(ObjectAEntity);
     }
 
     void CreatFloorWall(World &world, const DirectX::XMFLOAT3 &position) {
@@ -966,6 +1003,8 @@ class GameScene : public IScene {
 
         stageOwnedEntities_.push_back(dashBoardEntity);
     }
+
+
 
     void BakeStageLighting(World & /*world*/) {
         // プレースホルダー
