@@ -216,12 +216,12 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     anim.frameTime = 0.1f;
     anim.isLooping = true;
 
-   Entity animation = world.Create()
-                           .With<UITransform>(UIanimation)
-                           .With<UIImage>(ani)
-                           .With<UVAnimation>()
-                           .With<SpriteSheetAnimation>(anim)
-                           .Build();
+   //Entity animation = world.Create()
+   //                        .With<UITransform>(UIanimation)
+   //                        .With<UIImage>(ani)
+   //                        .With<UVAnimation>()
+   //                        .With<SpriteSheetAnimation>(anim)
+   //                        .Build();
 
-    ownedEntities_.push_back(animation);
+   // ownedEntities_.push_back(animation);
 }

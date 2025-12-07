@@ -627,7 +627,7 @@ class GameScene : public IScene {
             case 8: CreateRightUpCorner(world, position); break;
             default:
                 if (blockType >= 10 && blockType < 20) {
-                   CreateMovingObstacle(world, position, blockType);
+                    CreateMovingObstacle(world, position, blockType);
                 } else if (blockType >= 30 && blockType < 40) {
                     CreateDashBoard(world, position, blockType);
                 } else if (blockType == 50 || blockType == 51) {
@@ -809,6 +809,7 @@ class GameScene : public IScene {
         float waitAtEnd = 0.0f;
         float travelTime = 1.0f;
         float timer = 0.0f;
+        bool firstLoop = true;
         enum class State { WaitStart, MoveForward, WaitEnd, MoveBack } state = State::WaitStart;
 
         void OnUpdate(World &w, Entity self, float dt) override {
@@ -829,8 +830,9 @@ class GameScene : public IScene {
 
             switch (state) {
                 case State::WaitStart:
-                    if (timer >= waitAtStart) {
+                    if (timer >= (firstLoop ? waitAtStart : waitAtEnd)) {
                         timer = 0.0f;
+                        firstLoop = false;
                         state = State::MoveForward;
                     }
                     break;
@@ -869,12 +871,21 @@ class GameScene : public IScene {
         obstacle.startPos = position;
         obstacle.baseScale = DirectX::XMFLOAT3{1.0f, 1.0f, 1.0f};
 
-        // blockType 10ベースでパターンを取得
-        int patternIndex = blockType - 10;
+        auto resolvePatternIndex = [](int type) -> std::optional<int> {
+            if (type >= 10 && type < 20) return type - 10;  // CSVのインデックス+10がID
+            return std::nullopt;
+        };
+
+        const auto patternIndex = resolvePatternIndex(blockType);
         world.ForEach<LoadMovingObstacle>([&](Entity, LoadMovingObstacle &data) {
-            if (patternIndex >= 0 && patternIndex < static_cast<int>(data.patterns.size())) {
-                const auto &p = data.patterns[patternIndex];
-                obstacle.delta = DirectX::XMFLOAT3{p.dirX, 0.0f, p.dirY}; // そのままの差分ベクトル
+            if (!patternIndex) {
+                DEBUGLOG_WARNING("[MoveObstacle] 未対応のブロックIDです: " + std::to_string(blockType));
+                return;
+            }
+
+            if (*patternIndex >= 0 && *patternIndex < static_cast<int>(data.patterns.size())) {
+                const auto &p = data.patterns[*patternIndex];
+                obstacle.delta = DirectX::XMFLOAT3{p.dirX, 0.0f, -p.dirY}; // ステージ座標のYはワールドZと逆向き
                 obstacle.endPos = DirectX::XMFLOAT3{
                     position.x + obstacle.delta.x,
                     position.y + obstacle.delta.y,
@@ -882,6 +893,8 @@ class GameScene : public IScene {
                 obstacle.waitAtStart = p.waitAtStart;
                 obstacle.waitAtEnd = p.waitAtEnd;
                 obstacle.travelTime = p.travelTime;
+            } else {
+                DEBUGLOG_WARNING("[MoveObstacle] パターンが見つかりません index=" + std::to_string(*patternIndex));
             }
         });
 
