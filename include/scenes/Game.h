@@ -635,11 +635,11 @@ class GameScene : public IScene {
             case 8: CreateRightUpCorner(world, position); break;
             default:
                 if (blockType >= 10 && blockType < 20) {
-                    CreateMoveWall(world, position, blockType);
+                   CreateMovingObstacle(world, position, blockType);
                 } else if (blockType >= 30 && blockType < 40) {
                     CreateDashBoard(world, position, blockType);
                 } else if (blockType >= 50 && blockType < 60) {
-                    CreateMovingObstacle(world, position, blockType);
+                   //CreateMovingObstacle(world, position, blockType);
                 }
                 break;
         }
@@ -874,8 +874,8 @@ class GameScene : public IScene {
         obstacle.startPos = position;
         obstacle.baseScale = DirectX::XMFLOAT3{1.0f, 1.0f, 1.0f};
 
-        // blockType 50ベースでパターンを取得
-        int patternIndex = blockType - 50;
+        // blockType 10ベースでパターンを取得
+        int patternIndex = blockType - 10;
         world.ForEach<LoadMovingObstacle>([&](Entity, LoadMovingObstacle &data) {
             if (patternIndex >= 0 && patternIndex < static_cast<int>(data.patterns.size())) {
                 const auto &p = data.patterns[patternIndex];
