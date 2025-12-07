@@ -151,7 +151,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                              .Build();
         ownedEntities_.push_back(stageEntity[i]);
     }
-     
+
     UITransform pauseTransform;
     pauseTransform.position = {0.0f, 0.0f};
     pauseTransform.size = {0.0f, 0.0f};
@@ -183,24 +183,6 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     }
     ownedEntities_.push_back(uiUpdater);
 
-    // テスト画像描画: Asetts/Image/test.png を画面左上に表示
-    UITransform imgTransform;
-    
-    imgTransform.position = {20.0f, 20.0f};
-    imgTransform.size = {256.0f, 256.0f};
-    imgTransform.anchor = {0.0f, 0.0f};
-    imgTransform.pivot = {0.0f, 0.0f};
-
-    UIImage img{L"./Assets/Textures/test.png" };
-    img.opacity = 1.0f;
-    img.keepAspect = true;
-
-    Entity imgEntity = world.Create()
-                            .With<UITransform>(imgTransform)
-                            .With<UIImage>(img)
-                            .Build();
-    ownedEntities_.push_back(imgEntity);
-
     UITransform UIanimation;
     UIanimation.position = {0.0f,0.0f};
     UIanimation.size = {1000.0f, 1080.0f};
@@ -210,7 +192,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     UIImage ani{L"./Assets/Textures/Fade/tex_fade.png"};
     ani.opacity = 1.0f;
     ani.keepAspect = true;
-    
+
     SpriteSheetAnimation anim;
     anim.frameCount = 18;
     anim.frameTime = 0.1f;

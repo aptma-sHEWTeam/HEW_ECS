@@ -121,17 +121,16 @@ class GameScene : public IScene {
         float screenWidth = static_cast<float>(gfx->Width());
         float screenHeight = static_cast<float>(gfx->Height());
 
-        // カメラを初期化
+        // カメラを初期化（App設定を優先）
         camera_ = Camera::LookAtLH(
-            DirectX::XM_PIDIV4,
+            baseFovY_,
             screenWidth / screenHeight,
-            0.1f,
-            1000.0f,
+            cameraNear_,
+            cameraFar_,
             cameraPosition_,
             baseTarget_,
-            DirectX::XMFLOAT3{0.0f, 1.0f, 0.0f}
+            baseUp_
         );
-        baseFovY_ = camera_.fovY;
 
         // 衝突検出システムをエンティティとして生成
         Entity collisionSystem = world.Create().With<CollisionDetectionSystem>(cfg_CollisionCellSize.Get()).Build();
@@ -325,6 +324,15 @@ class GameScene : public IScene {
 
     /** @brief カメラの基準位置を設定 */
     void SetCameraBasePosition(const DirectX::XMFLOAT3& pos) { cameraPosition_ = pos; }
+    /** @brief カメラの基準設定を一括で指定（位置・注視点・Up・FOV・Near/Far） */
+    void ConfigureBaseCamera(const DirectX::XMFLOAT3& pos, const DirectX::XMFLOAT3& target, const DirectX::XMFLOAT3& up, float fovRad, float nearZ, float farZ) {
+        cameraPosition_ = pos;
+        baseTarget_ = target;
+        baseUp_ = up;
+        baseFovY_ = fovRad;
+        cameraNear_ = nearZ;
+        cameraFar_ = farZ;
+    }
 
     void ChargCameraAction(World &world) {
         world.ForEach<PlayerMovement>([&](Entity e, PlayerMovement &player) {
@@ -1260,6 +1268,8 @@ class GameScene : public IScene {
     DirectX::XMFLOAT3 currentTarget_ = {0.0f, 0.0f, 0.0f};
     Camera camera_{};
     float baseFovY_ = DirectX::XM_PIDIV4;
+    float cameraNear_ = 0.1f;
+    float cameraFar_ = 1000.0f;
     DirectX::XMFLOAT3 baseUp_ = {0.0f, 1.0f, 0.0f};
 
     // シェイク用

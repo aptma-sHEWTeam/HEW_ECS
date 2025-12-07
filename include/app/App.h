@@ -88,23 +88,31 @@ struct App {
 #endif
 
     // Camera設定（TOMLで編集可能）
-    inline static ConfigVar<float> cfg_CamFovDeg{"Camera", "FovDegrees", 45.0f};
-    inline static ConfigVar<float> cfg_CamNear{"Camera", "Near", 0.1f};
-    inline static ConfigVar<float> cfg_CamFar{"Camera", "Far", 100.0f};
-    inline static ConfigVar<float> cfg_CamPosX{"Camera", "PosX", 0.0f};
-    inline static ConfigVar<float> cfg_CamPosY{"Camera", "PosY", 26.0f};
-    inline static ConfigVar<float> cfg_CamPosZ{"Camera", "PosZ", -7.0f};
-    inline static ConfigVar<float> cfg_CamTargetX{"Camera", "TargetX", 0.0f};
-    inline static ConfigVar<float> cfg_CamTargetY{"Camera", "TargetY", 0.0f};
-    inline static ConfigVar<float> cfg_CamTargetZ{"Camera", "TargetZ", -1.0f};
-    inline static ConfigVar<float> cfg_CamUpX{"Camera", "UpX", 0.0f};
-    inline static ConfigVar<float> cfg_CamUpY{"Camera", "UpY", 0.0f};
-    inline static ConfigVar<float> cfg_CamUpZ{"Camera", "UpZ", 1.0f};
+    inline static ConfigVar<float> cfg_CamFovDeg{"Camera.Base", "FovDegrees", 45.0f};
+    inline static ConfigVar<float> cfg_CamNear{"Camera.Base", "Near", 0.1f};
+    inline static ConfigVar<float> cfg_CamFar{"Camera.Base", "Far", 100.0f};
+    inline static ConfigVar<float> cfg_CamPosX{"Camera.Base", "PosX", 0.0f};
+    inline static ConfigVar<float> cfg_CamPosY{"Camera.Base", "PosY", 26.0f};
+    inline static ConfigVar<float> cfg_CamPosZ{"Camera.Base", "PosZ", -7.0f};
+    inline static ConfigVar<float> cfg_CamTargetX{"Camera.Base", "TargetX", 0.0f};
+    inline static ConfigVar<float> cfg_CamTargetY{"Camera.Base", "TargetY", 0.0f};
+    inline static ConfigVar<float> cfg_CamTargetZ{"Camera.Base", "TargetZ", -1.0f};
+    inline static ConfigVar<float> cfg_CamUpX{"Camera.Base", "UpX", 0.0f};
+    inline static ConfigVar<float> cfg_CamUpY{"Camera.Base", "UpY", 0.0f};
+    inline static ConfigVar<float> cfg_CamUpZ{"Camera.Base", "UpZ", 1.0f};
 
     void InitializeGame() {
         DEBUGLOG("InitializeGame() begin");
 
         auto gameScene = std::make_unique<GameScene>();
+        // App側のカメラ設定（TOML）をゲームシーンに引き渡す
+        const float fovRad = DirectX::XMConvertToRadians(cfg_CamFovDeg.Get());
+        const float nearZ = cfg_CamNear.Get();
+        const float farZ = cfg_CamFar.Get();
+        const DirectX::XMFLOAT3 camPos{ cfg_CamPosX.Get(), cfg_CamPosY.Get(), cfg_CamPosZ.Get() };
+        const DirectX::XMFLOAT3 camTarget{ cfg_CamTargetX.Get(), cfg_CamTargetY.Get(), cfg_CamTargetZ.Get() };
+        const DirectX::XMFLOAT3 camUp{ cfg_CamUpX.Get(), cfg_CamUpY.Get(), cfg_CamUpZ.Get() };
+        gameScene->ConfigureBaseCamera(camPos, camTarget, camUp, fovRad, nearZ, farZ);
         DEBUGLOG("GameScene instance created");
 
         sceneManager_.RegisterScene("Game", std::move(gameScene));
