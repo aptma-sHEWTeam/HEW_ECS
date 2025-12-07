@@ -9,6 +9,7 @@
 
 #include "pch.h"
 #include <vector>
+#include <algorithm>
 
 #include "config/ConfigVar.h"
 #include "components/UIComponents.h"
@@ -33,10 +34,17 @@ class StageSlectScene : public IScene {
     inline static ConfigVar<float> cfg_UICountB{"UI", "CountColorB", 1.0f};
 
     void OnEnter(World &world) override {
+        bool hasGameStatus = false;
+        world.ForEach<GameStatus>([&](Entity, GameStatus &) { hasGameStatus = true; });
+        if (!hasGameStatus) {
+            world.Create().With<GameStatus>().Build();
+        }
 
-        Entity gameStats = world.Create().With<GameStatus>().Build();
-        
-        Entity stageProgress = world.Create().With<StageProgress>().Build();
+        bool hasStageProgress = false;
+        world.ForEach<StageProgress>([&](Entity, StageProgress &) { hasStageProgress = true; });
+        if (!hasStageProgress) {
+            world.Create().With<StageProgress>().Build();
+        }
        
         auto *gfx = ServiceLocator::TryGet<GfxDevice>();
         if (!gfx) {
@@ -55,10 +63,6 @@ class StageSlectScene : public IScene {
 
         float screenWidth = static_cast<float>(gfx->Width());
         float screenHeight = static_cast<float>(gfx->Height());
-
-        world.Create().With<GameStatus>().Build();
-
-        world.Create().With<StageProgress>().Build();
 
         // UICanvas & Systems
         Entity canvas = world.Create().With<UICanvas>().Build();
@@ -101,19 +105,20 @@ class StageSlectScene : public IScene {
         }
 
         world.ForEach<StageProgress>([&](Entity e, StageProgress &stats) {
-            //右、左でStageCountを変更
-            if (stats.selectStage > 0) {
-                if (input.GetKeyDown(VK_RIGHT)) {
-                    stats.selectStage++;
-                }
+            const int maxStage = GetAvailableStageCount();
+
+            if (input.GetKeyDown(VK_RIGHT) && stats.selectStage < maxStage) {
+                stats.selectStage++;
             }
-            if (input.GetKeyDown(VK_LEFT)) {
+            if (input.GetKeyDown(VK_LEFT) && stats.selectStage > 1) {
                 stats.selectStage--;
             }
 
+            stats.selectStage = std::clamp(stats.selectStage, 1, maxStage);
+
             if (auto *StageSelectText = world.TryGet<UIText>(StageSelectEntity_)) {
                 std::wstringstream ss;
-                ss << L"StageNo : " << stats.selectStage;
+                ss << L"StageNo : " << stats.selectStage << L"/" << maxStage;
                 StageSelectText->text = ss.str();
             }
         });

@@ -10,8 +10,10 @@
 #include <dxgi1_2.h>
 #include <vector>
 #include <wincodec.h>
+#include <comdef.h>
 
 bool TextSystem::Init(GfxDevice &gfx) {
+    try {
     if (initialized_) {
         DEBUGLOG_WARNING("TextSystem already initialized");
         return true;
@@ -94,6 +96,15 @@ bool TextSystem::Init(GfxDevice &gfx) {
     initialized_ = true;
     DEBUGLOG("TextSystem initialized successfully");
     return true;
+    } catch (const _com_error& ex) {
+        std::wostringstream woss;
+        const wchar_t* wmsg = ex.ErrorMessage() ? ex.ErrorMessage() : L"unknown";
+        woss << L"TextSystem::Init _com_error hr=0x" << std::hex << ex.Error() << L" msg=" << wmsg;
+        std::wstring w = woss.str();
+        std::string n(w.begin(), w.end());
+        DEBUGLOG_ERROR(n);
+        return false;
+    }
 }
 
 bool TextSystem::CreateTextFormat(const std::string &id, const TextFormat &format) {

@@ -13,6 +13,11 @@
 #include <sstream>
 #include <iostream>
 #include <vector>
+#include <array>
+#include <optional>
+#include <filesystem>
+#include <string_view>
+#include <algorithm>
 #include "config/ConfigVar.h"
 #include "app/DebugLog.h" // DEBUGLOG_ERRORのために追加
 
@@ -41,6 +46,69 @@ struct StageProgress : IComponent {
 };
 
 /**
+ * @brief 利用可能なステージ数を探索する
+ * @details Assets/StageData/StageCollision/ 配下の DebugStageN / StageN を走査し、room1.csv が存在する最大番号を返す
+ */
+inline int GetAvailableStageCount() {
+    namespace fs = std::filesystem;
+    const fs::path baseDir{"Assets/StageData/StageCollision"};
+    std::error_code ec;
+
+    if (!fs::exists(baseDir, ec) || ec) {
+        DEBUGLOG_WARNING("[Stage] StageCollision ディレクトリが見つかりません。既定で1を使用します");
+        return 1;
+    }
+
+    int maxStage = 1;
+    for (const auto& entry : fs::directory_iterator(baseDir, ec)) {
+        if (ec) break;
+        if (!entry.is_directory()) continue;
+
+        const std::string name = entry.path().filename().string();
+        auto tryUpdate = [&](std::string_view prefix) {
+            if (name.rfind(prefix, 0) == 0) {
+                const std::string numberPart = name.substr(prefix.size());
+                try {
+                    const int stageIdx = std::stoi(numberPart);
+                    const fs::path csvPath = entry.path() / "room1.csv";
+                    if (fs::exists(csvPath, ec) && !ec) {
+                        maxStage = std::max(maxStage, stageIdx);
+                    }
+                } catch (const std::exception&) {
+                    // 数値パースに失敗した場合はスキップ
+                }
+            }
+        };
+
+        tryUpdate("DebugStage");
+        tryUpdate("Stage");
+    }
+
+    return maxStage;
+}
+
+/**
+ * @brief ステージ番号からCSVパスを解決する
+ * @details DebugStageN -> StageN の順に room1.csv を探索して最初に見つかったパスを返す
+ */
+inline std::optional<std::string> ResolveStageCsvPath(int stage) {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+    const std::array<std::string, 2> candidates = {
+        "Assets/StageData/StageCollision/DebugStage" + std::to_string(stage) + "/room1.csv",
+        "Assets/StageData/StageCollision/Stage" + std::to_string(stage) + "/room1.csv"};
+
+    for (const auto& pathStr : candidates) {
+        const fs::path path{pathStr};
+        if (fs::exists(path, ec) && !ec) {
+            return pathStr;
+        }
+    }
+
+    return std::nullopt;
+}
+
+/**
  * @struct StageCreate
  * @brief CSVファイルからデータを読み込み、ステージを生成
  */
@@ -49,6 +117,10 @@ struct StageCreate : IComponent {
      * @brief ステージファイルストリーム
      */
     ifstream m_file;
+    /**
+     * @brief 読み込んだCSVファイルのパス
+     */
+    std::string csvPath;
 
     /**
      * @brief ステージデータを格納する2次元ベクター
@@ -59,15 +131,15 @@ struct StageCreate : IComponent {
      * @brief コンストラクタ
      * @details CSVファイルをオープンし、データを読み込む
      */
-        explicit StageCreate(const std::string& csvPath) {
-            DEBUGLOG("[StageCreate] Constructor called with path: " + csvPath);
-            if (csvPath.empty()) {
+        explicit StageCreate(const std::string& csvPathIn) : csvPath(csvPathIn) {
+            DEBUGLOG("[StageCreate] Constructor called with path: " + csvPathIn);
+            if (csvPathIn.empty()) {
                 DEBUGLOG_ERROR("[StageCreate] Stage CSV path is empty.");
                 return;
             }
-            m_file.open(csvPath);
+            m_file.open(csvPathIn);
             if (!m_file.is_open()) {
-                DEBUGLOG_ERROR("[StageCreate] Failed to open CSV file: " + csvPath);
+                DEBUGLOG_ERROR("[StageCreate] Failed to open CSV file: " + csvPathIn);
             } else {
                 DEBUGLOG("[StageCreate] Successfully opened CSV file. Starting to load data...");
                 loadStageData();
@@ -267,48 +339,11 @@ struct LoadAngle : IComponent {
     /**
      * @brief アングルファイルストリーム
      */
-    ifstream m_file;
-
-    /*
-    *  @brief 時間のデータを格納するベクター
-    */
     vector<vector<int>> stageAngle;
 
-    /**
-     * @brief　コンストラクタ
-     */
-    LoadAngle() {
-        m_file.open("Assets/StageData/UniqueObj/SpeedUp/DebugStage1/room1.csv");
-        if (!m_file.is_open())
-            cerr << "Error: Could not open Assets/StageData/UniqueObj/SpeedUp/DebugStage1/room1.csv" << endl;
-        else {
-            loadStageAngle();
-        }
-    }
-
-    void loadStageAngle() {
-        string line;
-        while (getline(m_file, line)) {
-            vector<int> row;
-            stringstream sstream(line);
-            string cell;
-
-            while (getline(sstream, cell, ',')) {
-                try {
-                    row.push_back(stoi(cell));
-                } catch (const std::invalid_argument &error) {
-                    cerr << "無効な数値: " << cell << " (" << error.what() << ")" << endl;
-                } catch (const std::out_of_range &error) {
-                    cerr << "範囲外の数値: " << cell << " (" << error.what() << ")" << endl;
-                }
-            }
-            stageAngle.push_back(row);
-        }
-        m_file.close();
-    }
-
-    LoadAngle(const LoadAngle &) = delete;
-    LoadAngle &operator=(const LoadAngle &) = delete;
+    LoadAngle() = default;
+    LoadAngle(const LoadAngle &) = default;
+    LoadAngle &operator=(const LoadAngle &) = default;
 };
 
 /**
@@ -318,6 +353,30 @@ struct LoadAngle : IComponent {
 struct DashBoardStatus : IComponent {
     int blockID = 0;        //各ブロックのステージID
     float accelAngle = 0.0f;     //加速の方向
+};
+
+/**
+ * @struct MovingObstaclePattern
+ * @brief 動く障害物の往復パターン情報
+ */
+struct MovingObstaclePattern {
+    float dirX = 0.0f;
+    float dirY = 0.0f;
+    float waitAtStart = 0.0f; ///< ゲーム開始時/始点での待機時間
+    float waitAtEnd = 0.0f;   ///< 終点での停止時間
+    float travelTime = 0.0f;  ///< 始点→終点（または終点→始点）にかける時間
+};
+
+/**
+ * @struct LoadMovingObstacle
+ * @brief 動く障害物のCSVから読み取ったパターンを保持
+ */
+struct LoadMovingObstacle : IComponent {
+    std::vector<MovingObstaclePattern> patterns;
+
+    LoadMovingObstacle() = default;
+    LoadMovingObstacle(const LoadMovingObstacle &) = default;
+    LoadMovingObstacle &operator=(const LoadMovingObstacle &) = default;
 };
 
 

@@ -153,12 +153,23 @@ struct DashBordCollisionHandler : ICollisionHandler {
     void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override {
         auto *v = w.TryGet<PlayerVelocity>(other);              //速度コンポーネント取得
         auto *dash = w.TryGet<DashBoardStatus>(self);           //加速板のステータス取得
-        if (w.Has<PlayerTag>(other)) {
-            if (v && dash) {
-                DEBUGLOG("プレイヤーが加速板と接触 - プレイヤー加速-");
-                v->isBoosting = true;
-            }
+        if (!w.Has<PlayerTag>(other) || !v || !dash) {
+            return;
         }
+
+        const float angleRad = DirectX::XMConvertToRadians(dash->accelAngle);
+        const DirectX::XMFLOAT2 boostDir{std::cosf(angleRad), std::sinf(angleRad)};
+        const float boostSpeed = v->speed * v->Acceleration;
+
+        // 現在の速度を無視して、指定角度・指定大きさで上書き
+        v->boostDir = boostDir;
+        v->boostSpeed = boostSpeed;
+        v->velocity.x = boostDir.x * boostSpeed;
+        v->velocity.y = boostDir.y * boostSpeed;
+        v->isBoosting = true;
+        v->isDecelerating = false;
+
+        DEBUGLOG("プレイヤーが加速板と接触 - 速度付与");
     }
 };
 REGISTER_COLLISION_HANDLER_TYPE(DashBordCollisionHandler)
