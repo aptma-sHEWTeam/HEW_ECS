@@ -73,7 +73,7 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
             // GameStatusコンポーネントを持つエンティティを検索
             w.ForEach<GameStatus>([](Entity, GameStatus &stats) {
                 // 経過時間を0にリセット
-                stats.elapsedTime = 0.0f;
+                stats.elapsedTime = cfg_LimitTime;
             });
         }
 
@@ -91,8 +91,9 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
 inline void CheckTimeLimit(World &w, Entity player, float timeLimitSeconds) {
     // GameStatusコンポーネントを持つエンティティを検索
     w.ForEach<GameStatus>([&](Entity e, GameStatus &stats) {
+        
         // 経過時間が制限時間を超えたかチェック
-        if (stats.elapsedTime >= timeLimitSeconds) {
+        if (stats.elapsedTime <= 0) {
             DEBUGLOG("Timeout");
             // プレイヤーをスタート地点にリセット（タイマーもリセット）
             ResetPlayerToStart(w, player, true);

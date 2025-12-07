@@ -26,7 +26,7 @@ struct GameUIUpdater : Behaviour {
         w.ForEach<GameStatus>([&](Entity e, GameStatus &stats) {
             // 経過時間の更新
             if (!stats.isPaused) {
-                stats.elapsedTime += dt;
+                stats.elapsedTime -= dt;
             }
 
             //スコア表示の更新
