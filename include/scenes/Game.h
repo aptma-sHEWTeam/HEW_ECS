@@ -322,6 +322,7 @@ class GameScene : public IScene {
     /** @brief カメラの基準位置を設定 */
     void SetCameraBasePosition(const DirectX::XMFLOAT3& pos) { cameraPosition_ = pos; }
 
+    /** @brief プレイヤーを弾いたときの画面の揺れ */
     void ChargCameraAction(World &world) {
         world.ForEach<PlayerMovement>([&](Entity e, PlayerMovement &player) {
             float gx = player.gamepad_->GetLeftStickX();
@@ -338,6 +339,7 @@ class GameScene : public IScene {
 
             bool releasedSys = player.gamepad_->IsLeftStickReleased();
             bool releasedLocal = (player.wasCharging_ && !chargingNowLocal);
+
             if (releasedSys || releasedLocal) {
                 if (auto *pv = world.TryGet<PlayerVelocity>(playerEntity_)) {
                     if (static_cast<bool>(pv->velocity.x + pv->velocity.y)) {
