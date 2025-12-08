@@ -183,7 +183,7 @@ struct DashBordCollisionHandler : ICollisionHandler {
             return;
         }
 
-        const float angleRad = DirectX::XMConvertToRadians(dash->accelAngle +90.0f);
+        const float angleRad = DirectX::XMConvertToRadians(dash->accelAngle - 90.0f);
         const DirectX::XMFLOAT2 boostDir{std::cosf(angleRad), std::sinf(angleRad)};
         const float boostSpeed = v->speed * v->Acceleration;
 

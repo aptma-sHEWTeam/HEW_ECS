@@ -6,5 +6,5 @@
 #include "scenes/StageConfig.h"
 
 struct SoundStatas : IComponent{
-
+   
 };
