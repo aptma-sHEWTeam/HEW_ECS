@@ -305,14 +305,14 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
    deathFadeAnimationEntity_ = deathFadeAnimation;
 
    // チャージ中の軽い暗転オーバーレイ（アルファをコード側で制御）
-   UIImage chargeOverlay{L"./Assets/Textures/Fade/tex_fade.png"};
+   UIImage chargeOverlay{L"./Assets/Textures/Fade/tex_fade_Charging.png"};
    chargeOverlay.opacity = 0.0f;
    chargeOverlay.keepAspect = false;
 
    SpriteSheetAnimation chargeOverlayAnim;
    chargeOverlayAnim.frameCount = 1;
-   chargeOverlayAnim.frameTime = 0.1f;
-   chargeOverlayAnim.columns = 1;
+   chargeOverlayAnim.frameTime = 0.5f;
+   chargeOverlayAnim.columns = 1.0;
    chargeOverlayAnim.rows = 1;
    chargeOverlayAnim.isLooping = false;
    chargeOverlayAnim.isPlaying = false;
