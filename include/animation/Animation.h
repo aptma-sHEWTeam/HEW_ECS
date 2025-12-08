@@ -365,7 +365,10 @@ struct SpriteSheetAnimation : Behaviour
 
     void StopAnimation() 
     {
+        currentFrame = frameCount - 1;
         isPlaying = false;
+        isLooping = false;
+        isFinished = true;
     }
 
 };

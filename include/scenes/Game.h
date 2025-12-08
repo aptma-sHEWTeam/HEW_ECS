@@ -1281,6 +1281,7 @@ class GameScene : public IScene {
     Entity worldwall_{};
     Entity goalEntity_{};
     Entity gimmickEntity_{};
+    Entity fadeAnimationEntity_{};
     DirectX::XMFLOAT3 cameraPosition_ = {0.0f, 30.0f, -7.0f};
     DirectX::XMFLOAT3 currentTarget_ = {0.0f, 0.0f, 0.0f};
     Camera camera_{};

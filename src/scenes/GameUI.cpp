@@ -243,8 +243,8 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     ownedEntities_.push_back(uiUpdater);
 
     UITransform UIanimation;
-    UIanimation.position = {0.0f,0.0f};
-    UIanimation.size = {1280.0f, 720.0f};
+    UIanimation.position = {0.0f, -280.0f};
+    UIanimation.size = {1280.0f, 1280.0f};
     UIanimation.anchor = {0.0f, 0.0f};
     UIanimation.pivot = {0.0f, 0.0f};
 
@@ -255,15 +255,39 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     SpriteSheetAnimation anim;
     anim.frameCount = 18;
     anim.frameTime = 0.08f;
-    anim.isPlaying = false;
-
-   //Entity animation = world.Create()
-   //                        .With<UITransform>(UIanimation)
-   //                        .With<UIImage>(ani)
-   //                        .With<UVAnimation>()
-   //                        .With<SpriteSheetAnimation>(anim)
-   //                        .Build();
+    anim.StartAnimation();
+   Entity animation = world.Create()
+                           .With<UITransform>(UIanimation)
+                           .With<UIImage>(ani)
+                           .With<UVAnimation>()
+                           .With<SpriteSheetAnimation>(anim)
+                           .Build();
 
     ownedEntities_.push_back(animation);
    fadeAnimationEntity_ = animation;
+
+   UITransform FadeAnimation;
+   FadeAnimation.position = {0.0f, 0.0f};
+   FadeAnimation.size = {1280.0f, 720.0f};
+   FadeAnimation.anchor = {0.0f, 0.0f};
+   FadeAnimation.pivot = {0.0f, 0.0f};
+
+   UIImage fade{L"./Assets/Textures/Fade/tex_fade_reverse.png"};
+   fade.opacity = 1.0f;
+   fade.keepAspect = false;
+
+   SpriteSheetAnimation fadeOut;
+   fadeOut.frameCount = 18;
+   fadeOut.frameTime = 0.08f;
+   fadeOut.StartAnimation();
+
+   Entity fadeOutAnimation = world.Create()
+                                 .With<UITransform>(FadeAnimation)
+                                 .With<UIImage>(fade)
+                                 .With<UVAnimation>()
+                                 .With<SpriteSheetAnimation>(fadeOut)
+                          .Build();
+
+   ownedEntities_.push_back(fadeOutAnimation);
+   fadeAnimationEntity_ = fadeOutAnimation;
 }
