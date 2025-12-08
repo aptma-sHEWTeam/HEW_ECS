@@ -107,13 +107,23 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     timerImgTr.anchor = {0.0f, 0.0f};
     timerImgTr.pivot = {0.0f, 0.0f};
 
-    UIImage timerImg{L"./Assets/Textures/Time/timer/timer_00000.png"};
+    UIImage timerImg{L"./Assets/Textures/Time/Timer_Sprite.png"};
     timerImg.opacity = 1.0f;
     timerImg.keepAspect = true;
 
+    SpriteSheetAnimation timerAnime;
+    timerAnime.frameCount = 131;
+    timerAnime.frameTime = 0.1f;
+    timerAnime.columns = 16;
+    timerAnime.rows = 16;
+
+    timerAnime.isLooping = true;
+    timerAnime.isPlaying = true;
     Entity timerImageEntity = world.Create()
                                   .With<UITransform>(timerImgTr)
                                   .With<UIImage>(timerImg)
+                                  .With<UVAnimation>()
+                                  .With<SpriteSheetAnimation>(timerAnime)
                                   .Build();
 
     ownedEntities_.push_back(timerImageEntity);
