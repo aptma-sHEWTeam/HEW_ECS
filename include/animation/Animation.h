@@ -282,6 +282,8 @@ struct UVAnimation : Behaviour {
 struct SpriteSheetAnimation : Behaviour 
 {
     int frameCount = 1;
+    int columns = 0; // 0の場合はframeCountを横一列で使用
+    int rows = 0;    // 0の場合は必要行数を自動計算
     float frameTime = 0.1f;
     bool isLooping = false;
     bool isPlaying = false;
@@ -356,15 +358,19 @@ struct SpriteSheetAnimation : Behaviour
         uv.resize(frameCount);
 
         if (frameCount <= 0) return;
-        float width = 1.0f / static_cast<float>(frameCount);
-        
-        for (int i = 0; i < frameCount;i++)
-        {
-            // uv = {x, y, w, h} (正規化座標)
-            uv[i][0] = width * static_cast<float>(i); // x
-            uv[i][1] = 0.0f;                          // y
-            uv[i][2] = width;                         // w
-            uv[i][3] = 1.0f;                          // h
+
+        const int effCols = std::max(1, columns > 0 ? columns : frameCount);
+        const int effRows = std::max(1, rows > 0 ? rows : (frameCount + effCols - 1) / effCols);
+        const float width = 1.0f / static_cast<float>(effCols);
+        const float height = 1.0f / static_cast<float>(effRows);
+
+        for (int i = 0; i < frameCount; i++) {
+            const int col = i % effCols;
+            const int row = i / effCols;
+            uv[i][0] = width * static_cast<float>(col); // x
+            uv[i][1] = height * static_cast<float>(row); // y
+            uv[i][2] = width;                           // w
+            uv[i][3] = height;                          // h
         }
     }
     
