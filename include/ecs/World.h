@@ -323,10 +323,7 @@ public:
     }
 
     /**
-     * @brief コンポーネント削除
-     * @tparam T 削除型
-     * @param e 対象
-     * @return bool 成功ならtrue
+     * @brief コンポーネント削除（更新中は遅延）
      */
     template<class T>
     bool Remove(Entity e) {
@@ -339,7 +336,25 @@ public:
         auto* s = static_cast<Store<T>*>(itS->second);
         auto it = s->map.find(e.id);
         if (it == s->map.end()) return false;
-        unregisterBehaviour<T>(e, it->second.get());
+
+        // 更新中は削除を遅延させる（Behaviour参照の安全性確保）
+        if (inUpdate_) {
+            Behaviour* bptr = nullptr;
+            if constexpr (std::is_base_of<Behaviour, T>::value) {
+                bptr = static_cast<Behaviour*>(it->second.get());
+            }
+            {
+                std::lock_guard<std::mutex> lock(removeMutex_);
+                pendingComponentRemove_.push_back({ std::type_index(typeid(T)), e, bptr });
+            }
+            ECS_TRACE_LOG("コンポーネント " + std::string(typeid(T).name()) + " の削除をフレーム終端まで遅延");
+            return true;
+        }
+
+        // 非更新中は即時削除（従来の動作）
+        if constexpr (std::is_base_of<Behaviour, T>::value) {
+            unregisterBehaviour<T>(e, it->second.get());
+        }
         s->map.erase(it);
         ClearQueryCache();
         ECS_TRACE_LOG("コンポーネント " + std::string(typeid(T).name()) + " をエンティティ " + std::to_string(e.id) + " から削除");
@@ -637,11 +652,15 @@ public:
      * @brief 破棄要求キュー反映（フレーム終端）
      */
     void FlushDestroyEndOfFrame() {
+        // 既存のエンティティ破棄反映
         std::vector<std::pair<uint32_t, Cause>> toDestroy;
         {
             std::lock_guard<std::mutex> lock(pendingMutex_);
-            if (pendingDestroy_.empty()) return;
-            toDestroy.swap(pendingDestroy_);
+            if (pendingDestroy_.empty()) {
+                // continue to component removals
+            } else {
+                toDestroy.swap(pendingDestroy_);
+            }
         }
         std::unordered_map<uint32_t, Cause> lastCause;
         lastCause.reserve(toDestroy.size());
@@ -653,6 +672,33 @@ public:
         }
         if (destroyed > 0) {
             ECS_TRACE_LOG("破棄キューをフラッシュ: " + std::to_string(destroyed) + " 個のエンティティ");
+        }
+
+        // 追加: 保留中のコンポーネント削除を反映
+        std::vector<PendingRemove> toRemove;
+        {
+            std::lock_guard<std::mutex> lock(removeMutex_);
+            if (!pendingComponentRemove_.empty()) {
+                toRemove.swap(pendingComponentRemove_);
+            }
+        }
+        for (auto& pr : toRemove) {
+            auto itS = stores_.find(pr.type);
+            if (itS != stores_.end()) {
+                // Behaviour登録解除（該当する場合のみ）
+                if (pr.bptr) {
+                    behaviours_.erase(
+                        std::remove_if(behaviours_.begin(), behaviours_.end(),
+                            [&](const BEntry& entry) {
+                                return entry.e == pr.e && entry.b == pr.bptr;
+                            }),
+                        behaviours_.end());
+                }
+                // 型に対応するストアからコンポーネントを削除
+                itS->second->Erase(pr.e);
+                ClearQueryCache();
+                ECS_TRACE_LOG("保留コンポーネント削除を反映: Entity " + std::to_string(pr.e.id));
+            }
         }
     }
 
@@ -821,6 +867,13 @@ private:
         }
     };
 
+    // 保留コンポーネント削除のための構造体
+    struct PendingRemove {
+        std::type_index type;
+        Entity e;
+        Behaviour* bptr; // Behaviourの場合のみセット、それ以外はnullptr
+    };
+
     /**
      * @brief 内部破棄処理（即時コンポーネント消去 + 世代更新）
      * @param id エンティティID
@@ -879,6 +932,10 @@ private:
     bool inUpdate_ = false;
     bool enforceNoMutateDuranteUpdate_ = false;
     bool systemsStopped_ = false;
+
+    // 追加: 保留コンポーネント削除キュー
+    std::vector<PendingRemove> pendingComponentRemove_;
+    std::mutex removeMutex_;
 
     /**
      * @brief クエリキャッシュ全消去

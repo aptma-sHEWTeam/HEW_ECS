@@ -19,9 +19,11 @@
 #include "input/GamepadSystem.h"
 #include "components/Collision.h"
 #include "scenes/Game.h"
+#include "components/StageComponents.h" // StageProgress for stage advance after goal easing
 // g_GameScene は CollisionHandlers.h で定義されるグローバル。参照のため extern 宣言を追加。
 class GameScene; extern GameScene* g_GameScene;
 extern bool g_respawnPending; // リスポーン待機フラグの参照
+
 #include <DirectXMath.h>
 #include <cmath>
 #include <algorithm>
@@ -396,6 +398,51 @@ struct PlayerGuide : Behaviour {
                 currentGuide->position.x += std::cosf(rad) * offsetDistance;
                 currentGuide->position.z += std::sinf(rad) * offsetDistance;
             }
+        }
+    }
+};
+
+// ========================================================
+// ゴール吸引コンポーネント
+// ========================================================
+
+struct GoalAttractor : Behaviour {
+    DirectX::XMFLOAT3 target{0.0f, 0.0f, 0.0f};
+    float duration = 0.8f; // 吸い込みにかける時間(秒)
+    float elapsed = 0.0f;
+
+    void OnUpdate(World &w, Entity self, float dt) override {
+        // リスポーン待機と同様に、待機フラグを有効化（UIや操作停止を共有）
+        g_respawnPending = true;
+
+        auto *t = w.TryGet<Transform>(self);
+        if (!t) return;
+        elapsed += dt;
+
+        // プレイヤーの速度を停止して滑らかに吸い込み
+        if (auto *v = w.TryGet<PlayerVelocity>(self)) {
+            v->velocity = {0.0f, 0.0f};
+            v->isBoosting = false;
+            v->isDecelerating = false;
+            v->boostSpeed = 0.0f;
+        }
+
+        float r = std::clamp(elapsed / std::max(0.001f, duration), 0.0f, 1.0f);
+        float ease = r < 0.5f ? (2.0f * r * r) : (1.0f - std::pow(-2.0f * r + 2.0f, 2.0f) / 2.0f);
+        DirectX::XMFLOAT3 start = t->position;
+        t->position.x = start.x + (target.x - start.x) * ease;
+        t->position.z = start.z + (target.z - start.z) * ease;
+        t->position.y = 0.0f;
+
+        float dx = t->position.x - target.x;
+        float dz = t->position.z - target.z;
+        if ((dx*dx + dz*dz) < 0.0001f || elapsed >= duration) {
+            t->position.x = target.x;
+            t->position.z = target.z;
+            g_respawnPending = false;
+            // 吸い込み完了後にステージ進行をリクエスト
+            w.ForEach<StageProgress>([&](Entity, StageProgress &sp) { sp.requestAdvance = true; });
+            w.Remove<GoalAttractor>(self);
         }
     }
 };
