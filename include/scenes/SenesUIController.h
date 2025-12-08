@@ -23,6 +23,7 @@ struct GameUIUpdater : Behaviour {
     Entity timerBackgroundEntity_;
     Entity timeImageEntity_;
     Entity timerUiEntity_;
+    
 
     void OnUpdate(World &w, Entity self, float dt) override {
         w.ForEach<GameStatus>([&](Entity e, GameStatus &stats) {
