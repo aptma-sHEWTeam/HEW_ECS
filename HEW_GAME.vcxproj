@@ -227,6 +227,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="RoomUIComponents.h" />
+    <ClInclude Include="SoundComponent.h" />
     <ClInclude Include="StageStatus.h" />
     <ClInclude Include="include\animation\Animation.h" />
     <ClInclude Include="include\app\App.h" />
