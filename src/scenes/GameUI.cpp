@@ -203,18 +203,18 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 
     UITransform UIanimation;
     UIanimation.position = {0.0f,0.0f};
-    UIanimation.size = {1000.0f, 1080.0f};
+    UIanimation.size = {1280.0f, 720.0f};
     UIanimation.anchor = {0.0f, 0.0f};
     UIanimation.pivot = {0.0f, 0.0f};
 
-    UIImage ani{L"./Assets/Textures/Fade/tex_fade.png"};
+    UIImage ani{L"./Assets/Textures/Fade/tex_fadekorigori.png"};
     ani.opacity = 1.0f;
-    ani.keepAspect = true;
+    ani.keepAspect = false;
     
     SpriteSheetAnimation anim;
     anim.frameCount = 18;
-    anim.frameTime = 0.1f;
-    anim.isLooping = true;
+    anim.frameTime = 0.08f;
+    anim.isPlaying = false;
 
    Entity animation = world.Create()
                            .With<UITransform>(UIanimation)
@@ -224,4 +224,5 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                            .Build();
 
     ownedEntities_.push_back(animation);
+   fadeAnimationEntity_ = animation;
 }
