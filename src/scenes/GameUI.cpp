@@ -85,7 +85,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     ownedEntities_.push_back(scoreEntity);*/
 
     UITransform timeTransform;
-    timeTransform.position = {20.0f, 70.0f};
+    timeTransform.position = {65.0f, 70.0f};
     timeTransform.size = {1000.0f, 80.0f};
     timeTransform.anchor = {0.0f, 0.0f};
     timeTransform.pivot = {0.0f, 0.0f};
@@ -140,7 +140,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     ownedEntities_.push_back(timerBackgroundEntity);
 
     UITransform timerImgTr;
-    timerImgTr.position = {-900.0f, -8.0f};
+    timerImgTr.position = {-869.0f, -6.0f};
     timerImgTr.size = {2000.0f, 200.0f};
     timerImgTr.anchor = {0.0f, 0.0f};
     timerImgTr.pivot = {0.0f, 0.0f};
