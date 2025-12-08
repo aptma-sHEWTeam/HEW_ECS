@@ -422,14 +422,18 @@ class GameScene : public IScene {
     void OnWallHit(Entity player, World &world) {
         if (pendingRespawn_) return;
 
+        if (auto* playerStatus = world.TryGet<PlayerStatus>(playerEntity_))
+        {
+            playerStatus->isStartAfterWallHit = true;
+            DEBUGLOG("isStartAfterWallHitがtrueになりました");
+        }
+
         if (auto *pv = world.TryGet<PlayerVelocity>(playerEntity_)) {
-            const float vx = pv->velocity.x;
-            const float vy = pv->velocity.y;
-            const float len = std::hypot(vx, vy);
-            if (len > 1e-5f) {
-                const float dirX = vx / len;
-                const float dirY = vy / len;
-                TriggerCameraImpulse(dirX, 0.0f, dirY, 0.2f, 0.04f);
+            if (static_cast<bool>(pv->velocity.x + pv->velocity.y)) {
+                float vecX = pv->velocity.x / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
+                float vecY = pv->velocity.y / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
+                TriggerCameraImpulse(vecX, 0.0f, vecY, 0.2f, 0.04f);
+
             }
         }
 
@@ -473,6 +477,7 @@ class GameScene : public IScene {
                             .With<PlayerTag>()
                             .With<PlayerVelocity>()
                             .With<PlayerMovement>()
+                            .With<PlayerStatus>()
                             .With<PlayerGuide>()
                             .With<CollisionSphere>(0.4f)
                             .With<PlayerCollisionHandler>()
@@ -1235,7 +1240,14 @@ class GameScene : public IScene {
     // 遅延リスポーン・カメラリアクション更新
     // =========================================
 
-    void UpdateDelayedRespawn(float dt, World &world) {
+    void UpdateDelayedRespawn(float dt, World &world) 
+    {
+
+
+        if (auto *movement = world.TryGet<PlayerMovement>(playerEntity_))
+        {
+            movement->isCharging_ = false;
+        }
         if (!pendingRespawn_) return;
         // グローバルにも反映して他コンポーネントから参照可能に
         g_respawnPending = true;
@@ -1245,6 +1257,11 @@ class GameScene : public IScene {
             pendingRespawn_ = false;
             g_respawnPending = false;
             respawnTimer_ = 0.0f;
+        }
+        if (auto* playerStatus = world.TryGet<PlayerStatus>(playerEntity_))
+        {
+            playerStatus->isStartAfterWallHit = false;
+            DEBUGLOG("isStartAfterWallHitがfalseになりました " );
         }
     }
 
@@ -1387,6 +1404,7 @@ class GameScene : public IScene {
     Entity worldwall_{};
     Entity goalEntity_{};
     Entity gimmickEntity_{};
+    Entity fadeAnimationEntity_{};
     DirectX::XMFLOAT3 cameraPosition_ = {0.0f, 30.0f, -7.0f};
     DirectX::XMFLOAT3 currentTarget_ = {0.0f, 0.0f, 0.0f};
     Camera camera_{};

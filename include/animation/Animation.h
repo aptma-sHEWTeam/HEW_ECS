@@ -282,8 +282,8 @@ struct SpriteSheetAnimation : Behaviour
 {
     int frameCount = 1;
     float frameTime = 0.1f;
-    bool isLooping = true;
-    bool isPlaying = true;
+    bool isLooping = false;
+    bool isPlaying = false;
 
     float currentTime = 0.0f;
     int currentFrame = 0;
@@ -358,4 +358,17 @@ struct SpriteSheetAnimation : Behaviour
         }
     }
     
+    void StartAnimation()
+    {
+        isPlaying = true;
+    }
+
+    void StopAnimation() 
+    {
+        currentFrame = frameCount - 1;
+        isPlaying = false;
+        isLooping = false;
+        isFinished = true;
+    }
+
 };
