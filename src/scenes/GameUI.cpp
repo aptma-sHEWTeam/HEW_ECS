@@ -154,8 +154,8 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     roomImgTr.pivot = {0.0f, 0.0f};
 
     UIImage roomImg{L"./Assets/Textures/RoomNo/UI_Japanese_colored.png"};
-    timerImg.opacity = 1.0f;
-    timerImg.keepAspect = true;
+    roomImg.opacity = 1.0f;
+    roomImg.keepAspect = true;
 
      Entity roomImageEntity = world.Create()
                                   .With<UITransform>(roomImgTr)
