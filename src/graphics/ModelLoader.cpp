@@ -215,16 +215,22 @@ ModelComponent ModelLoader::ProcessMesh(
         mc.normalTexture = LoadMaterialTextures(material, aiTextureType_NORMALS, directory, modelFilePath);
 
         // マテリアルから色情報を取得 (Ambient/Diffuse/Specularなど、ここではDiffuseを代表として使用)
-        aiColor3D color (0.f,0.f,0.f);
-        if(AI_SUCCESS == material->Get(AI_MATKEY_COLOR_DIFFUSE, color)) {
+        aiColor3D color(0.f, 0.f, 0.f);
+        if (AI_SUCCESS == material->Get(AI_MATKEY_COLOR_DIFFUSE, color)) {
             mc.color = {color.r, color.g, color.b};
         }
+        mc.color.x = std::clamp(mc.color.x, 0.0f, 1.0f);
+        mc.color.y = std::clamp(mc.color.y, 0.0f, 1.0f);
+        mc.color.z = std::clamp(mc.color.z, 0.0f, 1.0f);
 
         // スペキュラー/反射系パラメータを可能な限り読み取る
         aiColor3D specColor(0.f, 0.f, 0.f);
         if (AI_SUCCESS == material->Get(AI_MATKEY_COLOR_SPECULAR, specColor)) {
             mc.specularColor = { specColor.r, specColor.g, specColor.b };
         }
+        mc.specularColor.x = std::clamp(mc.specularColor.x, 0.0f, 1.0f);
+        mc.specularColor.y = std::clamp(mc.specularColor.y, 0.0f, 1.0f);
+        mc.specularColor.z = std::clamp(mc.specularColor.z, 0.0f, 1.0f);
 
         float reflectance = 0.0f;
         material->Get(AI_MATKEY_REFLECTIVITY, reflectance); // 0〜1 を想定
@@ -234,6 +240,9 @@ ModelComponent ModelLoader::ProcessMesh(
         if (AI_SUCCESS == material->Get(AI_MATKEY_COLOR_REFLECTIVE, reflColor)) {
             mc.reflectionColor = { reflColor.r, reflColor.g, reflColor.b };
         }
+        mc.reflectionColor.x = std::clamp(mc.reflectionColor.x, 0.0f, 1.0f);
+        mc.reflectionColor.y = std::clamp(mc.reflectionColor.y, 0.0f, 1.0f);
+        mc.reflectionColor.z = std::clamp(mc.reflectionColor.z, 0.0f, 1.0f);
 
         // shininess があればスペキュラーを有効化する目安とする
         float shininess = 0.0f;
@@ -253,6 +262,10 @@ ModelComponent ModelLoader::ProcessMesh(
         } else {
             mc.specularAttenuation = 0.0f;
         }
+
+        // 反射・スペキュラーが強すぎて白飛びしないように上限を設ける
+        mc.reflectance = std::clamp(mc.reflectance, 0.0f, 0.25f);                // 金属感も0.25程度まで
+        mc.specularAttenuation = std::clamp(mc.specularAttenuation, 0.0f, 0.6f); // ハイライト総量の抑制
 
         // 以前は「player」含みのモデルをアンリット強制していたが、
         // シェーディングが当たらず真っ白になるため解除する。

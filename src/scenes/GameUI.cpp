@@ -107,13 +107,23 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     timerImgTr.anchor = {0.0f, 0.0f};
     timerImgTr.pivot = {0.0f, 0.0f};
 
-    UIImage timerImg{L"./Assets/Textures/Time/timer/timer_00000.png"};
+    UIImage timerImg{L"./Assets/Textures/Time/Timer_Sprite.png"};
     timerImg.opacity = 1.0f;
     timerImg.keepAspect = true;
 
+    SpriteSheetAnimation timerAnime;
+    timerAnime.frameCount = 131;
+    timerAnime.frameTime = 0.1f;
+    timerAnime.columns = 16;
+    timerAnime.rows = 16;
+
+    timerAnime.isLooping = true;
+    timerAnime.isPlaying = true;
     Entity timerImageEntity = world.Create()
                                   .With<UITransform>(timerImgTr)
                                   .With<UIImage>(timerImg)
+                                  .With<UVAnimation>()
+                                  .With<SpriteSheetAnimation>(timerAnime)
                                   .Build();
 
     ownedEntities_.push_back(timerImageEntity);
@@ -144,8 +154,8 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     roomImgTr.pivot = {0.0f, 0.0f};
 
     UIImage roomImg{L"./Assets/Textures/RoomNo/UI_Japanese_colored.png"};
-    timerImg.opacity = 1.0f;
-    timerImg.keepAspect = true;
+    roomImg.opacity = 1.0f;
+    roomImg.keepAspect = true;
 
      Entity roomImageEntity = world.Create()
                                   .With<UITransform>(roomImgTr)
@@ -260,6 +270,8 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
    SpriteSheetAnimation fadeOut;
    fadeOut.frameCount = 18;
    fadeOut.frameTime = 0.08f;
+   fadeOut.columns = 18;
+   fadeOut.rows = 1;
    // フェードは初期状態では再生しない（壁ヒット時に再生開始）
    fadeOut.isLooping = false;
    fadeOut.isPlaying = false;
@@ -273,4 +285,53 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 
    ownedEntities_.push_back(fadeOutAnimation);
    fadeAnimationEntity_ = fadeOutAnimation;
+
+   // 死亡専用フェードアウト（テクスチャ: tex_fadekorigori.png, 18枚 77760x4320）
+   UIImage deathFade{L"./Assets/Textures/Fade/tex_fadekorigori.png"};
+   deathFade.opacity = 1.0f;
+   deathFade.keepAspect = false;
+
+   SpriteSheetAnimation deathFadeAnim;
+   deathFadeAnim.frameCount = 18;
+   deathFadeAnim.frameTime = 0.08f;
+   deathFadeAnim.columns = 18;
+   deathFadeAnim.rows = 1;
+   deathFadeAnim.isLooping = false;
+   deathFadeAnim.isPlaying = false;
+
+   Entity deathFadeAnimation = world.Create()
+                                    .With<UITransform>(FadeAnimation)
+                                    .With<UIImage>(deathFade)
+                                    .With<UVAnimation>()
+                                    .With<SpriteSheetAnimation>(deathFadeAnim)
+                                    .Build();
+
+   ownedEntities_.push_back(deathFadeAnimation);
+   deathFadeAnimationEntity_ = deathFadeAnimation;
+
+   // チャージ中の軽い暗転オーバーレイ（アルファをコード側で制御）
+   UIImage chargeOverlay{L"./Assets/Textures/Fade/tex_fade.png"};
+   chargeOverlay.opacity = 0.0f;
+   chargeOverlay.keepAspect = false;
+
+   SpriteSheetAnimation chargeOverlayAnim;
+   chargeOverlayAnim.frameCount = 1;
+   chargeOverlayAnim.frameTime = 0.1f;
+   chargeOverlayAnim.columns = 1;
+   chargeOverlayAnim.rows = 1;
+   chargeOverlayAnim.isLooping = false;
+   chargeOverlayAnim.isPlaying = false;
+
+   Entity chargeOverlayEntity = world.Create()
+                                     .With<UITransform>(FadeAnimation)
+                                     .With<UIImage>(chargeOverlay)
+                                     .With<SpriteSheetAnimation>(chargeOverlayAnim)
+                                     .Build();
+   ownedEntities_.push_back(chargeOverlayEntity);
+   chargeOverlayEntity_ = chargeOverlayEntity;
+
+   // 初期状態で確実に非表示
+   if (auto *img = world.TryGet<UIImage>(chargeOverlayEntity_)) {
+       img->opacity = 0.0f;
+   }
 }

@@ -23,6 +23,10 @@ inline GameScene* g_GameScene = nullptr;
 // リスポーン待機状態のグローバルフラグ（GameSceneから更新）
 inline bool g_respawnPending = false;
 
+// GameScene の型に依存しないコールラッパー（PlayerComponents から利用）
+void GameScene_OnChargeStart(World &w);
+void GameScene_OnChargeRelease(World &w, float chargeAmount01);
+
 /**
  * @brief プレイヤーをスタート地点にリセット（速度も完全リセット）
  * @param w ワールドへの参照
@@ -34,6 +38,16 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
     if (!w.IsAlive(player)) {
         return;
     }
+
+    // 移動する障害物をリセット
+    w.ForEach<MovingObstacle>([&](Entity e, MovingObstacle &mo) {
+        mo.state = MovingObstacle::State::WaitStart;
+        mo.timer = 0.0f;
+        mo.firstLoop = true;
+        if (auto *t = w.TryGet<Transform>(e)) {
+            t->position = mo.startPos;
+        }
+    });
     
     // スタート地点を見つけて処理を一度だけ実行するためのフラグ
     bool done = false;
@@ -183,7 +197,7 @@ struct DashBordCollisionHandler : ICollisionHandler {
             return;
         }
 
-        const float angleRad = DirectX::XMConvertToRadians(dash->accelAngle);
+        const float angleRad = DirectX::XMConvertToRadians(dash->accelAngle +90.0f);
         const DirectX::XMFLOAT2 boostDir{std::cosf(angleRad), std::sinf(angleRad)};
         const float boostSpeed = v->speed * v->Acceleration;
 
