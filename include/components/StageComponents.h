@@ -20,6 +20,8 @@
 #include <algorithm>
 #include "config/ConfigVar.h"
 #include "app/DebugLog.h" // DEBUGLOG_ERRORのために追加
+#include <DirectXMath.h> // GoalAttractor 用
+#include "components/Transform.h" // GoalAttractor 用
 
 using namespace std;
 
@@ -390,6 +392,49 @@ struct LoadMovingObstacle : IComponent {
     LoadMovingObstacle() = default;
     LoadMovingObstacle(const LoadMovingObstacle &) = default;
     LoadMovingObstacle &operator=(const LoadMovingObstacle &) = default;
+};
+
+/**
+ * @struct GoalAttractor
+ * @brief ゴール中心へプレイヤーを一定時間で吸引する演出用Behaviour
+ */
+struct GoalAttractor : Behaviour {
+    DirectX::XMFLOAT3 target{0.0f, 0.0f, 0.0f};  ///< 目標位置（Yは0固定想定）
+    float duration = 1.2f;                       ///< 吸引にかける時間(秒)
+    float elapsed = 0.0f;                        ///< 経過時間
+    DirectX::XMFLOAT3 startPos{0.0f, 0.0f, 0.0f};///< 開始位置
+
+    void OnStart(World &w, Entity self) override {
+        if (auto *t = w.TryGet<Transform>(self)) {
+            startPos = t->position;
+        }
+    }
+
+    void OnUpdate(World &w, Entity self, float dt) override {
+        auto *t = w.TryGet<Transform>(self);
+        if (!t) return;
+
+        elapsed += std::max(0.0f, dt);
+        float tNorm = duration > 1e-6f ? std::clamp(elapsed / duration, 0.0f, 1.0f) : 1.0f;
+        // ちょっと柔らかいイージング（smoothstep）
+        float u = tNorm * tNorm * (3.0f - 2.0f * tNorm);
+
+        DirectX::XMFLOAT3 pos{
+            startPos.x + (target.x - startPos.x) * u,
+            0.0f,
+            startPos.z + (target.z - startPos.z) * u
+        };
+        t->position = pos;
+
+        // 進行完了: 次のルームへ進めるリクエストを立てる
+        if (tNorm >= 1.0f) {
+            w.ForEach<StageProgress>([](Entity, StageProgress &sp) {
+                sp.requestAdvance = true;
+            });
+            // 自身のBehaviourを取り外す
+            w.Remove<GoalAttractor>(self);
+        }
+    }
 };
 
 
