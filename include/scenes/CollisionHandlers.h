@@ -112,6 +112,11 @@ struct PlayerCollisionHandler : ICollisionHandler {
         if (w.Has<GoalTag>(other)) {
             DEBUGLOG("Player reached goal");
 
+            // 既にゴール吸引中なら重複処理を避ける
+            if (w.Has<GoalAttractor>(self)) {
+                return;
+            }
+
             // ゆっくり吸い込み: ゴール中心へイージングで寄せる
             auto *tPlayer = w.TryGet<Transform>(self);
             auto *tGoal = w.TryGet<Transform>(other);

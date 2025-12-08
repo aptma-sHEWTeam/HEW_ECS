@@ -554,6 +554,20 @@ public:
         if (dt < recentDtMin_) recentDtMin_ = dt;
         if (dt > recentDtMax_) recentDtMax_ = dt;
         inUpdate_ = true;
+
+        // 追加: 保留中のBehaviourを統合
+        {
+            std::lock_guard<std::mutex> lock(removeMutex_);
+            if (!pendingBehaviours_.empty()) {
+                // inUpdate_中にregisterBehaviourWithCauseを呼ぶと同じmutexを再取得してデッドロックになるため、
+                // ここでは直接behaviours_へ統合する
+                for (auto& entry : pendingBehaviours_) {
+                    behaviours_.push_back({ entry.e, entry.b, false, entry.cause });
+                }
+                pendingBehaviours_.clear();
+            }
+        }
+
         size_t startedCount = 0;
         for (size_t i = 0; i < behaviours_.size(); ) {
             if (i >= behaviours_.size()) break;
@@ -824,7 +838,13 @@ private:
     template<class TDerived>
     typename std::enable_if<std::is_base_of<Behaviour, TDerived>::value>::type
         registerBehaviourWithCause(Entity e, TDerived* obj, Cause cause) {
-        behaviours_.push_back({ e, obj, false, cause });
+        if (inUpdate_) {
+            std::lock_guard<std::mutex> lock(removeMutex_);
+            pendingBehaviours_.push_back({ e, obj, false, cause });
+            ECS_TRACE_LOG("Behaviour " + std::string(typeid(TDerived).name()) + " の登録をフレーム終端まで遅延 (ID: " + std::to_string(e.id) + ")");
+        } else {
+            behaviours_.push_back({ e, obj, false, cause });
+        }
     }
     template<class TDerived>
     typename std::enable_if<!std::is_base_of<Behaviour, TDerived>::value>::type
@@ -936,6 +956,9 @@ private:
     // 追加: 保留コンポーネント削除キュー
     std::vector<PendingRemove> pendingComponentRemove_;
     std::mutex removeMutex_;
+
+    // 追加: 保留Behaviour登録キュー（inUpdate_中の登録を遅延）
+    std::vector<BEntry> pendingBehaviours_;
 
     /**
      * @brief クエリキャッシュ全消去

@@ -81,7 +81,37 @@ class GameScene : public IScene {
 
         // レンダリングシステムの初期化と環境光の設定
         RenderingSystem::GetInstance().Initialize(gfx->Dev());
-        RenderingSystem::GetInstance().SetAmbientLight({0.08f, 0.08f, 0.08f}, 1.0f);
+        DirectX::XMFLOAT3 ambientColor{
+            cfg_AmbientR.Get(),
+            cfg_AmbientG.Get(),
+            cfg_AmbientB.Get()
+        };
+        RenderingSystem::GetInstance().SetAmbientLight(ambientColor, cfg_AmbientIntensity.Get());
+
+        // 平行光の生成（有効時のみ）
+        if (cfg_DirLightEnabled.Get()) {
+            Entity dirLightEntity = world.Create().With<DirectionalLight>().Build();
+            ownedEntities_.push_back(dirLightEntity);
+
+            if (auto *dl = world.TryGet<DirectionalLight>(dirLightEntity)) {
+                DirectX::XMFLOAT3 dir{cfg_DirLightX.Get(), cfg_DirLightY.Get(), cfg_DirLightZ.Get()};
+                DirectX::XMVECTOR v = DirectX::XMLoadFloat3(&dir);
+                float lenSq = DirectX::XMVectorGetX(DirectX::XMVector3LengthSq(v));
+                if (lenSq > 1e-6f) {
+                    v = DirectX::XMVector3Normalize(v);
+                    DirectX::XMStoreFloat3(&dir, v);
+                } else {
+                    dir = {0.0f, -1.0f, 0.0f};
+                }
+                dl->direction = dir;
+                dl->color = DirectX::XMFLOAT4{
+                    cfg_DirLightR.Get(),
+                    cfg_DirLightG.Get(),
+                    cfg_DirLightB.Get(),
+                    std::max(0.0f, cfg_DirLightIntensity.Get())
+                };
+            }
+        }
         // テキスト描画システムの初期化
         try {
             if (!textSystem_.Init(*gfx)) {
@@ -609,6 +639,10 @@ class GameScene : public IScene {
     // ステージ生成メソッド
     // =========================================
 
+    void ApplyDefaultPointLightParams(PointLight &light) const {
+        light.SetAttenuation(cfg_PointLightConst.Get(), cfg_PointLightLinear.Get(), cfg_PointLightQuadratic.Get());
+    }
+
     void CreateStageMap(World &world) {
         world.ForEach<StageCreate>([&](Entity, StageCreate &stagecreate) {
             float tileSize = 1.0f;
@@ -649,7 +683,76 @@ class GameScene : public IScene {
                     }
                 }
             }
+
+            BakeStageLights(world, stagecreate.stageMap, tileSize);
         });
+    }
+
+    void BakeStageLights(World &world, const std::vector<std::vector<int>> &stageMap, float tileSize) {
+        if (stageMap.empty() || stageMap[0].empty()) return;
+
+        const int maxBakeLights = std::max(0, MAX_POINT_LIGHTS - 2); // Start/Goal 分を考慮
+        if (maxBakeLights <= 0) return;
+
+        const float mapWidth = static_cast<float>(stageMap[0].size());
+        const float mapHeight = static_cast<float>(stageMap.size());
+        const float offsetX = (mapWidth * tileSize) * 0.5f - (tileSize * 0.5f);
+        const float offsetZ = (mapHeight * tileSize) * 0.5f - (tileSize * 0.5f);
+
+        // 空きタイルのバウンディングボックスを収集
+        float minX = std::numeric_limits<float>::max();
+        float maxX = std::numeric_limits<float>::lowest();
+        float minZ = std::numeric_limits<float>::max();
+        float maxZ = std::numeric_limits<float>::lowest();
+
+        auto isWalkable = [](int block) {
+            // 0:空き, 1:Start, 2:Goal, 10-19:移動物, 30-39:ダッシュ板, 50+オブジェクトなどは許容
+            if (block == 0 || block == 1 || block == 2) return true;
+            if (block >= 10 && block < 20) return true;
+            if (block >= 30 && block < 40) return true;
+            if (block >= 50) return true;
+            return false; // 3系などの壁
+        };
+
+        for (int y = 0; y < static_cast<int>(stageMap.size()); ++y) {
+            for (int x = 0; x < static_cast<int>(stageMap[y].size()); ++x) {
+                if (!isWalkable(stageMap[y][x])) continue;
+                float worldX = (static_cast<float>(x) * tileSize) - offsetX;
+                float worldZ = offsetZ - (static_cast<float>(y) * tileSize);
+                minX = std::min(minX, worldX);
+                maxX = std::max(maxX, worldX);
+                minZ = std::min(minZ, worldZ);
+                maxZ = std::max(maxZ, worldZ);
+            }
+        }
+
+        if (minX > maxX || minZ > maxZ) return;
+
+        // 中心 + 四隅の優先順でライト配置
+        std::vector<DirectX::XMFLOAT3> candidates;
+        const float y = cfg_BakeLightHeight.Get();
+        const float centerX = 0.5f * (minX + maxX);
+        const float centerZ = 0.5f * (minZ + maxZ);
+        candidates.push_back({centerX, y, centerZ});
+        candidates.push_back({minX, y, minZ});
+        candidates.push_back({minX, y, maxZ});
+        candidates.push_back({maxX, y, minZ});
+        candidates.push_back({maxX, y, maxZ});
+
+        const int placeCount = std::min(static_cast<int>(candidates.size()), maxBakeLights);
+        for (int i = 0; i < placeCount; ++i) {
+            Transform t{candidates[i], {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
+            PointLight pl;
+            pl.color = {cfg_BakeLightR.Get(), cfg_BakeLightG.Get(), cfg_BakeLightB.Get()};
+            pl.intensity = std::max(0.0f, cfg_BakeLightIntensity.Get());
+            ApplyDefaultPointLightParams(pl);
+
+            Entity e = world.Create()
+                           .With<Transform>(t)
+                           .With<PointLight>(pl)
+                           .Build();
+            stageOwnedEntities_.push_back(e);
+        }
     }
 
     void CreateBlockByType(World &world, const DirectX::XMFLOAT3 &position, int blockType) {
@@ -707,6 +810,7 @@ class GameScene : public IScene {
             DirectX::XMFLOAT3{cfg_StartEmissiveR, cfg_StartEmissiveG, cfg_StartEmissiveB},
             cfg_StartEmissiveIntensity,
             cfg_StartLightRange};
+        ApplyDefaultPointLightParams(light);
 
         Entity e = world.Create()
                        .With<Transform>(t)
@@ -737,6 +841,7 @@ class GameScene : public IScene {
             DirectX::XMFLOAT3{cfg_GoalEmissiveR, cfg_GoalEmissiveG, cfg_GoalEmissiveB},
             cfg_GoalEmissiveIntensity,
             cfg_GoalLightRange};
+        ApplyDefaultPointLightParams(light);
 
         Entity e = world.Create()
                        .With<Transform>(t)
@@ -1057,7 +1162,7 @@ class GameScene : public IScene {
 
 
     void BakeStageLighting(World & /*world*/) {
-        // プレースホルダー
+        // Deprecated placeholder（現状は CreateStageMap 内で BakeStageLights を実行）
     }
 
     void SetupStage(World &world, int stage) {
