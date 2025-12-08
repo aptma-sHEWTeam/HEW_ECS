@@ -77,14 +77,13 @@ struct GameUIUpdater : Behaviour {
         w.ForEach<StageProgress>([&](Entity e, StageProgress &sp) {
             if (auto *stageText = w.TryGet<UIText>(stageTextEntity_[0])) {
                 std::wstringstream ss;
-                ss << L"Room : " << sp.currentStage << "/";
+                ss << L" " << sp.currentStage;
                 stageText->text = ss.str();
             }
 
             if (auto *stageText = w.TryGet<UIText>(stageTextEntity_[1])) {
                 std::wstringstream ss;
-                ss << L"" << sp.selectStage;
-                ss << L"ルーム: " << sp.currentStage;
+                ss << L" " << sp.selectStage;
                 stageText->text = ss.str();
             }
         });

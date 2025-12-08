@@ -101,44 +101,6 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                             .Build();
     ownedEntities_.push_back(timeEntity);
 
-      UITransform timerUiTr;
-    timerUiTr.position = {-900.0f, -8.0f};
-    timerUiTr.size = {2000.0f, 200.0f};
-    timerUiTr.anchor = {0.0f, 0.0f};
-    timerUiTr.pivot = {0.0f, 0.0f};
-
-    UIImage timerUiImg{L"./Assets/Textures/Time/UI_timer.png"};
-    timerUiImg.opacity = 1.0f;
-    timerUiImg.keepAspect = true;
-
-    Entity timerUiEntity = world.Create()
-                               .With<UITransform>(timerUiTr)
-                               .With<UIImage>(timerUiImg)
-                               .Build();
-
-    ownedEntities_.push_back(timerUiEntity);
-
-    // タイマー背景
-    UITransform timerBgTr;
-    timerBgTr.position = {-900.0f, -8.0f};
-    timerBgTr.size = {2000.0f, 200.0f};
-    timerBgTr.anchor = {0.0f, 0.0f};
-    timerBgTr.pivot = {0.0f, 0.0f};
-
-    // 画像
-    UIImage timerBgImg;
-   // timerBgImg.filePath = {L"./Assets/Textures/Time/Timer_Sprite.png"};
-    timerBgImg.keepAspect = true;
-    timerBgImg.opacity = 1.0f;
-
-    // 背景エンティティ作成
-    Entity timerBackgroundEntity = world.Create()
-                                       .With<UITransform>(timerBgTr)
-                                       .With<UIImage>(timerBgImg)
-                                       .Build();
-
-    ownedEntities_.push_back(timerBackgroundEntity);
-
     UITransform timerImgTr;
     timerImgTr.position = {-869.0f, -6.0f};
     timerImgTr.size = {2000.0f, 200.0f};
@@ -175,21 +137,37 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     ownedEntities_.push_back(fpsEntity);
 #endif // !_DEBUG
 
+     UITransform roomImgTr;
+    roomImgTr.position = {1000.0f, 60.0f};
+    roomImgTr.size = {200.0f, 80.0f};
+    roomImgTr.anchor = {0.0f, 0.0f};
+    roomImgTr.pivot = {0.0f, 0.0f};
+
+    UIImage roomImg{L"./Assets/Textures/RoomNo/UI_Japanese_colored.png"};
+    timerImg.opacity = 1.0f;
+    timerImg.keepAspect = true;
+
+     Entity roomImageEntity = world.Create()
+                                  .With<UITransform>(roomImgTr)
+                                  .With<UIImage>(roomImg)
+                                  .Build();
+
+    ownedEntities_.push_back(roomImageEntity);
 
     UIText stageText[2];
 
     stageText[0].text = {L"Room : 0/"};
-    stageText[0].color = {1.0f, 0.5f, 0.0f, 1.0f};
+    stageText[0].color = {0.0f, 0.5f, 1.0f, 1.0f};
     stageText[0].formatId = "hud";
     float stagetextSize0 = 3.9f * sizeof(stageText[0].text);
 
     stageText[1].text = {L"0"};
-    stageText[1].color = {1.0f, 0.5f, 0.0f, 1.0f};
+    stageText[1].color = {0.0f, 0.5f, 1.0f, 1.0f};
     stageText[1].formatId = "hud";
 
     UITransform stageTransform[2];
-    stageTransform[0].position = {800.0f, 110.0f};
-    stageTransform[0].size = {130.0f, 40.0f};
+    stageTransform[0].position = {1300.0f, 60.0f};
+    stageTransform[0].size = {200.0f, 80.0f};
     stageTransform[0].anchor = {0.0f, 0.0f};
     stageTransform[0].pivot = {1.0f, 0.0f};
 
@@ -236,33 +214,58 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         updater->pauseTextEntity_ = pauseEntity;
         updater->stageTextEntity_[0] = stageEntity[0];
         updater->stageTextEntity_[1] = stageEntity[1];
-        updater->timerBackgroundEntity_ = timerBackgroundEntity;
         updater->timeImageEntity_ = timerImageEntity;
-        updater->timerUiEntity_ = timerUiEntity;
     }
     ownedEntities_.push_back(uiUpdater);
 
-    UITransform UIanimation;
-    UIanimation.position = {0.0f,0.0f};
-    UIanimation.size = {1000.0f, 1080.0f};
+   /* UITransform UIanimation;
+    UIanimation.position = {0.0f, -280.0f};
+    UIanimation.size = {1280.0f, 1280.0f};
     UIanimation.anchor = {0.0f, 0.0f};
     UIanimation.pivot = {0.0f, 0.0f};
 
-    UIImage ani{L"./Assets/Textures/Fade/tex_fade.png"};
+    UIImage ani{L"./Assets/Textures/Fade/tex_fadekorigori.png"};
     ani.opacity = 1.0f;
-    ani.keepAspect = true;
-
+    ani.keepAspect = false;
+    
     SpriteSheetAnimation anim;
     anim.frameCount = 18;
-    anim.frameTime = 0.1f;
-    anim.isLooping = true;
+    anim.frameTime = 0.08f;
+    anim.StartAnimation();
+   Entity animation = world.Create()
+                           .With<UITransform>(UIanimation)
+                           .With<UIImage>(ani)
+                           .With<UVAnimation>()
+                           .With<SpriteSheetAnimation>(anim)
+                           .Build();
 
-   //Entity animation = world.Create()
-   //                        .With<UITransform>(UIanimation)
-   //                        .With<UIImage>(ani)
-   //                        .With<UVAnimation>()
-   //                        .With<SpriteSheetAnimation>(anim)
-   //                        .Build();
+    ownedEntities_.push_back(animation);
+   fadeAnimationEntity_ = animation;*/
 
-   // ownedEntities_.push_back(animation);
+   UITransform FadeAnimation;
+   FadeAnimation.position = {0.0f, 0.0f};
+   FadeAnimation.size = {1280.0f, 720.0f};
+   FadeAnimation.anchor = {0.0f, 0.0f};
+   FadeAnimation.pivot = {0.0f, 0.0f};
+
+   UIImage fade{L"./Assets/Textures/Fade/tex_fade_reverse.png"};
+   fade.opacity = 1.0f;
+   fade.keepAspect = false;
+
+   SpriteSheetAnimation fadeOut;
+   fadeOut.frameCount = 18;
+   fadeOut.frameTime = 0.08f;
+   // フェードは初期状態では再生しない（壁ヒット時に再生開始）
+   fadeOut.isLooping = false;
+   fadeOut.isPlaying = false;
+
+   Entity fadeOutAnimation = world.Create()
+                                 .With<UITransform>(FadeAnimation)
+                                 .With<UIImage>(fade)
+                                 .With<UVAnimation>()
+                                 .With<SpriteSheetAnimation>(fadeOut)
+                          .Build();
+
+   ownedEntities_.push_back(fadeOutAnimation);
+   fadeAnimationEntity_ = fadeOutAnimation;
 }

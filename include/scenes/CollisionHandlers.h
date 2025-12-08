@@ -20,6 +20,8 @@ class GameScene;
 // GameSceneへのグローバルアクセス用ポインタ
 // 後方互換性のため維持
 inline GameScene* g_GameScene = nullptr;
+// リスポーン待機状態のグローバルフラグ（GameSceneから更新）
+inline bool g_respawnPending = false;
 
 /**
  * @brief プレイヤーをスタート地点にリセット（速度も完全リセット）
@@ -108,8 +110,31 @@ inline void CheckTimeLimit(World &w, Entity player, float timeLimitSeconds) {
 struct PlayerCollisionHandler : ICollisionHandler {
     void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override {
         if (w.Has<GoalTag>(other)) {
-            w.ForEach<StageProgress>([](Entity, StageProgress &sp) { sp.requestAdvance = true; });
             DEBUGLOG("Player reached goal");
+
+            // 既にゴール吸引中なら重複処理を避ける
+            if (w.Has<GoalAttractor>(self)) {
+                return;
+            }
+
+            // ゆっくり吸い込み: ゴール中心へイージングで寄せる
+            auto *tPlayer = w.TryGet<Transform>(self);
+            auto *tGoal = w.TryGet<Transform>(other);
+            if (tPlayer && tGoal) {
+                // 速度をリセット
+                if (auto *v = w.TryGet<PlayerVelocity>(self)) {
+                    v->velocity = {0.0f, 0.0f};
+                    v->isBoosting = false;
+                    v->isDecelerating = false;
+                    v->boostSpeed = 0.0f;
+                    v->boostDir = {0.0f, 0.0f};
+                }
+                // 吸い込み用のBehaviourを付与（ステージ進行は吸い込み完了後に行う）
+                GoalAttractor attract;
+                attract.target = {tGoal->position.x, 0.0f, tGoal->position.z};
+                attract.duration = 1.2f; // よりゆっくり(秒)
+                w.Add<GoalAttractor>(self, attract);
+            }
         }
     }
 };

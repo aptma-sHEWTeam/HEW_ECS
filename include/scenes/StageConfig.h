@@ -44,6 +44,30 @@ inline ConfigVar<float> cfg_WallR{"Stage.Wall.Visual", "WallColorR", 1.0f};
 inline ConfigVar<float> cfg_WallG{"Stage.Wall.Visual", "WallColorG", 1.0f};
 inline ConfigVar<float> cfg_WallB{"Stage.Wall.Visual", "WallColorB", 1.0f};
 
+// 環境光・平行光・ポイントライトデフォルト
+inline ConfigVar<float> cfg_AmbientR{"Lighting.Ambient", "ColorR", 0.15f};
+inline ConfigVar<float> cfg_AmbientG{"Lighting.Ambient", "ColorG", 0.15f};
+inline ConfigVar<float> cfg_AmbientB{"Lighting.Ambient", "ColorB", 0.20f};
+inline ConfigVar<float> cfg_AmbientIntensity{"Lighting.Ambient", "Intensity", 1.0f};
+inline ConfigVar<bool> cfg_DirLightEnabled{"Lighting.Directional", "Enabled", true};
+inline ConfigVar<float> cfg_DirLightX{"Lighting.Directional", "DirX", 0.577f};
+inline ConfigVar<float> cfg_DirLightY{"Lighting.Directional", "DirY", -0.577f};
+inline ConfigVar<float> cfg_DirLightZ{"Lighting.Directional", "DirZ", 0.577f};
+inline ConfigVar<float> cfg_DirLightR{"Lighting.Directional", "ColorR", 1.0f};
+inline ConfigVar<float> cfg_DirLightG{"Lighting.Directional", "ColorG", 1.0f};
+inline ConfigVar<float> cfg_DirLightB{"Lighting.Directional", "ColorB", 1.0f};
+inline ConfigVar<float> cfg_DirLightIntensity{"Lighting.Directional", "Intensity", 1.0f};
+inline ConfigVar<float> cfg_PointLightConst{"Lighting.Point.Default", "Constant", 0.5f};
+inline ConfigVar<float> cfg_PointLightLinear{"Lighting.Point.Default", "Linear", 0.04f};
+inline ConfigVar<float> cfg_PointLightQuadratic{"Lighting.Point.Default", "Quadratic", 0.007f};
+inline ConfigVar<float> cfg_PointLightRange{"Lighting.Point.Default", "Range", 10.0f};
+inline ConfigVar<float> cfg_BakeLightSpacing{"Lighting.Bake", "Spacing", 6.0f};
+inline ConfigVar<float> cfg_BakeLightHeight{"Lighting.Bake", "Height", 2.5f};
+inline ConfigVar<float> cfg_BakeLightIntensity{"Lighting.Bake", "Intensity", 0.7f};
+inline ConfigVar<float> cfg_BakeLightR{"Lighting.Bake", "ColorR", 0.9f};
+inline ConfigVar<float> cfg_BakeLightG{"Lighting.Bake", "ColorG", 0.9f};
+inline ConfigVar<float> cfg_BakeLightB{"Lighting.Bake", "ColorB", 0.9f};
+
 inline ConfigVar<float> cfg_FloorWallR{"Stage.Wall.Visual", "FloorWallColorR", 0.5f};
 inline ConfigVar<float> cfg_FloorWallG{"Stage.Wall.Visual", "FloorWallColorG", 0.5f};
 inline ConfigVar<float> cfg_FloorWallB{"Stage.Wall.Visual", "FloorWallColorB", 0.5f};
