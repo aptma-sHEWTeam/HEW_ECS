@@ -856,13 +856,10 @@ class GameScene : public IScene {
     void CreateFloor(World &world, const DirectX::XMFLOAT3 &position) {
         DirectX::XMFLOAT3 floorPos = {position.x, position.y - 1, position.z};
         Transform transform{{floorPos}, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_FloorThickness, 1.0f}};
-        MeshRenderer renderer;
-        renderer.meshType = MeshType::Cube;
 
         Entity floor = world.Create()
                            .With<Transform>(transform)
                            .With<Model>(cfg_FloorFBXPass)
-                           .With<MeshRenderer>(renderer)
                            .Build();
 
         // ステージ切り替え時に破棄されるよう、ステージ所有リストへ登録
@@ -1224,6 +1221,7 @@ class GameScene : public IScene {
         Entity dashBoardEntity = world.Create()
                                      .With<Transform>(transform)
                                      .With<MeshRenderer>(renderer)
+                                     .With<Model>()
                                      .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                                      .With<GimmickTag>()
                                      .With<DashBordCollisionHandler>()
