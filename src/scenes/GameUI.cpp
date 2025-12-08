@@ -166,12 +166,12 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     stageText[1].formatId = "hud";
 
     UITransform stageTransform[2];
-    stageTransform[0].position = {1300.0f, 60.0f};
+    stageTransform[0].position = {1360.0f, 84.0f};
     stageTransform[0].size = {200.0f, 80.0f};
     stageTransform[0].anchor = {0.0f, 0.0f};
     stageTransform[0].pivot = {1.0f, 0.0f};
 
-    stageTransform[1].position = {stageTransform[0].position.x + stagetextSize0, stageTransform[0].position.y};
+    stageTransform[1].position = {stageTransform[0].position.x + 65.0f, stageTransform[0].position.y};
     stageTransform[1].size = stageTransform[0].size;
     stageTransform[1].anchor = stageTransform[0].anchor;
     stageTransform[1].pivot = stageTransform[0].pivot;
