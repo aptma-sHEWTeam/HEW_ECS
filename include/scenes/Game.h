@@ -254,6 +254,7 @@ class GameScene : public IScene {
 
         // ステージ進行リクエストの処理
         HandleStageAdvance(world);
+        UpdateStageTransition(world, deltaTime * timeScale);
 
         // 入力システムの参照を設定
         SetupInputReferences(world, input);
@@ -424,16 +425,7 @@ class GameScene : public IScene {
         if (pendingRespawn_) return;
 
         // 再生用フェードアニメーションを開始
-        if (world.IsAlive(fadeAnimationEntity_)) {
-            if (auto *anim = world.TryGet<SpriteSheetAnimation>(fadeAnimationEntity_)) {
-                // リセット相当の初期化
-                anim->currentFrame = 0;
-                anim->currentTime = 0.0f;
-                anim->isFinished = false;
-                anim->isLooping = false;
-                anim->StartAnimation();
-            }
-        }
+        StartFadeOut(world);
 
         if (auto* playerStatus = world.TryGet<PlayerStatus>(playerEntity_))
         {
@@ -473,6 +465,14 @@ class GameScene : public IScene {
     bool IsRespawnPending() const { return pendingRespawn_; }
 
   private:
+    struct StageAdvanceInfo {
+        bool active = false;
+        bool stageBuilt = false;
+        int stage = 0;
+        int nextRoom = 0;
+        std::string nextRoomPath;
+    };
+
     // =========================================
     // 初期化ヘルパーメソッド
     // =========================================
@@ -517,27 +517,104 @@ class GameScene : public IScene {
                     return;
                 }
 
-                // 既存のステージCSV読み込みエンティティを破棄
+                if (pendingStageAdvance_.active) {
+                    DEBUGLOG_WARNING("[StageCreate] 既に遷移中のため新規リクエストを破棄しました");
+                    return;
+                }
+
+                pendingStageAdvance_.active = true;
+                pendingStageAdvance_.stageBuilt = false;
+                pendingStageAdvance_.stage = sp.currentStage;
+                pendingStageAdvance_.nextRoom = nextRoomIndex;
+                pendingStageAdvance_.nextRoomPath = *nextRoomPath;
+                stageAdvanceTimer_ = 0.0f;
+
+                StartFadeOut(world);
+                DEBUGLOG("同一ステージ内で次のルームへ進行(フェード演出開始): Stage" + std::to_string(sp.currentStage) + ", room" + std::to_string(pendingStageAdvance_.nextRoom));
+            }
+        });
+    }
+
+    void UpdateStageTransition(World &world, float dt) {
+        if (!pendingStageAdvance_.active) return;
+
+        stageAdvanceTimer_ += dt;
+        auto *anim = world.TryGet<SpriteSheetAnimation>(fadeAnimationEntity_);
+        const float fadeDuration = GetFadeDurationSeconds(world);
+        const float waitDuration = (fadeDuration > 0.0f) ? fadeDuration : 1.0f;
+
+        const bool fadeOutFinished = anim && !anim->isPlaying && anim->isFinished && anim->playbackDirection >= 0;
+        if (!pendingStageAdvance_.stageBuilt) {
+            if (fadeOutFinished || stageAdvanceTimer_ >= waitDuration) {
+                stageAdvanceTimer_ = 0.0f;
+
                 std::vector<Entity> stageCreateEntities;
-                world.ForEach<StageCreate>([&](Entity e, StageCreate &) {
-                    stageCreateEntities.push_back(e);
-                });
+                world.ForEach<StageCreate>([&](Entity e, StageCreate &) { stageCreateEntities.push_back(e); });
                 for (auto e : stageCreateEntities) {
                     if (world.IsAlive(e)) {
                         world.DestroyEntityWithCause(e, World::Cause::StageReset);
                     }
                 }
 
-                // ステージ番号は維持し、ルームのみ進める
-                sp.currentRoom = nextRoomIndex;
+                world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+                    sp.currentRoom = pendingStageAdvance_.nextRoom;
+                });
 
-                Entity newStageEntity = world.Create().With<StageCreate>(*nextRoomPath).Build();
+                Entity newStageEntity = world.Create().With<StageCreate>(pendingStageAdvance_.nextRoomPath).Build();
                 ownedEntities_.push_back(newStageEntity);
 
-                DEBUGLOG("同一ステージ内で次のルームへ進行: Stage" + std::to_string(sp.currentStage) + ", room" + std::to_string(sp.currentRoom));
-                SetupStage(world, sp.currentStage);
+                DEBUGLOG("同一ステージ内で次のルームへ進行: Stage" + std::to_string(pendingStageAdvance_.stage) + ", room" + std::to_string(pendingStageAdvance_.nextRoom));
+                SetupStage(world, pendingStageAdvance_.stage);
+                pendingStageAdvance_.stageBuilt = true;
+                StartFadeIn(world);
             }
-        });
+            return;
+        }
+
+        const bool fadeInFinished = anim && !anim->isPlaying && anim->isFinished && anim->playbackDirection < 0;
+        if (fadeInFinished || stageAdvanceTimer_ >= waitDuration) {
+            pendingStageAdvance_ = {};
+            stageAdvanceTimer_ = 0.0f;
+        }
+    }
+
+    void StartFadeOut(World &world) {
+        if (!world.IsAlive(fadeAnimationEntity_)) return;
+        if (auto *anim = world.TryGet<SpriteSheetAnimation>(fadeAnimationEntity_)) {
+            anim->isLooping = false;
+            anim->StartAnimation(1);
+            ApplyFadeFrame(world, *anim);
+        }
+    }
+
+    void StartFadeIn(World &world) {
+        if (!world.IsAlive(fadeAnimationEntity_)) return;
+        if (auto *anim = world.TryGet<SpriteSheetAnimation>(fadeAnimationEntity_)) {
+            anim->isLooping = false;
+            anim->StartAnimation(-1);
+            ApplyFadeFrame(world, *anim);
+        }
+    }
+
+    float GetFadeDurationSeconds(World &world) const {
+        if (auto *anim = world.TryGet<SpriteSheetAnimation>(fadeAnimationEntity_)) {
+            const int count = std::max(anim->frameCount, 0);
+            return anim->frameTime * static_cast<float>(count);
+        }
+        return 0.0f;
+    }
+
+    void ApplyFadeFrame(World &world, SpriteSheetAnimation &anim) {
+        if (anim.uv.size() != static_cast<size_t>(anim.frameCount)) {
+            anim.UpdateUV();
+        }
+
+        if (auto *img = world.TryGet<UIImage>(fadeAnimationEntity_)) {
+            const int frameIndex = std::clamp(anim.currentFrame, 0, std::max(0, anim.frameCount - 1));
+            if (!anim.uv.empty()) {
+                img->uvRect = anim.uv[frameIndex];
+            }
+        }
     }
 
     void SetupInputReferences(World &world, InputSystem &input) {
@@ -1267,6 +1344,7 @@ class GameScene : public IScene {
         respawnTimer_ -= dt;
         if (respawnTimer_ <= 0.0f) {
             ResetPlayerToStart(world, respawnPlayer_, true);
+            StartFadeIn(world);
             pendingRespawn_ = false;
             g_respawnPending = false;
             respawnTimer_ = 0.0f;
@@ -1450,6 +1528,8 @@ class GameScene : public IScene {
     Entity respawnPlayer_{};
     float respawnTimer_ = 0.0f;
     World *world_ = nullptr;
+    StageAdvanceInfo pendingStageAdvance_{};
+    float stageAdvanceTimer_ = 0.0f;
 
     DirectX::XMFLOAT3 baseTarget_ = {0.0f, 0.0f, 0.0f};
 };

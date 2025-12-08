@@ -6,6 +6,7 @@
 #include "graphics/RenderSystem.h"
 #include <vector>
 #include <cmath>
+#include <algorithm>
 
 /**
  * @file Animation.h
@@ -288,6 +289,7 @@ struct SpriteSheetAnimation : Behaviour
     float currentTime = 0.0f;
     int currentFrame = 0;
     bool isFinished = false;
+    int playbackDirection = 1; ///< 1:正方向, -1:逆方向再生
 
     //描画時にUIImageが参照するuv    {x,y,w,h}
     std::vector<std::array<float, 4>>uv{};
@@ -311,19 +313,27 @@ struct SpriteSheetAnimation : Behaviour
         if (currentTime >= frameTime)
         {
             currentTime -= frameTime;
-            currentFrame++;
+            currentFrame += playbackDirection;
 
-            if (currentFrame >= frameCount)
-            {
-                if (isLooping)
-                {
-                    currentFrame = 0;
+            if (playbackDirection >= 0) {
+                if (currentFrame >= frameCount) {
+                    if (isLooping) {
+                        currentFrame = 0;
+                    } else {
+                        currentFrame = frameCount - 1;
+                        isPlaying = false;
+                        isFinished = true;
+                    }
                 }
-                else
-                {
-                    currentFrame = frameCount - 1;
-                    isPlaying = false;
-                    isFinished = true;
+            } else {
+                if (currentFrame < 0) {
+                    if (isLooping) {
+                        currentFrame = frameCount - 1;
+                    } else {
+                        currentFrame = 0;
+                        isPlaying = false;
+                        isFinished = true;
+                    }
                 }
             }
         }
@@ -358,9 +368,17 @@ struct SpriteSheetAnimation : Behaviour
         }
     }
     
-    void StartAnimation()
+    void StartAnimation(int direction = 1, bool resetFrame = true)
     {
-        isPlaying = true;
+        playbackDirection = (direction >= 0) ? 1 : -1;
+        if (resetFrame) {
+            currentFrame = (playbackDirection >= 0) ? 0 : std::max(0, frameCount - 1);
+            currentTime = 0.0f;
+        } else {
+            currentFrame = std::clamp(currentFrame, 0, std::max(0, frameCount - 1));
+        }
+        isPlaying = (frameCount > 0);
+        isFinished = false;
     }
 
     void StopAnimation() 
