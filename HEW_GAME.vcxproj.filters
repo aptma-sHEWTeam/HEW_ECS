@@ -131,12 +131,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Hp.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="MouseCoordinate.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="RoomUIComponents.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -394,7 +388,7 @@
     <None Include="Assets\Textures\test.png">
       <Filter>Assets\Textures</Filter>
     </None>
-    <None Include="README.md"/>
+    <None Include="README.md" />
     <None Include="docs\ChargeSystem_Guide.md">
       <Filter>Docs</Filter>
     </None>
@@ -427,7 +421,7 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="debug_log.txt"/>
-    <Text Include="x64\Debug\debug_log.txt"/>
+    <Text Include="debug_log.txt" />
+    <Text Include="x64\Debug\debug_log.txt" />
   </ItemGroup>
 </Project>

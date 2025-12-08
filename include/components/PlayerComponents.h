@@ -27,13 +27,13 @@
 #include "config/ConfigVar.h"
 
 //ConfigVar
-inline static ConfigVar<float> cfg_MinChargeSpeed{"Player", "MinChargeSpeedFactor", 0.4f};
-inline static ConfigVar<float> cfg_ChargeMaxTime{"Player", "ChargeMaxTime", 0.7f};
-inline static ConfigVar<float> cfg_ReleaseThreshold{"Player", "ReleaseThreshold", 0.3f};
-inline static ConfigVar<float> cfg_ChargeMoveAmount{"Player", "ChargeMoveAmount", 0.025f};
-inline static ConfigVar<float> cfg_LimitX{"Player", "LimitX", 15.0f};
-inline static ConfigVar<float> cfg_LimitY{"Player", "LimitY", 15.0f};
-inline static ConfigVar<float> cfg_AccelerateMagnification{"Player", "AccelerateMagnification", 1.5f};
+inline static ConfigVar<float> cfg_MinChargeSpeed{"Player.Charge", "MinChargeSpeedFactor", 0.4f};
+inline static ConfigVar<float> cfg_ChargeMaxTime{"Player.Charge", "ChargeMaxTime", 0.7f};
+inline static ConfigVar<float> cfg_ReleaseThreshold{"Player.Charge", "ReleaseThreshold", 0.3f};
+inline static ConfigVar<float> cfg_ChargeMoveAmount{"Player.Charge", "ChargeMoveAmount", 0.025f};
+inline static ConfigVar<float> cfg_LimitX{"Player.Bounds", "LimitX", 15.0f};
+inline static ConfigVar<float> cfg_LimitY{"Player.Bounds", "LimitY", 15.0f};
+inline static ConfigVar<float> cfg_AccelerateMagnification{"Player.Movement", "AccelerateMagnification", 1.5f};
 
 // =========================================
 // 定数定義
@@ -55,7 +55,7 @@ struct PlayerStatus : Behaviour {
 // =========================================
 
 struct PlayerVelocity : Behaviour {
-    inline static ConfigVar<float> cfg_Speed{"Player", "MoveSpeed", 8.0f};
+    inline static ConfigVar<float> cfg_Speed{"Player.Movement", "MoveSpeed", 8.0f};
 
     float Acceleration = cfg_AccelerateMagnification; ///< 加速度の倍率
     float MinSpeed = cfg_MinChargeSpeed;              ///< 減速時の最小速度
@@ -300,11 +300,11 @@ struct PlayerMovement : Behaviour {
 
 struct PlayerGuide : Behaviour {
     // Config Variables
-    inline static ConfigVar<float> cfg_GuideScaleX{"Player", "GuideScaleX", 0.4f};
-    inline static ConfigVar<float> cfg_GuideScaleY{"Player", "GuideScaleY", 0.4f};
-    inline static ConfigVar<float> cfg_GuideScaleZ{"Player", "GuideScaleZ", 0.4f};
-    inline static ConfigVar<float> cfg_GuideOffsetDistance{"Player", "GuideOffsetDistance", 0.5f};
-    inline static ConfigVar<int> cfg_GuideQuantity{"Player", "GuideQuantity", 3};
+    inline static ConfigVar<float> cfg_GuideScaleX{"Player.Guide", "GuideScaleX", 0.4f};
+    inline static ConfigVar<float> cfg_GuideScaleY{"Player.Guide", "GuideScaleY", 0.4f};
+    inline static ConfigVar<float> cfg_GuideScaleZ{"Player.Guide", "GuideScaleZ", 0.4f};
+    inline static ConfigVar<float> cfg_GuideOffsetDistance{"Player.Guide", "GuideOffsetDistance", 0.5f};
+    inline static ConfigVar<int> cfg_GuideQuantity{"Player.Guide", "GuideQuantity", 3};
 
     // コンポーネント保存用変数
     PlayerMovement *playerMove{};

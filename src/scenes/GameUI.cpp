@@ -101,6 +101,62 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                             .Build();
     ownedEntities_.push_back(timeEntity);
 
+      UITransform timerUiTr;
+    timerUiTr.position = {-900.0f, -8.0f};
+    timerUiTr.size = {2000.0f, 200.0f};
+    timerUiTr.anchor = {0.0f, 0.0f};
+    timerUiTr.pivot = {0.0f, 0.0f};
+
+    UIImage timerUiImg{L"./Assets/Textures/Time/UI_timer.png"};
+    timerUiImg.opacity = 1.0f;
+    timerUiImg.keepAspect = true;
+
+    Entity timerUiEntity = world.Create()
+                               .With<UITransform>(timerUiTr)
+                               .With<UIImage>(timerUiImg)
+                               .Build();
+
+    ownedEntities_.push_back(timerUiEntity);
+
+    // タイマー背景
+    UITransform timerBgTr;
+    timerBgTr.position = {-900.0f, -8.0f};
+    timerBgTr.size = {2000.0f, 200.0f};
+    timerBgTr.anchor = {0.0f, 0.0f};
+    timerBgTr.pivot = {0.0f, 0.0f};
+
+    // 画像
+    UIImage timerBgImg;
+   // timerBgImg.filePath = {L"./Assets/Textures/Time/Timer_Sprite.png"};
+    timerBgImg.keepAspect = true;
+    timerBgImg.opacity = 1.0f;
+
+    // 背景エンティティ作成
+    Entity timerBackgroundEntity = world.Create()
+                                       .With<UITransform>(timerBgTr)
+                                       .With<UIImage>(timerBgImg)
+                                       .Build();
+
+    ownedEntities_.push_back(timerBackgroundEntity);
+
+    UITransform timerImgTr;
+    timerImgTr.position = {-900.0f, -8.0f};
+    timerImgTr.size = {2000.0f, 200.0f};
+    timerImgTr.anchor = {0.0f, 0.0f};
+    timerImgTr.pivot = {0.0f, 0.0f};
+
+    UIImage timerImg{L"./Assets/Textures/Time/timer/timer_00000.png"};
+    timerImg.opacity = 1.0f;
+    timerImg.keepAspect = true;
+
+    Entity timerImageEntity = world.Create()
+                                  .With<UITransform>(timerImgTr)
+                                  .With<UIImage>(timerImg)
+                                  .Build();
+
+    ownedEntities_.push_back(timerImageEntity);
+
+
 #ifdef _DEBUG
     UITransform fpsTransform;
     fpsTransform.position = {-20.0f, 20.0f};
@@ -151,7 +207,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                              .Build();
         ownedEntities_.push_back(stageEntity[i]);
     }
-     
+
     UITransform pauseTransform;
     pauseTransform.position = {0.0f, 0.0f};
     pauseTransform.size = {0.0f, 0.0f};
@@ -180,26 +236,11 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         updater->pauseTextEntity_ = pauseEntity;
         updater->stageTextEntity_[0] = stageEntity[0];
         updater->stageTextEntity_[1] = stageEntity[1];
+        updater->timerBackgroundEntity_ = timerBackgroundEntity;
+        updater->timeImageEntity_ = timerImageEntity;
+        updater->timerUiEntity_ = timerUiEntity;
     }
     ownedEntities_.push_back(uiUpdater);
-
-    // テスト画像描画: Asetts/Image/test.png を画面左上に表示
-    UITransform imgTransform;
-    
-    imgTransform.position = {20.0f, 20.0f};
-    imgTransform.size = {256.0f, 256.0f};
-    imgTransform.anchor = {0.0f, 0.0f};
-    imgTransform.pivot = {0.0f, 0.0f};
-
-    UIImage img{L"./Assets/Textures/test.png" };
-    img.opacity = 1.0f;
-    img.keepAspect = true;
-
-    Entity imgEntity = world.Create()
-                            .With<UITransform>(imgTransform)
-                            .With<UIImage>(img)
-                            .Build();
-    ownedEntities_.push_back(imgEntity);
 
     UITransform UIanimation;
     UIanimation.position = {0.0f,0.0f};
@@ -216,12 +257,12 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     anim.frameTime = 0.08f;
     anim.isPlaying = false;
 
-   Entity animation = world.Create()
-                           .With<UITransform>(UIanimation)
-                           .With<UIImage>(ani)
-                           .With<UVAnimation>()
-                           .With<SpriteSheetAnimation>(anim)
-                           .Build();
+   //Entity animation = world.Create()
+   //                        .With<UITransform>(UIanimation)
+   //                        .With<UIImage>(ani)
+   //                        .With<UVAnimation>()
+   //                        .With<SpriteSheetAnimation>(anim)
+   //                        .Build();
 
     ownedEntities_.push_back(animation);
    fadeAnimationEntity_ = animation;

@@ -24,30 +24,30 @@ enum class CameraReactionType {
 // カメラリアクション用ConfigVars
 // =========================================
 /** @brief カメラシェイク時のX軸方向の揺れの周波数 */
-inline ConfigVar<float> cfg_CameraShakeFreqX{"Camera", "ShakeFreqX", 35.0f};
+inline ConfigVar<float> cfg_CameraShakeFreqX{"Camera.Reaction.Shake", "ShakeFreqX", 35.0f};
 /** @brief カメラシェイク時のY軸方向の揺れの周波数 */
-inline ConfigVar<float> cfg_CameraShakeFreqY{"Camera", "ShakeFreqY", 28.0f};
+inline ConfigVar<float> cfg_CameraShakeFreqY{"Camera.Reaction.Shake", "ShakeFreqY", 28.0f};
 /** @brief カメラシェイク時のZ軸方向の揺れの周波数 */
-inline ConfigVar<float> cfg_CameraShakeFreqZ{"Camera", "ShakeFreqZ", 41.0f};
+inline ConfigVar<float> cfg_CameraShakeFreqZ{"Camera.Reaction.Shake", "ShakeFreqZ", 41.0f};
 /** @brief カメラシェイク効果の減衰率。大きいほど早く収まる */
-inline ConfigVar<float> cfg_CameraShakeDecay{"Camera", "ShakeDecay", 3.0f};
+inline ConfigVar<float> cfg_CameraShakeDecay{"Camera.Reaction.Shake", "ShakeDecay", 3.0f};
 /** @brief カメラシェイクのランダム性の強さ。0で完全なsin波、1で完全なランダム */
-inline ConfigVar<float> cfg_CameraShakeRandomness{"Camera", "ShakeRandomness", 0.3f};
+inline ConfigVar<float> cfg_CameraShakeRandomness{"Camera.Reaction.Shake", "ShakeRandomness", 0.3f};
 /** @brief カメラシェイク時のY軸方向の揺れのスケール（他軸との相対） */
-inline ConfigVar<float> cfg_CameraShakeYScale{"Camera", "ShakeYScale", 0.5f};
+inline ConfigVar<float> cfg_CameraShakeYScale{"Camera.Reaction.Shake", "ShakeYScale", 0.5f};
 /** @brief カメラの衝撃（インパルス）効果の減衰率。大きいほど早く収まる */
-inline ConfigVar<float> cfg_CameraImpulseDecay{"Camera", "ImpulseDecay", 5.0f};
+inline ConfigVar<float> cfg_CameraImpulseDecay{"Camera.Reaction.Impulse", "ImpulseDecay", 5.0f};
 /** @brief カメラのズームイン/アウト アニメーションの速度 */
-inline ConfigVar<float> cfg_CameraZoomSpeed{"Camera", "ZoomSpeed", 2.0f};
+inline ConfigVar<float> cfg_CameraZoomSpeed{"Camera.Reaction.Zoom", "ZoomSpeed", 2.0f};
 /** @brief カメラがプレイヤーを追従する際の滑らかさ。大きいほど素早く追従する */
-inline ConfigVar<float> cfg_CameraFollowSmooth{"Camera", "FollowSmooth", 5.0f};
+inline ConfigVar<float> cfg_CameraFollowSmooth{"Camera.Reaction.Follow", "FollowSmooth", 5.0f};
 
 // =========================================
 // 壁衝突リスポーン用ConfigVars
 // =========================================
 /** @brief 壁衝突時のカメラシェイクの強さ */
-inline ConfigVar<float> cfg_WallHitShakeIntensity{"Game", "WallHitShakeIntensity", 0.5f};
+inline ConfigVar<float> cfg_WallHitShakeIntensity{"Camera.Reaction.WallHit", "WallHitShakeIntensity", 0.5f};
 /** @brief 壁衝突時のカメラシェイクの持続時間 */
-inline ConfigVar<float> cfg_WallHitShakeDuration{"Game", "WallHitShakeDuration", 0.3f};
+inline ConfigVar<float> cfg_WallHitShakeDuration{"Camera.Reaction.WallHit", "WallHitShakeDuration", 0.3f};
 /** @brief 壁衝突後、プレイヤーがリスポーンするまでの遅延時間 */
-inline ConfigVar<float> cfg_WallHitRespawnDelay{"Game", "WallHitRespawnDelay", 0.4f};
+inline ConfigVar<float> cfg_WallHitRespawnDelay{"Camera.Reaction.WallHit", "WallHitRespawnDelay", 0.4f};
