@@ -19,6 +19,11 @@
 #include "input/GamepadSystem.h"
 #include "components/Collision.h"
 #include "scenes/Game.h"
+#include "components/StageComponents.h" // StageProgress for stage advance after goal easing
+// g_GameScene は CollisionHandlers.h で定義されるグローバル。参照のため extern 宣言を追加。
+class GameScene; extern GameScene* g_GameScene;
+extern bool g_respawnPending; // リスポーン待機フラグの参照
+
 #include <DirectXMath.h>
 #include <cmath>
 #include <algorithm>
@@ -201,6 +206,19 @@ struct PlayerMovement : Behaviour {
         auto *playerStatus = w.TryGet<PlayerStatus>(self);
         if (!t || !v || (!input_ && !gamepad_)) return;
 
+        // リスポーン待機中は完全停止（グローバルフラグ参照）
+        if (g_respawnPending) {
+            v->velocity = {0.0f, 0.0f};
+            v->isBoosting = false;
+            v->isDecelerating = false;
+            v->boostSpeed = 0.0f;
+            ResetAngleHistory();
+            isCharging_ = false;
+            wasCharging_ = false;
+            wasChargingPrev_ = false;
+            return;
+        }
+
         v->speed = PlayerVelocity::cfg_Speed;
         minChargeSpeedFactor = cfg_MinChargeSpeed;
         chargeMaxTime = cfg_ChargeMaxTime;
@@ -342,6 +360,16 @@ struct PlayerGuide : Behaviour {
     }
 
     void OnUpdate(World &w, Entity self, float dt) override {
+        // リスポーン待機中はガイドを完全非表示
+        if (g_respawnPending) {
+            for (auto e : guidEntities) {
+                if (auto *gt = w.TryGet<Transform>(e)) {
+                    gt->scale = {0, 0, 0};
+                }
+            }
+            return;
+        }
+
         playerMove = w.TryGet<PlayerMovement>(self);
         selfTransform = w.TryGet<Transform>(self);
 

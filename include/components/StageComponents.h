@@ -42,6 +42,7 @@ struct GoalTag : IComponent {};
 struct StageProgress : IComponent {
     int currentStage = 1;
     int selectStage = 1;
+    int currentRoom = 1; // 現在のルーム番号（同一ステージ内の部屋）
     bool requestAdvance = false;
 };
 
@@ -94,17 +95,29 @@ inline int GetAvailableStageCount() {
 inline std::optional<std::string> ResolveStageCsvPath(int stage) {
     namespace fs = std::filesystem;
     std::error_code ec;
-    const std::array<std::string, 2> candidates = {
-        "Assets/StageData/StageCollision/DebugStage" + std::to_string(stage) + "/room1.csv",
-        "Assets/StageData/StageCollision/Stage" + std::to_string(stage) + "/room1.csv"};
 
-    for (const auto& pathStr : candidates) {
-        const fs::path path{pathStr};
-        if (fs::exists(path, ec) && !ec) {
-            return pathStr;
-        }
+    const std::string pathStr = "Assets/StageData/StageCollision/Stage" + std::to_string(stage) + "/room1.csv";
+    const fs::path path{pathStr};
+    if (fs::exists(path, ec) && !ec) {
+        return pathStr;
     }
 
+    return std::nullopt;
+}
+
+/**
+ * @brief ステージ番号とルーム番号からCSVパスを解決する
+ * @details 指定されたステージとルームに対応する CSV ファイルのパスを返す
+ */
+inline std::optional<std::string> ResolveStageRoomCsvPath(int stage, int room) {
+    namespace fs = std::filesystem;
+    std::error_code ec;
+
+    const std::string pathStr = "Assets/StageData/StageCollision/Stage" + std::to_string(stage) + "/room" + std::to_string(room) + ".csv";
+    const fs::path path{pathStr};
+    if (fs::exists(path, ec) && !ec) {
+        return pathStr;
+    }
     return std::nullopt;
 }
 
@@ -378,5 +391,10 @@ struct LoadMovingObstacle : IComponent {
     LoadMovingObstacle(const LoadMovingObstacle &) = default;
     LoadMovingObstacle &operator=(const LoadMovingObstacle &) = default;
 };
+
+
+
+
+
 
 

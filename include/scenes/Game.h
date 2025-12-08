@@ -81,7 +81,37 @@ class GameScene : public IScene {
 
         // レンダリングシステムの初期化と環境光の設定
         RenderingSystem::GetInstance().Initialize(gfx->Dev());
-        RenderingSystem::GetInstance().SetAmbientLight({0.08f, 0.08f, 0.08f}, 1.0f);
+        DirectX::XMFLOAT3 ambientColor{
+            cfg_AmbientR.Get(),
+            cfg_AmbientG.Get(),
+            cfg_AmbientB.Get()
+        };
+        RenderingSystem::GetInstance().SetAmbientLight(ambientColor, cfg_AmbientIntensity.Get());
+
+        // 平行光の生成（有効時のみ）
+        if (cfg_DirLightEnabled.Get()) {
+            Entity dirLightEntity = world.Create().With<DirectionalLight>().Build();
+            ownedEntities_.push_back(dirLightEntity);
+
+            if (auto *dl = world.TryGet<DirectionalLight>(dirLightEntity)) {
+                DirectX::XMFLOAT3 dir{cfg_DirLightX.Get(), cfg_DirLightY.Get(), cfg_DirLightZ.Get()};
+                DirectX::XMVECTOR v = DirectX::XMLoadFloat3(&dir);
+                float lenSq = DirectX::XMVectorGetX(DirectX::XMVector3LengthSq(v));
+                if (lenSq > 1e-6f) {
+                    v = DirectX::XMVector3Normalize(v);
+                    DirectX::XMStoreFloat3(&dir, v);
+                } else {
+                    dir = {0.0f, -1.0f, 0.0f};
+                }
+                dl->direction = dir;
+                dl->color = DirectX::XMFLOAT4{
+                    cfg_DirLightR.Get(),
+                    cfg_DirLightG.Get(),
+                    cfg_DirLightB.Get(),
+                    std::max(0.0f, cfg_DirLightIntensity.Get())
+                };
+            }
+        }
         // テキスト描画システムの初期化
         try {
             if (!textSystem_.Init(*gfx)) {
@@ -152,11 +182,15 @@ class GameScene : public IScene {
 
             status.selectStage = desiredStage;
             status.currentStage = desiredStage;
+            status.currentRoom = 1; // ステージ開始時は常にroom1から
 
-            auto stagePath = ResolveStageCsvPath(desiredStage);
+            auto stagePath = ResolveStageRoomCsvPath(desiredStage, status.currentRoom);
             if (!stagePath) {
-                DEBUGLOG_ERROR("[StageCreate] ステージ" + std::to_string(desiredStage) + "のCSVが見つかりません。Stage1へフォールバックします");
-                stagePath = ResolveStageCsvPath(1);
+                DEBUGLOG_ERROR("[StageCreate] ステージ" + std::to_string(desiredStage) + " の room" + std::to_string(status.currentRoom) + ".csv が見つかりません。Stage1/room1へフォールバックします");
+                status.currentStage = 1;
+                status.selectStage = 1;
+                status.currentRoom = 1;
+                stagePath = ResolveStageRoomCsvPath(1, 1);
             }
 
             if (stagePath) {
@@ -201,6 +235,22 @@ class GameScene : public IScene {
             }
         });
 
+        // 目標(ゴール)接近時のスロー演出用タイムスケール
+        float timeScale = 1.0f;
+        if (world.IsAlive(playerEntity_) && world.IsAlive(goalEntity_)) {
+            auto *tPlayer = world.TryGet<Transform>(playerEntity_);
+            auto *tGoal = world.TryGet<Transform>(goalEntity_);
+            if (tPlayer && tGoal) {
+                const float dx = tPlayer->position.x - tGoal->position.x;
+                const float dz = tPlayer->position.z - tGoal->position.z;
+                const float dist = std::sqrt(dx * dx + dz * dz);
+                const float slowThreshold = 3.0f; // ゴールに近づいたとみなす距離
+                if (dist <= slowThreshold) {
+                    timeScale = 0.2f; // スロー演出
+                }
+            }
+        }
+
         // ステージ進行リクエストの処理
         HandleStageAdvance(world);
 
@@ -208,18 +258,18 @@ class GameScene : public IScene {
         SetupInputReferences(world, input);
 
         // 発光マテリアルのパルス効果を更新
-        RenderingSystem::GetInstance().UpdateEmissivePulse(world, deltaTime);
+        RenderingSystem::GetInstance().UpdateEmissivePulse(world, deltaTime * timeScale);
 
         // 遅延リスポーンのタイマーを更新
-        UpdateDelayedRespawn(deltaTime, world);
+        UpdateDelayedRespawn(deltaTime * timeScale, world);
 
         // カメラリアクションを更新
-        UpdateCameraReaction(deltaTime, world);
+        UpdateCameraReaction(deltaTime * timeScale, world);
         ChargCameraAction(world);
         RenderingSystem::GetInstance().UpdateLights(world, camera_.position);
 
         // ECSワールドのTickを進める
-        world.Tick(deltaTime);
+        world.Tick(deltaTime * timeScale);
 
         // 時間切れチェック
         if (world.IsAlive(playerEntity_)) {
@@ -406,6 +456,9 @@ class GameScene : public IScene {
     /** @brief ワールドへのポインタを設定 */
     void SetWorldRef(World* w) { world_ = w; }
 
+    /** @brief リスポーン待機中かを取得 */
+    bool IsRespawnPending() const { return pendingRespawn_; }
+
   private:
     // =========================================
     // 初期化ヘルパーメソッド
@@ -443,19 +496,15 @@ class GameScene : public IScene {
             if (sp.requestAdvance) {
                 sp.requestAdvance = false;
 
-                const int maxStage = GetAvailableStageCount();
-                const int nextStageIndex = std::min(sp.currentStage + 1, maxStage);
-                if (nextStageIndex == sp.currentStage) {
-                    DEBUGLOG_WARNING("進行可能なステージが存在しません (current=" + std::to_string(sp.currentStage) + ", max=" + std::to_string(maxStage) + ")");
+                // 同一ステージ内で次のroomへ
+                const int nextRoomIndex = sp.currentRoom + 1;
+                auto nextRoomPath = ResolveStageRoomCsvPath(sp.currentStage, nextRoomIndex);
+                if (!nextRoomPath) {
+                    DEBUGLOG_WARNING("[StageCreate] Stage" + std::to_string(sp.currentStage) + "/room" + std::to_string(nextRoomIndex) + ".csv が見つかりません。進行をキャンセルします");
                     return;
                 }
 
-                auto nextStagePath = ResolveStageCsvPath(nextStageIndex);
-                if (!nextStagePath) {
-                    DEBUGLOG_ERROR("[StageCreate] ステージ" + std::to_string(nextStageIndex) + "のCSVが見つからず、進行をキャンセルします");
-                    return;
-                }
-
+                // 既存のステージCSV読み込みエンティティを破棄
                 std::vector<Entity> stageCreateEntities;
                 world.ForEach<StageCreate>([&](Entity e, StageCreate &) {
                     stageCreateEntities.push_back(e);
@@ -466,13 +515,13 @@ class GameScene : public IScene {
                     }
                 }
 
-                sp.currentStage = nextStageIndex;
-                sp.selectStage = nextStageIndex;
+                // ステージ番号は維持し、ルームのみ進める
+                sp.currentRoom = nextRoomIndex;
 
-                Entity newStageEntity = world.Create().With<StageCreate>(*nextStagePath).Build();
+                Entity newStageEntity = world.Create().With<StageCreate>(*nextRoomPath).Build();
                 ownedEntities_.push_back(newStageEntity);
 
-                DEBUGLOG("ステージが進行しました: " + std::to_string(sp.currentStage));
+                DEBUGLOG("同一ステージ内で次のルームへ進行: Stage" + std::to_string(sp.currentStage) + ", room" + std::to_string(sp.currentRoom));
                 SetupStage(world, sp.currentStage);
             }
         });
@@ -595,6 +644,10 @@ class GameScene : public IScene {
     // ステージ生成メソッド
     // =========================================
 
+    void ApplyDefaultPointLightParams(PointLight &light) const {
+        light.SetAttenuation(cfg_PointLightConst.Get(), cfg_PointLightLinear.Get(), cfg_PointLightQuadratic.Get());
+    }
+
     void CreateStageMap(World &world) {
         world.ForEach<StageCreate>([&](Entity, StageCreate &stagecreate) {
             float tileSize = 1.0f;
@@ -635,6 +688,54 @@ class GameScene : public IScene {
                     }
                 }
             }
+
+            BakeStageLights(world, stagecreate.stageMap, tileSize);
+        });
+    }
+
+    void BakeStageLights(World &world, const std::vector<std::vector<int>> &stageMap, float tileSize) {
+        // 既存のポイントライトに対して、ステージスケールに応じた減衰・レンジを適用するだけ（新規ライトは生成しない）
+        if (stageMap.empty() || stageMap[0].empty()) return;
+
+        const float mapWidth = static_cast<float>(stageMap[0].size());
+        const float mapHeight = static_cast<float>(stageMap.size());
+        const float offsetX = (mapWidth * tileSize) * 0.5f - (tileSize * 0.5f);
+        const float offsetZ = (mapHeight * tileSize) * 0.5f - (tileSize * 0.5f);
+
+        float minX = std::numeric_limits<float>::max();
+        float maxX = std::numeric_limits<float>::lowest();
+        float minZ = std::numeric_limits<float>::max();
+        float maxZ = std::numeric_limits<float>::lowest();
+
+        auto isWalkable = [](int block) {
+            // 0:空き, 1:Start, 2:Goal, 10-19:移動物, 30-39:ダッシュ板, 50+オブジェクトなどは許容
+            if (block == 0 || block == 1 || block == 2) return true;
+            if (block >= 10 && block < 20) return true;
+            if (block >= 30 && block < 40) return true;
+            if (block >= 50) return true;
+            return false; // 3系などの壁
+        };
+
+        for (int y = 0; y < static_cast<int>(stageMap.size()); ++y) {
+            for (int x = 0; x < static_cast<int>(stageMap[y].size()); ++x) {
+                if (!isWalkable(stageMap[y][x])) continue;
+                float worldX = (static_cast<float>(x) * tileSize) - offsetX;
+                float worldZ = offsetZ - (static_cast<float>(y) * tileSize);
+                minX = std::min(minX, worldX);
+                maxX = std::max(maxX, worldX);
+                minZ = std::min(minZ, worldZ);
+                maxZ = std::max(maxZ, worldZ);
+            }
+        }
+
+        if (minX > maxX || minZ > maxZ) return;
+
+        const float diag = std::sqrt((maxX - minX) * (maxX - minX) + (maxZ - minZ) * (maxZ - minZ));
+        const float targetRange = std::max(cfg_PointLightRange.Get(), 0.3f * diag);
+
+        world.ForEach<PointLight>([&](Entity, PointLight &pl) {
+            ApplyDefaultPointLightParams(pl);
+            pl.range = targetRange;
         });
     }
 
@@ -674,7 +775,8 @@ class GameScene : public IScene {
                            .With<MeshRenderer>(renderer)
                            .Build();
 
-        ownedEntities_.push_back(floor);
+        // ステージ切り替え時に破棄されるよう、ステージ所有リストへ登録
+        stageOwnedEntities_.push_back(floor);
     }
 
     void CreateStart(World &world, const DirectX::XMFLOAT3 &position) {
@@ -692,6 +794,7 @@ class GameScene : public IScene {
             DirectX::XMFLOAT3{cfg_StartEmissiveR, cfg_StartEmissiveG, cfg_StartEmissiveB},
             cfg_StartEmissiveIntensity,
             cfg_StartLightRange};
+        ApplyDefaultPointLightParams(light);
 
         Entity e = world.Create()
                        .With<Transform>(t)
@@ -722,6 +825,7 @@ class GameScene : public IScene {
             DirectX::XMFLOAT3{cfg_GoalEmissiveR, cfg_GoalEmissiveG, cfg_GoalEmissiveB},
             cfg_GoalEmissiveIntensity,
             cfg_GoalLightRange};
+        ApplyDefaultPointLightParams(light);
 
         Entity e = world.Create()
                        .With<Transform>(t)
@@ -1042,16 +1146,32 @@ class GameScene : public IScene {
 
 
     void BakeStageLighting(World & /*world*/) {
-        // プレースホルダー
+        // Deprecated placeholder（現状は CreateStageMap 内で BakeStageLights を実行）
     }
 
     void SetupStage(World &world, int stage) {
+        // 既存のステージ所有エンティティを破棄
         for (const auto &entity : stageOwnedEntities_) {
             if (world.IsAlive(entity)) {
                 world.DestroyEntityWithCause(entity, World::Cause::StageReset);
             }
         }
         stageOwnedEntities_.clear();
+
+        // 念のため、タグでステージ要素をクリーンアップ（過去の登録漏れ対策）
+        std::vector<Entity> toDestroy;
+        world.ForEach<WallTag>([&](Entity e, WallTag &) { toDestroy.push_back(e); });
+        world.ForEach<GoalTag>([&](Entity e, GoalTag &) { toDestroy.push_back(e); });
+        world.ForEach<StartTag>([&](Entity e, StartTag &) { toDestroy.push_back(e); });
+        world.ForEach<GimmickTag>([&](Entity e, GimmickTag &) { toDestroy.push_back(e); });
+        for (auto e : toDestroy) {
+            if (world.IsAlive(e)) {
+                world.DestroyEntityWithCause(e, World::Cause::StageReset);
+            }
+        }
+
+        // 破棄を即時反映（次のステージ生成と重ならないように）
+        world.FlushDestroyEndOfFrame();
 
         startEntity_ = {};
         goalEntity_ = {};
@@ -1129,10 +1249,13 @@ class GameScene : public IScene {
             movement->isCharging_ = false;
         }
         if (!pendingRespawn_) return;
+        // グローバルにも反映して他コンポーネントから参照可能に
+        g_respawnPending = true;
         respawnTimer_ -= dt;
         if (respawnTimer_ <= 0.0f) {
             ResetPlayerToStart(world, respawnPlayer_, true);
             pendingRespawn_ = false;
+            g_respawnPending = false;
             respawnTimer_ = 0.0f;
         }
         if (auto* playerStatus = world.TryGet<PlayerStatus>(playerEntity_))

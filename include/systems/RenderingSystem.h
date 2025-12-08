@@ -120,7 +120,7 @@ public:
         world.ForEach<DirectionalLight>([this](Entity, DirectionalLight& dl){
             lightingData_.dirLightDirection = dl.direction;
             lightingData_.dirLightColor = { dl.color.x, dl.color.y, dl.color.z };
-            lightingData_.dirLightIntensity = 1.0f; // optional scalar
+            lightingData_.dirLightIntensity = std::max(0.0f, dl.color.w);
             lightingData_.dirLightEnabled = 1.0f;
         });
 
