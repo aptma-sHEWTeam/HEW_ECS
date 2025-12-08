@@ -43,13 +43,6 @@ constexpr int ANGLE_HISTORY_SIZE = 30;
 constexpr float EPSILON = 1e-5f;
 } // namespace PlayerConstants
 
-/*
-* @brief プレイヤーステータスコンポーネント
-*/
-struct PlayerStatus : Behaviour {
-    bool isStartAfterWallHit = false;
-};
-
 // =========================================
 // ベロシティ計算コンポーネント
 // =========================================
@@ -153,7 +146,7 @@ struct PlayerMovement : Behaviour {
     InputSystem *input_ = nullptr;
     GamepadSystem *gamepad_ = nullptr;
     CollisionSphere *collision_ = nullptr;
-    
+
     // チャージ挙動設定
     float minChargeSpeedFactor = cfg_MinChargeSpeed; ///< チャージ中の最低速度係数(0.0-1.0)
     float chargeMaxTime = cfg_ChargeMaxTime;         ///< チャージ最大時間(秒)
@@ -198,7 +191,6 @@ struct PlayerMovement : Behaviour {
     void OnUpdate(World &w, Entity self, float dt) override {
         auto *t = w.TryGet<Transform>(self);
         auto *v = w.TryGet<PlayerVelocity>(self);
-        auto *playerStatus = w.TryGet<PlayerStatus>(self);
         if (!t || !v || (!input_ && !gamepad_)) return;
 
         v->speed = PlayerVelocity::cfg_Speed;
@@ -215,8 +207,7 @@ struct PlayerMovement : Behaviour {
             if (input_->GetKey('D') || input_->GetKey(VK_RIGHT)) inputDir.x += 1.0f;
         }
 
-        if (gamepad_&&!playerStatus->isStartAfterWallHit) {
-            DEBUGLOG("ヒットしないヨ");
+        if (gamepad_) {
             float gx = gamepad_->GetLeftStickX();
             float gy = gamepad_->GetLeftStickY();
             float mag = std::sqrt(gx * gx + gy * gy);
@@ -382,5 +373,3 @@ struct PlayerGuide : Behaviour {
         }
     }
 };
-
-
