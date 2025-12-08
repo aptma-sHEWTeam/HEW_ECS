@@ -138,7 +138,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 #endif // !_DEBUG
 
      UITransform roomImgTr;
-    roomImgTr.position = {1000.0f, 60.0f};
+    roomImgTr.position = {1030.0f, 60.0f};
     roomImgTr.size = {200.0f, 80.0f};
     roomImgTr.anchor = {0.0f, 0.0f};
     roomImgTr.pivot = {0.0f, 0.0f};
