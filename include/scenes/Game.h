@@ -1111,20 +1111,17 @@ class GameScene : public IScene {
             }
         });
 
-        MeshRenderer renderer;
-        renderer.meshType = MeshType::Cube;
-        renderer.color = DirectX::XMFLOAT3{1.0f, 0.3f, 0.3f}; // 目立つ赤
 
         Transform transform{position, {0.0f, 0.0f, 0.0f}, obstacle.baseScale};
 
         Entity entity = world.Create()
-                              .With<Transform>(transform)
-                              .With<MeshRenderer>(renderer)
-                              .With<WallTag>()
-                              .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
-                              .With<WallCollisionHandler>()
-                              .With<MovingObstacle>(obstacle)
-                              .Build();
+                            .With<Transform>(transform)
+                            .With<Model>(cfg_MovingObstacleFBXPass)
+                            .With<WallTag>()
+                            .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                            .With<WallCollisionHandler>()
+                            .With<MovingObstacle>(obstacle)
+                            .Build();
 
         stageOwnedEntities_.push_back(entity);
     }
@@ -1220,8 +1217,7 @@ class GameScene : public IScene {
 
         Entity dashBoardEntity = world.Create()
                                      .With<Transform>(transform)
-                                     .With<MeshRenderer>(renderer)
-                                     .With<Model>()
+                                     .With<Model>(cfg_DashBoardFBXPass)
                                      .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                                      .With<GimmickTag>()
                                      .With<DashBordCollisionHandler>()
