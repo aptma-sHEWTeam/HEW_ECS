@@ -164,6 +164,8 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 
     ownedEntities_.push_back(roomImageEntity);
 
+
+
     UIText stageText[2];
 
     stageText[0].text = {L"Room : 0/"};
@@ -175,8 +177,11 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     stageText[1].color = {0.0f, 0.5f, 1.0f, 1.0f};
     stageText[1].formatId = "hud";
 
+    
+
+
     UITransform stageTransform[2];
-    stageTransform[0].position = {1360.0f, 84.0f};
+    stageTransform[0].position = {1365.0f, 84.0f};
     stageTransform[0].size = {200.0f, 80.0f};
     stageTransform[0].anchor = {0.0f, 0.0f};
     stageTransform[0].pivot = {1.0f, 0.0f};
