@@ -13,6 +13,4 @@ struct RoomUI : IComponent {
     int RoomUVHeight = 0;    // ルームに使用するテクスチャの縦幅
     int RoomPosU = 0;        // ルームに使用するテクスチャのU座標
     int RoomPosV = 0;        // ルームに使用するテクスチャのV座標
-
-
 };

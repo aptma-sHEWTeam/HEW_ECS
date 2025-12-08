@@ -140,17 +140,16 @@ inline static ConfigVar<float> cfg_GoalMoveSpeed{"Game", "GoalMoveSpeed", 2.0f};
         float screenWidth = static_cast<float>(gfx->Width());
         float screenHeight = static_cast<float>(gfx->Height());
 
-        // カメラを初期化
+        // カメラを初期化（App設定を優先）
         camera_ = Camera::LookAtLH(
-            DirectX::XM_PIDIV4,
+            baseFovY_,
             screenWidth / screenHeight,
-            0.1f,
-            1000.0f,
+            cameraNear_,
+            cameraFar_,
             cameraPosition_,
             baseTarget_,
-            DirectX::XMFLOAT3{0.0f, 1.0f, 0.0f}
+            baseUp_
         );
-        baseFovY_ = camera_.fovY;
 
         // 衝突検出システムをエンティティとして生成
         Entity collisionSystem = world.Create().With<CollisionDetectionSystem>(cfg_CollisionCellSize.Get()).Build();
@@ -344,43 +343,47 @@ REGISTER_COLLISION_HANDLER_TYPE(PlayerCollisionHandler)
      * @param duration 持続時間（秒）
      */
     void TriggerCameraShake(float intensity, float duration) {
-        reactionType_ = CameraReactionType::Shake;
         shakeIntensity_ = intensity;
         shakeTime_ = duration;
         shakeElapsed_ = 0.0f;
+        shakeActive_ = true;
     }
 
     /**
      * @brief カメラインパルス（衝撃）を開始する
      */
     void TriggerCameraImpulse(float dirX, float dirY, float dirZ, float intensity, float duration) {
-        reactionType_ = CameraReactionType::Impulse;
         impulseDir_ = {dirX, dirY, dirZ};
         impulseIntensity_ = intensity;
         impulseTime_ = duration * 1.5f;
         impulseElapsed_ = 0.0f;
+        impulseActive_ = true;
     }
 
     /**
      * @brief カメラズームを開始する
      */
     void TriggerCameraZoom(float zoomAmount, float duration) {
-        reactionType_ = CameraReactionType::Zoom;
         zoomAmount_ = zoomAmount;
         zoomTime_ = duration;
         zoomElapsed_ = 0.0f;
+        zoomActive_ = true;
     }
 
     /**
      * @brief 現在のカメラリアクションをすべて停止
      */
     void StopCameraReaction() {
-        reactionType_ = CameraReactionType::None;
-        camera_.position = cameraPosition_;
-        camera_.fovY = baseFovY_;
+        shakeActive_ = false;
+        impulseActive_ = false;
+        zoomActive_ = false;
         shakeElapsed_ = shakeTime_ = 0.0f;
         impulseElapsed_ = impulseTime_ = 0.0f;
         zoomElapsed_ = zoomTime_ = 0.0f;
+        camera_.position = cameraPosition_;
+        camera_.target = baseTarget_;
+        camera_.fovY = baseFovY_;
+        camera_.up = baseUp_;
         camera_.Proj = DirectX::XMMatrixPerspectiveFovLH(camera_.fovY, camera_.aspect, camera_.nearZ, camera_.farZ);
         camera_.Update();
     }
@@ -420,6 +423,15 @@ class GameScene : public IScene {
 
     /** @brief カメラの基準位置を設定 */
     void SetCameraBasePosition(const DirectX::XMFLOAT3& pos) { cameraPosition_ = pos; }
+    /** @brief カメラの基準設定を一括で指定（位置・注視点・Up・FOV・Near/Far） */
+    void ConfigureBaseCamera(const DirectX::XMFLOAT3& pos, const DirectX::XMFLOAT3& target, const DirectX::XMFLOAT3& up, float fovRad, float nearZ, float farZ) {
+        cameraPosition_ = pos;
+        baseTarget_ = target;
+        baseUp_ = up;
+        baseFovY_ = fovRad;
+        cameraNear_ = nearZ;
+        cameraFar_ = farZ;
+    }
 
     void ChargCameraAction(World &world) {
         world.ForEach<PlayerMovement>([&](Entity e, PlayerMovement &player) {
@@ -439,11 +451,13 @@ class GameScene : public IScene {
             bool releasedLocal = (player.wasCharging_ && !chargingNowLocal);
             if (releasedSys || releasedLocal) {
                 if (auto *pv = world.TryGet<PlayerVelocity>(playerEntity_)) {
-                    if (static_cast<bool>(pv->velocity.x + pv->velocity.y)) {
-                        float vecX = pv->velocity.x / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
-                        float vecY = pv->velocity.y / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
-
-                        TriggerCameraImpulse(vecX, 0.0f, vecY, 0.2f, 0.1f);
+                    const float vx = pv->velocity.x;
+                    const float vy = pv->velocity.y;
+                    const float len = std::hypot(vx, vy);
+                    if (len > 1e-5f) {
+                        const float dirX = vx / len;
+                        const float dirY = vy / len;
+                        TriggerCameraImpulse(dirX, 0.0f, dirY, 0.2f, 0.1f);
                     }
                 };
             }
@@ -464,11 +478,13 @@ class GameScene : public IScene {
         }
 
         if (auto *pv = world.TryGet<PlayerVelocity>(playerEntity_)) {
-            if (static_cast<bool>(pv->velocity.x + pv->velocity.y)) {
-                float vecX = pv->velocity.x / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
-                float vecY = pv->velocity.y / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
-                TriggerCameraImpulse(vecX, 0.0f, vecY, 0.2f, 0.04f);
-
+            const float vx = pv->velocity.x;
+            const float vy = pv->velocity.y;
+            const float len = std::hypot(vx, vy);
+            if (len > 1e-5f) {
+                const float dirX = vx / len;
+                const float dirY = vy / len;
+                TriggerCameraImpulse(dirX, 0.0f, dirY, 0.2f, 0.04f);
             }
         }
 
@@ -1300,27 +1316,29 @@ class GameScene : public IScene {
     }
 
     void UpdateCameraReaction(float dt, World & /*world*/) {
-        switch (reactionType_) {
-            case CameraReactionType::Shake: UpdateShake(dt); break;
-            case CameraReactionType::Impulse: UpdateImpulse(dt); break;
-            case CameraReactionType::Zoom: UpdateZoom(dt); break;
-            case CameraReactionType::None:
-            default:
-                camera_.position = cameraPosition_;
-                camera_.fovY = baseFovY_;
-                break;
-        }
+        DirectX::XMFLOAT3 posOffset{0.0f, 0.0f, 0.0f};
+        DirectX::XMFLOAT3 targetOffset{0.0f, 0.0f, 0.0f};
+        float fovDelta = 0.0f;
+        DirectX::XMFLOAT3 upVec = baseUp_;
+
+        if (shakeActive_) UpdateShake(dt, posOffset, targetOffset, upVec);
+        if (impulseActive_) UpdateImpulse(dt, posOffset, targetOffset);
+        if (zoomActive_) UpdateZoom(dt, fovDelta);
+
+        camera_.position = {cameraPosition_.x + posOffset.x, cameraPosition_.y + posOffset.y, cameraPosition_.z + posOffset.z};
+        camera_.target = {baseTarget_.x + targetOffset.x, baseTarget_.y + targetOffset.y, baseTarget_.z + targetOffset.z};
+        camera_.fovY = std::clamp(baseFovY_ + fovDelta, DirectX::XM_PIDIV4 * 0.25f, DirectX::XM_PIDIV2 * 1.5f);
+        camera_.up = upVec;
 
         camera_.Proj = DirectX::XMMatrixPerspectiveFovLH(camera_.fovY, camera_.aspect, camera_.nearZ, camera_.farZ);
         camera_.Update();
     }
 
-    void UpdateShake(float dt) {
+    void UpdateShake(float dt, DirectX::XMFLOAT3 &posOffset, DirectX::XMFLOAT3 &targetOffset, DirectX::XMFLOAT3 &upVec) {
         shakeElapsed_ += dt;
 
         if (shakeElapsed_ >= shakeTime_) {
-            reactionType_ = CameraReactionType::None;
-            camera_.position = cameraPosition_;
+            shakeActive_ = false;
             return;
         }
 
@@ -1342,27 +1360,49 @@ class GameScene : public IScene {
         float sy = (std::cos(shakeElapsed_ * freqY) * (1.0f - randomness) + randY) * currentIntensity * yScale;
         float sz = (std::sin(shakeElapsed_ * freqZ) * (1.0f - randomness) + randZ) * currentIntensity;
 
-        camera_.position = {cameraPosition_.x + sx, cameraPosition_.y + sy, cameraPosition_.z + sz};
+        // 平行移動ではなく微小回転で画面を揺らす
+        DirectX::XMFLOAT3 baseForward{
+            baseTarget_.x - cameraPosition_.x,
+            baseTarget_.y - cameraPosition_.y,
+            baseTarget_.z - cameraPosition_.z};
+        float forwardLen = std::sqrt(baseForward.x * baseForward.x + baseForward.y * baseForward.y + baseForward.z * baseForward.z);
+        if (forwardLen < 1e-4f) return;
+
+        const float angleScale = 0.25f; // 揺れ量を角度に変換
+        float pitch = sy * angleScale;
+        float yaw = sx * angleScale;
+        float roll = sz * angleScale * 0.5f;
+
+        DirectX::XMVECTOR forwardVec = DirectX::XMLoadFloat3(&baseForward);
+        forwardVec = DirectX::XMVector3Normalize(forwardVec);
+
+        DirectX::XMMATRIX rot = DirectX::XMMatrixRotationRollPitchYaw(pitch, yaw, roll);
+        DirectX::XMVECTOR rotatedForward = DirectX::XMVector3TransformNormal(forwardVec, rot);
+        DirectX::XMVECTOR rotatedUp = DirectX::XMVector3TransformNormal(DirectX::XMLoadFloat3(&baseUp_), rot);
+
+        DirectX::XMFLOAT3 newForward{};
+        DirectX::XMFLOAT3 newUp{};
+        DirectX::XMStoreFloat3(&newForward, rotatedForward);
+        DirectX::XMStoreFloat3(&newUp, rotatedUp);
+
+        targetOffset = {newForward.x * forwardLen - baseForward.x,
+                        newForward.y * forwardLen - baseForward.y,
+                        newForward.z * forwardLen - baseForward.z};
+        upVec = newUp;
+        // 位置は固定し、違和感の少ない視線揺らぎのみ適用
+        posOffset = {0.0f, 0.0f, 0.0f};
     }
 
-    void UpdateImpulse(float dt) {
+    void UpdateImpulse(float dt, DirectX::XMFLOAT3 &posOffset, DirectX::XMFLOAT3 &targetOffset) {
         impulseElapsed_ += dt;
 
         if (impulseElapsed_ >= impulseTime_) {
-            reactionType_ = CameraReactionType::None;
-            camera_.position = cameraPosition_;
-            camera_.target = baseTarget_;
+            impulseActive_ = false;
             return;
         }
 
         float decay = cfg_CameraImpulseDecay.Get();
         DirectX::XMFLOAT3 dir = impulseDir_;
-
-        if (impulseElapsed_ >= impulseTime_ * (2.0f / 3.0f)) {
-            dir.x = -dir.x;
-            dir.y = -dir.y;
-            dir.z = -dir.z;
-        }
 
         float len = std::sqrt(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z);
         if (len > 1e-6f) {
@@ -1372,36 +1412,32 @@ class GameScene : public IScene {
         }
 
         float t = impulseElapsed_ / std::max(1e-6f, impulseTime_);
-        float rise = std::min(1.0f, t * 2.0f);
+        // なめらかな押し出し: 前半で優しく押し出し、後半はゆるやかに減衰して基準位置へ戻す
+        float easeOut = 1.0f - std::cos(std::clamp(t, 0.0f, 1.0f) * DirectX::XM_PIDIV2); // 0→1 のソフトカーブ
         float fall = std::exp(-decay * impulseElapsed_);
-        float currentIntensity = impulseIntensity_ * rise * fall;
-
-        if (impulseElapsed_ >= impulseTime_ * (2.0f / 3.0f)) {
-            currentIntensity *= 2.0f;
-        }
+        float currentIntensity = impulseIntensity_ * easeOut * fall;
 
         const float dx = dir.x * currentIntensity;
         const float dy = dir.y * currentIntensity;
         const float dz = dir.z * currentIntensity;
 
-        camera_.position = {cameraPosition_.x + dx, cameraPosition_.y + dy, cameraPosition_.z + dz};
-        camera_.target = {baseTarget_.x + dx, baseTarget_.y + dy, baseTarget_.z + dz};
+        posOffset.x += dx;
+        posOffset.y += dy;
+        posOffset.z += dz;
+        targetOffset = {dx, dy, dz};
     }
 
-    void UpdateZoom(float dt) {
+    void UpdateZoom(float dt, float &fovDelta) {
         zoomElapsed_ += dt;
 
         if (zoomElapsed_ >= zoomTime_) {
-            reactionType_ = CameraReactionType::None;
-            camera_.fovY = baseFovY_;
+            zoomActive_ = false;
             return;
         }
 
         float t = zoomElapsed_ / std::max(1e-6f, zoomTime_);
         float zoomCurve = std::sin(t * DirectX::XM_PI);
-        camera_.fovY = baseFovY_ - zoomAmount_ * zoomCurve;
-        camera_.fovY = std::max(DirectX::XM_PIDIV4 * 0.25f, std::min(DirectX::XM_PIDIV2 * 1.5f, camera_.fovY));
-        camera_.position = cameraPosition_;
+        fovDelta = -zoomAmount_ * zoomCurve;
     }
 
     // =========================================
@@ -1422,24 +1458,25 @@ class GameScene : public IScene {
     DirectX::XMFLOAT3 currentTarget_ = {0.0f, 0.0f, 0.0f};
     Camera camera_{};
     float baseFovY_ = DirectX::XM_PIDIV4;
-
-    // カメラリアクション状態
-    CameraReactionType reactionType_ = CameraReactionType::None;
-    float reactionTime_ = 0.0f;
-    float reactionElapsed_ = 0.0f;
+    float cameraNear_ = 0.1f;
+    float cameraFar_ = 1000.0f;
+    DirectX::XMFLOAT3 baseUp_ = {0.0f, 1.0f, 0.0f};
 
     // シェイク用
+    bool shakeActive_ = false;
     float shakeIntensity_ = 0.0f;
     float shakeTime_ = 0.0f;
     float shakeElapsed_ = 0.0f;
 
     // 衝撃用
+    bool impulseActive_ = false;
     DirectX::XMFLOAT3 impulseDir_ = {0.0f, 0.0f, 0.0f};
     float impulseIntensity_ = 0.0f;
     float impulseTime_ = 0.0f;
     float impulseElapsed_ = 0.0f;
 
     // ズーム用
+    bool zoomActive_ = false;
     float zoomAmount_ = 0.0f;
     float zoomTime_ = 0.0f;
     float zoomElapsed_ = 0.0f;

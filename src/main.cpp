@@ -56,8 +56,8 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE, LPSTR lpCmdLine, int) {
     ConfigManager::Instance().Initialize("Assets");
 
     // Configs
-    static ConfigVar<int> cfg_WindowWidth{"Window", "Width", 1280};
-    static ConfigVar<int> cfg_WindowHeight{"Window", "Height", 720};
+    static ConfigVar<int> cfg_WindowWidth{"App.Window", "Width", 1280};
+    static ConfigVar<int> cfg_WindowHeight{"App.Window", "Height", 720};
 
     // Check for bake argument
     std::string cmdLine = lpCmdLine;
