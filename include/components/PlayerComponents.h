@@ -18,10 +18,15 @@
 #include "input/InputSystem.h"
 #include "input/GamepadSystem.h"
 #include "components/Collision.h"
-#include "scenes/Game.h"
+// GameScene 定義への依存を避けるため、グローバル参照宣言のみを利用
+#include "scenes/CollisionHandlers.h"
 #include "components/StageComponents.h"
-class GameScene; extern GameScene* g_GameScene;
-extern bool g_respawnPending;
+
+// 前方宣言と外部参照（インライン定義は CollisionHandlers.h 内）
+class GameScene; extern GameScene* g_GameScene; extern bool g_respawnPending;
+// GameScene 呼び出しラッパー
+void GameScene_OnChargeStart(World &w);
+void GameScene_OnChargeRelease(World &w, float chargeAmount01);
 
 #include <DirectXMath.h>
 #include <cmath>
@@ -191,6 +196,9 @@ struct PlayerMovement : Behaviour {
             frame++;
 
             if (effectiveCharging && !wasChargingPrev_) ResetAngleHistory();
+            if (effectiveCharging && !wasCharging_) {
+                GameScene_OnChargeStart(w);
+            }
 
             if (effectiveCharging) {
                 if (v->isBoosting) { v->StopBoost(); }
@@ -216,6 +224,7 @@ struct PlayerMovement : Behaviour {
             bool releasedSys = gamepad_->IsLeftStickReleased();
             bool releasedLocal = (wasCharging_ && !chargingNowLocal);
             if (releasedSys || releasedLocal) {
+                float chargeAmount = gamepad_->GetLeftStickChargeAmount(chargeMaxTime);
                 int count = angleFilled ? PlayerConstants::ANGLE_HISTORY_SIZE : angleIndex;
                 if (count > 0) {
                     float avgRad = std::atan2f(sumSin / count, sumCos / count);
@@ -228,6 +237,7 @@ struct PlayerMovement : Behaviour {
                         isCharging_ = false; v->isDecelerating = false;
                     }
                 }
+                GameScene_OnChargeRelease(w, chargeAmount);
                 restoreCollisionRadius();
                 ResetAngleHistory();
             }
@@ -297,6 +307,34 @@ struct PlayerGuide : Behaviour {
         }
     }
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

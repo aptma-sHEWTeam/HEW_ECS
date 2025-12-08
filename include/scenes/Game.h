@@ -18,6 +18,9 @@
 #include <filesystem>
 #include <algorithm>
 
+// 追加: IScene 定義を利用するためにシーンマネージャのヘッダーをインクルード
+#include "scenes/SceneManager.h"
+
 // リファクタリング: 分離されたヘッダーをインクルード
 #include "scenes/CameraReaction.h"
 #include "scenes/StageConfig.h"
@@ -264,6 +267,8 @@ class GameScene : public IScene {
 
         // 遅延リスポーンのタイマーを更新
         UpdateDelayedRespawn(deltaTime * timeScale, world);
+        UpdateChargeOverlay(world, deltaTime * timeScale);
+        UpdateDeathFade(world, deltaTime * timeScale);
 
         // カメラリアクションを更新
         UpdateCameraReaction(deltaTime * timeScale, world);
@@ -371,6 +376,36 @@ class GameScene : public IScene {
         camera_.Update();
     }
 
+    // チャージ開始/解放演出
+    void OnChargeStart(World &world) {
+        chargeOverlayTarget_ = 0.35f;
+        chargeOverlayVisible_ = true;
+        TriggerCameraZoom(-0.12f, 0.25f);
+    }
+    void OnChargeRelease(World &world, float chargeAmount01) {
+        chargeOverlayCurrent_ = std::max(chargeOverlayCurrent_, 0.55f);
+        chargeOverlayTarget_ = 0.0f;
+        chargeOverlayVisible_ = true;
+        float impulse = std::clamp(chargeAmount01, 0.15f, 1.0f) * 0.12f;
+        TriggerCameraShake(0.03f + impulse, 0.25f);
+    }
+
+    void UpdateDeathFade(World &world, float /*dt*/) {
+        if (!world.IsAlive(deathFadeAnimationEntity_)) return;
+        auto *img = world.TryGet<UIImage>(deathFadeAnimationEntity_);
+        auto *anim = world.TryGet<SpriteSheetAnimation>(deathFadeAnimationEntity_);
+
+        if (deathFadeVisible_) {
+            if (img) img->opacity = 1.0f;
+            if (anim && anim->isFinished && !anim->isPlaying) {
+                deathFadeVisible_ = false;
+                if (img) img->opacity = 0.0f;
+            }
+        } else {
+            if (img) img->opacity = 0.0f;
+        }
+    }
+
     /** @brief カメラオブジェクトへのconst参照を取得 */
     const Camera& GetCamera() const { return camera_; }
 
@@ -425,7 +460,7 @@ class GameScene : public IScene {
         if (pendingRespawn_) return;
 
         // 再生用フェードアニメーションを開始
-        StartFadeOut(world);
+        StartDeathFadeOut(world);
 
         if (auto* playerStatus = world.TryGet<PlayerStatus>(playerEntity_))
         {
@@ -529,7 +564,7 @@ class GameScene : public IScene {
                 pendingStageAdvance_.nextRoomPath = *nextRoomPath;
                 stageAdvanceTimer_ = 0.0f;
 
-                StartFadeOut(world);
+                StartFadeOutNormal(world);
                 DEBUGLOG("同一ステージ内で次のルームへ進行(フェード演出開始): Stage" + std::to_string(sp.currentStage) + ", room" + std::to_string(pendingStageAdvance_.nextRoom));
             }
         });
@@ -540,7 +575,7 @@ class GameScene : public IScene {
 
         stageAdvanceTimer_ += dt;
         auto *anim = world.TryGet<SpriteSheetAnimation>(fadeAnimationEntity_);
-        const float fadeDuration = GetFadeDurationSeconds(world);
+        const float fadeDuration = GetFadeDurationSeconds(world, fadeAnimationEntity_);
         const float waitDuration = (fadeDuration > 0.0f) ? fadeDuration : 1.0f;
 
         const bool fadeOutFinished = anim && !anim->isPlaying && anim->isFinished && anim->playbackDirection >= 0;
@@ -566,7 +601,7 @@ class GameScene : public IScene {
                 DEBUGLOG("同一ステージ内で次のルームへ進行: Stage" + std::to_string(pendingStageAdvance_.stage) + ", room" + std::to_string(pendingStageAdvance_.nextRoom));
                 SetupStage(world, pendingStageAdvance_.stage);
                 pendingStageAdvance_.stageBuilt = true;
-                StartFadeIn(world);
+                StartFadeInNormal(world);
             }
             return;
         }
@@ -578,38 +613,44 @@ class GameScene : public IScene {
         }
     }
 
-    void StartFadeOut(World &world) {
-        if (!world.IsAlive(fadeAnimationEntity_)) return;
-        if (auto *anim = world.TryGet<SpriteSheetAnimation>(fadeAnimationEntity_)) {
+    void StartFadeOutNormal(World &world) { StartSpriteFade(world, fadeAnimationEntity_, 1, false); }
+    void StartFadeInNormal(World &world) { StartSpriteFade(world, fadeAnimationEntity_, -1, false); }
+    void StartDeathFadeOut(World &world) { deathFadeVisible_ = true; StartSpriteFade(world, deathFadeAnimationEntity_, 1, true); }
+
+    void StartSpriteFade(World &world, Entity target, int direction, bool forceOpaque) {
+        if (!world.IsAlive(target)) return;
+        if (auto *anim = world.TryGet<SpriteSheetAnimation>(target)) {
             anim->isLooping = false;
-            anim->StartAnimation(1);
-            ApplyFadeFrame(world, *anim);
+            anim->StartAnimation(direction);
+            ApplyFadeFrame(world, target, *anim);
+            if (forceOpaque) {
+                if (auto *img = world.TryGet<UIImage>(target)) {
+                    img->opacity = 1.0f;
+                }
+            }
+        }
+        // 対象が死亡フェード以外の場合、不要時は透明化
+        if (!forceOpaque) {
+            if (auto *img = world.TryGet<UIImage>(target)) {
+                img->opacity = 1.0f;
+            }
         }
     }
 
-    void StartFadeIn(World &world) {
-        if (!world.IsAlive(fadeAnimationEntity_)) return;
-        if (auto *anim = world.TryGet<SpriteSheetAnimation>(fadeAnimationEntity_)) {
-            anim->isLooping = false;
-            anim->StartAnimation(-1);
-            ApplyFadeFrame(world, *anim);
-        }
-    }
-
-    float GetFadeDurationSeconds(World &world) const {
-        if (auto *anim = world.TryGet<SpriteSheetAnimation>(fadeAnimationEntity_)) {
+    float GetFadeDurationSeconds(World &world, Entity target) const {
+        if (auto *anim = world.TryGet<SpriteSheetAnimation>(target)) {
             const int count = std::max(anim->frameCount, 0);
             return anim->frameTime * static_cast<float>(count);
         }
         return 0.0f;
     }
 
-    void ApplyFadeFrame(World &world, SpriteSheetAnimation &anim) {
+    void ApplyFadeFrame(World &world, Entity target, SpriteSheetAnimation &anim) {
         if (anim.uv.size() != static_cast<size_t>(anim.frameCount)) {
             anim.UpdateUV();
         }
 
-        if (auto *img = world.TryGet<UIImage>(fadeAnimationEntity_)) {
+        if (auto *img = world.TryGet<UIImage>(target)) {
             const int frameIndex = std::clamp(anim.currentFrame, 0, std::max(0, anim.frameCount - 1));
             if (!anim.uv.empty()) {
                 img->uvRect = anim.uv[frameIndex];
@@ -1013,72 +1054,6 @@ class GameScene : public IScene {
         stageOwnedEntities_.push_back(wallEntity);
     }
 
-    struct MovingObstacle : Behaviour {
-        DirectX::XMFLOAT3 startPos{};
-        DirectX::XMFLOAT3 endPos{};
-        DirectX::XMFLOAT3 delta{};
-        DirectX::XMFLOAT3 baseScale{1.0f, 1.0f, 1.0f};
-        float waitAtStart = 0.0f;
-        float waitAtEnd = 0.0f;
-        float travelTime = 1.0f;
-        float timer = 0.0f;
-        bool firstLoop = true;
-        enum class State { WaitStart, MoveForward, WaitEnd, MoveBack } state = State::WaitStart;
-
-        void OnUpdate(World &w, Entity self, float dt) override {
-            auto *t = w.TryGet<Transform>(self);
-            if (!t) return;
-
-            // スケールが他所で変更されないよう固定
-            t->scale = baseScale;
-
-            timer += dt;
-
-            auto lerpVec = [](const DirectX::XMFLOAT3 &a, const DirectX::XMFLOAT3 &b, float r) {
-                return DirectX::XMFLOAT3{
-                    a.x + (b.x - a.x) * r,
-                    a.y + (b.y - a.y) * r,
-                    a.z + (b.z - a.z) * r};
-            };
-
-            switch (state) {
-                case State::WaitStart:
-                    if (timer >= (firstLoop ? waitAtStart : waitAtEnd)) {
-                        timer = 0.0f;
-                        firstLoop = false;
-                        state = State::MoveForward;
-                    }
-                    break;
-                case State::MoveForward: {
-                    float ratio = std::clamp(timer / std::max(travelTime, 0.0001f), 0.0f, 1.0f);
-                    t->position = lerpVec(startPos, endPos, ratio);
-                    if (timer >= travelTime) {
-                        timer = 0.0f;
-                        state = State::WaitEnd;
-                        t->position = endPos;
-                    }
-                    break;
-                }
-                case State::WaitEnd:
-                    if (timer >= waitAtEnd) {
-                        timer = 0.0f;
-                        state = State::MoveBack;
-                    }
-                    break;
-                case State::MoveBack: {
-                    float ratio = std::clamp(timer / std::max(travelTime, 0.0001f), 0.0f, 1.0f);
-                    t->position = lerpVec(endPos, startPos, ratio);
-                    if (timer >= travelTime) {
-                        timer = 0.0f;
-                        state = State::WaitStart;
-                        t->position = startPos;
-                    }
-                    break;
-                }
-            }
-        }
-    };
-
     void CreateMovingObstacle(World &world, const DirectX::XMFLOAT3 &position, int blockType) {
         MovingObstacle obstacle;
         obstacle.startPos = position;
@@ -1338,7 +1313,7 @@ class GameScene : public IScene {
         respawnTimer_ -= dt;
         if (respawnTimer_ <= 0.0f) {
             ResetPlayerToStart(world, respawnPlayer_, true);
-            StartFadeIn(world);
+            StartFadeInNormal(world);
             pendingRespawn_ = false;
             g_respawnPending = false;
             respawnTimer_ = 0.0f;
@@ -1367,6 +1342,19 @@ class GameScene : public IScene {
 
         camera_.Proj = DirectX::XMMatrixPerspectiveFovLH(camera_.fovY, camera_.aspect, camera_.nearZ, camera_.farZ);
         camera_.Update();
+    }
+
+    void UpdateChargeOverlay(World &world, float dt) {
+        if (!world.IsAlive(chargeOverlayEntity_)) return;
+        const float lerpRate = 1.0f - std::exp(-6.0f * std::max(0.0f, dt));
+        chargeOverlayCurrent_ = chargeOverlayCurrent_ + (chargeOverlayTarget_ - chargeOverlayCurrent_) * lerpRate;
+        chargeOverlayCurrent_ = std::clamp(chargeOverlayCurrent_, 0.0f, 1.0f);
+        if (auto *img = world.TryGet<UIImage>(chargeOverlayEntity_)) {
+            img->opacity = chargeOverlayVisible_ ? chargeOverlayCurrent_ : 0.0f;
+        }
+        if (chargeOverlayVisible_ && chargeOverlayCurrent_ <= 0.01f && chargeOverlayTarget_ <= 0.01f) {
+            chargeOverlayVisible_ = false;
+        }
     }
 
     void UpdateShake(float dt, DirectX::XMFLOAT3 &posOffset, DirectX::XMFLOAT3 &targetOffset, DirectX::XMFLOAT3 &upVec) {
@@ -1490,6 +1478,8 @@ class GameScene : public IScene {
     Entity goalEntity_{};
     Entity gimmickEntity_{};
     Entity fadeAnimationEntity_{};
+    Entity deathFadeAnimationEntity_{};
+    Entity chargeOverlayEntity_{};
     DirectX::XMFLOAT3 cameraPosition_ = {0.0f, 30.0f, -7.0f};
     DirectX::XMFLOAT3 currentTarget_ = {0.0f, 0.0f, 0.0f};
     Camera camera_{};
@@ -1524,6 +1514,10 @@ class GameScene : public IScene {
     World *world_ = nullptr;
     StageAdvanceInfo pendingStageAdvance_{};
     float stageAdvanceTimer_ = 0.0f;
+    float chargeOverlayCurrent_ = 0.0f;
+    float chargeOverlayTarget_ = 0.0f;
+    bool chargeOverlayVisible_ = false;
+    bool deathFadeVisible_ = false;
 
     DirectX::XMFLOAT3 baseTarget_ = {0.0f, 0.0f, 0.0f};
 };
@@ -1531,6 +1525,15 @@ class GameScene : public IScene {
 // =========================================
 // 衝突ハンドラーの実装（GameScene定義後）
 // =========================================
+
+// GameScene への依存を持たない UI トリガーのラッパー（定義後ならメンバー呼び出し可）
+inline void GameScene_OnChargeStart(World &w) {
+    if (g_GameScene) { g_GameScene->OnChargeStart(w); }
+}
+inline void GameScene_OnChargeRelease(World &w, float chargeAmount01) {
+    if (g_GameScene) { g_GameScene->OnChargeRelease(w, chargeAmount01); }
+}
+
 inline void WallCollisionHandler::OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) {
     if (w.Has<PlayerTag>(other)) {
         DEBUGLOG("壁がプレイヤーと衝突 - カメラシェイク＋遅延リスポーン");
