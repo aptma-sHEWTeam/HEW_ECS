@@ -255,7 +255,9 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
    SpriteSheetAnimation fadeOut;
    fadeOut.frameCount = 18;
    fadeOut.frameTime = 0.08f;
-   fadeOut.StartAnimation();
+   // フェードは初期状態では再生しない（壁ヒット時に再生開始）
+   fadeOut.isLooping = false;
+   fadeOut.isPlaying = false;
 
    Entity fadeOutAnimation = world.Create()
                                  .With<UITransform>(FadeAnimation)

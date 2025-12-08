@@ -338,6 +338,8 @@ class GamepadSystem {
         int rightStickChargeSamples;  ///< 右スティックチャージサンプル数
         float leftStickReleaseTimer;  ///< 左スティックリリースタイマー
         float rightStickReleaseTimer; ///<右スティックリリースタイマー
+        bool leftStickJustReleased;   ///< 左スティックが直前フレームで離されたか
+        bool rightStickJustReleased;  ///< 右スティックが直前フレームで離されたか
 
         GamepadState() {
             type = Type_None;
@@ -361,6 +363,8 @@ class GamepadSystem {
             rightStickChargeSamples = 0;
             leftStickReleaseTimer = 0.0f;
             rightStickReleaseTimer = 0.0f;
+            leftStickJustReleased = false;
+            rightStickJustReleased = false;
         }
     };
 

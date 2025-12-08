@@ -46,6 +46,7 @@
 #include "graphics/TextureManager.h"
 #include "graphics/Camera.h"
 #include <comdef.h>
+#include "animation/Animation.h"
 
 /**
  * @class GameScene
@@ -421,6 +422,18 @@ class GameScene : public IScene {
      */
     void OnWallHit(Entity player, World &world) {
         if (pendingRespawn_) return;
+
+        // 再生用フェードアニメーションを開始
+        if (world.IsAlive(fadeAnimationEntity_)) {
+            if (auto *anim = world.TryGet<SpriteSheetAnimation>(fadeAnimationEntity_)) {
+                // リセット相当の初期化
+                anim->currentFrame = 0;
+                anim->currentTime = 0.0f;
+                anim->isFinished = false;
+                anim->isLooping = false;
+                anim->StartAnimation();
+            }
+        }
 
         if (auto* playerStatus = world.TryGet<PlayerStatus>(playerEntity_))
         {
