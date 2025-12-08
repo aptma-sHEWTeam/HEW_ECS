@@ -20,7 +20,10 @@ struct GameUIUpdater : Behaviour {
     Entity fpsTextEntity_;
     Entity pauseTextEntity_;
     Entity stageTextEntity_[2];
-
+    Entity timerBackgroundEntity_;
+    Entity timeImageEntity_;
+    Entity timerUiEntity_;
+    
 
     void OnUpdate(World &w, Entity self, float dt) override {
         w.ForEach<GameStatus>([&](Entity e, GameStatus &stats) {
