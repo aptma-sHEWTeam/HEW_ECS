@@ -17,9 +17,11 @@
 #include "components/MeshRenderer.h"
 #include "components/ModelComponent.h"
 #include "components/Light.h"
+#include "components/TransformHierarchy.h"
 #include "graphics/TextureManager.h"
 #include "app/DebugLog.h"
 #include "app/ServiceLocator.h"
+#include "systems/RenderingSystem.h"
 #include <d3dcompiler.h>
 #include <DirectXMath.h>
 #include <wrl/client.h>
@@ -75,11 +77,17 @@ struct RenderSystem {
      * @brief ピクセルシェーダー用オブジェクト定数バッファ
      */
     struct PSConstants {
-        DirectX::XMFLOAT4 color; ///< マテリアルカラー
-        float useTexture;        ///< テクスチャ使用フラグ
-        float useNormalMap;      ///< ノーマルマップ使用フラグ
-        float specularPower;     ///< スペキュラ強度
-        float padding;           ///< パディング
+        DirectX::XMFLOAT4 color;         ///< マテリアルカラー
+        float useTexture;                ///< テクスチャ使用フラグ
+        float useNormalMap;              ///< ノーマルマップ使用フラグ
+        float useLighting;               ///< ライティング有効フラグ
+        float specularAttenuation;       ///< スペキュラー減衰(0以下で無効)
+        float specularEccentricity;      ///< 偏心度(-1〜1目安)
+        DirectX::XMFLOAT3 specularColor; ///< ハイライト色
+        float paddingA;                  ///< パディング
+        DirectX::XMFLOAT3 reflectionColor; ///< 反射カラー
+        float reflectance;               ///< 反射率(F0相当)
+        float paddingEnd[3] = {0.0f, 0.0f, 0.0f}; ///< 16バイト境界合わせ
     };
 
     /**
@@ -206,8 +214,10 @@ struct RenderSystem {
         // パイプラインステートの設定
         SetupPipeline(gfx);
 
-        // ライト情報の更新
-        UpdateLightConstants(w, cam, gfx);
+        // ライト情報の更新（統合レンダリングシステムに委譲）
+        RenderingSystem::GetInstance().UpdateLights(w, cam.position);
+        RenderingSystem::GetInstance().BindLightBuffer(gfx.Ctx(), 1);
+        RenderingSystem::GetInstance().BindMaterialBuffer(gfx.Ctx(), 2);
 
         // ModelComponentの描画
         RenderModelComponents(w, gfx, cam, texMgr);
@@ -350,70 +360,167 @@ struct RenderSystem {
         )";
 
         const char *PS = R"(
-            struct DirectionalLight {
-     float3 direction;
-          float padding;
-  float4 color;
-     };
-
-         cbuffer PerObject : register(b0) {
-    float4 gColor;
-    float gUseTexture;
-       float gUseNormalMap;
-   float gSpecularPower;
-    float padding_obj;
+            struct PointLightGPU {
+                float3 position; float range;
+                float3 color; float intensity;
+                float constantAtt; float linearAtt; float quadraticAtt; float enabled;
             };
 
-       cbuffer PerFrame : register(b1) {
-       DirectionalLight gLight;
-    float3 gAmbientColor;
-    float padding_frame;
-      float3 gEyePos;
-          float padding_frame2;
-   };
+            cbuffer PerObject : register(b0) {
+                float4 gColor;
+                float gUseTexture;
+                float gUseNormalMap;
+                float gUseLighting;
+                float gSpecularAttenuation;
+                float gSpecularEccentricity;
+                float3 gSpecularColor;
+                float padding_obj;
+                float3 gReflectionColor;
+                float gReflectance;
+                float3 gPaddingEnd;
+            };
 
-   Texture2D gTexture : register(t0);
-      Texture2D gNormalMap : register(t1);
- SamplerState gSampler : register(s0);
+            cbuffer PerFrameLighting : register(b1) {
+                float3 gAmbientColor; float gAmbientIntensity;
+                float3 gEyePos; int gActivePointLights;
+                float3 gDirLightDir; float gDirLightEnabled;
+                float3 gDirLightColor; float gDirLightIntensity;
+                PointLightGPU gPointLights[8];
+            };
+
+            cbuffer MaterialBuffer : register(b2) {
+                float4 gDiffuseColor;
+                float3 gEmissiveColor; float gEmissiveIntensity;
+            };
+
+            Texture2D gTexture : register(t0);
+            Texture2D gNormalMap : register(t1);
+            SamplerState gSampler : register(s0);
 
             struct VSOut {
-       float4 pos : SV_POSITION;
-       float2 tex : TEXCOORD;
- float3 nrm : NORMAL;
-     float3 tan : TANGENT;
-      float3 bitan : BITANGENT;
-      float3 worldPos : WORLDPOS;
-    };
+                float4 pos : SV_POSITION;
+                float2 tex : TEXCOORD;
+                float3 nrm : NORMAL;
+                float3 tan : TANGENT;
+                float3 bitan : BITANGENT;
+                float3 worldPos : WORLDPOS;
+            };
 
-    float4 main(VSOut i) : SV_Target {
-      float3 normal = normalize(i.nrm);
-     if (gUseNormalMap > 0.5) {
-        float3x3 TBN = float3x3(normalize(i.tan), normalize(i.bitan), normalize(i.nrm));
-            float3 tangentNormal = gNormalMap.Sample(gSampler, i.tex).xyz * 2.0 - 1.0;
-               normal = normalize(mul(tangentNormal, TBN));
-   }
-
-     float light_factor = max(0.0f, dot(normal, -gLight.direction));
-
- float4 final_color = gColor;
-         if (gUseTexture > 0.5) {
-     final_color *= gTexture.Sample(gSampler, i.tex);
-   }
-
-         float3 toEye = normalize(gEyePos - i.worldPos);
-     float3 reflection = reflect(gLight.direction, normal);
-     float spec_factor = pow(max(0.0f, dot(toEye, reflection)), gSpecularPower);
-
-    float3 diffuse = final_color.rgb * gLight.color.rgb * light_factor;
-     float3 ambient = final_color.rgb * gAmbientColor;
-           float3 specular = gLight.color.rgb * spec_factor;
-
-          return float4(diffuse + ambient + specular, final_color.a);
+            float3 ApplyPointLight(PointLightGPU L,
+                                   float3 worldPos,
+                                   float3 normal,
+                                   float3 viewDir,
+                                   float3 baseColor,
+                                   float3 tangent,
+                                   float3 bitangent,
+                                   float specAtten,
+                                   float specEcc,
+                                   float3 specColor,
+                                   float3 reflectionColor,
+                                   float reflectance)
+            {
+                if (L.enabled < 0.5)
+                    return 0.0.xxx;
+                float3 toLight = L.position - worldPos;
+                float dist = length(toLight);
+                if (dist > L.range)
+                    return 0.0.xxx;
+                float3 lightDir = toLight / max(dist, 1e-4);
+                float NdotL = max(0.0, dot(normal, lightDir));
+                float att = 1.0 / max(L.constantAtt + L.linearAtt * dist + L.quadraticAtt * dist * dist, 1e-4);
+                float3 diffuse = baseColor * L.color * (NdotL * L.intensity * att);
+                if (specAtten <= 0.0001 || reflectance <= 0.0001)
+                    return diffuse;
+                // Blinn-Phong specular
+                float3 halfDir = normalize(lightDir + viewDir);
+                float ndoth = max(0.0, dot(normal, halfDir));
+                // 簡易偏心補正: T/B 方向の成分で重み付け
+                float3 t = normalize(tangent);
+                float3 b = normalize(bitangent);
+                float2 hTB = float2(dot(t, halfDir), dot(b, halfDir));
+                float eccWeight = saturate(1.0 + specEcc * (hTB.x * hTB.x - hTB.y * hTB.y));
+                float spec = pow(ndoth, 32.0) * eccWeight; // 基本の鋭さは固定
+                // Fresnel Schlick
+                float3 F0 = specColor * reflectance;
+                float fresnel = pow(1.0 - max(0.0, dot(viewDir, halfDir)), 5.0);
+                float3 F = F0 + (1.0.xxx - F0) * fresnel;
+                float3 specular = F * (spec * L.color * L.intensity * att * specAtten) * reflectionColor;
+                return diffuse + specular;
             }
-  )";
+
+            float3 ApplyDirectional(float3 dir,
+                                    float3 color,
+                                    float intensity,
+                                    float3 normal,
+                                    float3 viewDir,
+                                    float3 baseColor,
+                                    float3 tangent,
+                                    float3 bitangent,
+                                    float specAtten,
+                                    float specEcc,
+                                    float3 specColor,
+                                    float3 reflectionColor,
+                                    float reflectance)
+            {
+                float NdotL = max(0.0, dot(normal, -normalize(dir)));
+                float3 diffuse = baseColor * color * (NdotL * intensity);
+                if (specAtten <= 0.0001 || reflectance <= 0.0001)
+                    return diffuse;
+                float3 halfDir = normalize(-normalize(dir) + viewDir);
+                float ndoth = max(0.0, dot(normal, halfDir));
+                float3 t = normalize(tangent);
+                float3 b = normalize(bitangent);
+                float2 hTB = float2(dot(t, halfDir), dot(b, halfDir));
+                float eccWeight = saturate(1.0 + specEcc * (hTB.x * hTB.x - hTB.y * hTB.y));
+                float spec = pow(ndoth, 32.0) * eccWeight;
+                float3 F0 = specColor * reflectance;
+                float fresnel = pow(1.0 - max(0.0, dot(viewDir, halfDir)), 5.0);
+                float3 F = F0 + (1.0.xxx - F0) * fresnel;
+                float3 specular = F * (spec * intensity * specAtten) * reflectionColor;
+                return diffuse + specular;
+            }
+
+            float4 main(VSOut i) : SV_Target {
+                float3 normal = normalize(i.nrm);
+                if (gUseNormalMap > 0.5) {
+                    float3x3 TBN = float3x3(normalize(i.tan), normalize(i.bitan), normalize(i.nrm));
+                    float3 tangentNormal = gNormalMap.Sample(gSampler, i.tex).xyz * 2.0 - 1.0;
+                    normal = normalize(mul(tangentNormal, TBN));
+                }
+
+                float4 base = gColor;
+                if (gUseTexture > 0.5) {
+                    base *= gTexture.Sample(gSampler, i.tex);
+                }
+
+                float3 viewDir = normalize(gEyePos - i.worldPos);
+
+                // アンリットならライト計算スキップ
+                if (gUseLighting < 0.5) {
+                    return float4(base.rgb + gEmissiveColor * gEmissiveIntensity, base.a);
+                }
+
+                float3 colorAccum = base.rgb * gAmbientColor * gAmbientIntensity;
+
+                if (gDirLightEnabled > 0.5)
+                {
+                    colorAccum += ApplyDirectional(gDirLightDir, gDirLightColor, gDirLightIntensity, normal, viewDir, base.rgb, i.tan, i.bitan, gSpecularAttenuation, gSpecularEccentricity, gSpecularColor, gReflectionColor, gReflectance);
+                }
+
+                [unroll]
+                for (int idx = 0; idx < gActivePointLights; ++idx) {
+                    colorAccum += ApplyPointLight(gPointLights[idx], i.worldPos, normal, viewDir, base.rgb, i.tan, i.bitan, gSpecularAttenuation, gSpecularEccentricity, gSpecularColor, gReflectionColor, gReflectance);
+                }
+
+                // emissive additive
+                colorAccum += gEmissiveColor * gEmissiveIntensity;
+
+                return float4(colorAccum, base.a);
+            }
+        )";
 
         Microsoft::WRL::ComPtr<ID3DBlob> vsb, psb, err;
-        UINT compileFlags = D3DCOMPILE_ENABLE_STRICTNESS;
+        UINT compileFlags = D3D_COMPILE_STANDARD_FILE_INCLUDE ? D3DCOMPILE_ENABLE_STRICTNESS : D3DCOMPILE_ENABLE_STRICTNESS;
 #if defined(ENABLE_SHADER_DEBUG) && ENABLE_SHADER_DEBUG
         compileFlags |= D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 #else
@@ -508,7 +615,7 @@ struct RenderSystem {
             return false;
         }
 
-        // PS定数バッファ
+        // PS定数バッファ（PerObject）
         cbd.ByteWidth = sizeof(PSConstants);
         hr = gfx.Dev()->CreateBuffer(&cbd, nullptr, psCb_.GetAddressOf());
         if (FAILED(hr)) {
@@ -516,7 +623,7 @@ struct RenderSystem {
             return false;
         }
 
-        // PSライト定数バッファ
+        // 旧PSライト定数バッファ（未使用だが互換のため作成）
         cbd.ByteWidth = sizeof(PSLightConstants);
         hr = gfx.Dev()->CreateBuffer(&cbd, nullptr, psLightCb_.GetAddressOf());
         if (FAILED(hr)) {
@@ -573,31 +680,11 @@ struct RenderSystem {
      * @brief 基本形状メッシュの作成
      */
     bool CreatePrimitiveMeshes(GfxDevice &gfx) {
-        // Cube
-        if (!CreateCubeMesh(gfx)) {
-            DEBUGLOG_ERROR("[RenderSystem] キューブメッシュの作成失敗");
-            return false;
-        }
-
-        // Sphere
-        if (!CreateSphereMesh(gfx)) {
-            DEBUGLOG_ERROR("[RenderSystem] 球体メッシュの作成失敗");
-            return false;
-        }
-
-        // Cylinder
-        if (!CreateCylinderMesh(gfx)) {
-            DEBUGLOG_ERROR("[RenderSystem] 円柱メッシュの作成失敗");
-            return false;
-        }
-
-        // Plane
-        if (!CreatePlaneMesh(gfx)) {
-            DEBUGLOG_ERROR("[RenderSystem] 平面メッシュの作成失敗");
-            return false;
-        }
-
-        DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "[RenderSystem] 基本形状メッシュの作成完了");
+        if (!CreateCubeMesh(gfx)) { DEBUGLOG_ERROR("[RenderSystem] キューブメッシュの作成失敗"); return false; }
+        if (!CreateSphereMesh(gfx)) { DEBUGLOG_ERROR("[RenderSystem] 球体メッシュの作成失敗"); return false; }
+        if (!CreateCylinderMesh(gfx)) { DEBUGLOG_ERROR("[RenderSystem] 円柱メッシュの作成失敗"); return false; }
+        if (!CreatePlaneMesh(gfx)) { DEBUGLOG_ERROR("[RenderSystem] 平面メッシュの作成に失敗"); return false; }
+        if (!CreateRightIsoTriPrismMesh(gfx)) { DEBUGLOG_ERROR("[RenderSystem] 直角二等辺三角柱メッシュの作成に失敗"); return false; }
         return true;
     }
 
@@ -802,6 +889,42 @@ struct RenderSystem {
     }
 
     /**
+     * @brief 直角二等辺三角柱メッシュの作成
+     */
+    bool CreateRightIsoTriPrismMesh(GfxDevice &gfx) {
+        const float s = 0.5f;
+        std::vector<Vertex> v;
+        std::vector<uint16_t> idx;
+        DirectX::XMFLOAT3 A{-s,-s,-s};
+        DirectX::XMFLOAT3 B{ s,-s,-s};
+        DirectX::XMFLOAT3 C{-s,-s, s};
+        DirectX::XMFLOAT3 A2{-s,s,-s};
+        DirectX::XMFLOAT3 B2{ s,s,-s};
+        DirectX::XMFLOAT3 C2{-s,s, s};
+        auto make = [&](DirectX::XMFLOAT3 p, DirectX::XMFLOAT2 uv, DirectX::XMFLOAT3 n){ v.push_back({p,uv,n,{1,0,0},{0,1,0}}); };
+        make(A,{0,1},{0,-1,0}); make(B,{1,1},{0,-1,0}); make(C,{0,0},{0,-1,0});
+        make(A2,{0,1},{0,1,0}); make(C2,{0,0},{0,1,0}); make(B2,{1,1},{0,1,0});
+        DirectX::XMFLOAT3 nBack{0,0,-1};
+        make(A,{0,1},nBack); make(A2,{0,0},nBack); make(B2,{1,0},nBack); make(B,{1,1},nBack);
+        DirectX::XMFLOAT3 nFront{0,0,1};
+        make(B,{1,1},nFront); make(B2,{1,0},nFront); make(C2,{0,0},nFront); make(C,{0,1},nFront);
+        DirectX::XMFLOAT3 nLeft{-1,0,0};
+        make(C,{1,1},nLeft); make(C2,{1,0},nLeft); make(A2,{0,0},nLeft); make(A,{0,1},nLeft);
+        auto calcNormal = [](DirectX::XMFLOAT3 p0, DirectX::XMFLOAT3 p1, DirectX::XMFLOAT3 p2){ using namespace DirectX; XMVECTOR v0=XMLoadFloat3(&p0), v1=XMLoadFloat3(&p1), v2=XMLoadFloat3(&p2); XMVECTOR n = XMVector3Normalize(XMVector3Cross(XMVectorSubtract(v1,v0), XMVectorSubtract(v2,v0))); DirectX::XMFLOAT3 r; XMStoreFloat3(&r,n); return r; };
+        DirectX::XMFLOAT3 nDiag = calcNormal(B,A,A2);
+        make(B,{1,1},nDiag); make(A,{0,1},nDiag); make(A2,{0,0},nDiag); make(B2,{1,0},nDiag);
+        DirectX::XMFLOAT3 nDiag2 = calcNormal(C,B,B2);
+        make(C,{0,1},nDiag2); make(B,{1,1},nDiag2); make(B2,{1,0},nDiag2); make(C2,{0,0},nDiag2);
+        idx.insert(idx.end(),{0,1,2,3,4,5});
+        idx.insert(idx.end(),{6,7,8,6,8,9});
+        idx.insert(idx.end(),{10,11,12,10,12,13});
+        idx.insert(idx.end(),{14,15,16,14,16,17});
+        idx.insert(idx.end(),{18,19,20,18,20,21});
+        idx.insert(idx.end(),{22,23,24,22,24,25});
+        return CreateMeshBuffers(gfx, v.data(), v.size(), idx.data(), idx.size(), static_cast<int>(MeshType::RightIsoTriPrism));
+    }
+
+    /**
      * @brief メッシュバッファの作成
      */
     bool CreateMeshBuffers(GfxDevice &gfx, const Vertex *vertices, size_t vertexCount, const uint16_t *indices, size_t indexCount, int meshTypeKey) {
@@ -858,14 +981,14 @@ struct RenderSystem {
         gfx.Ctx()->PSSetShader(ps_.Get(), nullptr, 0);
         gfx.Ctx()->VSSetConstantBuffers(0, 1, vsCb_.GetAddressOf());
         gfx.Ctx()->PSSetConstantBuffers(0, 1, psCb_.GetAddressOf());
-        gfx.Ctx()->PSSetConstantBuffers(1, 1, psLightCb_.GetAddressOf());
+        // b1/b2 は統合RenderingSystem側でバインドする
         gfx.Ctx()->PSSetSamplers(0, 1, samplerState_.GetAddressOf());
         gfx.Ctx()->RSSetState(rasterState_.Get());
         gfx.Ctx()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     }
 
     /**
-* @brief ライト定数の更新
+* @brief ライト定数の更新（非使用・互換維持）
      */
     void UpdateLightConstants(World &w, const Camera &cam, GfxDevice &gfx) {
         PSLightConstants lightCbuf;
@@ -882,6 +1005,7 @@ struct RenderSystem {
      * @brief ModelComponentの描画
      */
     void RenderModelComponents(World &w, GfxDevice &gfx, const Camera &cam, TextureManager &texMgr) {
+        std::unordered_map<uint32_t, DirectX::XMMATRIX> worldCache;
         w.ForEach<ModelComponent>([&](Entity e, ModelComponent &mc) {
             auto *t = w.TryGet<Transform>(e);
             if (!t)
@@ -890,11 +1014,23 @@ struct RenderSystem {
                 return;
 
             // ワールド行列の計算
-            DirectX::XMMATRIX worldMatrix = CalculateWorldMatrix(*t);
+            DirectX::XMMATRIX worldMatrix = CalculateWorldMatrix(w, e, *t, worldCache);
 
             // 定数バッファの更新
             UpdateVSConstants(gfx, worldMatrix, cam, mc.uvOffset, mc.uvScale);
-            UpdatePSConstants(gfx, mc.color, mc.texture, mc.normalTexture, 32.0f);
+            UpdatePSConstants(gfx,
+                              mc.color,
+                              mc.texture,
+                              mc.normalTexture,
+                              mc.useLighting,
+                              mc.specularAttenuation,
+                              mc.specularColor,
+                              mc.reflectance,
+                              mc.reflectionColor,
+                              mc.specularEccentricity);
+
+            // エミッシブ/マテリアルの設定
+            RenderingSystem::GetInstance().SetMaterialForEntity(gfx.Ctx(), e, w);
 
             // テクスチャの設定
             SetTextures(gfx, texMgr, mc.texture, mc.normalTexture);
@@ -915,6 +1051,7 @@ struct RenderSystem {
      * @brief MeshRendererの描画
    */
     void RenderMeshRenderers(World &w, GfxDevice &gfx, const Camera &cam, TextureManager &texMgr) {
+        std::unordered_map<uint32_t, DirectX::XMMATRIX> worldCache;
         w.ForEach<Transform, MeshRenderer>([&](Entity e, Transform &t, MeshRenderer &mr) {
             // メッシュデータの取得
             auto it = meshCache_.find(static_cast<int>(mr.meshType));
@@ -928,11 +1065,23 @@ struct RenderSystem {
                 return;
 
             // ワールド行列の計算
-            DirectX::XMMATRIX worldMatrix = CalculateWorldMatrix(t);
+            DirectX::XMMATRIX worldMatrix = CalculateWorldMatrix(w, e, t, worldCache);
 
             // 定数バッファの更新
             UpdateVSConstants(gfx, worldMatrix, cam, mr.uvOffset, mr.uvScale);
-            UpdatePSConstants(gfx, mr.color, mr.texture, TextureManager::INVALID_TEXTURE, 32.0f);
+            UpdatePSConstants(gfx,
+                              mr.color,
+                              mr.texture,
+                              TextureManager::INVALID_TEXTURE,
+                              mr.useLighting,
+                              mr.specularAttenuation,
+                              mr.specularColor,
+                              mr.reflectance,
+                              mr.reflectionColor,
+                              mr.specularEccentricity);
+
+            // エミッシブ/マテリアルの設定
+            RenderingSystem::GetInstance().SetMaterialForEntity(gfx.Ctx(), e, w);
 
             // テクスチャの設定
             SetTextures(gfx, texMgr, mr.texture, TextureManager::INVALID_TEXTURE);
@@ -950,9 +1099,9 @@ struct RenderSystem {
     }
 
     /**
-     * @brief ワールド行列の計算
+     * @brief ローカル行列の計算
      */
-    DirectX::XMMATRIX CalculateWorldMatrix(const Transform &t) const {
+    DirectX::XMMATRIX BuildLocalMatrix(const Transform &t) const {
         DirectX::XMMATRIX S = DirectX::XMMatrixScaling(t.scale.x, t.scale.y, t.scale.z);
         DirectX::XMMATRIX R = DirectX::XMMatrixRotationRollPitchYaw(
             DirectX::XMConvertToRadians(t.rotation.x),
@@ -961,6 +1110,35 @@ struct RenderSystem {
         DirectX::XMMATRIX T = DirectX::XMMatrixTranslation(t.position.x, t.position.y, t.position.z);
 
         return S * R * T;
+    }
+
+    /**
+     * @brief 親子階層を考慮したワールド行列の計算（メモ化付き）
+     */
+    DirectX::XMMATRIX CalculateWorldMatrix(
+        const World &w,
+        Entity e,
+        const Transform &t,
+        std::unordered_map<uint32_t, DirectX::XMMATRIX> &cache) const {
+        auto it = cache.find(e.id);
+        if (it != cache.end()) {
+            return it->second;
+        }
+
+        DirectX::XMMATRIX world = BuildLocalMatrix(t);
+        auto *hierarchy = w.TryGet<TransformHierarchy>(e);
+        if (hierarchy && hierarchy->HasParent()) {
+            auto parentOpt = hierarchy->GetParent();
+            if (parentOpt && w.IsAlive(*parentOpt)) {
+                if (auto *parentTransform = w.TryGet<Transform>(*parentOpt)) {
+                    DirectX::XMMATRIX parentWorld = CalculateWorldMatrix(w, *parentOpt, *parentTransform, cache);
+                    world = DirectX::XMMatrixMultiply(world, parentWorld);
+                }
+            }
+        }
+
+        cache[e.id] = world;
+        return world;
     }
 
     /**
@@ -978,12 +1156,27 @@ struct RenderSystem {
     /**
      * @brief PS定数バッファの更新
      */
-    void UpdatePSConstants(GfxDevice &gfx, const DirectX::XMFLOAT3 &color, TextureManager::TextureHandle texture, TextureManager::TextureHandle normalTexture, float specularPower) {
+    void UpdatePSConstants(GfxDevice &gfx,
+                           const DirectX::XMFLOAT3 &color,
+                           TextureManager::TextureHandle texture,
+                           TextureManager::TextureHandle normalTexture,
+                           float useLighting,
+                           float specularAttenuation,
+                           const DirectX::XMFLOAT3 &specularColor,
+                           float reflectance,
+                           const DirectX::XMFLOAT3 &reflectionColor,
+                           float specularEccentricity) {
         PSConstants psCbuf;
         psCbuf.color = DirectX::XMFLOAT4{color.x, color.y, color.z, 1.0f};
         psCbuf.useTexture = (texture != TextureManager::INVALID_TEXTURE) ? 1.0f : 0.0f;
         psCbuf.useNormalMap = (normalTexture != TextureManager::INVALID_TEXTURE) ? 1.0f : 0.0f;
-        psCbuf.specularPower = specularPower;
+        psCbuf.useLighting = useLighting;
+        psCbuf.specularAttenuation = specularAttenuation;
+        psCbuf.specularEccentricity = specularEccentricity;
+        psCbuf.specularColor = specularColor;
+        psCbuf.reflectionColor = reflectionColor;
+        psCbuf.reflectance = reflectance;
+        psCbuf.paddingEnd[0] = psCbuf.paddingEnd[1] = psCbuf.paddingEnd[2] = 0.0f;
 
         gfx.Ctx()->UpdateSubresource(psCb_.Get(), 0, nullptr, &psCbuf, 0, 0);
     }

@@ -2,7 +2,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
-#include "components/ModelComponent.h"
+#include "components/ModelPrefab.h"
 #include "graphics/ModelLoader.h"
 
 /**
@@ -16,12 +16,12 @@
 class ResourceManager {
 public:
     // モデルをファイルパスで取得（キャッシュ対応）
-    const std::vector<ModelComponent>& GetModel(const std::string& filePath);
+    const std::vector<ModelPrefabNode>& GetModel(const std::string& filePath);
 
     // キャッシュをクリア
     void Clear();
 
 private:
     // モデルキャッシュ
-    std::unordered_map<std::string, std::vector<ModelComponent>> modelCache_;
+    std::unordered_map<std::string, std::vector<ModelPrefabNode>> modelCache_;
 };

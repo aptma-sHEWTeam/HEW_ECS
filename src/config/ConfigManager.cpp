@@ -21,7 +21,7 @@ void ConfigManager::Initialize(const std::string& assetPath) {
     m_AssetPath = assetPath;
     // Always enable hot reload in both debug and release builds
     m_IsDebug = true;
-    
+
     // Always load TOML regardless of build type
     LoadTOML();
     if (m_IsDirty) {
@@ -33,7 +33,7 @@ void ConfigManager::Initialize(const std::string& assetPath) {
 void ConfigManager::Update() {
     if (!m_IsDebug) return;
 
-    fs::path tomlPath = fs::path(m_AssetPath) / "config.toml";
+    fs::path tomlPath = fs::path(m_AssetPath) / "Settings/config.toml";
     if (!fs::exists(tomlPath)) {
         if (m_IsDirty) { // If we have vars but no file, create it
              SaveTOML();
@@ -78,7 +78,7 @@ static std::string Trim(const std::string& str) {
 }
 
 void ConfigManager::LoadTOML() {
-    fs::path tomlPath = fs::path(m_AssetPath) / "config.toml";
+    fs::path tomlPath = fs::path(m_AssetPath) / "Settings/config.toml";
     if (!fs::exists(tomlPath)) {
         m_IsDirty = true; // File doesn't exist, so we need to write defaults
         return;
@@ -110,7 +110,7 @@ void ConfigManager::LoadTOML() {
             }
         }
     }
-    
+
     m_LastWriteTime = fs::last_write_time(tomlPath);
 
     // Apply to vars
@@ -129,7 +129,7 @@ void ConfigManager::LoadTOML() {
 }
 
 void ConfigManager::SaveTOML() {
-    fs::path tomlPath = fs::path(m_AssetPath) / "config.toml";
+    fs::path tomlPath = fs::path(m_AssetPath) / "Settings/config.toml";
     std::ofstream file(tomlPath);
     if (!file.is_open()) return;
 
@@ -147,7 +147,7 @@ void ConfigManager::SaveTOML() {
             // For this simple parser, we assume strings need quotes if they aren't numbers/bools
             // But GetValueAsString implementation for string already returns raw string.
             // We should probably add quotes for string types.
-            // Since we don't have type info easily here without casting, let's rely on the fact 
+            // Since we don't have type info easily here without casting, let's rely on the fact
             // that SetValueFromString handles unquoting.
             // A robust way would be to have GetValueAsTOMLString in interface.
             // For now, let's just write it. If it's a string type, we might want to quote it.
@@ -155,14 +155,14 @@ void ConfigManager::SaveTOML() {
             // Let's just write it as is. If it's a string value "hello", it writes hello.
             // The parser handles quotes. We should add them if it's a string.
             // For simplicity, let's just write raw.
-            
+
             // Actually, to be safe with our parser:
             // If the value contains spaces and isn't quoted, our parser might be fine since we take everything after =
             // But standard TOML requires quotes for strings.
             // Let's try to detect if it's a number or bool, otherwise quote.
             bool isNumber = !val.empty() && val.find_first_not_of("0123456789.-") == std::string::npos;
             bool isBool = val == "true" || val == "false";
-            
+
             if (!isNumber && !isBool) {
                 file << var->GetName() << " = \"" << val << "\"\n";
             } else {
@@ -171,7 +171,7 @@ void ConfigManager::SaveTOML() {
         }
         file << "\n";
     }
-    
+
     // Update time so we don't hot-reload our own save
     file.close();
     m_LastWriteTime = fs::last_write_time(tomlPath);
@@ -186,11 +186,11 @@ void ConfigManager::LoadBinary() {
     }
 
     // Simple format: [SectionHash][NameHash][Size][Data]... or just sequential if order is deterministic.
-    // Since registration order might vary across compilers/linkers (global constructors), 
+    // Since registration order might vary across compilers/linkers (global constructors),
     // we cannot rely on order. We need identifiers.
     // To keep it simple and robust:
     // [SectionLen][SectionStr][NameLen][NameStr][DataLen][Data]
-    
+
     while (file.peek() != EOF) {
         size_t len;
         if (!file.read(reinterpret_cast<char*>(&len), sizeof(len))) break;
@@ -203,7 +203,7 @@ void ConfigManager::LoadBinary() {
 
         size_t dataSize;
         if (!file.read(reinterpret_cast<char*>(&dataSize), sizeof(dataSize))) break;
-        
+
         std::vector<char> buffer(dataSize);
         file.read(buffer.data(), dataSize);
 
@@ -236,7 +236,7 @@ void ConfigManager::ExportBinary(const std::string& path) {
 
         size_t dataSize = var->GetBinarySize();
         file.write(reinterpret_cast<const char*>(&dataSize), sizeof(dataSize));
-        
+
         // This is a bit hacky for types that aren't POD, but for int/float/bool it works.
         // For strings, we returned size 0 in header, so it won't write anything.
         if (dataSize > 0) {

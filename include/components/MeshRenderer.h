@@ -44,7 +44,8 @@ enum class MeshType {
     Cylinder,      ///< 円柱
     Cone,          ///< 円錐
     Plane,         ///< 平面
-    Capsule        ///< カプセル
+    Capsule,        ///< カプセル
+    RightIsoTriPrism ///< 立方体を斜めに2等分した直角二等辺三角柱
 };
 
 /**
@@ -178,9 +179,47 @@ struct MeshRenderer {
      * renderer.color = DirectX::XMFLOAT3{0.5f, 0.5f, 0.5f};
      * @endcode
      * 
-     * @note デフォルトは明るい水色{0.3, 0.7, 1.0}
+     * @note デフォルトは純白{1.0, 1.0, 1.0}
      */
-    DirectX::XMFLOAT3 color{ 0.3f, 0.7f, 1.0f };
+    DirectX::XMFLOAT3 color{ 1.0f, 1.0f, 1.0f };
+
+    /**
+     * @var specularAttenuation
+     * @brief スペキュラー全体の強さ(0以下でスペキュラー無効)
+     *
+     * @note デフォルトは0.0f (無効)
+     */
+    float specularAttenuation = 0.0f;
+
+    /**
+     * @var specularColor
+     * @brief ハイライトの色
+     */
+    DirectX::XMFLOAT3 specularColor{ 1.0f, 1.0f, 1.0f };
+
+    /**
+     * @var reflectance
+     * @brief フレネルのF0相当(0〜1)
+     */
+    float reflectance = 0.0f;
+
+    /**
+     * @var reflectionColor
+     * @brief 反射カラーの乗算
+     */
+    DirectX::XMFLOAT3 reflectionColor{ 1.0f, 1.0f, 1.0f };
+
+    /**
+     * @var specularEccentricity
+     * @brief 偏心度(-1〜1目安)。0で等方。
+     */
+    float specularEccentricity = 0.0f;
+
+    /**
+     * @var useLighting
+     * @brief 0でアンリット(ライト影響なし)
+     */
+    float useLighting = 1.0f;
     
     /**
      * @var texture

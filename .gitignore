@@ -21,7 +21,9 @@ mono_crash.*
 [Dd]ebugPublic/
 [Rr]elease/
 [Rr]eleases/
+debug_log.csv
 debug_log.txt
+metrics_log.csv
 x64/
 x86/
 Assets/
@@ -369,3 +371,4 @@ docs/html/
 docs/latex/
 docs/doxygen_sqlite3.db
 Doxyfile.bak
+/debug_log.txt

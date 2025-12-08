@@ -33,11 +33,35 @@
 #endif
 
 #ifndef ENABLE_DEBUG_VISUALS
+#if defined(_DEBUG)
+#define ENABLE_DEBUG_VISUALS 1
+#else
 #define ENABLE_DEBUG_VISUALS 0
 #endif
+#endif
 
-#ifndef ENABLE_DEBUG_VISUALS
-#define ENABLE_DEBUG_VISUALS 0
+#ifndef ENABLE_METRICS_LOG
+#if defined(_DEBUG)
+#define ENABLE_METRICS_LOG 1
+#else
+#define ENABLE_METRICS_LOG 0
+#endif
+#endif
+
+#ifndef ENABLE_FRAME_PACING
+#define ENABLE_FRAME_PACING 1
+#endif
+
+#ifndef FRAME_PACING_TARGET_FPS
+#define FRAME_PACING_TARGET_FPS 60.0f
+#endif
+
+#ifndef FRAME_PACING_SPIN_THRESHOLD_MS
+#define FRAME_PACING_SPIN_THRESHOLD_MS 1.0f
+#endif
+
+#ifndef METRICS_LOG_INTERVAL_FRAMES
+#define METRICS_LOG_INTERVAL_FRAMES 60
 #endif
 
 #ifndef DEBUGLOG_AUTO_FLUSH_THRESHOLD

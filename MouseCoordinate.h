@@ -1,8 +1,8 @@
 /*****************************************************************//**
  * \file   MouseCoordinate.h
- * \brief　毎フレームマウスの座標更新・表示  
- * 
- * 
+ * \brief　毎フレームマウスの座標更新・表示
+ *
+ *
  * \author 飯島英菜・亀多彩日
  * \date   11/4
  *********************************************************************/
@@ -35,8 +35,8 @@ struct MouseCoordinate : Behaviour
 
     /**
      * @brief 毎フレーム座標更新
-     * 
-     * 
+     *
+     *
      */
     void OnUpdate(World& w, Entity self,float dt) override
     {
@@ -48,11 +48,10 @@ struct MouseCoordinate : Behaviour
 
     /**
      * @brief　毎フレームの描画
-     * 
+     *
      */
-    void OnRender() 
+    void OnRender()
     {
-       
 
     }
 

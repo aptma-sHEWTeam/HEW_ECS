@@ -23,6 +23,8 @@
 #include <algorithm>
 #include <cmath>
 #include <thread>
+#include <filesystem>
+#include <fstream>
 
 #include "app/BuildConfig.h"
 
@@ -39,6 +41,7 @@
 #include "app/ResourceManager.h"
 #include "app/ServiceLocator.h"
 #include "config/ConfigManager.h"
+#include "config/ConfigVar.h"
 
 #ifdef _DEBUG
 #include "app/DebugLog.h"
@@ -83,6 +86,20 @@ struct App {
 #if ENABLE_DEBUG_VISUALS
     DebugDraw debugDraw_; ///< デバッグ描画用
 #endif
+
+    // Camera設定（TOMLで編集可能）
+    inline static ConfigVar<float> cfg_CamFovDeg{"Camera", "FovDegrees", 45.0f};
+    inline static ConfigVar<float> cfg_CamNear{"Camera", "Near", 0.1f};
+    inline static ConfigVar<float> cfg_CamFar{"Camera", "Far", 100.0f};
+    inline static ConfigVar<float> cfg_CamPosX{"Camera", "PosX", 0.0f};
+    inline static ConfigVar<float> cfg_CamPosY{"Camera", "PosY", 26.0f};
+    inline static ConfigVar<float> cfg_CamPosZ{"Camera", "PosZ", -7.0f};
+    inline static ConfigVar<float> cfg_CamTargetX{"Camera", "TargetX", 0.0f};
+    inline static ConfigVar<float> cfg_CamTargetY{"Camera", "TargetY", 0.0f};
+    inline static ConfigVar<float> cfg_CamTargetZ{"Camera", "TargetZ", -1.0f};
+    inline static ConfigVar<float> cfg_CamUpX{"Camera", "UpX", 0.0f};
+    inline static ConfigVar<float> cfg_CamUpY{"Camera", "UpY", 0.0f};
+    inline static ConfigVar<float> cfg_CamUpZ{"Camera", "UpZ", 1.0f};
 
     void InitializeGame() {
         DEBUGLOG("InitializeGame() begin");
@@ -196,7 +213,8 @@ struct App {
         auto previousTime = std::chrono::high_resolution_clock::now();
         int frameCount = 0;
 
-        const float targetFrameTime = 1.0f / 120.0f; // 60Hz (16.67ms)
+        const float fixedDeltaTime = 1.0f / 60.0f; // Fixed update step (60Hz)
+        float accumulator = 0.0f;
 
         while (msg.message != WM_QUIT) {
             // フレーム番号をログシステムに設定
@@ -210,73 +228,105 @@ struct App {
             // フレーム開始時刻
             auto frameStartTime = std::chrono::high_resolution_clock::now();
 
+#if ENABLE_DEBUG_VISUALS
+            debugDraw_.Clear();
+#endif
+
             // 時間の計算
             float deltaTime = CalculateDeltaTime(previousTime);
 
-            // デルタタイムの異常値チェック
-            if (deltaTime > 1.0f) {
-                DEBUGLOG("[WARNING] 異常なdeltaTimeを検出: " + std::to_string(deltaTime) + "s (0.1sにクランプ)");
-                deltaTime = 0.1f;
+            // デルタタイムの異常値チェック (Spiral of Death prevention)
+            if (deltaTime > 0.25f) {
+                DEBUGLOG("[WARNING] 異常なdeltaTimeを検出: " + std::to_string(deltaTime) + "s (0.25sにクランプ)");
+                deltaTime = 0.25f;
             }
 
-            // ========== RENDER PHASE ==========
+            accumulator += deltaTime;
+            // スパイラル回避: 溜まり過ぎを抑制（最大5フレーム分まで）
+            const float maxAccum = fixedDeltaTime * 5.0f;
+            if (accumulator > maxAccum) {
+                accumulator = maxAccum;
+            }
+
+            // ========== UPDATE PHASE (Fixed Step) ==========
+            while (accumulator >= fixedDeltaTime) {
+                auto updateStartTime = std::chrono::high_resolution_clock::now();
+
+                // 入力の更新（フォーカスがある場合のみ）
+                if (isWindowFocused_) {
+                    input_.Update();
+                }
+
+                // ゲームパッドの更新（フォーカスがある場合のみ）
+                if (isWindowFocused_) {
+                    gamepad_.Update();
+                }
+
+                // ConfigManagerの更新（ホットリロード処理）
+                ConfigManager::Instance().Update();
+
+                // F5キーで手動リロード（フォーカスがある場合のみ）
+                if (isWindowFocused_ && input_.GetKeyDown(VK_F5)) {
+                    ConfigManager::Instance().ForceReload();
+                    DEBUGLOG_CATEGORY(DebugLog::Category::System, "F5キーが押されました - 設定ファイルを強制リロード");
+                }
+#if ENABLE_DEBUG_VISUALS
+                if (isWindowFocused_) {
+                    UpdateDebugCamera(fixedDeltaTime);
+                }
+#endif // ENABLE_DEBUG_VISUALS
+
+                // ESCキーで終了（フォーカスがある場合のみ）
+                if (isWindowFocused_ && input_.GetKeyDown(VK_ESCAPE)) {
+                    DEBUGLOG_CATEGORY(DebugLog::Category::System, "ESCキーが押されました - アプリケーション終了要求（ユーザー操作）");
+                    PostQuitMessage(0);
+                }
+
+                // シーンの更新
+                // フォーカスがない場合は更新をスキップするか、ポーズ状態にするのが一般的だが
+                // ここでは元のロジックに従い、フォーカスがない場合はeffectiveDeltaTimeを0にするか、
+                // あるいはUpdate自体を呼ばないか。
+                // 元のロジック: float effectiveDeltaTime = isWindowFocused_ ? deltaTime : 0.0f;
+                // 固定ステップなので、Updateを呼ぶならfixedDeltaTimeを渡すべき。
+                // フォーカスがないときに時間を進めないなら、accumulatorを加算しない、あるいはここでスキップする。
+                
+                if (isWindowFocused_) {
+                    try {
+                        // GameSceneにWorld参照を渡す（遅延リスポーンなどで使用）
+                        if (auto* gs = dynamic_cast<GameScene*>(sceneManager_.GetCurrentScene())) {
+                            gs->SetWorldRef(&world_);
+                        }
+                        sceneManager_.Update(world_, input_, fixedDeltaTime);
+                    } catch (const std::exception& e) {
+                        DEBUGLOG("[CRITICAL ERROR] シーン更新中に例外が発生: " + std::string(e.what()));
+                        PostQuitMessage(-1);
+                    }
+                }
+
+            accumulator -= fixedDeltaTime;
+
+            auto updateEndTime = std::chrono::high_resolution_clock::now();
+            std::chrono::duration<float> updateDuration = updateEndTime - updateStartTime;
+            currentMetrics_.updateTime = updateDuration.count();
+            }
+
+            // ========== RENDER PHASE (Variable Step) ==========
             auto renderStartTime = std::chrono::high_resolution_clock::now();
 
             // BeginFrameとレンダリング処理
             gfx_.BeginFrame();
 
-            // ========== UPDATE PHASE ==========
-            auto updateStartTime = std::chrono::high_resolution_clock::now();
-
-            // 入力の更新（フォーカスがある場合のみ）
-            if (isWindowFocused_) {
-                input_.Update();
-            }
-
-            // ゲームパッドの更新（フォーカスがある場合のみ）
-            if (isWindowFocused_) {
-                gamepad_.Update();
-            }
-
-            // ConfigManagerの更新（ホットリロード処理）
-            ConfigManager::Instance().Update();
-
-            // F5キーで手動リロード（フォーカスがある場合のみ）
-            if (isWindowFocused_ && input_.GetKeyDown(VK_F5)) {
-                ConfigManager::Instance().ForceReload();
-                DEBUGLOG_CATEGORY(DebugLog::Category::System, "F5キーが押されました - 設定ファイルを強制リロード");
-            }
-#if ENABLE_DEBUG_VISUALS
-            if (isWindowFocused_) {
-                UpdateDebugCamera(deltaTime);
-            }
-#endif // ENABLE_DEBUG_VISUALS
-
-            // ESCキーで終了（フォーカスがある場合のみ）
-            if (isWindowFocused_ && input_.GetKeyDown(VK_ESCAPE)) {
-                DEBUGLOG_CATEGORY(DebugLog::Category::System, "ESCキーが押されました - アプリケーション終了要求（ユーザー操作）");
-                PostQuitMessage(0);
-            }
-
-            // シーンの更新（UIの描画のため常に呼び出す）
-            // フォーカスがない場合はdeltaTimeを0にして時間依存の更新を停止
-            float effectiveDeltaTime = isWindowFocused_ ? deltaTime : 0.0f;
-            try {
-                sceneManager_.Update(world_, input_, effectiveDeltaTime);
-            } catch (const std::exception& e) {
-                DEBUGLOG("[CRITICAL ERROR] シーン更新中に例外が発生: " + std::string(e.what()));
-                PostQuitMessage(-1);
-            }
-
-            auto updateEndTime = std::chrono::high_resolution_clock::now();
-            std::chrono::duration<float> updateDuration = updateEndTime - updateStartTime;
-            currentMetrics_.updateTime = updateDuration.count();
-
 #if ENABLE_DEBUG_VISUALS
             DrawDebugInfo();
 #endif // ENABLE_DEBUG_VISUALS
 
+            // アクティブなシーンがGameSceneなら、そのカメラを使用
+            if (auto* gs = dynamic_cast<GameScene*>(sceneManager_.GetCurrentScene())) {
+                camera_ = gs->GetCamera();
+            }
+
             renderer_.Render(world_, camera_);
+            sceneManager_.Render(world_);
 
 #if ENABLE_DEBUG_VISUALS
             debugDraw_.Render(gfx_, camera_);
@@ -289,7 +339,7 @@ struct App {
             // ========== PRESENT PHASE ==========
             auto presentStartTime = std::chrono::high_resolution_clock::now();
 
-            // Present実行（VSync待機含む）
+            // Present実行（VSync待機含む - VSyncが有効ならここで待つことになる）
             gfx_.EndFrame();
 
             auto presentEndTime = std::chrono::high_resolution_clock::now();
@@ -309,13 +359,36 @@ struct App {
 
             UpdateWindowTitle();
 
+#if ENABLE_METRICS_LOG
+            MaybeLogMetrics(frameCount, renderer_.GetStatistics());
+#endif
 
-            // 60Hzに制限
-            auto frameEndTime = std::chrono::high_resolution_clock::now();
-            std::chrono::duration<float> elapsedTime = frameEndTime - frameStartTime;
-            if (elapsedTime.count() < targetFrameTime) {
-                std::this_thread::sleep_for(std::chrono::duration<float>(targetFrameTime - elapsedTime.count()));
+#if ENABLE_FRAME_PACING
+            const double targetFrameSec = 1.0 / static_cast<double>(FRAME_PACING_TARGET_FPS);
+            double elapsedSec = frameDuration.count();
+            double remainingSec = targetFrameSec - elapsedSec;
+            if (remainingSec > 0.0) {
+                const double spinThreshold = FRAME_PACING_SPIN_THRESHOLD_MS / 1000.0;
+                if (remainingSec > spinThreshold) {
+                    DWORD sleepMs = static_cast<DWORD>((remainingSec - spinThreshold) * 1000.0);
+                    if (sleepMs > 0) {
+                        ::Sleep(sleepMs);
+                    }
+                }
+                // 残りわずかは軽くスピン＋譲り
+                while (true) {
+                    auto now = std::chrono::high_resolution_clock::now();
+                    std::chrono::duration<double> sinceStart = now - frameStartTime;
+                    if (sinceStart.count() >= targetFrameSec) {
+                        break;
+                    }
+                    ::Sleep(0);
+                }
             }
+#else
+            // 軽い休止を入れてCPU占有率を抑制（スレッドを譲る）
+            ::Sleep(0);
+#endif
 
             frameCount++;
         }
@@ -443,6 +516,44 @@ private:
 
         DEBUGLOG_CATEGORY(DebugLog::Category::System, "App::Shutdown() 正常に完了");
     }
+
+#if ENABLE_METRICS_LOG
+    /**
+     * @brief 計測メトリクスをログ出力（一定フレーム間隔）
+     */
+    void MaybeLogMetrics(int frameCount, const RenderSystem::Statistics& renderStats) {
+        if (frameCount % METRICS_LOG_INTERVAL_FRAMES != 0) {
+            return;
+        }
+
+        auto toMs = [](float seconds) { return seconds * 1000.0f; };
+
+        const std::filesystem::path csvPath = "metrics_log.csv";
+        const bool needHeader = !std::filesystem::exists(csvPath);
+
+        std::ofstream ofs(csvPath, std::ios::app);
+        if (!ofs.is_open()) {
+            DEBUGLOG_WARNING("[Metrics] metrics_log.csv を開けませんでした");
+            return;
+        }
+
+        if (needHeader) {
+            ofs << "frame,total_ms,update_ms,render_ms,present_ms,drawcalls,models,meshes,entities,behaviours\n";
+        }
+
+        ofs << frameCount << ','
+            << std::fixed << std::setprecision(3)
+            << toMs(currentMetrics_.totalTime) << ','
+            << toMs(currentMetrics_.updateTime) << ','
+            << toMs(currentMetrics_.renderTime) << ','
+            << toMs(currentMetrics_.presentTime) << ','
+            << renderStats.totalDrawCalls << ','
+            << renderStats.modelsRendered << ','
+            << renderStats.meshesRendered << ','
+            << world_.GetAliveCount() << ','
+            << world_.GetBehaviourCount() << '\n';
+    }
+#endif // ENABLE_METRICS_LOG
 
     // ========================================================
     // 初期化ヘルパー
@@ -573,14 +684,21 @@ private:
         float aspectRatio = static_cast<float>(width) / static_cast<float>(height);
         DEBUGLOG("アスペクト比: " + std::to_string(aspectRatio));
 
+        const float fovRad = DirectX::XMConvertToRadians(cfg_CamFovDeg.Get());
+        const float nearZ = cfg_CamNear.Get();
+        const float farZ = cfg_CamFar.Get();
+        const DirectX::XMFLOAT3 camPos{ cfg_CamPosX.Get(), cfg_CamPosY.Get(), cfg_CamPosZ.Get() };
+        const DirectX::XMFLOAT3 camTarget{ cfg_CamTargetX.Get(), cfg_CamTargetY.Get(), cfg_CamTargetZ.Get() };
+        const DirectX::XMFLOAT3 camUp{ cfg_CamUpX.Get(), cfg_CamUpY.Get(), cfg_CamUpZ.Get() };
+
         camera_ = Camera::LookAtLH(
-            DirectX::XM_PIDIV4,                 // 視野角（45度）
-            static_cast<float>(width) / height, // アスペクト比
-            0.1f,                               // ニアクリップ
-            100.0f,                             // ファークリップ
-            DirectX::XMFLOAT3{0, 26, -7},        // カメラ位置（上方向に移動）
-            DirectX::XMFLOAT3{0, 0, -1},         // 注視点（原点を見る）
-            DirectX::XMFLOAT3{0, 0, 1}         // 上方向ベクトル（Z軸を下方向に）
+            fovRad,
+            aspectRatio,
+            nearZ,
+            farZ,
+            camPos,
+            camTarget,
+            camUp
         );
     }
 
@@ -631,76 +749,12 @@ private:
      * @brief デバッグ情報を描画する
      */
     void DrawDebugInfo() {
-        debugDraw_.Clear();
-
 
         // グリッドを少し下げて描画（Y = -0.01）
         debugDraw_.DrawGrid(20.0f, 20, DirectX::XMFLOAT3{0.2f, 0.2f, 0.2f});
 
         // 座標軸を後から描画して見やすくする
         debugDraw_.DrawAxes(500.0f);
-
-        // プレイヤーの位置を可視化（デバッグ用）
-        world_.ForEach<Transform, PlayerTag>([&](Entity e, Transform& t, PlayerTag&) {
-            // プレイヤーの位置を中心に立方体のアウトラインを描画
-            float size = 0.5f;
-            DirectX::XMFLOAT3 pos = t.position;
-            DirectX::XMFLOAT3 color{ 1.0f, 1.0f, 0.0f }; // 黄色
-
-            // キューブのエッジを描画
-            debugDraw_.AddLine(
-                {pos.x - size, pos.y - size, pos.z - size},
-                {pos.x + size, pos.y - size, pos.z - size},
-                color);
-            debugDraw_.AddLine(
-                {pos.x + size, pos.y - size, pos.z - size},
-                {pos.x + size, pos.y + size, pos.z - size},
-                color);
-            debugDraw_.AddLine(
-                {pos.x + size, pos.y + size, pos.z - size},
-                {pos.x - size, pos.y + size, pos.z - size},
-                color);
-            debugDraw_.AddLine(
-                {pos.x - size, pos.y + size, pos.z - size},
-                {pos.x - size, pos.y - size, pos.z - size},
-                color);
-
-            // Back face
-            debugDraw_.AddLine(
-                {pos.x - size, pos.y - size, pos.z + size},
-                {pos.x + size, pos.y - size, pos.z + size},
-                color);
-            debugDraw_.AddLine(
-                {pos.x + size, pos.y - size, pos.z + size},
-                {pos.x + size, pos.y + size, pos.z + size},
-                color);
-            debugDraw_.AddLine(
-                {pos.x + size, pos.y + size, pos.z + size},
-                {pos.x - size, pos.y + size, pos.z + size},
-                color);
-            debugDraw_.AddLine(
-                {pos.x - size, pos.y + size, pos.z + size},
-                {pos.x - size, pos.y - size, pos.z + size},
-                color);
-
-            // Connections between front and back
-            debugDraw_.AddLine(
-                {pos.x - size, pos.y - size, pos.z - size},
-                {pos.x - size, pos.y - size, pos.z + size},
-                color);
-            debugDraw_.AddLine(
-                {pos.x + size, pos.y - size, pos.z - size},
-                {pos.x + size, pos.y - size, pos.z + size},
-                color);
-            debugDraw_.AddLine(
-                {pos.x + size, pos.y + size, pos.z - size},
-                {pos.x + size, pos.y + size, pos.z + size},
-                color);
-            debugDraw_.AddLine(
-                {pos.x - size, pos.y + size, pos.z - size},
-                {pos.x - size, pos.y + size, pos.z + size},
-                color);
-        });
     }
 #endif // ENABLE_DEBUG_VISUALS
 

@@ -154,9 +154,10 @@ public:
         );
 
         if (FAILED(hr)) {
-            char msg[512];
-            sprintf_s(msg, "Failed to load image file: %s", filepath);
-            MessageBoxA(nullptr, msg, "Texture Load Error", MB_OK | MB_ICONERROR);
+            DEBUGLOG_ERROR(std::string("Failed to load image file: ") + filepath);
+#ifdef _DEBUG
+            MessageBoxA(nullptr, (std::string("Failed to load image file: ") + filepath).c_str(), "Texture Load Error", MB_OK | MB_ICONERROR);
+#endif
             return INVALID_TEXTURE;
         }
 
@@ -238,7 +239,10 @@ public:
         Microsoft::WRL::ComPtr<ID3D11Texture2D> texture;
         HRESULT hr = gfx_->Dev()->CreateTexture2D(&texDesc, &initData, &texture);
         if (FAILED(hr)) {
+            DEBUGLOG_ERROR("Failed to create texture2D");
+#ifdef _DEBUG
             MessageBoxA(nullptr, "Failed to create texture2D", "Texture Error", MB_OK | MB_ICONERROR);
+#endif
             return INVALID_TEXTURE;
         }
 
@@ -251,7 +255,10 @@ public:
         Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv;
         hr = gfx_->Dev()->CreateShaderResourceView(texture.Get(), &srvDesc, &srv);
         if (FAILED(hr)) {
+            DEBUGLOG_ERROR("Failed to create SRV");
+#ifdef _DEBUG
             MessageBoxA(nullptr, "Failed to create SRV", "Texture Error", MB_OK | MB_ICONERROR);
+#endif
             return INVALID_TEXTURE;
         }
 
@@ -289,6 +296,22 @@ public:
         auto it = textures_.find(handle);
         if (it == textures_.end()) return nullptr;
         return it->second.srv.Get();
+    }
+
+    /**
+     * @brief テクスチャのピクセル寸法を取得
+     * @param[in] handle テクスチャハンドル
+     * @param[out] width 幅
+     * @param[out] height 高さ
+     * @return bool 取得に成功したか
+     */
+    bool GetSize(TextureHandle handle, uint32_t& width, uint32_t& height) const {
+        if (handle == INVALID_TEXTURE) return false;
+        auto it = textures_.find(handle);
+        if (it == textures_.end()) return false;
+        width = it->second.width;
+        height = it->second.height;
+        return true;
     }
 
     /**

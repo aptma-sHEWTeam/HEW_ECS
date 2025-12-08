@@ -58,6 +58,7 @@
 #include "ecs/Entity.h"
 #include "ecs/World.h"
 #include "app/DebugLog.h"
+#include "app/BuildConfig.h"
 #include <DirectXMath.h>
 #include <variant>
 #include <optional>
@@ -67,9 +68,14 @@
 #include <unordered_map>
 #include <algorithm>
 #include <typeindex>
+#include <cmath>
 #include <DirectXCollision.h> // For BoundingBox
 
 #include "systems/SpatialHashGrid.h" // Added for spatial hash grid
+#if ENABLE_DEBUG_VISUALS
+#include "graphics/DebugDraw.h"
+#include "app/ServiceLocator.h"
+#endif
 
 // ========================================================
 // 前方宣言
@@ -121,13 +127,12 @@ struct CollisionBox : IComponent {
      * @param[in] transform エンティティのTransform
    * @return DirectX::XMFLOAT3 ワールド座標での中心
      */
-    DirectX::XMFLOAT3 GetWorldCenter(const Transform &transform) const {
-        using namespace DirectX;
-        XMVECTOR pos = XMLoadFloat3(&transform.position);
-        XMVECTOR off = XMLoadFloat3(&offset);
-        XMFLOAT3 result;
-        XMStoreFloat3(&result, XMVectorAdd(pos, off));
-        return result;
+    inline DirectX::XMFLOAT3 GetWorldCenter(const Transform &transform) const noexcept {
+        return {
+            transform.position.x + offset.x,
+            transform.position.y + offset.y,
+            transform.position.z + offset.z
+        };
     }
 
     /**
@@ -168,13 +173,12 @@ struct CollisionSphere : IComponent {
     /**
      * @brief ワールド空間での中心座標を取得
      */
-    DirectX::XMFLOAT3 GetWorldCenter(const Transform &transform) const {
-        using namespace DirectX;
-        XMVECTOR pos = XMLoadFloat3(&transform.position);
-        XMVECTOR off = XMLoadFloat3(&offset);
-        XMFLOAT3 result;
-        XMStoreFloat3(&result, XMVectorAdd(pos, off));
-        return result;
+    inline DirectX::XMFLOAT3 GetWorldCenter(const Transform &transform) const noexcept {
+        return {
+            transform.position.x + offset.x,
+            transform.position.y + offset.y,
+            transform.position.z + offset.z
+        };
     }
 
     /**
@@ -215,13 +219,12 @@ struct CollisionCapsule : IComponent {
     /**
      * @brief ワールド空間での中心座標を取得
      */
-    DirectX::XMFLOAT3 GetWorldCenter(const Transform &transform) const {
-        using namespace DirectX;
-        XMVECTOR pos = XMLoadFloat3(&transform.position);
-        XMVECTOR off = XMLoadFloat3(&offset);
-        XMFLOAT3 result;
-        XMStoreFloat3(&result, XMVectorAdd(pos, off));
-        return result;
+    inline DirectX::XMFLOAT3 GetWorldCenter(const Transform &transform) const noexcept {
+        return {
+            transform.position.x + offset.x,
+            transform.position.y + offset.y,
+            transform.position.z + offset.z
+        };
     }
 
     /**
@@ -241,6 +244,30 @@ struct CollisionCapsule : IComponent {
         center.y -= height * 0.5f * transform.scale.y;
         return center;
     }
+};
+
+/**
+ * @struct CollisionRightIsoTriPrism
+ * @brief 直方体半分の直角二等辺三角柱 (軸アライン想定)
+ *
+ * @details
+ * XZ平面での対称性を持ち、上下いずれかの面でカットされた形状です。
+ * 主に床や壁の一部として使用されることを想定しています。
+ */
+struct CollisionRightIsoTriPrism : IComponent { // 立方体半分の直角二等辺三角柱 (軸アライン想定)
+    DirectX::XMFLOAT3 size{1.0f,1.0f,1.0f}; // 包含する元キューブサイズ
+    DirectX::XMFLOAT3 offset{0,0,0};
+    bool mainDiagonalXZ{true}; // true:x+z>=0面で切断 / false:x - z >=0
+    explicit CollisionRightIsoTriPrism(const DirectX::XMFLOAT3 &boxSize={1,1,1}, const DirectX::XMFLOAT3 &centerOffset={0,0,0}, bool diag=true)
+        : size(boxSize), offset(centerOffset), mainDiagonalXZ(diag) {}
+    inline DirectX::XMFLOAT3 GetWorldCenter(const Transform &t) const noexcept {
+        return {
+            t.position.x + offset.x,
+            t.position.y + offset.y,
+            t.position.z + offset.z
+        };
+    }
+    DirectX::XMFLOAT3 GetScaledSize(const Transform &t) const { return {size.x*t.scale.x,size.y*t.scale.y,size.z*t.scale.z}; }
 };
 
 // ========================================================
@@ -386,6 +413,18 @@ struct CollisionDetectionSystem : Behaviour {
 
             using namespace DirectX;
 
+#if ENABLE_DEBUG_VISUALS
+            DebugDraw* debugDraw = ServiceLocator::TryGet<DebugDraw>();
+            if (debugDraw && !debugDraw->IsInitialized()) {
+                debugDraw = nullptr;
+            }
+            const DirectX::XMFLOAT3 colorBox{0.0f, 0.6f, 1.0f};
+            const DirectX::XMFLOAT3 colorSphere{0.0f, 1.0f, 0.4f};
+            const DirectX::XMFLOAT3 colorCapsule{1.0f, 0.2f, 1.0f};
+            const DirectX::XMFLOAT3 colorTri{1.0f, 0.85f, 0.0f};
+            const DirectX::XMFLOAT3 colorHit{1.0f, 0.0f, 0.0f};
+#endif
+
     
 
             struct Collidable {
@@ -416,6 +455,12 @@ struct CollisionDetectionSystem : Behaviour {
 
                 m_grid.Insert(e, bb);
 
+#if ENABLE_DEBUG_VISUALS
+                if (debugDraw) {
+                    debugDraw->DrawBox(center, halfExtents, colorBox);
+                }
+#endif
+
             });
 
     
@@ -433,6 +478,12 @@ struct CollisionDetectionSystem : Behaviour {
                 collidables.push_back({e, bb});
 
                 m_grid.Insert(e, bb);
+
+#if ENABLE_DEBUG_VISUALS
+                if (debugDraw) {
+                    debugDraw->DrawSphere(center, radius, colorSphere);
+                }
+#endif
 
             });
 
@@ -472,6 +523,52 @@ struct CollisionDetectionSystem : Behaviour {
 
                 m_grid.Insert(e, bb);
 
+#if ENABLE_DEBUG_VISUALS
+                if (debugDraw) {
+                    debugDraw->AddLine(bottom, top, colorCapsule);
+                    const int segments = 12;
+                    for (int i = 0; i < segments; ++i) {
+                        float a0 = DirectX::XM_2PI * (float)i / segments;
+                        float a1 = DirectX::XM_2PI * (float)(i + 1) / segments;
+                        float c0 = cosf(a0), s0 = sinf(a0);
+                        float c1 = cosf(a1), s1 = sinf(a1);
+                        DirectX::XMFLOAT3 p0{bottom.x + radius * c0, bottom.y, bottom.z + radius * s0};
+                        DirectX::XMFLOAT3 p1{bottom.x + radius * c1, bottom.y, bottom.z + radius * s1};
+                        DirectX::XMFLOAT3 q0{top.x + radius * c0, top.y, top.z + radius * s0};
+                        DirectX::XMFLOAT3 q1{top.x + radius * c1, top.y, top.z + radius * s1};
+                        debugDraw->AddLine(p0, p1, colorCapsule);
+                        debugDraw->AddLine(q0, q1, colorCapsule);
+                        debugDraw->AddLine(p0, q0, colorCapsule);
+                    }
+                }
+#endif
+
+            });
+
+            w.ForEach<CollisionRightIsoTriPrism, Transform>([&](Entity e, CollisionRightIsoTriPrism& tri, Transform& t) {
+                using namespace DirectX;
+                XMFLOAT3 center = tri.GetWorldCenter(t);
+                XMFLOAT3 scaled = tri.GetScaledSize(t);
+                XMFLOAT3 halfExtents = {scaled.x*0.5f, scaled.y*0.5f, scaled.z*0.5f};
+                BoundingBox bb(center, halfExtents); // 包含AABB
+                collidables.push_back({e, bb});
+                m_grid.Insert(e, bb);
+
+#if ENABLE_DEBUG_VISUALS
+                if (debugDraw) {
+                    debugDraw->DrawBox(center, halfExtents, colorTri);
+                    float minX = center.x - halfExtents.x;
+                    float maxX = center.x + halfExtents.x;
+                    float minZ = center.z - halfExtents.z;
+                    float maxZ = center.z + halfExtents.z;
+                    float y = center.y;
+                    if (tri.mainDiagonalXZ) {
+                        debugDraw->AddLine({minX, y, maxZ}, {maxX, y, minZ}, colorTri);
+                    } else {
+                        debugDraw->AddLine({minX, y, minZ}, {maxX, y, maxZ}, colorTri);
+                    }
+                }
+#endif
             });
 
             
@@ -519,6 +616,16 @@ struct CollisionDetectionSystem : Behaviour {
                         currentCollisions_.insert(pairKey);
 
                         collisionCount_++;
+
+#if ENABLE_DEBUG_VISUALS
+                        if (debugDraw) {
+                            DirectX::XMFLOAT3 end{
+                                collision->contactPoint.x + collision->normal.x * (0.5f + collision->penetrationDepth),
+                                collision->contactPoint.y + collision->normal.y * (0.5f + collision->penetrationDepth),
+                                collision->contactPoint.z + collision->normal.z * (0.5f + collision->penetrationDepth)};
+                            debugDraw->AddLine(collision->contactPoint, end, colorHit);
+                        }
+#endif
 
     
 
@@ -694,6 +801,42 @@ struct CollisionDetectionSystem : Behaviour {
             }
         }
 
+        // Box vs TriPrism (use AABB test then refine plane)
+        if (auto *boxA = w.TryGet<CollisionBox>(a)) {
+            if (auto *triB = w.TryGet<CollisionRightIsoTriPrism>(b)) {
+                CollisionBox triBBox(triB->GetScaledSize(*transformB), triB->offset);
+                auto info = CheckAABB_AABB(*transformA, *boxA, *transformB, triBBox, a, b);
+                if (info) { info->isColliding = RefineTriPrism(boxA, transformA, triB, transformB, *info, true); if(info->isColliding) return info; }
+            }
+        }
+        if (auto *triA = w.TryGet<CollisionRightIsoTriPrism>(a)) {
+            if (auto *boxB = w.TryGet<CollisionBox>(b)) {
+                CollisionBox triABBox(triA->GetScaledSize(*transformA), triA->offset);
+                auto info = CheckAABB_AABB(*transformA, triABBox, *transformB, *boxB, a, b);
+                if (info) { info->isColliding = RefineTriPrism(boxB, transformB, triA, transformA, *info, false); if(info->isColliding) return info; }
+            }
+        }
+
+        // Sphere vs TriPrism
+        if (auto *sphereA = w.TryGet<CollisionSphere>(a)) {
+            if (auto *triB = w.TryGet<CollisionRightIsoTriPrism>(b)) {
+                auto info = CheckSphere_TriPrism(*transformA, *sphereA, *transformB, *triB, a, b);
+                if (info) return info;
+            }
+        }
+        if (auto *triA = w.TryGet<CollisionRightIsoTriPrism>(a)) {
+            if (auto *sphereB = w.TryGet<CollisionSphere>(b)) {
+                auto info = CheckSphere_TriPrism(*transformB, *sphereB, *transformA, *triA, b, a);
+                if (info) {
+                    // 法線を反転してエンティティ順序に合わせる
+                    info->normal.x = -info->normal.x;
+                    info->normal.y = -info->normal.y;
+                    info->normal.z = -info->normal.z;
+                    std::swap(info->entityA, info->entityB);
+                }
+                if (info) return info;
+            }
+        }
         return std::nullopt;
     }
 
@@ -847,6 +990,162 @@ struct CollisionDetectionSystem : Behaviour {
         }
 
         return std::nullopt;
+    }
+
+    static std::optional<CollisionInfo> CheckSphere_TriPrism(
+        const Transform &tSphere, const CollisionSphere &sphere,
+        const Transform &tTri, const CollisionRightIsoTriPrism &tri,
+        Entity entitySphere, Entity entityTri) {
+        using namespace DirectX;
+
+        XMFLOAT3 sphereCenter = sphere.GetWorldCenter(tSphere);
+        float radius = sphere.GetScaledRadius(tSphere);
+
+        XMFLOAT3 triCenter = tri.GetWorldCenter(tTri);
+        XMFLOAT3 triSize = tri.GetScaledSize(tTri);
+        XMFLOAT3 triHalf{triSize.x * 0.5f, triSize.y * 0.5f, triSize.z * 0.5f};
+
+        XMVECTOR rotQuat = XMQuaternionRotationRollPitchYaw(
+            XMConvertToRadians(tTri.rotation.x),
+            XMConvertToRadians(tTri.rotation.y),
+            XMConvertToRadians(tTri.rotation.z));
+        XMVECTOR invRot = XMQuaternionConjugate(rotQuat);
+
+        // ワールド -> 三角柱ローカル
+        XMVECTOR relWorld = XMVectorSubtract(XMLoadFloat3(&sphereCenter), XMLoadFloat3(&triCenter));
+        XMVECTOR relLocal = XMVector3Rotate(relWorld, invRot);
+        XMFLOAT3 rel;
+        XMStoreFloat3(&rel, relLocal);
+
+        // ローカルAABBへクランプ
+        XMFLOAT3 clamped{
+            std::clamp(rel.x, -triHalf.x, triHalf.x),
+            std::clamp(rel.y, -triHalf.y, triHalf.y),
+            std::clamp(rel.z, -triHalf.z, triHalf.z)};
+
+        // 三角平面 x+/-z>=0 へ投影
+        float planeVal = tri.mainDiagonalXZ ? (clamped.x + clamped.z) : (clamped.x - clamped.z);
+        if (planeVal < 0.0f) {
+            float invLen = 0.70710678f; // 1/sqrt(2)
+            float push = -planeVal;
+            float nx = tri.mainDiagonalXZ ? invLen : invLen;
+            float nz = tri.mainDiagonalXZ ? invLen : -invLen;
+            clamped.x += nx * push;
+            clamped.z += nz * push;
+        }
+
+        // ローカル最近傍点をワールドへ戻す
+        XMVECTOR closestLocal = XMLoadFloat3(&clamped);
+        XMVECTOR closestWorld = XMVectorAdd(XMVector3Rotate(closestLocal, rotQuat), XMLoadFloat3(&triCenter));
+
+        XMVECTOR diff = XMVectorSubtract(closestWorld, XMLoadFloat3(&sphereCenter));
+        float distSq = XMVectorGetX(XMVector3LengthSq(diff));
+
+        if (distSq <= radius * radius) {
+            CollisionInfo info;
+            info.entityA = entitySphere;
+            info.entityB = entityTri;
+            info.isColliding = true;
+
+            float dist = std::sqrt(std::max(distSq, 0.0f));
+            info.penetrationDepth = radius - dist;
+
+            if (dist > 1e-6f) {
+                XMVECTOR n = XMVector3Normalize(diff); // tri -> sphere
+                XMStoreFloat3(&info.normal, XMVectorNegate(n)); // sphere -> tri
+                XMVECTOR contact = XMVectorSubtract(XMLoadFloat3(&sphereCenter), XMVectorScale(info.normal.x == 0 && info.normal.y == 0 && info.normal.z == 0 ? XMVectorZero() : XMVectorSet(info.normal.x, info.normal.y, info.normal.z, 0.0f), radius));
+                XMStoreFloat3(&info.contactPoint, closestWorld);
+            } else {
+                info.normal = tri.mainDiagonalXZ ? XMFLOAT3{-0.707f, 0.0f, -0.707f} : XMFLOAT3{-0.707f, 0.0f, 0.707f};
+                info.contactPoint = sphereCenter;
+            }
+
+            return info;
+        }
+
+        return std::nullopt;
+    }
+
+    static bool RefineTriPrism(const CollisionBox* box, const Transform* tBox, const CollisionRightIsoTriPrism* tri, const Transform* tTri, CollisionInfo &info, bool triIsB){
+        if(!box||!tBox||!tri||!tTri) return false;
+        using namespace DirectX;
+
+        XMFLOAT3 triCenter = tri->GetWorldCenter(*tTri);
+        XMFLOAT3 triSize = tri->GetScaledSize(*tTri);
+        XMFLOAT3 triHalf{triSize.x * 0.5f, triSize.y * 0.5f, triSize.z * 0.5f};
+        XMVECTOR rotQuat = DirectX::XMQuaternionRotationRollPitchYaw(
+            DirectX::XMConvertToRadians(tTri->rotation.x),
+            DirectX::XMConvertToRadians(tTri->rotation.y),
+            DirectX::XMConvertToRadians(tTri->rotation.z));
+
+        XMFLOAT3 boxCenter = box->GetWorldCenter(*tBox);
+        XMFLOAT3 boxSize = box->GetScaledSize(*tBox);
+        XMFLOAT3 boxHalf{boxSize.x * 0.5f, boxSize.y * 0.5f, boxSize.z * 0.5f};
+
+        // 三角柱ローカル空間での中心位置
+        XMFLOAT3 rel{
+            boxCenter.x - triCenter.x,
+            boxCenter.y - triCenter.y,
+            boxCenter.z - triCenter.z
+        };
+
+        XMVECTOR baseN = tri->mainDiagonalXZ
+            ? XMVectorSet(1.0f, 0.0f, 1.0f, 0.0f)
+            : XMVectorSet(1.0f, 0.0f, -1.0f, 0.0f);
+        XMVECTOR n = XMVector3Normalize(XMVector3Rotate(baseN, rotQuat));
+
+        // 平面法線方向への射影
+        XMFLOAT3 absN;
+        XMStoreFloat3(&absN, XMVectorAbs(n));
+
+        // 回転後の各軸を取得（Y軸回転対応）
+        XMVECTOR axisX = XMVector3Rotate(XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f), rotQuat);
+        XMVECTOR axisY = XMVector3Rotate(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), rotQuat);
+        XMVECTOR axisZ = XMVector3Rotate(XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), rotQuat);
+
+        float projCenter = XMVectorGetX(XMVector3Dot(XMLoadFloat3(&rel), n));
+        float boxExtent = absN.x * boxHalf.x + absN.y * boxHalf.y + absN.z * boxHalf.z;
+        float triExtent =
+            std::abs(XMVectorGetX(XMVector3Dot(axisX, n))) * triHalf.x +
+            std::abs(XMVectorGetX(XMVector3Dot(axisY, n))) * triHalf.y +
+            std::abs(XMVectorGetX(XMVector3Dot(axisZ, n))) * triHalf.z;
+
+        float minProjBox = projCenter - boxExtent;
+        float maxProjBox = projCenter + boxExtent;
+
+        // 箱が平面の反対側に完全にある、または三角柱の正面範囲を超える場合は非衝突
+        if (maxProjBox < 0.0f) {
+            return false;
+        }
+        if (minProjBox > triExtent) {
+            return false;
+        }
+
+        // 平面へのめり込み量を優先して法線を更新
+        float planePenetration = std::max(0.0f, -minProjBox);
+        float capPenetration = std::max(0.0f, maxProjBox - triExtent);
+        float penetration = planePenetration > 0.0f ? planePenetration : capPenetration;
+        if (penetration > 0.0f) {
+            info.penetrationDepth = std::max(info.penetrationDepth, penetration);
+        }
+
+        XMFLOAT3 worldNormal;
+        XMStoreFloat3(&worldNormal, n);
+        if (!triIsB) {
+            worldNormal.x = -worldNormal.x;
+            worldNormal.y = -worldNormal.y;
+            worldNormal.z = -worldNormal.z;
+        }
+        info.normal = worldNormal;
+
+        // 接触点は法線方向にクランプした最近傍点を使用
+        float clampedProj = std::clamp(projCenter, 0.0f, triExtent);
+        XMVECTOR relVec = XMLoadFloat3(&rel);
+        XMVECTOR correctedRel = XMVectorSubtract(relVec, XMVectorScale(n, projCenter - clampedProj));
+        XMVECTOR contactWorld = XMVectorAdd(correctedRel, XMLoadFloat3(&triCenter));
+        XMStoreFloat3(&info.contactPoint, contactWorld);
+
+        return true;
     }
 };
 

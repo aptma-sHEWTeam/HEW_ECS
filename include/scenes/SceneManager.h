@@ -21,6 +21,7 @@ public:
 
     virtual void OnEnter(World& world) = 0;
     virtual void OnUpdate(World& world, InputSystem& input, float deltaTime) = 0;
+    virtual void OnRender(World& world) {} // Default empty implementation
     virtual void OnExit(World& world) = 0;
 
     virtual bool ShouldChangeScene() const { return false; }
@@ -74,6 +75,16 @@ public:
         if (currentScene_->ShouldChangeScene()) {
             ChangeScene(currentScene_->GetNextScene(), world);
         }
+    }
+
+    /**
+     * @brief Render active scene.
+     */
+    void Render(World& world) {
+        if (!currentScene_) {
+            return;
+        }
+        currentScene_->OnRender(world);
     }
 
     /**

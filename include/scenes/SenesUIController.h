@@ -19,14 +19,14 @@ struct GameUIUpdater : Behaviour {
     Entity timeTextEntity_;
     Entity fpsTextEntity_;
     Entity pauseTextEntity_;
-    Entity stageTextEntity_;
+    Entity stageTextEntity_[2];
 
 
     void OnUpdate(World &w, Entity self, float dt) override {
-        w.ForEach<GameStats>([&](Entity e, GameStats &stats) {
+        w.ForEach<GameStatus>([&](Entity e, GameStatus &stats) {
             // 経過時間の更新
             if (!stats.isPaused) {
-                stats.elapsedTime += dt;
+                stats.elapsedTime -= dt;
             }
 
             //スコア表示の更新
@@ -41,7 +41,7 @@ struct GameUIUpdater : Behaviour {
                 std::wstringstream ss;
                 int minutes = static_cast<int>(stats.elapsedTime) / 60;
                 int seconds = static_cast<int>(stats.elapsedTime) % 60;
-                ss << L"Time: " << std::setw(2) << std::setfill(L'0') << minutes
+                ss << L" " << std::setw(2) << std::setfill(L'0') << minutes
                    << L":" << std::setw(2) << std::setfill(L'0') << seconds;
                 timeText->text = ss.str();
             }
@@ -70,12 +70,23 @@ struct GameUIUpdater : Behaviour {
 
         });
 
+        // ステージの更新
         w.ForEach<StageProgress>([&](Entity e, StageProgress &sp) {
-            if (auto *stageText = w.TryGet<UIText>(stageTextEntity_)) {
+            if (auto *stageText = w.TryGet<UIText>(stageTextEntity_[0])) {
                 std::wstringstream ss;
-                ss << L"FLOOR: " << sp.currentStage;
+                ss << L"Room : " << sp.currentStage << "/";
+                stageText->text = ss.str();
+            }
+
+            if (auto *stageText = w.TryGet<UIText>(stageTextEntity_[1])) {
+                std::wstringstream ss;
+                ss << L"" << sp.selectStage;
+                ss << L"ルーム: " << sp.currentStage;
                 stageText->text = ss.str();
             }
         });
+
+        // ルームの更新
+
     }
 };
