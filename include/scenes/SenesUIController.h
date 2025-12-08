@@ -78,6 +78,7 @@ struct GameUIUpdater : Behaviour {
             if (auto *stageText = w.TryGet<UIText>(stageTextEntity_[0])) {
                 std::wstringstream ss;
                 ss << L" " << sp.currentStage;
+                ss << L" " << sp.currentStage;
                 stageText->text = ss.str();
             }
 
