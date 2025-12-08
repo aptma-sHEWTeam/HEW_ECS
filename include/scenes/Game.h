@@ -182,11 +182,15 @@ class GameScene : public IScene {
 
             status.selectStage = desiredStage;
             status.currentStage = desiredStage;
+            status.currentRoom = 1; // ステージ開始時は常にroom1から
 
-            auto stagePath = ResolveStageCsvPath(desiredStage);
+            auto stagePath = ResolveStageRoomCsvPath(desiredStage, status.currentRoom);
             if (!stagePath) {
-                DEBUGLOG_ERROR("[StageCreate] ステージ" + std::to_string(desiredStage) + "のCSVが見つかりません。Stage1へフォールバックします");
-                stagePath = ResolveStageCsvPath(1);
+                DEBUGLOG_ERROR("[StageCreate] ステージ" + std::to_string(desiredStage) + " の room" + std::to_string(status.currentRoom) + ".csv が見つかりません。Stage1/room1へフォールバックします");
+                status.currentStage = 1;
+                status.selectStage = 1;
+                status.currentRoom = 1;
+                stagePath = ResolveStageRoomCsvPath(1, 1);
             }
 
             if (stagePath) {
@@ -425,14 +429,18 @@ class GameScene : public IScene {
     void OnWallHit(Entity player, World &world) {
         if (pendingRespawn_) return;
 
+        if (auto* playerStatus = world.TryGet<PlayerStatus>(playerEntity_))
+        {
+            playerStatus->isStartAfterWallHit = true;
+            DEBUGLOG("isStartAfterWallHitがtrueになりました");
+        }
+
         if (auto *pv = world.TryGet<PlayerVelocity>(playerEntity_)) {
-            const float vx = pv->velocity.x;
-            const float vy = pv->velocity.y;
-            const float len = std::hypot(vx, vy);
-            if (len > 1e-5f) {
-                const float dirX = vx / len;
-                const float dirY = vy / len;
-                TriggerCameraImpulse(dirX, 0.0f, dirY, 0.2f, 0.04f);
+            if (static_cast<bool>(pv->velocity.x + pv->velocity.y)) {
+                float vecX = pv->velocity.x / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
+                float vecY = pv->velocity.y / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
+                TriggerCameraImpulse(vecX, 0.0f, vecY, 0.2f, 0.04f);
+
             }
         }
 
@@ -476,6 +484,7 @@ class GameScene : public IScene {
                             .With<PlayerTag>()
                             .With<PlayerVelocity>()
                             .With<PlayerMovement>()
+                            .With<PlayerStatus>()
                             .With<PlayerGuide>()
                             .With<CollisionSphere>(0.4f)
                             .With<PlayerCollisionHandler>()
@@ -494,19 +503,15 @@ class GameScene : public IScene {
             if (sp.requestAdvance) {
                 sp.requestAdvance = false;
 
-                const int maxStage = GetAvailableStageCount();
-                const int nextStageIndex = std::min(sp.currentStage + 1, maxStage);
-                if (nextStageIndex == sp.currentStage) {
-                    DEBUGLOG_WARNING("進行可能なステージが存在しません (current=" + std::to_string(sp.currentStage) + ", max=" + std::to_string(maxStage) + ")");
+                // 同一ステージ内で次のroomへ
+                const int nextRoomIndex = sp.currentRoom + 1;
+                auto nextRoomPath = ResolveStageRoomCsvPath(sp.currentStage, nextRoomIndex);
+                if (!nextRoomPath) {
+                    DEBUGLOG_WARNING("[StageCreate] Stage" + std::to_string(sp.currentStage) + "/room" + std::to_string(nextRoomIndex) + ".csv が見つかりません。進行をキャンセルします");
                     return;
                 }
 
-                auto nextStagePath = ResolveStageCsvPath(nextStageIndex);
-                if (!nextStagePath) {
-                    DEBUGLOG_ERROR("[StageCreate] ステージ" + std::to_string(nextStageIndex) + "のCSVが見つからず、進行をキャンセルします");
-                    return;
-                }
-
+                // 既存のステージCSV読み込みエンティティを破棄
                 std::vector<Entity> stageCreateEntities;
                 world.ForEach<StageCreate>([&](Entity e, StageCreate &) {
                     stageCreateEntities.push_back(e);
@@ -517,13 +522,13 @@ class GameScene : public IScene {
                     }
                 }
 
-                sp.currentStage = nextStageIndex;
-                sp.selectStage = nextStageIndex;
+                // ステージ番号は維持し、ルームのみ進める
+                sp.currentRoom = nextRoomIndex;
 
-                Entity newStageEntity = world.Create().With<StageCreate>(*nextStagePath).Build();
+                Entity newStageEntity = world.Create().With<StageCreate>(*nextRoomPath).Build();
                 ownedEntities_.push_back(newStageEntity);
 
-                DEBUGLOG("ステージが進行しました: " + std::to_string(sp.currentStage));
+                DEBUGLOG("同一ステージ内で次のルームへ進行: Stage" + std::to_string(sp.currentStage) + ", room" + std::to_string(sp.currentRoom));
                 SetupStage(world, sp.currentStage);
             }
         });
@@ -1242,7 +1247,14 @@ class GameScene : public IScene {
     // 遅延リスポーン・カメラリアクション更新
     // =========================================
 
-    void UpdateDelayedRespawn(float dt, World &world) {
+    void UpdateDelayedRespawn(float dt, World &world) 
+    {
+
+
+        if (auto *movement = world.TryGet<PlayerMovement>(playerEntity_))
+        {
+            movement->isCharging_ = false;
+        }
         if (!pendingRespawn_) return;
         // グローバルにも反映して他コンポーネントから参照可能に
         g_respawnPending = true;
@@ -1252,6 +1264,11 @@ class GameScene : public IScene {
             pendingRespawn_ = false;
             g_respawnPending = false;
             respawnTimer_ = 0.0f;
+        }
+        if (auto* playerStatus = world.TryGet<PlayerStatus>(playerEntity_))
+        {
+            playerStatus->isStartAfterWallHit = false;
+            DEBUGLOG("isStartAfterWallHitがfalseになりました " );
         }
     }
 
@@ -1394,6 +1411,7 @@ class GameScene : public IScene {
     Entity worldwall_{};
     Entity goalEntity_{};
     Entity gimmickEntity_{};
+    Entity fadeAnimationEntity_{};
     DirectX::XMFLOAT3 cameraPosition_ = {0.0f, 30.0f, -7.0f};
     DirectX::XMFLOAT3 currentTarget_ = {0.0f, 0.0f, 0.0f};
     Camera camera_{};

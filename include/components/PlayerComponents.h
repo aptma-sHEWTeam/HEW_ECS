@@ -48,6 +48,13 @@ constexpr int ANGLE_HISTORY_SIZE = 30;
 constexpr float EPSILON = 1e-5f;
 } // namespace PlayerConstants
 
+/*
+* @brief プレイヤーステータスコンポーネント
+*/
+struct PlayerStatus : Behaviour {
+    bool isStartAfterWallHit = false;
+};
+
 // =========================================
 // ベロシティ計算コンポーネント
 // =========================================
@@ -151,7 +158,7 @@ struct PlayerMovement : Behaviour {
     InputSystem *input_ = nullptr;
     GamepadSystem *gamepad_ = nullptr;
     CollisionSphere *collision_ = nullptr;
-
+    
     // チャージ挙動設定
     float minChargeSpeedFactor = cfg_MinChargeSpeed; ///< チャージ中の最低速度係数(0.0-1.0)
     float chargeMaxTime = cfg_ChargeMaxTime;         ///< チャージ最大時間(秒)
@@ -196,6 +203,7 @@ struct PlayerMovement : Behaviour {
     void OnUpdate(World &w, Entity self, float dt) override {
         auto *t = w.TryGet<Transform>(self);
         auto *v = w.TryGet<PlayerVelocity>(self);
+        auto *playerStatus = w.TryGet<PlayerStatus>(self);
         if (!t || !v || (!input_ && !gamepad_)) return;
 
         // リスポーン待機中は完全停止（グローバルフラグ参照）
@@ -225,7 +233,8 @@ struct PlayerMovement : Behaviour {
             if (input_->GetKey('D') || input_->GetKey(VK_RIGHT)) inputDir.x += 1.0f;
         }
 
-        if (gamepad_) {
+        if (gamepad_&&!playerStatus->isStartAfterWallHit) {
+            DEBUGLOG("ヒットしないヨ");
             float gx = gamepad_->GetLeftStickX();
             float gy = gamepad_->GetLeftStickY();
             float mag = std::sqrt(gx * gx + gy * gy);
@@ -402,47 +411,4 @@ struct PlayerGuide : Behaviour {
     }
 };
 
-// ========================================================
-// ゴール吸引コンポーネント
-// ========================================================
 
-struct GoalAttractor : Behaviour {
-    DirectX::XMFLOAT3 target{0.0f, 0.0f, 0.0f};
-    float duration = 0.8f; // 吸い込みにかける時間(秒)
-    float elapsed = 0.0f;
-
-    void OnUpdate(World &w, Entity self, float dt) override {
-        // リスポーン待機と同様に、待機フラグを有効化（UIや操作停止を共有）
-        g_respawnPending = true;
-
-        auto *t = w.TryGet<Transform>(self);
-        if (!t) return;
-        elapsed += dt;
-
-        // プレイヤーの速度を停止して滑らかに吸い込み
-        if (auto *v = w.TryGet<PlayerVelocity>(self)) {
-            v->velocity = {0.0f, 0.0f};
-            v->isBoosting = false;
-            v->isDecelerating = false;
-            v->boostSpeed = 0.0f;
-        }
-
-        float r = std::clamp(elapsed / std::max(0.001f, duration), 0.0f, 1.0f);
-        float ease = r < 0.5f ? (2.0f * r * r) : (1.0f - std::pow(-2.0f * r + 2.0f, 2.0f) / 2.0f);
-        DirectX::XMFLOAT3 start = t->position;
-        t->position.x = start.x + (target.x - start.x) * ease;
-        t->position.z = start.z + (target.z - start.z) * ease;
-        t->position.y = 0.0f;
-
-        float dx = t->position.x - target.x;
-        float dz = t->position.z - target.z;
-        if ((dx*dx + dz*dz) < 0.0001f || elapsed >= duration) {
-            t->position.x = target.x;
-            t->position.z = target.z;
-            g_respawnPending = false;
-            // 吸い込み完了後にステージ進行をリクエスト
-            w.ForEach<StageProgress>([&](Entity, StageProgress &sp) { sp.requestAdvance = true; });
-            w.Remove<GoalAttractor>(self);
-        }
-    }
-};
