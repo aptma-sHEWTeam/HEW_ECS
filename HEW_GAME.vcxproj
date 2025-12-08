@@ -226,8 +226,6 @@
     <ClCompile Include="src\systems\SpatialHashGrid.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Hp.h" />
-    <ClInclude Include="MouseCoordinate.h" />
     <ClInclude Include="RoomUIComponents.h" />
     <ClInclude Include="StageStatus.h" />
     <ClInclude Include="include\animation\Animation.h" />
