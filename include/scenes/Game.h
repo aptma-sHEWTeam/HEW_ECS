@@ -689,17 +689,14 @@ class GameScene : public IScene {
     }
 
     void BakeStageLights(World &world, const std::vector<std::vector<int>> &stageMap, float tileSize) {
+        // 既存のポイントライトに対して、ステージスケールに応じた減衰・レンジを適用するだけ（新規ライトは生成しない）
         if (stageMap.empty() || stageMap[0].empty()) return;
-
-        const int maxBakeLights = std::max(0, MAX_POINT_LIGHTS - 2); // Start/Goal 分を考慮
-        if (maxBakeLights <= 0) return;
 
         const float mapWidth = static_cast<float>(stageMap[0].size());
         const float mapHeight = static_cast<float>(stageMap.size());
         const float offsetX = (mapWidth * tileSize) * 0.5f - (tileSize * 0.5f);
         const float offsetZ = (mapHeight * tileSize) * 0.5f - (tileSize * 0.5f);
 
-        // 空きタイルのバウンディングボックスを収集
         float minX = std::numeric_limits<float>::max();
         float maxX = std::numeric_limits<float>::lowest();
         float minZ = std::numeric_limits<float>::max();
@@ -728,31 +725,13 @@ class GameScene : public IScene {
 
         if (minX > maxX || minZ > maxZ) return;
 
-        // 中心 + 四隅の優先順でライト配置
-        std::vector<DirectX::XMFLOAT3> candidates;
-        const float y = cfg_BakeLightHeight.Get();
-        const float centerX = 0.5f * (minX + maxX);
-        const float centerZ = 0.5f * (minZ + maxZ);
-        candidates.push_back({centerX, y, centerZ});
-        candidates.push_back({minX, y, minZ});
-        candidates.push_back({minX, y, maxZ});
-        candidates.push_back({maxX, y, minZ});
-        candidates.push_back({maxX, y, maxZ});
+        const float diag = std::sqrt((maxX - minX) * (maxX - minX) + (maxZ - minZ) * (maxZ - minZ));
+        const float targetRange = std::max(cfg_PointLightRange.Get(), 0.3f * diag);
 
-        const int placeCount = std::min(static_cast<int>(candidates.size()), maxBakeLights);
-        for (int i = 0; i < placeCount; ++i) {
-            Transform t{candidates[i], {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
-            PointLight pl;
-            pl.color = {cfg_BakeLightR.Get(), cfg_BakeLightG.Get(), cfg_BakeLightB.Get()};
-            pl.intensity = std::max(0.0f, cfg_BakeLightIntensity.Get());
+        world.ForEach<PointLight>([&](Entity, PointLight &pl) {
             ApplyDefaultPointLightParams(pl);
-
-            Entity e = world.Create()
-                           .With<Transform>(t)
-                           .With<PointLight>(pl)
-                           .Build();
-            stageOwnedEntities_.push_back(e);
-        }
+            pl.range = targetRange;
+        });
     }
 
     void CreateBlockByType(World &world, const DirectX::XMFLOAT3 &position, int blockType) {
