@@ -760,7 +760,7 @@ class GameScene : public IScene {
             if (idx >= 5) {
                 MovingObstaclePattern p;
                 p.dirX = vals[0];
-                p.dirY = vals[1];
+                p.dirY = -vals[1];
                 p.waitAtStart = vals[2];
                 p.waitAtEnd = vals[3];
                 p.travelTime = std::max(vals[4], 0.0001f);
