@@ -20,6 +20,8 @@ class GameScene;
 // GameSceneへのグローバルアクセス用ポインタ
 // 後方互換性のため維持
 inline GameScene* g_GameScene = nullptr;
+// リスポーン待機状態のグローバルフラグ（GameSceneから更新）
+inline bool g_respawnPending = false;
 
 /**
  * @brief プレイヤーをスタート地点にリセット（速度も完全リセット）
@@ -108,8 +110,25 @@ inline void CheckTimeLimit(World &w, Entity player, float timeLimitSeconds) {
 struct PlayerCollisionHandler : ICollisionHandler {
     void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override {
         if (w.Has<GoalTag>(other)) {
+            // ステージ進行フラグ
             w.ForEach<StageProgress>([](Entity, StageProgress &sp) { sp.requestAdvance = true; });
             DEBUGLOG("Player reached goal");
+
+            // ゴール中心へプレイヤーを寄せる（XYは固定、XZのみ）
+            auto *tPlayer = w.TryGet<Transform>(self);
+            auto *tGoal = w.TryGet<Transform>(other);
+            if (tPlayer && tGoal) {
+                tPlayer->position.x = tGoal->position.x;
+                tPlayer->position.z = tGoal->position.z;
+                // 速度をリセットして吸着感を出す
+                if (auto *v = w.TryGet<PlayerVelocity>(self)) {
+                    v->velocity = {0.0f, 0.0f};
+                    v->isBoosting = false;
+                    v->isDecelerating = false;
+                    v->boostSpeed = 0.0f;
+                    v->boostDir = {0.0f, 0.0f};
+                }
+            }
         }
     }
 };

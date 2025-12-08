@@ -201,6 +201,22 @@ class GameScene : public IScene {
             }
         });
 
+        // 目標(ゴール)接近時のスロー演出用タイムスケール
+        float timeScale = 1.0f;
+        if (world.IsAlive(playerEntity_) && world.IsAlive(goalEntity_)) {
+            auto *tPlayer = world.TryGet<Transform>(playerEntity_);
+            auto *tGoal = world.TryGet<Transform>(goalEntity_);
+            if (tPlayer && tGoal) {
+                const float dx = tPlayer->position.x - tGoal->position.x;
+                const float dz = tPlayer->position.z - tGoal->position.z;
+                const float dist = std::sqrt(dx * dx + dz * dz);
+                const float slowThreshold = 3.0f; // ゴールに近づいたとみなす距離
+                if (dist <= slowThreshold) {
+                    timeScale = 0.2f; // スロー演出
+                }
+            }
+        }
+
         // ステージ進行リクエストの処理
         HandleStageAdvance(world);
 
@@ -208,18 +224,18 @@ class GameScene : public IScene {
         SetupInputReferences(world, input);
 
         // 発光マテリアルのパルス効果を更新
-        RenderingSystem::GetInstance().UpdateEmissivePulse(world, deltaTime);
+        RenderingSystem::GetInstance().UpdateEmissivePulse(world, deltaTime * timeScale);
 
         // 遅延リスポーンのタイマーを更新
-        UpdateDelayedRespawn(deltaTime, world);
+        UpdateDelayedRespawn(deltaTime * timeScale, world);
 
         // カメラリアクションを更新
-        UpdateCameraReaction(deltaTime, world);
+        UpdateCameraReaction(deltaTime * timeScale, world);
         ChargCameraAction(world);
         RenderingSystem::GetInstance().UpdateLights(world, camera_.position);
 
         // ECSワールドのTickを進める
-        world.Tick(deltaTime);
+        world.Tick(deltaTime * timeScale);
 
         // 時間切れチェック
         if (world.IsAlive(playerEntity_)) {
@@ -401,6 +417,9 @@ class GameScene : public IScene {
 
     /** @brief ワールドへのポインタを設定 */
     void SetWorldRef(World* w) { world_ = w; }
+
+    /** @brief リスポーン待機中かを取得 */
+    bool IsRespawnPending() const { return pendingRespawn_; }
 
   private:
     // =========================================
@@ -669,7 +688,8 @@ class GameScene : public IScene {
                            .With<MeshRenderer>(renderer)
                            .Build();
 
-        ownedEntities_.push_back(floor);
+        // ステージ切り替え時に破棄されるよう、ステージ所有リストへ登録
+        stageOwnedEntities_.push_back(floor);
     }
 
     void CreateStart(World &world, const DirectX::XMFLOAT3 &position) {
@@ -1041,12 +1061,28 @@ class GameScene : public IScene {
     }
 
     void SetupStage(World &world, int stage) {
+        // 既存のステージ所有エンティティを破棄
         for (const auto &entity : stageOwnedEntities_) {
             if (world.IsAlive(entity)) {
                 world.DestroyEntityWithCause(entity, World::Cause::StageReset);
             }
         }
         stageOwnedEntities_.clear();
+
+        // 念のため、タグでステージ要素をクリーンアップ（過去の登録漏れ対策）
+        std::vector<Entity> toDestroy;
+        world.ForEach<WallTag>([&](Entity e, WallTag &) { toDestroy.push_back(e); });
+        world.ForEach<GoalTag>([&](Entity e, GoalTag &) { toDestroy.push_back(e); });
+        world.ForEach<StartTag>([&](Entity e, StartTag &) { toDestroy.push_back(e); });
+        world.ForEach<GimmickTag>([&](Entity e, GimmickTag &) { toDestroy.push_back(e); });
+        for (auto e : toDestroy) {
+            if (world.IsAlive(e)) {
+                world.DestroyEntityWithCause(e, World::Cause::StageReset);
+            }
+        }
+
+        // 破棄を即時反映（次のステージ生成と重ならないように）
+        world.FlushDestroyEndOfFrame();
 
         startEntity_ = {};
         goalEntity_ = {};
@@ -1117,10 +1153,13 @@ class GameScene : public IScene {
 
     void UpdateDelayedRespawn(float dt, World &world) {
         if (!pendingRespawn_) return;
+        // グローバルにも反映して他コンポーネントから参照可能に
+        g_respawnPending = true;
         respawnTimer_ -= dt;
         if (respawnTimer_ <= 0.0f) {
             ResetPlayerToStart(world, respawnPlayer_, true);
             pendingRespawn_ = false;
+            g_respawnPending = false;
             respawnTimer_ = 0.0f;
         }
     }
