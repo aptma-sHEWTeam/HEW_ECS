@@ -181,12 +181,12 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 
 
     UITransform stageTransform[2];
-    stageTransform[0].position = {1365.0f, 84.0f};
+    stageTransform[0].position = {1450.0f, 84.0f};
     stageTransform[0].size = {200.0f, 80.0f};
     stageTransform[0].anchor = {0.0f, 0.0f};
     stageTransform[0].pivot = {1.0f, 0.0f};
 
-    stageTransform[1].position = {stageTransform[0].position.x + 65.0f, stageTransform[0].position.y};
+    stageTransform[1].position = {stageTransform[0].position.x - 65.0f, stageTransform[0].position.y};
     stageTransform[1].size = stageTransform[0].size;
     stageTransform[1].anchor = stageTransform[0].anchor;
     stageTransform[1].pivot = stageTransform[0].pivot;
@@ -200,6 +200,27 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                              .Build();
         ownedEntities_.push_back(stageEntity[i]);
     }
+
+    /* UITransform numTransform;
+    numTransform.position = {1175.0f, 84.0f}; 
+    numTransform.size = {200.0f, 80.0f};
+    numTransform.anchor = {0.0f, 0.0f};
+    numTransform.pivot = {0.0f, 0.0f};
+
+    UIText numText;
+    numText.text = L"11  1";
+    numText.color = {1.0f, 1.0f, 1.0f, 1.0f};
+    numText.formatId = "hud";
+
+    Entity numEntity = world.Create()
+                           .With<UITransform>(numTransform)
+                           .With<UIText>(numText)
+                           .Build();
+
+    ownedEntities_.push_back(numEntity);*/
+
+
+
 
     UITransform pauseTransform;
     pauseTransform.position = {0.0f, 0.0f};
@@ -229,10 +250,12 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         updater->pauseTextEntity_ = pauseEntity;
         updater->stageTextEntity_[0] = stageEntity[0];
         updater->stageTextEntity_[1] = stageEntity[1];
+      //  updater->numEntity_ = numEntity;
         updater->timeImageEntity_ = timerImageEntity;
     }
     ownedEntities_.push_back(uiUpdater);
 
+   
    /* UITransform UIanimation;
     UIanimation.position = {0.0f, -280.0f};
     UIanimation.size = {1280.0f, 1280.0f};

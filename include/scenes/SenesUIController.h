@@ -24,6 +24,7 @@ struct GameUIUpdater : Behaviour {
     Entity timerBackgroundEntity_;
     Entity timeImageEntity_;
     Entity timerUiEntity_;
+    Entity numEntity_;
     int cachedStage_ = -1;
     int cachedRoomCount_ = 1;
     
@@ -82,13 +83,17 @@ struct GameUIUpdater : Behaviour {
 
             if (auto *stageText = w.TryGet<UIText>(stageTextEntity_[0])) {
                 std::wstringstream ss;
-                ss << L"Room : " << sp.currentRoom << L"/";
+               // ss << 11; 
+                ss << cachedRoomCount_;
+                //ss << L"Room : " << sp.currentRoom << L"/";
                 stageText->text = ss.str();
             }
 
             if (auto *stageText = w.TryGet<UIText>(stageTextEntity_[1])) {
                 std::wstringstream ss;
-                ss << cachedRoomCount_;
+               // ss << 1; 
+                ss << sp.currentRoom; 
+              //  ss << cachedRoomCount_;
                 stageText->text = ss.str();
             }
         });
