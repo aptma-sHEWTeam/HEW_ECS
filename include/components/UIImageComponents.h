@@ -1,6 +1,6 @@
-/**
+ï»¿/**
  * @file UIImageComponents.h
- * @brief UI‰æ‘œƒRƒ“ƒ|[ƒlƒ“ƒg
+ * @brief UIç”»åƒã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆ
  */
 #pragma once
 #include "components/Component.h"
@@ -10,14 +10,14 @@
 #include "graphics/TextureManager.h"
 
 struct UIImage : IComponent {
-    std::wstring filePath;           ///< ‰æ‘œƒtƒ@ƒCƒ‹ƒpƒX
-    float opacity = 1.0f;            ///< “§‰ß(0..1)
-    bool keepAspect = true;          ///< ƒAƒXƒyƒNƒg”äˆÛ
-    DirectX::XMFLOAT4 tint{1,1,1,1}; ///< ‰æ‘œ‚Ö‚ÌƒJƒ‰[æZ
-    
+    std::wstring filePath;           ///< ç”»åƒãƒ•ã‚¡ã‚¤ãƒ«ãƒ‘ã‚¹
+    float opacity = 1.0f;            ///< é€é(0..1)
+    bool keepAspect = true;          ///< ã‚¢ã‚¹ãƒšã‚¯ãƒˆæ¯”ç¶­æŒ
+    DirectX::XMFLOAT4 tint{1,1,1,1}; ///< ç”»åƒã¸ã®ã‚«ãƒ©ãƒ¼ä¹—ç®—
+
     std::array<float, 4> uvRect = {0, 0, 1, 1};
 
-    // ’Ç‰Á: TextureManagerƒnƒ“ƒhƒ‹‚Å‚Ì•`‰æ‚É‘Î‰ifilePath‚æ‚è—Dæj
+    // è¿½åŠ : TextureManagerãƒãƒ³ãƒ‰ãƒ«ã§ã®æç”»ã«å¯¾å¿œï¼ˆfilePathã‚ˆã‚Šå„ªå…ˆï¼‰
     TextureManager::TextureHandle textureHandle = TextureManager::INVALID_TEXTURE;
 
     UIImage() = default;

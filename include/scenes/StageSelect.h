@@ -25,13 +25,13 @@
  */
 class StageSlectScene : public IScene {
   public:
-    inline static ConfigVar<float> cfg_UICountPosX{"UI", "CountPosX", 20.0f};
-    inline static ConfigVar<float> cfg_UICountPosY{"UI", "CountPosY", 170.0f};
-    inline static ConfigVar<float> cfg_UICountW{"UI", "CountWidth", 200.0f};
-    inline static ConfigVar<float> cfg_UICountH{"UI", "CountHeight", 40.0f};
-    inline static ConfigVar<float> cfg_UICountR{"UI", "CountColorR", 0.0f};
-    inline static ConfigVar<float> cfg_UICountG{"UI", "CountColorG", 1.0f};
-    inline static ConfigVar<float> cfg_UICountB{"UI", "CountColorB", 1.0f};
+    inline static ConfigVar<float> cfg_UICountPosX{"UI.StageSelect.Counter", "CountPosX", 20.0f};
+    inline static ConfigVar<float> cfg_UICountPosY{"UI.StageSelect.Counter", "CountPosY", 170.0f};
+    inline static ConfigVar<float> cfg_UICountW{"UI.StageSelect.Counter", "CountWidth", 200.0f};
+    inline static ConfigVar<float> cfg_UICountH{"UI.StageSelect.Counter", "CountHeight", 40.0f};
+    inline static ConfigVar<float> cfg_UICountR{"UI.StageSelect.Counter", "CountColorR", 0.0f};
+    inline static ConfigVar<float> cfg_UICountG{"UI.StageSelect.Counter", "CountColorG", 1.0f};
+    inline static ConfigVar<float> cfg_UICountB{"UI.StageSelect.Counter", "CountColorB", 1.0f};
 
     void OnEnter(World &world) override {
         bool hasGameStatus = false;

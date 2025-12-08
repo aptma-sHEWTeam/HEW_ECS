@@ -81,7 +81,37 @@ class GameScene : public IScene {
 
         // レンダリングシステムの初期化と環境光の設定
         RenderingSystem::GetInstance().Initialize(gfx->Dev());
-        RenderingSystem::GetInstance().SetAmbientLight({0.08f, 0.08f, 0.08f}, 1.0f);
+        DirectX::XMFLOAT3 ambientColor{
+            cfg_AmbientR.Get(),
+            cfg_AmbientG.Get(),
+            cfg_AmbientB.Get()
+        };
+        RenderingSystem::GetInstance().SetAmbientLight(ambientColor, cfg_AmbientIntensity.Get());
+
+        // 平行光の生成（有効時のみ）
+        if (cfg_DirLightEnabled.Get()) {
+            Entity dirLightEntity = world.Create().With<DirectionalLight>().Build();
+            ownedEntities_.push_back(dirLightEntity);
+
+            if (auto *dl = world.TryGet<DirectionalLight>(dirLightEntity)) {
+                DirectX::XMFLOAT3 dir{cfg_DirLightX.Get(), cfg_DirLightY.Get(), cfg_DirLightZ.Get()};
+                DirectX::XMVECTOR v = DirectX::XMLoadFloat3(&dir);
+                float lenSq = DirectX::XMVectorGetX(DirectX::XMVector3LengthSq(v));
+                if (lenSq > 1e-6f) {
+                    v = DirectX::XMVector3Normalize(v);
+                    DirectX::XMStoreFloat3(&dir, v);
+                } else {
+                    dir = {0.0f, -1.0f, 0.0f};
+                }
+                dl->direction = dir;
+                dl->color = DirectX::XMFLOAT4{
+                    cfg_DirLightR.Get(),
+                    cfg_DirLightG.Get(),
+                    cfg_DirLightB.Get(),
+                    std::max(0.0f, cfg_DirLightIntensity.Get())
+                };
+            }
+        }
         // テキスト描画システムの初期化
         try {
             if (!textSystem_.Init(*gfx)) {
@@ -121,17 +151,16 @@ class GameScene : public IScene {
         float screenWidth = static_cast<float>(gfx->Width());
         float screenHeight = static_cast<float>(gfx->Height());
 
-        // カメラを初期化
+        // カメラを初期化（App設定を優先）
         camera_ = Camera::LookAtLH(
-            DirectX::XM_PIDIV4,
+            baseFovY_,
             screenWidth / screenHeight,
-            0.1f,
-            1000.0f,
+            cameraNear_,
+            cameraFar_,
             cameraPosition_,
             baseTarget_,
-            DirectX::XMFLOAT3{0.0f, 1.0f, 0.0f}
+            baseUp_
         );
-        baseFovY_ = camera_.fovY;
 
         // 衝突検出システムをエンティティとして生成
         Entity collisionSystem = world.Create().With<CollisionDetectionSystem>(cfg_CollisionCellSize.Get()).Build();
@@ -202,6 +231,22 @@ class GameScene : public IScene {
             }
         });
 
+        // 目標(ゴール)接近時のスロー演出用タイムスケール
+        float timeScale = 1.0f;
+        if (world.IsAlive(playerEntity_) && world.IsAlive(goalEntity_)) {
+            auto *tPlayer = world.TryGet<Transform>(playerEntity_);
+            auto *tGoal = world.TryGet<Transform>(goalEntity_);
+            if (tPlayer && tGoal) {
+                const float dx = tPlayer->position.x - tGoal->position.x;
+                const float dz = tPlayer->position.z - tGoal->position.z;
+                const float dist = std::sqrt(dx * dx + dz * dz);
+                const float slowThreshold = 3.0f; // ゴールに近づいたとみなす距離
+                if (dist <= slowThreshold) {
+                    timeScale = 0.2f; // スロー演出
+                }
+            }
+        }
+
         // ステージ進行リクエストの処理
         HandleStageAdvance(world);
 
@@ -209,18 +254,18 @@ class GameScene : public IScene {
         SetupInputReferences(world, input);
 
         // 発光マテリアルのパルス効果を更新
-        RenderingSystem::GetInstance().UpdateEmissivePulse(world, deltaTime);
+        RenderingSystem::GetInstance().UpdateEmissivePulse(world, deltaTime * timeScale);
 
         // 遅延リスポーンのタイマーを更新
-        UpdateDelayedRespawn(deltaTime, world);
+        UpdateDelayedRespawn(deltaTime * timeScale, world);
 
         // カメラリアクションを更新
-        UpdateCameraReaction(deltaTime, world);
+        UpdateCameraReaction(deltaTime * timeScale, world);
         ChargCameraAction(world);
         RenderingSystem::GetInstance().UpdateLights(world, camera_.position);
 
         // ECSワールドのTickを進める
-        world.Tick(deltaTime);
+        world.Tick(deltaTime * timeScale);
 
         // 時間切れチェック
         if (world.IsAlive(playerEntity_)) {
@@ -275,43 +320,47 @@ class GameScene : public IScene {
      * @param duration 持続時間（秒）
      */
     void TriggerCameraShake(float intensity, float duration) {
-        reactionType_ = CameraReactionType::Shake;
         shakeIntensity_ = intensity;
         shakeTime_ = duration;
         shakeElapsed_ = 0.0f;
+        shakeActive_ = true;
     }
 
     /**
      * @brief カメラインパルス（衝撃）を開始する
      */
     void TriggerCameraImpulse(float dirX, float dirY, float dirZ, float intensity, float duration) {
-        reactionType_ = CameraReactionType::Impulse;
         impulseDir_ = {dirX, dirY, dirZ};
         impulseIntensity_ = intensity;
         impulseTime_ = duration * 1.5f;
         impulseElapsed_ = 0.0f;
+        impulseActive_ = true;
     }
 
     /**
      * @brief カメラズームを開始する
      */
     void TriggerCameraZoom(float zoomAmount, float duration) {
-        reactionType_ = CameraReactionType::Zoom;
         zoomAmount_ = zoomAmount;
         zoomTime_ = duration;
         zoomElapsed_ = 0.0f;
+        zoomActive_ = true;
     }
 
     /**
      * @brief 現在のカメラリアクションをすべて停止
      */
     void StopCameraReaction() {
-        reactionType_ = CameraReactionType::None;
-        camera_.position = cameraPosition_;
-        camera_.fovY = baseFovY_;
+        shakeActive_ = false;
+        impulseActive_ = false;
+        zoomActive_ = false;
         shakeElapsed_ = shakeTime_ = 0.0f;
         impulseElapsed_ = impulseTime_ = 0.0f;
         zoomElapsed_ = zoomTime_ = 0.0f;
+        camera_.position = cameraPosition_;
+        camera_.target = baseTarget_;
+        camera_.fovY = baseFovY_;
+        camera_.up = baseUp_;
         camera_.Proj = DirectX::XMMatrixPerspectiveFovLH(camera_.fovY, camera_.aspect, camera_.nearZ, camera_.farZ);
         camera_.Update();
     }
@@ -321,6 +370,15 @@ class GameScene : public IScene {
 
     /** @brief カメラの基準位置を設定 */
     void SetCameraBasePosition(const DirectX::XMFLOAT3& pos) { cameraPosition_ = pos; }
+    /** @brief カメラの基準設定を一括で指定（位置・注視点・Up・FOV・Near/Far） */
+    void ConfigureBaseCamera(const DirectX::XMFLOAT3& pos, const DirectX::XMFLOAT3& target, const DirectX::XMFLOAT3& up, float fovRad, float nearZ, float farZ) {
+        cameraPosition_ = pos;
+        baseTarget_ = target;
+        baseUp_ = up;
+        baseFovY_ = fovRad;
+        cameraNear_ = nearZ;
+        cameraFar_ = farZ;
+    }
 
     /** @brief プレイヤーを弾いたときの画面の揺れ */
     void ChargCameraAction(World &world) {
@@ -342,6 +400,13 @@ class GameScene : public IScene {
 
             if (releasedSys || releasedLocal) {
                 if (auto *pv = world.TryGet<PlayerVelocity>(playerEntity_)) {
+                    const float vx = pv->velocity.x;
+                    const float vy = pv->velocity.y;
+                    const float len = std::hypot(vx, vy);
+                    if (len > 1e-5f) {
+                        const float dirX = vx / len;
+                        const float dirY = vy / len;
+                        TriggerCameraImpulse(dirX, 0.0f, dirY, 0.2f, 0.1f);
                     if (static_cast<bool>(pv->velocity.x + pv->velocity.y)) {
                         float vecX = pv->velocity.x / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
                         float vecY = pv->velocity.y / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
@@ -361,10 +426,13 @@ class GameScene : public IScene {
         if (pendingRespawn_) return;
 
         if (auto *pv = world.TryGet<PlayerVelocity>(playerEntity_)) {
-            if (static_cast<bool>(pv->velocity.x + pv->velocity.y)) {
-                float vecX = pv->velocity.x / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
-                float vecY = pv->velocity.y / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
-                TriggerCameraImpulse(vecX, 0.0f, vecY, 0.2f, 0.04f);
+            const float vx = pv->velocity.x;
+            const float vy = pv->velocity.y;
+            const float len = std::hypot(vx, vy);
+            if (len > 1e-5f) {
+                const float dirX = vx / len;
+                const float dirY = vy / len;
+                TriggerCameraImpulse(dirX, 0.0f, dirY, 0.2f, 0.04f);
             }
         }
 
@@ -386,6 +454,9 @@ class GameScene : public IScene {
 
     /** @brief ワールドへのポインタを設定 */
     void SetWorldRef(World* w) { world_ = w; }
+
+    /** @brief リスポーン待機中かを取得 */
+    bool IsRespawnPending() const { return pendingRespawn_; }
 
   private:
     // =========================================
@@ -575,6 +646,10 @@ class GameScene : public IScene {
     // ステージ生成メソッド
     // =========================================
 
+    void ApplyDefaultPointLightParams(PointLight &light) const {
+        light.SetAttenuation(cfg_PointLightConst.Get(), cfg_PointLightLinear.Get(), cfg_PointLightQuadratic.Get());
+    }
+
     void CreateStageMap(World &world) {
         world.ForEach<StageCreate>([&](Entity, StageCreate &stagecreate) {
             float tileSize = 1.0f;
@@ -615,6 +690,54 @@ class GameScene : public IScene {
                     }
                 }
             }
+
+            BakeStageLights(world, stagecreate.stageMap, tileSize);
+        });
+    }
+
+    void BakeStageLights(World &world, const std::vector<std::vector<int>> &stageMap, float tileSize) {
+        // 既存のポイントライトに対して、ステージスケールに応じた減衰・レンジを適用するだけ（新規ライトは生成しない）
+        if (stageMap.empty() || stageMap[0].empty()) return;
+
+        const float mapWidth = static_cast<float>(stageMap[0].size());
+        const float mapHeight = static_cast<float>(stageMap.size());
+        const float offsetX = (mapWidth * tileSize) * 0.5f - (tileSize * 0.5f);
+        const float offsetZ = (mapHeight * tileSize) * 0.5f - (tileSize * 0.5f);
+
+        float minX = std::numeric_limits<float>::max();
+        float maxX = std::numeric_limits<float>::lowest();
+        float minZ = std::numeric_limits<float>::max();
+        float maxZ = std::numeric_limits<float>::lowest();
+
+        auto isWalkable = [](int block) {
+            // 0:空き, 1:Start, 2:Goal, 10-19:移動物, 30-39:ダッシュ板, 50+オブジェクトなどは許容
+            if (block == 0 || block == 1 || block == 2) return true;
+            if (block >= 10 && block < 20) return true;
+            if (block >= 30 && block < 40) return true;
+            if (block >= 50) return true;
+            return false; // 3系などの壁
+        };
+
+        for (int y = 0; y < static_cast<int>(stageMap.size()); ++y) {
+            for (int x = 0; x < static_cast<int>(stageMap[y].size()); ++x) {
+                if (!isWalkable(stageMap[y][x])) continue;
+                float worldX = (static_cast<float>(x) * tileSize) - offsetX;
+                float worldZ = offsetZ - (static_cast<float>(y) * tileSize);
+                minX = std::min(minX, worldX);
+                maxX = std::max(maxX, worldX);
+                minZ = std::min(minZ, worldZ);
+                maxZ = std::max(maxZ, worldZ);
+            }
+        }
+
+        if (minX > maxX || minZ > maxZ) return;
+
+        const float diag = std::sqrt((maxX - minX) * (maxX - minX) + (maxZ - minZ) * (maxZ - minZ));
+        const float targetRange = std::max(cfg_PointLightRange.Get(), 0.3f * diag);
+
+        world.ForEach<PointLight>([&](Entity, PointLight &pl) {
+            ApplyDefaultPointLightParams(pl);
+            pl.range = targetRange;
         });
     }
 
@@ -629,13 +752,16 @@ class GameScene : public IScene {
             case 8: CreateRightUpCorner(world, position); break;
             default:
                 if (blockType >= 10 && blockType < 20) {
-                    CreateMoveWall(world, position, blockType);
+                    CreateMovingObstacle(world, position, blockType);
                 } else if (blockType >= 30 && blockType < 40) {
                     CreateDashBoard(world, position, blockType);
-                } else if (blockType >= 50 && blockType < 60) {
-                    CreateMovingObstacle(world, position, blockType);
+                } else if (blockType == 50 || blockType == 51) {
+                    CreateObjectA(world, position, blockType);
+                } else if (blockType == 52 || blockType == 53) {
+                    CreateObjectB(world, position, blockType);
                 }
                 break;
+            case 54: CreateObjectC(world, position, blockType);
         }
     }
 
@@ -651,7 +777,8 @@ class GameScene : public IScene {
                            .With<MeshRenderer>(renderer)
                            .Build();
 
-        ownedEntities_.push_back(floor);
+        // ステージ切り替え時に破棄されるよう、ステージ所有リストへ登録
+        stageOwnedEntities_.push_back(floor);
     }
 
     void CreateStart(World &world, const DirectX::XMFLOAT3 &position) {
@@ -669,6 +796,7 @@ class GameScene : public IScene {
             DirectX::XMFLOAT3{cfg_StartEmissiveR, cfg_StartEmissiveG, cfg_StartEmissiveB},
             cfg_StartEmissiveIntensity,
             cfg_StartLightRange};
+        ApplyDefaultPointLightParams(light);
 
         Entity e = world.Create()
                        .With<Transform>(t)
@@ -699,6 +827,7 @@ class GameScene : public IScene {
             DirectX::XMFLOAT3{cfg_GoalEmissiveR, cfg_GoalEmissiveG, cfg_GoalEmissiveB},
             cfg_GoalEmissiveIntensity,
             cfg_GoalLightRange};
+        ApplyDefaultPointLightParams(light);
 
         Entity e = world.Create()
                        .With<Transform>(t)
@@ -808,6 +937,7 @@ class GameScene : public IScene {
         float waitAtEnd = 0.0f;
         float travelTime = 1.0f;
         float timer = 0.0f;
+        bool firstLoop = true;
         enum class State { WaitStart, MoveForward, WaitEnd, MoveBack } state = State::WaitStart;
 
         void OnUpdate(World &w, Entity self, float dt) override {
@@ -828,8 +958,9 @@ class GameScene : public IScene {
 
             switch (state) {
                 case State::WaitStart:
-                    if (timer >= waitAtStart) {
+                    if (timer >= (firstLoop ? waitAtStart : waitAtEnd)) {
                         timer = 0.0f;
+                        firstLoop = false;
                         state = State::MoveForward;
                     }
                     break;
@@ -868,12 +999,21 @@ class GameScene : public IScene {
         obstacle.startPos = position;
         obstacle.baseScale = DirectX::XMFLOAT3{1.0f, 1.0f, 1.0f};
 
-        // blockType 50ベースでパターンを取得
-        int patternIndex = blockType - 50;
+        auto resolvePatternIndex = [](int type) -> std::optional<int> {
+            if (type >= 10 && type < 20) return type - 10;  // CSVのインデックス+10がID
+            return std::nullopt;
+        };
+
+        const auto patternIndex = resolvePatternIndex(blockType);
         world.ForEach<LoadMovingObstacle>([&](Entity, LoadMovingObstacle &data) {
-            if (patternIndex >= 0 && patternIndex < static_cast<int>(data.patterns.size())) {
-                const auto &p = data.patterns[patternIndex];
-                obstacle.delta = DirectX::XMFLOAT3{p.dirX, 0.0f, p.dirY}; // そのままの差分ベクトル
+            if (!patternIndex) {
+                DEBUGLOG_WARNING("[MoveObstacle] 未対応のブロックIDです: " + std::to_string(blockType));
+                return;
+            }
+
+            if (*patternIndex >= 0 && *patternIndex < static_cast<int>(data.patterns.size())) {
+                const auto &p = data.patterns[*patternIndex];
+                obstacle.delta = DirectX::XMFLOAT3{p.dirX, 0.0f, -p.dirY}; // ステージ座標のYはワールドZと逆向き
                 obstacle.endPos = DirectX::XMFLOAT3{
                     position.x + obstacle.delta.x,
                     position.y + obstacle.delta.y,
@@ -881,6 +1021,8 @@ class GameScene : public IScene {
                 obstacle.waitAtStart = p.waitAtStart;
                 obstacle.waitAtEnd = p.waitAtEnd;
                 obstacle.travelTime = p.travelTime;
+            } else {
+                DEBUGLOG_WARNING("[MoveObstacle] パターンが見つかりません index=" + std::to_string(*patternIndex));
             }
         });
 
@@ -902,21 +1044,55 @@ class GameScene : public IScene {
         stageOwnedEntities_.push_back(entity);
     }
 
-    void CreateMoveWall(World &world, const DirectX::XMFLOAT3 &position, int blockType) {
-        Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
+    void CreateObjectA(World & world, const DirectX::XMFLOAT3 &position, int blockType) {
+        Transform transform{position, {0.0f, 0.0f, 0.0f}, {2.0f, 1.0f, 1.5f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::Cube;
-        renderer.color = DirectX::XMFLOAT3{cfg_WallR, cfg_WallG, cfg_WallB};
+        renderer.color = DirectX::XMFLOAT3{1.0f,1.0f,0.0f}; //黄色
 
-        Entity wallEntity = world.Create()
-                                .With<Transform>(transform)
-                                .With<MeshRenderer>(renderer)
-                                .With<WallTag>()
-                                .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
-                                .With<WallCollisionHandler>()
-                                .Build();
+        Entity ObjectAEntity = world.Create()
+                                     .With<Transform>(transform)
+                                     .With<MeshRenderer>(renderer)
+                                     .With<WallTag>()
+                                     .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                                     .With<FloorWallCollisionHandler>()
+                                     .Build();
 
-        stageOwnedEntities_.push_back(wallEntity);
+        stageOwnedEntities_.push_back(ObjectAEntity);
+    }
+
+    void CreateObjectB(World &world, const DirectX::XMFLOAT3 &position, int blockType) {
+        Transform transform{position, {0.0f, 0.0f, 0.0f}, {3.0f, 2.0f, 2.0f}};
+        MeshRenderer renderer;
+        renderer.meshType = MeshType::Cube;
+        renderer.color = DirectX::XMFLOAT3{0.0f, 1.0f, 1.0f}; //シアン
+
+        Entity ObjectAEntity = world.Create()
+                                   .With<Transform>(transform)
+                                   .With<MeshRenderer>(renderer)
+                                   .With<WallTag>()
+                                   .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                                   .With<FloorWallCollisionHandler>()
+                                   .Build();
+
+        stageOwnedEntities_.push_back(ObjectAEntity);
+    }
+
+    void CreateObjectC(World &world, const DirectX::XMFLOAT3 &position, int blockType) {
+        Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
+        MeshRenderer renderer;
+        renderer.meshType = MeshType::Cube;
+        renderer.color = DirectX::XMFLOAT3{1.0f, 0.0f, 1.0f}; //マゼンタ
+
+        Entity ObjectAEntity = world.Create()
+                                   .With<Transform>(transform)
+                                   .With<MeshRenderer>(renderer)
+                                   .With<WallTag>()
+                                   .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                                   .With<FloorWallCollisionHandler>()
+                                   .Build();
+
+        stageOwnedEntities_.push_back(ObjectAEntity);
     }
 
     void CreatFloorWall(World &world, const DirectX::XMFLOAT3 &position) {
@@ -969,17 +1145,35 @@ class GameScene : public IScene {
         stageOwnedEntities_.push_back(dashBoardEntity);
     }
 
+
+
     void BakeStageLighting(World & /*world*/) {
-        // プレースホルダー
+        // Deprecated placeholder（現状は CreateStageMap 内で BakeStageLights を実行）
     }
 
     void SetupStage(World &world, int stage) {
+        // 既存のステージ所有エンティティを破棄
         for (const auto &entity : stageOwnedEntities_) {
             if (world.IsAlive(entity)) {
                 world.DestroyEntityWithCause(entity, World::Cause::StageReset);
             }
         }
         stageOwnedEntities_.clear();
+
+        // 念のため、タグでステージ要素をクリーンアップ（過去の登録漏れ対策）
+        std::vector<Entity> toDestroy;
+        world.ForEach<WallTag>([&](Entity e, WallTag &) { toDestroy.push_back(e); });
+        world.ForEach<GoalTag>([&](Entity e, GoalTag &) { toDestroy.push_back(e); });
+        world.ForEach<StartTag>([&](Entity e, StartTag &) { toDestroy.push_back(e); });
+        world.ForEach<GimmickTag>([&](Entity e, GimmickTag &) { toDestroy.push_back(e); });
+        for (auto e : toDestroy) {
+            if (world.IsAlive(e)) {
+                world.DestroyEntityWithCause(e, World::Cause::StageReset);
+            }
+        }
+
+        // 破棄を即時反映（次のステージ生成と重ならないように）
+        world.FlushDestroyEndOfFrame();
 
         startEntity_ = {};
         goalEntity_ = {};
@@ -1050,36 +1244,41 @@ class GameScene : public IScene {
 
     void UpdateDelayedRespawn(float dt, World &world) {
         if (!pendingRespawn_) return;
+        // グローバルにも反映して他コンポーネントから参照可能に
+        g_respawnPending = true;
         respawnTimer_ -= dt;
         if (respawnTimer_ <= 0.0f) {
             ResetPlayerToStart(world, respawnPlayer_, true);
             pendingRespawn_ = false;
+            g_respawnPending = false;
             respawnTimer_ = 0.0f;
         }
     }
 
     void UpdateCameraReaction(float dt, World & /*world*/) {
-        switch (reactionType_) {
-            case CameraReactionType::Shake: UpdateShake(dt); break;
-            case CameraReactionType::Impulse: UpdateImpulse(dt); break;
-            case CameraReactionType::Zoom: UpdateZoom(dt); break;
-            case CameraReactionType::None:
-            default:
-                camera_.position = cameraPosition_;
-                camera_.fovY = baseFovY_;
-                break;
-        }
+        DirectX::XMFLOAT3 posOffset{0.0f, 0.0f, 0.0f};
+        DirectX::XMFLOAT3 targetOffset{0.0f, 0.0f, 0.0f};
+        float fovDelta = 0.0f;
+        DirectX::XMFLOAT3 upVec = baseUp_;
+
+        if (shakeActive_) UpdateShake(dt, posOffset, targetOffset, upVec);
+        if (impulseActive_) UpdateImpulse(dt, posOffset, targetOffset);
+        if (zoomActive_) UpdateZoom(dt, fovDelta);
+
+        camera_.position = {cameraPosition_.x + posOffset.x, cameraPosition_.y + posOffset.y, cameraPosition_.z + posOffset.z};
+        camera_.target = {baseTarget_.x + targetOffset.x, baseTarget_.y + targetOffset.y, baseTarget_.z + targetOffset.z};
+        camera_.fovY = std::clamp(baseFovY_ + fovDelta, DirectX::XM_PIDIV4 * 0.25f, DirectX::XM_PIDIV2 * 1.5f);
+        camera_.up = upVec;
 
         camera_.Proj = DirectX::XMMatrixPerspectiveFovLH(camera_.fovY, camera_.aspect, camera_.nearZ, camera_.farZ);
         camera_.Update();
     }
 
-    void UpdateShake(float dt) {
+    void UpdateShake(float dt, DirectX::XMFLOAT3 &posOffset, DirectX::XMFLOAT3 &targetOffset, DirectX::XMFLOAT3 &upVec) {
         shakeElapsed_ += dt;
 
         if (shakeElapsed_ >= shakeTime_) {
-            reactionType_ = CameraReactionType::None;
-            camera_.position = cameraPosition_;
+            shakeActive_ = false;
             return;
         }
 
@@ -1101,27 +1300,49 @@ class GameScene : public IScene {
         float sy = (std::cos(shakeElapsed_ * freqY) * (1.0f - randomness) + randY) * currentIntensity * yScale;
         float sz = (std::sin(shakeElapsed_ * freqZ) * (1.0f - randomness) + randZ) * currentIntensity;
 
-        camera_.position = {cameraPosition_.x + sx, cameraPosition_.y + sy, cameraPosition_.z + sz};
+        // 平行移動ではなく微小回転で画面を揺らす
+        DirectX::XMFLOAT3 baseForward{
+            baseTarget_.x - cameraPosition_.x,
+            baseTarget_.y - cameraPosition_.y,
+            baseTarget_.z - cameraPosition_.z};
+        float forwardLen = std::sqrt(baseForward.x * baseForward.x + baseForward.y * baseForward.y + baseForward.z * baseForward.z);
+        if (forwardLen < 1e-4f) return;
+
+        const float angleScale = 0.25f; // 揺れ量を角度に変換
+        float pitch = sy * angleScale;
+        float yaw = sx * angleScale;
+        float roll = sz * angleScale * 0.5f;
+
+        DirectX::XMVECTOR forwardVec = DirectX::XMLoadFloat3(&baseForward);
+        forwardVec = DirectX::XMVector3Normalize(forwardVec);
+
+        DirectX::XMMATRIX rot = DirectX::XMMatrixRotationRollPitchYaw(pitch, yaw, roll);
+        DirectX::XMVECTOR rotatedForward = DirectX::XMVector3TransformNormal(forwardVec, rot);
+        DirectX::XMVECTOR rotatedUp = DirectX::XMVector3TransformNormal(DirectX::XMLoadFloat3(&baseUp_), rot);
+
+        DirectX::XMFLOAT3 newForward{};
+        DirectX::XMFLOAT3 newUp{};
+        DirectX::XMStoreFloat3(&newForward, rotatedForward);
+        DirectX::XMStoreFloat3(&newUp, rotatedUp);
+
+        targetOffset = {newForward.x * forwardLen - baseForward.x,
+                        newForward.y * forwardLen - baseForward.y,
+                        newForward.z * forwardLen - baseForward.z};
+        upVec = newUp;
+        // 位置は固定し、違和感の少ない視線揺らぎのみ適用
+        posOffset = {0.0f, 0.0f, 0.0f};
     }
 
-    void UpdateImpulse(float dt) {
+    void UpdateImpulse(float dt, DirectX::XMFLOAT3 &posOffset, DirectX::XMFLOAT3 &targetOffset) {
         impulseElapsed_ += dt;
 
         if (impulseElapsed_ >= impulseTime_) {
-            reactionType_ = CameraReactionType::None;
-            camera_.position = cameraPosition_;
-            camera_.target = baseTarget_;
+            impulseActive_ = false;
             return;
         }
 
         float decay = cfg_CameraImpulseDecay.Get();
         DirectX::XMFLOAT3 dir = impulseDir_;
-
-        if (impulseElapsed_ >= impulseTime_ * (2.0f / 3.0f)) {
-            dir.x = -dir.x;
-            dir.y = -dir.y;
-            dir.z = -dir.z;
-        }
 
         float len = std::sqrt(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z);
         if (len > 1e-6f) {
@@ -1131,36 +1352,32 @@ class GameScene : public IScene {
         }
 
         float t = impulseElapsed_ / std::max(1e-6f, impulseTime_);
-        float rise = std::min(1.0f, t * 2.0f);
+        // なめらかな押し出し: 前半で優しく押し出し、後半はゆるやかに減衰して基準位置へ戻す
+        float easeOut = 1.0f - std::cos(std::clamp(t, 0.0f, 1.0f) * DirectX::XM_PIDIV2); // 0→1 のソフトカーブ
         float fall = std::exp(-decay * impulseElapsed_);
-        float currentIntensity = impulseIntensity_ * rise * fall;
-
-        if (impulseElapsed_ >= impulseTime_ * (2.0f / 3.0f)) {
-            currentIntensity *= 2.0f;
-        }
+        float currentIntensity = impulseIntensity_ * easeOut * fall;
 
         const float dx = dir.x * currentIntensity;
         const float dy = dir.y * currentIntensity;
         const float dz = dir.z * currentIntensity;
 
-        camera_.position = {cameraPosition_.x + dx, cameraPosition_.y + dy, cameraPosition_.z + dz};
-        camera_.target = {baseTarget_.x + dx, baseTarget_.y + dy, baseTarget_.z + dz};
+        posOffset.x += dx;
+        posOffset.y += dy;
+        posOffset.z += dz;
+        targetOffset = {dx, dy, dz};
     }
 
-    void UpdateZoom(float dt) {
+    void UpdateZoom(float dt, float &fovDelta) {
         zoomElapsed_ += dt;
 
         if (zoomElapsed_ >= zoomTime_) {
-            reactionType_ = CameraReactionType::None;
-            camera_.fovY = baseFovY_;
+            zoomActive_ = false;
             return;
         }
 
         float t = zoomElapsed_ / std::max(1e-6f, zoomTime_);
         float zoomCurve = std::sin(t * DirectX::XM_PI);
-        camera_.fovY = baseFovY_ - zoomAmount_ * zoomCurve;
-        camera_.fovY = std::max(DirectX::XM_PIDIV4 * 0.25f, std::min(DirectX::XM_PIDIV2 * 1.5f, camera_.fovY));
-        camera_.position = cameraPosition_;
+        fovDelta = -zoomAmount_ * zoomCurve;
     }
 
     // =========================================
@@ -1181,24 +1398,25 @@ class GameScene : public IScene {
     DirectX::XMFLOAT3 currentTarget_ = {0.0f, 0.0f, 0.0f};
     Camera camera_{};
     float baseFovY_ = DirectX::XM_PIDIV4;
-
-    // カメラリアクション状態
-    CameraReactionType reactionType_ = CameraReactionType::None;
-    float reactionTime_ = 0.0f;
-    float reactionElapsed_ = 0.0f;
+    float cameraNear_ = 0.1f;
+    float cameraFar_ = 1000.0f;
+    DirectX::XMFLOAT3 baseUp_ = {0.0f, 1.0f, 0.0f};
 
     // シェイク用
+    bool shakeActive_ = false;
     float shakeIntensity_ = 0.0f;
     float shakeTime_ = 0.0f;
     float shakeElapsed_ = 0.0f;
 
     // 衝撃用
+    bool impulseActive_ = false;
     DirectX::XMFLOAT3 impulseDir_ = {0.0f, 0.0f, 0.0f};
     float impulseIntensity_ = 0.0f;
     float impulseTime_ = 0.0f;
     float impulseElapsed_ = 0.0f;
 
     // ズーム用
+    bool zoomActive_ = false;
     float zoomAmount_ = 0.0f;
     float zoomTime_ = 0.0f;
     float zoomElapsed_ = 0.0f;
@@ -1235,4 +1453,5 @@ inline void FloorWallCollisionHandler::OnCollisionEnter(World &w, Entity self, E
             ResetPlayerToStart(w, other, true);
         }
     }
+
 }

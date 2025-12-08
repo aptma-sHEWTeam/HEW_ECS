@@ -19,6 +19,11 @@
 #include "input/GamepadSystem.h"
 #include "components/Collision.h"
 #include "scenes/Game.h"
+#include "components/StageComponents.h" // StageProgress for stage advance after goal easing
+// g_GameScene は CollisionHandlers.h で定義されるグローバル。参照のため extern 宣言を追加。
+class GameScene; extern GameScene* g_GameScene;
+extern bool g_respawnPending; // リスポーン待機フラグの参照
+
 #include <DirectXMath.h>
 #include <cmath>
 #include <algorithm>
@@ -27,13 +32,13 @@
 #include "config/ConfigVar.h"
 
 //ConfigVar
-inline static ConfigVar<float> cfg_MinChargeSpeed{"Player", "MinChargeSpeedFactor", 0.4f};
-inline static ConfigVar<float> cfg_ChargeMaxTime{"Player", "ChargeMaxTime", 0.7f};
-inline static ConfigVar<float> cfg_ReleaseThreshold{"Player", "ReleaseThreshold", 0.3f};
-inline static ConfigVar<float> cfg_ChargeMoveAmount{"Player", "ChargeMoveAmount", 0.025f};
-inline static ConfigVar<float> cfg_LimitX{"Player", "LimitX", 15.0f};
-inline static ConfigVar<float> cfg_LimitY{"Player", "LimitY", 15.0f};
-inline static ConfigVar<float> cfg_AccelerateMagnification{"Player", "AccelerateMagnification", 1.5f};
+inline static ConfigVar<float> cfg_MinChargeSpeed{"Player.Charge", "MinChargeSpeedFactor", 0.4f};
+inline static ConfigVar<float> cfg_ChargeMaxTime{"Player.Charge", "ChargeMaxTime", 0.7f};
+inline static ConfigVar<float> cfg_ReleaseThreshold{"Player.Charge", "ReleaseThreshold", 0.3f};
+inline static ConfigVar<float> cfg_ChargeMoveAmount{"Player.Charge", "ChargeMoveAmount", 0.025f};
+inline static ConfigVar<float> cfg_LimitX{"Player.Bounds", "LimitX", 15.0f};
+inline static ConfigVar<float> cfg_LimitY{"Player.Bounds", "LimitY", 15.0f};
+inline static ConfigVar<float> cfg_AccelerateMagnification{"Player.Movement", "AccelerateMagnification", 1.5f};
 
 // =========================================
 // 定数定義
@@ -48,7 +53,7 @@ constexpr float EPSILON = 1e-5f;
 // =========================================
 
 struct PlayerVelocity : Behaviour {
-    inline static ConfigVar<float> cfg_Speed{"Player", "MoveSpeed", 8.0f};
+    inline static ConfigVar<float> cfg_Speed{"Player.Movement", "MoveSpeed", 8.0f};
 
     float Acceleration = cfg_AccelerateMagnification; ///< 加速度の倍率
     float MinSpeed = cfg_MinChargeSpeed;              ///< 減速時の最小速度
@@ -193,6 +198,19 @@ struct PlayerMovement : Behaviour {
         auto *v = w.TryGet<PlayerVelocity>(self);
         if (!t || !v || (!input_ && !gamepad_)) return;
 
+        // リスポーン待機中は完全停止（グローバルフラグ参照）
+        if (g_respawnPending) {
+            v->velocity = {0.0f, 0.0f};
+            v->isBoosting = false;
+            v->isDecelerating = false;
+            v->boostSpeed = 0.0f;
+            ResetAngleHistory();
+            isCharging_ = false;
+            wasCharging_ = false;
+            wasChargingPrev_ = false;
+            return;
+        }
+
         v->speed = PlayerVelocity::cfg_Speed;
         minChargeSpeedFactor = cfg_MinChargeSpeed;
         chargeMaxTime = cfg_ChargeMaxTime;
@@ -291,11 +309,11 @@ struct PlayerMovement : Behaviour {
 
 struct PlayerGuide : Behaviour {
     // Config Variables
-    inline static ConfigVar<float> cfg_GuideScaleX{"Player", "GuideScaleX", 0.4f};
-    inline static ConfigVar<float> cfg_GuideScaleY{"Player", "GuideScaleY", 0.4f};
-    inline static ConfigVar<float> cfg_GuideScaleZ{"Player", "GuideScaleZ", 0.4f};
-    inline static ConfigVar<float> cfg_GuideOffsetDistance{"Player", "GuideOffsetDistance", 0.5f};
-    inline static ConfigVar<int> cfg_GuideQuantity{"Player", "GuideQuantity", 3};
+    inline static ConfigVar<float> cfg_GuideScaleX{"Player.Guide", "GuideScaleX", 0.4f};
+    inline static ConfigVar<float> cfg_GuideScaleY{"Player.Guide", "GuideScaleY", 0.4f};
+    inline static ConfigVar<float> cfg_GuideScaleZ{"Player.Guide", "GuideScaleZ", 0.4f};
+    inline static ConfigVar<float> cfg_GuideOffsetDistance{"Player.Guide", "GuideOffsetDistance", 0.5f};
+    inline static ConfigVar<int> cfg_GuideQuantity{"Player.Guide", "GuideQuantity", 3};
 
     // コンポーネント保存用変数
     PlayerMovement *playerMove{};
@@ -333,6 +351,16 @@ struct PlayerGuide : Behaviour {
     }
 
     void OnUpdate(World &w, Entity self, float dt) override {
+        // リスポーン待機中はガイドを完全非表示
+        if (g_respawnPending) {
+            for (auto e : guidEntities) {
+                if (auto *gt = w.TryGet<Transform>(e)) {
+                    gt->scale = {0, 0, 0};
+                }
+            }
+            return;
+        }
+
         playerMove = w.TryGet<PlayerMovement>(self);
         selfTransform = w.TryGet<Transform>(self);
 
@@ -370,6 +398,51 @@ struct PlayerGuide : Behaviour {
                 currentGuide->position.x += std::cosf(rad) * offsetDistance;
                 currentGuide->position.z += std::sinf(rad) * offsetDistance;
             }
+        }
+    }
+};
+
+// ========================================================
+// ゴール吸引コンポーネント
+// ========================================================
+
+struct GoalAttractor : Behaviour {
+    DirectX::XMFLOAT3 target{0.0f, 0.0f, 0.0f};
+    float duration = 0.8f; // 吸い込みにかける時間(秒)
+    float elapsed = 0.0f;
+
+    void OnUpdate(World &w, Entity self, float dt) override {
+        // リスポーン待機と同様に、待機フラグを有効化（UIや操作停止を共有）
+        g_respawnPending = true;
+
+        auto *t = w.TryGet<Transform>(self);
+        if (!t) return;
+        elapsed += dt;
+
+        // プレイヤーの速度を停止して滑らかに吸い込み
+        if (auto *v = w.TryGet<PlayerVelocity>(self)) {
+            v->velocity = {0.0f, 0.0f};
+            v->isBoosting = false;
+            v->isDecelerating = false;
+            v->boostSpeed = 0.0f;
+        }
+
+        float r = std::clamp(elapsed / std::max(0.001f, duration), 0.0f, 1.0f);
+        float ease = r < 0.5f ? (2.0f * r * r) : (1.0f - std::pow(-2.0f * r + 2.0f, 2.0f) / 2.0f);
+        DirectX::XMFLOAT3 start = t->position;
+        t->position.x = start.x + (target.x - start.x) * ease;
+        t->position.z = start.z + (target.z - start.z) * ease;
+        t->position.y = 0.0f;
+
+        float dx = t->position.x - target.x;
+        float dz = t->position.z - target.z;
+        if ((dx*dx + dz*dz) < 0.0001f || elapsed >= duration) {
+            t->position.x = target.x;
+            t->position.z = target.z;
+            g_respawnPending = false;
+            // 吸い込み完了後にステージ進行をリクエスト
+            w.ForEach<StageProgress>([&](Entity, StageProgress &sp) { sp.requestAdvance = true; });
+            w.Remove<GoalAttractor>(self);
         }
     }
 };
