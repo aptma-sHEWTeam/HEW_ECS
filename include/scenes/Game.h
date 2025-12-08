@@ -1323,4 +1323,5 @@ inline void FloorWallCollisionHandler::OnCollisionEnter(World &w, Entity self, E
             ResetPlayerToStart(w, other, true);
         }
     }
+
 }
