@@ -17,7 +17,6 @@
 #include <optional>
 #include <filesystem>
 #include <algorithm>
-#include <cmath>
 
 // リファクタリング: 分離されたヘッダーをインクルード
 #include "scenes/CameraReaction.h"
@@ -62,19 +61,6 @@ class GameScene : public IScene {
     void OnEnter(World &world) override {
         DEBUGLOG("<<<<< GameScene::OnEnter CALLED! >>>>>");
         DEBUGLOG("GameWithUIScene::OnEnter() 開始");
- struct GoalState {
-     DirectX::XMFLOAT3 target; //ゴール中央へ移動するターゲット座標
-     float elapsed = 0.0f;     //停止中の経過時間計測
-     float holdDuration = 0.5f;//到達後に停止する時間
-     float moveSpeed = 2.0f;   //移動速度
-     bool moving = true;       //移動フェーズか、停止フェーズか
-};
-
-inline static std::unordered_map<uint32_t, GoalTag> g_goalStates;
-
-inline static ConfigVar<float> cfg_LimitTime{"Game", "LimitTime", 10.0f};
-inline static ConfigVar<float> cfg_GoalHoldSecond{ "Game", "GoalHoldSecond", 0.5f}; //到達後の時間停止
-inline static ConfigVar<float> cfg_GoalMoveSpeed{"Game", "GoalMoveSpeed", 2.0f};    //中央への移動スピード
 
         // このシーンインスタンスへのグローバルポインタを設定
         g_GameScene = this;
@@ -117,11 +103,6 @@ inline static ConfigVar<float> cfg_GoalMoveSpeed{"Game", "GoalMoveSpeed", 2.0f};
             if (!imageSystem_.Init(*gfx)) {
                 DEBUGLOG_ERROR("ImageSystem の初期化に失敗しました");
                 return;
-        if (auto *tPlayer = w.TryGet<Transform>(player)) {
-            tPlayer->position = {tStart.position.x, 0.0f, tStart.position.z - 1.0f};//プレイヤーの生成場所
-
-            if (auto *vPlayer = w.TryGet<PlayerVelocity>(player)) {
-                vPlayer->velocity = {0.0f, 0.0f};
             }
         } catch (const _com_error& ex) {
             std::wostringstream woss;
@@ -177,12 +158,6 @@ inline static ConfigVar<float> cfg_GoalMoveSpeed{"Game", "GoalMoveSpeed", 2.0f};
                 DEBUGLOG_ERROR("[StageCreate] ステージ" + std::to_string(desiredStage) + "のCSVが見つかりません。Stage1へフォールバックします");
                 stagePath = ResolveStageCsvPath(1);
             }
-        done = true;
-    });
-
-    //ゴール状態が残っていれば消す
-    g_goalStates.erase(player.id);
-}
 
             if (stagePath) {
                 Entity stageEntity = world.Create().With<StageCreate>(*stagePath).Build();
@@ -251,50 +226,6 @@ inline static ConfigVar<float> cfg_GoalMoveSpeed{"Game", "GoalMoveSpeed", 2.0f};
             CheckTimeLimit(world, playerEntity_, cfg_LimitTime);
         }
     }
-/**
- * @struct PlayerCollisionHandler
- * @brief プレイヤーの衝突イベントを処理
- */
-struct PlayerCollisionHandler : ICollisionHandler {
-    void OnCollisionEnter(World &w, Entity self, Entity other,const CollisionInfo &info) override {
-        if (w.Has<EnemyTag>(other)) {
-            DEBUGLOG("プレイヤーが敵と衝突 - 侵入深度: " + std::to_string(info.penetrationDepth));
-            w.ForEach<GameStats>([](Entity, GameStats &stats) { stats.score += 10; });
-        }
-        //---ゴールの衝突処理について
-        if (w.Has<GoalTag>(other)) {
-           //---二重登録防止用
-            if (g_goalStates.find(self.id) != g_goalStates.end()) {
-                return;
-            }
-        
-            //---ゴールの中央座標
-            DirectX::XMFLOAT3 goalCenter = {0.0f, 0.0f, 0.0f};
-            if (auto *t = w.TryGet<Transform>(other)) {
-                goalCenter = t->position;
-            }
-            //---移動速度の競合を防ぐため操作の速度をなくす
-            if (auto *v = w.TryGet<PlayerVelocity>(self)) {
-                v->velocity = {0.0f, 0.0f};
-            }
-            //---
-            if (auto *pm = w.TryGet<PlayerMovement>(self)) {
-                pm->input_ = nullptr;
-            }
-
-            if (auto *st = w.TryGet<GoalState>(other)) {
-                st->target = goalCenter;
-                st->elapsed = 0.0f;
-                st->holdDuration = cfg_GoalHoldSecond.Get();
-                st->moveSpeed = cfg_GoalMoveSpeed.Get();
-                st->moving = true;
-            }  
-                
-            DEBUGLOG("プレイヤーがゴールに到達 ->ゴール中央へ移動して一時停止後ワープする");
-        }
-    }
-};
-REGISTER_COLLISION_HANDLER_TYPE(PlayerCollisionHandler)
 
     /**
      * @brief 毎フレーム呼び出される描画処理
@@ -387,36 +318,6 @@ REGISTER_COLLISION_HANDLER_TYPE(PlayerCollisionHandler)
         camera_.Proj = DirectX::XMMatrixPerspectiveFovLH(camera_.fovY, camera_.aspect, camera_.nearZ, camera_.farZ);
         camera_.Update();
     }
-/**
- * @class GameScene
- * @brief 3DゲームとUIを統合したシーン
- */
-class GameScene : public IScene {
-  public:
-
-    TextSystem textSystem_;
-    std::vector<Entity> ownedEntities_;
-    std::vector<Entity> stageOwnedEntities_;
-    Entity playerEntity_{};
-    Entity stageEntity_{};
-    Entity startEntity_{};
-    Entity wall_{};
-    Entity worldwall_{};
-    Entity goalEntity_{};
-
-    // Configs
-    inline static ConfigVar<float> cfg_PlayerScale{"Game", "PlayerScale", 0.8f};
-    inline static ConfigVar<float> cfg_PlayerR{"Game", "PlayerColorR", 0.0f};
-    inline static ConfigVar<float> cfg_PlayerG{"Game", "PlayerColorG", 0.0f};
-    inline static ConfigVar<float> cfg_PlayerB{"Game", "PlayerColorB", 1.0f};
-    inline static ConfigVar<float> cfg_PlayerStartY{"Game", "PlayerStartY", 5.0f};
-    inline static ConfigVar<float> cfg_PlayerHeight{"Game", "PlayerHeight", 2.0f};
-    
-    inline static ConfigVar<float> cfg_FloorR{"Game", "FloorColorR", 0.5f};
-    inline static ConfigVar<float> cfg_FloorG{"Game", "FloorColorG", 0.5f};
-    inline static ConfigVar<float> cfg_FloorB{"Game", "FloorColorB", 0.5f};
-    inline static ConfigVar<float> cfg_FloorYOffset{"Game", "FloorYOffset", -2.0f};
-    inline static ConfigVar<float> cfg_FloorThickness{"Game", "FloorThickness", 0.2f};
 
     /** @brief カメラオブジェクトへのconst参照を取得 */
     const Camera& GetCamera() const { return camera_; }
@@ -471,12 +372,6 @@ class GameScene : public IScene {
     void OnWallHit(Entity player, World &world) {
         if (pendingRespawn_) return;
 
-        if (auto* playerStatus = world.TryGet<PlayerStatus>(playerEntity_))
-        {
-            playerStatus->isStartAfterWallHit = true;
-            DEBUGLOG("isStartAfterWallHitがtrueになりました");
-        }
-
         if (auto *pv = world.TryGet<PlayerVelocity>(playerEntity_)) {
             const float vx = pv->velocity.x;
             const float vy = pv->velocity.y;
@@ -525,7 +420,6 @@ class GameScene : public IScene {
                             .With<PlayerTag>()
                             .With<PlayerVelocity>()
                             .With<PlayerMovement>()
-                            .With<PlayerStatus>()
                             .With<PlayerGuide>()
                             .With<CollisionSphere>(0.4f)
                             .With<PlayerCollisionHandler>()
@@ -583,19 +477,6 @@ class GameScene : public IScene {
         world.ForEach<PlayerMovement>([&](Entity, PlayerMovement &pm) {
             if (!pm.input_) pm.input_ = &input;
             if (!pm.gamepad_) pm.gamepad_ = &ServiceLocator::Get<GamepadSystem>();
-        // プレイヤーの移動
-        world.ForEach<PlayerMovement>([&](Entity e, PlayerMovement &pm) {
-            if (g_goalStates.find(e.id) != g_goalStates.end()) {
-                pm.input_ = nullptr;
-            } 
-            else {
-                    if (!pm.input_) {
-                        pm.input_ = &input;
-                    }
-                }
-            if (!pm.gamepad_) {
-                pm.gamepad_ = &ServiceLocator::Get<GamepadSystem>();
-            }
         });
 
         world.ForEach<UIInteractionSystem>([&](Entity, UIInteractionSystem &sys) {
@@ -627,59 +508,6 @@ class GameScene : public IScene {
         if (stageDir.empty()) {
             return std::nullopt;
         }
-        world.Tick(deltaTime);
-        
-        //ゴールの処理 
-        //　時間指定はよそから
-        // 自身を中央に持っていっタ後にワープするだけでいい
-        //
-        world.ForEach<GoalState>([&](Entity e,Entity goalEntity_) {
-    
-            auto goal_it = g_goalStates.find(e.id);
-            if (goal_it != g_goalStates.end()) {
-
-                //ゴール中央に向かってゆっくりと移動させる
-                if (auto *gs = world.TryGet<GoalState>(goalEntity_)) {
-                    float dx = gs->target.x - tPlayer.position.x;
-                    float dz = gs->target.z - tPlayer.position.z;
-                    float dist = std::sqrt(dx * dx + dz * dz);
-                    float step = gs->moveSpeed * deltaTime;
-
-                    if (dist <= 0.001f || dist <= step) {
-                        //到着
-                        tPlayer.position.x = gs->target.x;
-                        tPlayer.position.z = gs->target.z;
-                        gs->moving = false;
-                        gs->elapsed = 0.0f;
-                        DEBUGLOG("プレイヤーがゴール中央に到達しました。停止フェーズへ移行します。");
-                    } else {
-                        //正規化してステップ移動
-                        tPlayer.position.x += dx / dist * step;
-                        tPlayer.position.z += dz / dist * step;
-                    }
-
-                    if (auto *v = world.TryGet<PlayerVelocity>(e)) {
-                        v->velocity = {0.0f, 0.0f};
-                    }
-                } else {
-                    //停止
-                    gs->elapsed += deltaTime;
-                    if (gs->elapsed >= gs->holdDuration) {
-                        ResetPlayerToStart(world, e, true);
-                        world.ForEach<StageProgress>([](Entity, StageProgress &sp) { sp.requestAdvance = true; });
-                        g_goalStates.erase(e.id);
-                        DEBUGLOG("ゴール処理完了：スタートへワープしステージ進行");
-                    }
-                }
-            }
-               
-        });
-
-        //制限時間が過ぎていたらリセット
-        if (world.IsAlive(playerEntity_)) {
-            CheckTimeLimit(world, playerEntity_, cfg_LimitTime);
-        }
-    }
 
         fs::path movePath = fs::path("Assets/StageData/UniqueObj/Move") / stageDir / collisionPath.filename();
         std::error_code ec;
@@ -696,12 +524,6 @@ class GameScene : public IScene {
         if (!file.is_open()) {
             DEBUGLOG_ERROR("[SpeedUp] 角度CSVが開けません: " + csvPath);
             return angles;
-        g_goalStates.clear();
-
-        for (const auto &entity : ownedEntities_) {
-            if (world.IsAlive(entity)) {
-                world.DestroyEntityWithCause(entity, World::Cause::SceneUnload);
-            }
         }
 
         std::string line;
@@ -1293,25 +1115,13 @@ class GameScene : public IScene {
     // 遅延リスポーン・カメラリアクション更新
     // =========================================
 
-    void UpdateDelayedRespawn(float dt, World &world) 
-    {
-
-
-        if (auto *movement = world.TryGet<PlayerMovement>(playerEntity_))
-        {
-            movement->isCharging_ = false;
-        }
+    void UpdateDelayedRespawn(float dt, World &world) {
         if (!pendingRespawn_) return;
         respawnTimer_ -= dt;
         if (respawnTimer_ <= 0.0f) {
             ResetPlayerToStart(world, respawnPlayer_, true);
             pendingRespawn_ = false;
             respawnTimer_ = 0.0f;
-        }
-        if (auto* playerStatus = world.TryGet<PlayerStatus>(playerEntity_))
-        {
-            playerStatus->isStartAfterWallHit = false;
-            DEBUGLOG("isStartAfterWallHitがfalseになりました " );
         }
     }
 
@@ -1488,7 +1298,6 @@ class GameScene : public IScene {
     World *world_ = nullptr;
 
     DirectX::XMFLOAT3 baseTarget_ = {0.0f, 0.0f, 0.0f};
-
 };
 
 // =========================================
@@ -1514,4 +1323,5 @@ inline void FloorWallCollisionHandler::OnCollisionEnter(World &w, Entity self, E
             ResetPlayerToStart(w, other, true);
         }
     }
+
 }
