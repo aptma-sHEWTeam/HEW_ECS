@@ -900,8 +900,9 @@ class GameScene : public IScene {
     }
 
     void CreateFloor(World &world, const DirectX::XMFLOAT3 &position) {
-        DirectX::XMFLOAT3 floorPos = {position.x, position.y - 1, position.z};
-        Transform transform{{floorPos}, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_FloorThickness, 1.0f}};
+        // 各マスにフロアFBXをそのまま配置する（スケールは1x1x1、Yは設定値でオフセット）
+        DirectX::XMFLOAT3 floorPos = {position.x, position.y + cfg_FloorYOffset, position.z};
+        Transform transform{{floorPos}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
 
         Entity floor = world.Create()
                            .With<Transform>(transform)
@@ -975,7 +976,8 @@ class GameScene : public IScene {
     }
 
     void CreateWall(World &world, const DirectX::XMFLOAT3 &position) {
-        Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
+        DirectX::XMFLOAT3 diffPosition = {position.x, position.y - 1.0f, position.z};
+        Transform transform{diffPosition, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
 
         Entity wallEntity = world.Create()
                                 .With<Transform>(transform)
@@ -1158,6 +1160,8 @@ class GameScene : public IScene {
         Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::Cube;
+        // 境界壁のデフォルト色を設定（白ではなく設定値）
+        renderer.color = DirectX::XMFLOAT3{cfg_FloorWallR, cfg_FloorWallG, cfg_FloorWallB};
 
         Entity worldwallEntity = world.Create()
                                      .With<Transform>(transform)
