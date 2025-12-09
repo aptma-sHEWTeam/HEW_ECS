@@ -93,10 +93,10 @@ struct App {
     inline static ConfigVar<float> cfg_CamFar{"Camera.Base", "Far", 100.0f};
     inline static ConfigVar<float> cfg_CamPosX{"Camera.Base", "PosX", 0.0f};
     inline static ConfigVar<float> cfg_CamPosY{"Camera.Base", "PosY", 20.0f};
-    inline static ConfigVar<float> cfg_CamPosZ{"Camera.Base", "PosZ", -7.0f};
+    inline static ConfigVar<float> cfg_CamPosZ{"Camera.Base", "PosZ", -5.0f};
     inline static ConfigVar<float> cfg_CamTargetX{"Camera.Base", "TargetX", 0.0f};
     inline static ConfigVar<float> cfg_CamTargetY{"Camera.Base", "TargetY", 0.0f};
-    inline static ConfigVar<float> cfg_CamTargetZ{"Camera.Base", "TargetZ", -0.5f};
+    inline static ConfigVar<float> cfg_CamTargetZ{"Camera.Base", "TargetZ", -0.2f};
     inline static ConfigVar<float> cfg_CamUpX{"Camera.Base", "UpX", 0.0f};
     inline static ConfigVar<float> cfg_CamUpY{"Camera.Base", "UpY", 0.0f};
     inline static ConfigVar<float> cfg_CamUpZ{"Camera.Base", "UpZ", 1.0f};
