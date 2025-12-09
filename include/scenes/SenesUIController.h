@@ -27,6 +27,7 @@ struct GameUIUpdater : Behaviour {
     Entity numEntity_;
     int cachedStage_ = -1;
     int cachedRoomCount_ = 1;
+    Entity startplayer_;
     
 
     void OnUpdate(World &w, Entity self, float dt) override {
@@ -34,6 +35,14 @@ struct GameUIUpdater : Behaviour {
             // 経過時間の更新
             if (!stats.isPaused) {
                 stats.elapsedTime -= dt;
+            }
+
+            //スタート時間の更新
+            if (stats.StartCountDown > 0) {
+                stats.StartCountDown -= dt;
+            } 
+            else {
+                stats.StartChack = true;
             }
 
             //スコア表示の更新
@@ -51,6 +60,20 @@ struct GameUIUpdater : Behaviour {
                 ss << L" " << std::setw(2) << std::setfill(L'0') << minutes
                    << L":" << std::setw(2) << std::setfill(L'0') << seconds;
                 timeText->text = ss.str();
+            }
+
+            //スタートのカウントダウン時間の更新
+            if (auto *starttimeText = w.TryGet<UIText>(startplayer_)) {
+                std::wstringstream ss;
+                float seconds = stats.StartCountDown;
+                if (seconds < 0)
+                    seconds = 0;
+                ss << L"ready" << ceil(seconds);
+                starttimeText->text = ss.str();
+
+                if (stats.StartChack == true) {
+                    starttimeText->text = L"";
+                }
             }
 
             //fps表示の更新
