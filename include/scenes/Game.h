@@ -411,16 +411,16 @@ class GameScene : public IScene {
                         const float dirX = vx / len;
                         const float dirY = vy / len;
                         TriggerCameraImpulse(dirX, 0.0f, dirY, 0.2f, 0.1f);
-                    if (static_cast<bool>(pv->velocity.x + pv->velocity.y)) {
-                        float vecX = pv->velocity.x / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
-                        float vecY = pv->velocity.y / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
+                        if (static_cast<bool>(pv->velocity.x + pv->velocity.y)) {
+                            float vecX = pv->velocity.x / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
+                            float vecY = pv->velocity.y / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
 
-                        TriggerCameraImpulse(vecX, 0.0f, vecY, 0.1f, 0.07f);
-                    }
-                };
+                            TriggerCameraImpulse(vecX, 0.0f, vecY, 0.1f, 0.07f);
+                        }
+                    };
+                }
             }
         });
-
     }
 
     /**
