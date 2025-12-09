@@ -54,6 +54,8 @@
 
 //Config Var
 inline static ConfigVar<float> cfg_ChargingFade{"Animation.Fade", "ChargingFade", 0.4f};
+inline static ConfigVar<float> cfg_GoalDistance{"Distance.Goal",  "GoalDistance", 2.0f};
+inline static ConfigVar<float> cfg_SlowDirection{"Direction.Slow","SlowDistance", 0.2f};
 
 /**
  * @class GameScene
@@ -245,6 +247,8 @@ class GameScene : public IScene {
 
         // 目標(ゴール)接近時のスロー演出用タイムスケール
         float timeScale = 1.0f;
+        float GoalDistance = cfg_GoalDistance;
+        float SlowDirection = cfg_SlowDirection;
         if (world.IsAlive(playerEntity_) && world.IsAlive(goalEntity_)) {
             auto *tPlayer = world.TryGet<Transform>(playerEntity_);
             auto *tGoal = world.TryGet<Transform>(goalEntity_);
@@ -252,9 +256,9 @@ class GameScene : public IScene {
                 const float dx = tPlayer->position.x - tGoal->position.x;
                 const float dz = tPlayer->position.z - tGoal->position.z;
                 const float dist = std::sqrt(dx * dx + dz * dz);
-                const float slowThreshold = 3.0f; // ゴールに近づいたとみなす距離
+                const float slowThreshold = GoalDistance; // ゴールに近づいたとみなす距離
                 if (dist <= slowThreshold) {
-                    timeScale = 0.2f; // スロー演出
+                    timeScale = SlowDirection; // スロー演出
                 }
             }
         }
@@ -394,12 +398,12 @@ class GameScene : public IScene {
         float impulse = std::clamp(chargeAmount01, 0.15f, 1.0f) * 0.12f;
         TriggerCameraShake(0.03f + impulse, 0.25f);
     }
-
+    
     void UpdateDeathFade(World &world, float /*dt*/) {
         if (!world.IsAlive(deathFadeAnimationEntity_)) return;
         auto *img = world.TryGet<UIImage>(deathFadeAnimationEntity_);
         auto *anim = world.TryGet<SpriteSheetAnimation>(deathFadeAnimationEntity_);
-
+            
         if (deathFadeVisible_) {
             if (img) img->opacity = 0.1f;
             if (anim && anim->isFinished && !anim->isPlaying) {
@@ -1188,26 +1192,34 @@ class GameScene : public IScene {
     void CreateDashBoard(World &world, const DirectX::XMFLOAT3 &position, int blockType) {
         DashBoardStatus status;
         status.blockID = blockType;
-        float angle = 0.0f;
+        float csvAngleDeg = 0.0f;
 
         world.ForEach<LoadAngle>([&](Entity, LoadAngle &loadAngle) {
             const int angleIndex = blockType - 30;
             if (angleIndex >= 0 && angleIndex < static_cast<int>(loadAngle.stageAngle.size())) {
                 const auto &row = loadAngle.stageAngle[angleIndex];
                 if (!row.empty()) {
-                    angle = static_cast<float>(row[0]);
+                    csvAngleDeg = static_cast<float>(row[0]);
                 }
             }
         });
 
+        // 角度を正規化（-360～360 -> 0～360）し、ゲームロジック用の加速度角度はCSV仕様そのままを採用
+        while (csvAngleDeg < 0.0f) csvAngleDeg += 360.0f;
+        while (csvAngleDeg >= 360.0f) csvAngleDeg -= 360.0f;
+
+        // 見た目補正: FBXのデフォルト向きが+90度ずれているため、モデルの回転のみ+90度補正
+        const float visualYawDeg = -csvAngleDeg + 90.0f + 180.0f; // 180度反転で見た目を加速方向に合わせる
+
         DirectX::XMFLOAT3 adjustedPos = position;
         adjustedPos.y -= 0.5f;
-        Transform transform{{adjustedPos}, {0.0f, angle, 0.0f}, {1.0f, 1.0f, 1.0f}};
+        Transform transform{{adjustedPos}, {0.0f, visualYawDeg, 0.0f}, {1.0f, 1.0f, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::Cube;
         renderer.color = DirectX::XMFLOAT3{0.0f, 0.0f, 1.0f};
 
-        status.accelAngle = angle;
+        // プレイヤーへの影響角度はCSVそのまま（見た目補正は加えない）
+        status.accelAngle = csvAngleDeg;
 
         Entity dashBoardEntity = world.Create()
                                      .With<Transform>(transform)
