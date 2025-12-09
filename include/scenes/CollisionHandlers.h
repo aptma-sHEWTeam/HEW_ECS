@@ -146,7 +146,7 @@ struct PlayerCollisionHandler : ICollisionHandler {
                 // 吸い込み用のBehaviourを付与（ステージ進行は吸い込み完了後に行う）
                 GoalAttractor attract;
                 attract.target = {tGoal->position.x, 0.0f, tGoal->position.z};
-                attract.duration = 1.2f; // よりゆっくり(秒)
+                attract.duration = 0.15f; // よりゆっくり(秒)
                 w.Add<GoalAttractor>(self, attract);
             }
         }

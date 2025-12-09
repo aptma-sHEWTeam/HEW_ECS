@@ -897,12 +897,12 @@ class GameScene : public IScene {
                 } else if (blockType >= 30 && blockType < 40) {
                     CreateDashBoard(world, position, blockType);
                 } else if (blockType == 50 || blockType == 51) {
-                    CreateObjectA(world, position, blockType);
+                    //CreateObjectA(world, position, blockType);
                 } else if (blockType == 52 || blockType == 53) {
-                    CreateObjectB(world, position, blockType);
+                    //CreateObjectB(world, position, blockType);
                 }
                 break;
-            case 54: CreateObjectC(world, position, blockType);
+            case 54: CreateObjectC(world, position, blockType);break;
         }
     }
 
@@ -988,7 +988,7 @@ class GameScene : public IScene {
 
         Entity wallEntity = world.Create()
                                 .With<Transform>(transform)
-                                .With<Model>(cfg_WallFBXPass)
+                                //.With<Model>(cfg_WallFBXPass)
                                 .With<WallTag>()
                                 .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                                 .With<WallCollisionHandler>()
@@ -1113,13 +1113,13 @@ class GameScene : public IScene {
     }
 
     void CreateObjectA(World & world, const DirectX::XMFLOAT3 &position, int blockType) {
-        Transform transform{position, {0.0f, 0.0f, 0.0f}, {2.0f, 1.0f, 1.5f}};
+        Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::Cube;
-        renderer.color = DirectX::XMFLOAT3{1.0f,1.0f,0.0f}; //黄色
 
         Entity ObjectAEntity = world.Create()
                                      .With<Transform>(transform)
+                                     .With<Model>(cfg_AObstacleFBXPass)
                                      .With<MeshRenderer>(renderer)
                                      .With<WallTag>()
                                      .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
@@ -1130,13 +1130,13 @@ class GameScene : public IScene {
     }
 
     void CreateObjectB(World &world, const DirectX::XMFLOAT3 &position, int blockType) {
-        Transform transform{position, {0.0f, 0.0f, 0.0f}, {3.0f, 2.0f, 2.0f}};
+        Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::Cube;
-        renderer.color = DirectX::XMFLOAT3{0.0f, 1.0f, 1.0f}; //シアン
 
         Entity ObjectAEntity = world.Create()
                                    .With<Transform>(transform)
+                                   .With<Model>(cfg_BObstacleFBXPass)
                                    .With<MeshRenderer>(renderer)
                                    .With<WallTag>()
                                    .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
@@ -1150,10 +1150,10 @@ class GameScene : public IScene {
         Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::Cube;
-        renderer.color = DirectX::XMFLOAT3{1.0f, 0.0f, 1.0f}; //マゼンタ
 
         Entity ObjectAEntity = world.Create()
                                    .With<Transform>(transform)
+                                   .With<Model>(cfg_CObstacleFBXPass)
                                    .With<MeshRenderer>(renderer)
                                    .With<WallTag>()
                                    .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})

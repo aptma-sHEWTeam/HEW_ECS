@@ -81,6 +81,10 @@ inline ConfigVar<std::string> cfg_StartFBXPass{"Stage.Start.Asset", "StartFBXPas
 inline ConfigVar<std::string> cfg_GoalFBXPass{"Stage.Goal.Asset", "GoalFBXPass", "Assets/Models/StageObj/Goal/obj_goal.fbx"};
 inline ConfigVar<std::string> cfg_MovingObstacleFBXPass{"Stage.MovingObstacle.Asset", "MovingObstacleFBXPass", "Assets/Models/StageObj/Move/vehicle.fbx"};
 inline ConfigVar<std::string> cfg_DashBoardFBXPass{"Stage.DashBoard.Asset", "DashBoardFBXPass", "Assets/Models/StageObj/SpeedUp/obj_speedup.fbx"};
+inline ConfigVar<std::string> cfg_AObstacleFBXPass{"Stage.PC.Asset","AObstacle","Assets/Models/StageObj/PC/PC.fbx"};
+inline ConfigVar<std::string> cfg_BObstacleFBXPass{"Stage.GasPipe.Asset", "BObstacleFBXPass", "Assets/Models/StageObj/GasPipe/obj_obstacleB.fbx"};
+inline ConfigVar<std::string> cfg_CObstacleFBXPass{"Stage.Cube.Asset", "CObstacleFBXPass", "Assets/Models/StageObj/Cub/Cube.fbx"};
+
 
 // UI�ݒ�
 inline ConfigVar<float> cfg_UICountPosX{"UI.StageHUD.Counter", "CountPosX", 20.0f};
@@ -120,3 +124,4 @@ inline ConfigVar<float> cfg_GoalPulseSpeed{"Stage.Goal.Emissive", "GoalPulseSpee
 // ���C�g�͈͐ݒ�
 inline ConfigVar<float> cfg_StartLightRange{"Stage.Start.Light", "StartLightRange", 5.0f};
 inline ConfigVar<float> cfg_GoalLightRange{"Stage.Goal.Light", "GoalLightRange", 8.0f};
+
