@@ -109,8 +109,19 @@ struct PlayerVelocity : Behaviour {
         auto *v = w.TryGet<PlayerVelocity>(self);
         if (!t || !v) return;
         if (isBoosting) { v->velocity.x = boostDir.x * boostSpeed; v->velocity.y = boostDir.y * boostSpeed; v->isDecelerating = false; }
-        t->position.x += v->velocity.x * dt;
-        t->position.z += v->velocity.y * dt;
+        const float moveX = v->velocity.x * dt;
+        const float moveZ = v->velocity.y * dt;
+        t->position.x += moveX;
+        t->position.z += moveZ;
+        const float moveLenSq = moveX * moveX + moveZ * moveZ;
+        if (moveLenSq > PlayerConstants::EPSILON) {
+            w.ForEach<GameStatus>([&](Entity, GameStatus &stats) {
+                if (stats.waitingForPlayerMove) {
+                    stats.waitingForPlayerMove = false;
+                    stats.timerRunning = true;
+                }
+            });
+        }
         const float limitX = cfg_LimitX; const float limitY = cfg_LimitY;
         if (t->position.x < -limitX) t->position.x = -limitX;
         if (t->position.x > limitX)  t->position.x =  limitX;
