@@ -13,6 +13,7 @@
 #include "components/PlayerComponents.h"
 #include "components/StageComponents.h"
 #include "components/GameStats.h"
+#include <limits>
 
 // 前方宣言
 class GameScene;
@@ -23,9 +24,23 @@ inline GameScene* g_GameScene = nullptr;
 // リスポーン待機状態のグローバルフラグ（GameSceneから更新）
 inline bool g_respawnPending = false;
 
+inline DirectX::XMFLOAT3 ResolvePlacementCenter(World &w, Entity entity, const Transform &transform) {
+    if (auto *box = w.TryGet<CollisionBox>(entity)) {
+        return box->GetWorldCenter(transform);
+    }
+    if (auto *sphere = w.TryGet<CollisionSphere>(entity)) {
+        return sphere->GetWorldCenter(transform);
+    }
+    if (auto *capsule = w.TryGet<CollisionCapsule>(entity)) {
+        return capsule->GetWorldCenter(transform);
+    }
+    return transform.position;
+}
+
 // GameScene の型に依存しないコールラッパー（PlayerComponents から利用）
 void GameScene_OnChargeStart(World &w);
 void GameScene_OnChargeRelease(World &w, float chargeAmount01);
+void GameScene_OnTimeUp(World &w, Entity player);
 
 /**
  * @brief プレイヤーをスタート地点にリセット（速度も完全リセット）
@@ -49,53 +64,66 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
         }
     });
     
-    // スタート地点を見つけて処理を一度だけ実行するためのフラグ
-    bool done = false;
+    DirectX::XMFLOAT3 spawnMin{
+        std::numeric_limits<float>::max(),
+        std::numeric_limits<float>::max(),
+        std::numeric_limits<float>::max()};
+    DirectX::XMFLOAT3 spawnMax{
+        std::numeric_limits<float>::lowest(),
+        std::numeric_limits<float>::lowest(),
+        std::numeric_limits<float>::lowest()};
+    bool hasStart = false;
+
     // スタート地点のタグとトランスフォームを持つエンティティを検索
-    w.ForEach<StartTag, Transform>([&](Entity, StartTag &, Transform &tStart) {
-        // 既に処理済みならスキップ
-        if (done) {
+    w.ForEach<StartTag, Transform>([&](Entity startEntity, StartTag &, Transform &tStart) {
+        const DirectX::XMFLOAT3 spawnCenter = ResolvePlacementCenter(w, startEntity, tStart);
+        if (!hasStart) {
+            spawnMin = spawnMax = spawnCenter;
+            hasStart = true;
             return;
         }
 
-        // プレイヤーのTransformコンポーネントを取得
-        if (auto *tPlayer = w.TryGet<Transform>(player)) {
-            // プレイヤーの位置をスタート地点のX, Z座標に設定（Yは0で固定）
-            tPlayer->position = DirectX::XMFLOAT3{tStart.position.x, 0.0f, tStart.position.z};
-
-            // プレイヤーの速度コンポーネントを取得
-            if (auto *vPlayer = w.TryGet<PlayerVelocity>(player)) {
-                // 速度とブースト関連のステータスを完全にリセット
-                vPlayer->velocity = DirectX::XMFLOAT2{0.0f, 0.0f};
-                vPlayer->isBoosting = false;
-                vPlayer->isDecelerating = false;
-                vPlayer->boostSpeed = 0.0f;
-                vPlayer->boostDir = DirectX::XMFLOAT2{0.0f, 0.0f};
-            }
-
-            // プレイヤーの移動コンポーネントを取得
-            if (auto *pmPlayer = w.TryGet<PlayerMovement>(player)) {
-                // チャージ関連のステータスをリセット
-                pmPlayer->isCharging_ = false;
-                pmPlayer->wasCharging_ = false;
-                pmPlayer->wasChargingPrev_ = false;
-                // 角度の履歴もリセットして、移動方向の計算を初期化
-                pmPlayer->ResetAngleHistory();
-            }
-        }
-        
-        // タイマーリセットが要求されている場合
-        if (resetTimer) {
-            // GameStatusコンポーネントを持つエンティティを検索
-            w.ForEach<GameStatus>([](Entity, GameStatus &stats) {
-                // 経過時間を0にリセット
-                stats.elapsedTime = cfg_LimitTime;
-            });
-        }
-
-        // 処理完了フラグを立て、以降のスタート地点が見つかっても処理しないようにする
-        done = true;
+        spawnMin.x = std::min(spawnMin.x, spawnCenter.x);
+        spawnMin.y = std::min(spawnMin.y, spawnCenter.y);
+        spawnMin.z = std::min(spawnMin.z, spawnCenter.z);
+        spawnMax.x = std::max(spawnMax.x, spawnCenter.x);
+        spawnMax.y = std::max(spawnMax.y, spawnCenter.y);
+        spawnMax.z = std::max(spawnMax.z, spawnCenter.z);
     });
+
+    if (hasStart) {
+        const DirectX::XMFLOAT3 spawnPoint{
+            (spawnMin.x + spawnMax.x) * 0.5f,
+            (spawnMin.y + spawnMax.y) * 0.5f,
+            (spawnMin.z + spawnMax.z) * 0.5f};
+
+        if (auto *tPlayer = w.TryGet<Transform>(player)) {
+            tPlayer->position = spawnPoint;
+        }
+
+        if (auto *vPlayer = w.TryGet<PlayerVelocity>(player)) {
+            vPlayer->velocity = DirectX::XMFLOAT2{0.0f, 0.0f};
+            vPlayer->isBoosting = false;
+            vPlayer->isDecelerating = false;
+            vPlayer->boostSpeed = 0.0f;
+            vPlayer->boostDir = DirectX::XMFLOAT2{0.0f, 0.0f};
+        }
+
+        if (auto *pmPlayer = w.TryGet<PlayerMovement>(player)) {
+            pmPlayer->isCharging_ = false;
+            pmPlayer->wasCharging_ = false;
+            pmPlayer->wasChargingPrev_ = false;
+            pmPlayer->ResetAngleHistory();
+        }
+
+        w.ForEach<GameStatus>([&](Entity, GameStatus &stats) {
+            if (resetTimer) {
+                stats.elapsedTime = cfg_LimitTime;
+            }
+            stats.waitingForPlayerMove = true;
+            stats.timerRunning = false;
+        });
+    }
 }
 
 /**
@@ -111,8 +139,8 @@ inline void CheckTimeLimit(World &w, Entity player, float timeLimitSeconds) {
         // 経過時間が制限時間を超えたかチェック
         if (stats.elapsedTime <= 0) {
             DEBUGLOG("Timeout");
-            // プレイヤーをスタート地点にリセット（タイマーもリセット）
-            ResetPlayerToStart(w, player, true);
+            GameScene_OnTimeUp(w, player);
+            stats.elapsedTime = timeLimitSeconds;
         }
     });
 }
@@ -135,6 +163,7 @@ struct PlayerCollisionHandler : ICollisionHandler {
             auto *tPlayer = w.TryGet<Transform>(self);
             auto *tGoal = w.TryGet<Transform>(other);
             if (tPlayer && tGoal) {
+                const DirectX::XMFLOAT3 goalCenter = ResolvePlacementCenter(w, other, *tGoal);
                 // 速度をリセット
                 if (auto *v = w.TryGet<PlayerVelocity>(self)) {
                     v->velocity = {0.0f, 0.0f};
@@ -145,7 +174,7 @@ struct PlayerCollisionHandler : ICollisionHandler {
                 }
                 // 吸い込み用のBehaviourを付与（ステージ進行は吸い込み完了後に行う）
                 GoalAttractor attract;
-                attract.target = {tGoal->position.x, 0.0f, tGoal->position.z};
+                attract.target = goalCenter;
                 attract.duration = 0.15f; // よりゆっくり(秒)
                 w.Add<GoalAttractor>(self, attract);
             }

@@ -56,6 +56,8 @@
 inline static ConfigVar<float> cfg_ChargingFade{"Animation.Fade", "ChargingFade", 0.4f};
 inline static ConfigVar<float> cfg_GoalDistance{"Distance.Goal",  "GoalDistance", 2.0f};
 inline static ConfigVar<float> cfg_SlowDirection{"Direction.Slow","SlowDistance", 0.2f};
+inline static ConfigVar<float> cfg_StickZoomAmount{"Camera.Stick", "StickZoomAmount", 0.07f};
+inline static ConfigVar<float> cfg_StickZoomResponse{"Camera.Stick", "StickZoomResponse", 9.0f};
 
 /**
  * @class GameScene
@@ -376,6 +378,8 @@ class GameScene : public IScene {
         shakeElapsed_ = shakeTime_ = 0.0f;
         impulseElapsed_ = impulseTime_ = 0.0f;
         zoomElapsed_ = zoomTime_ = 0.0f;
+        stickZoomTarget_ = 0.0f;
+        stickZoomCurrent_ = 0.0f;
         camera_.position = cameraPosition_;
         camera_.target = baseTarget_;
         camera_.fovY = baseFovY_;
@@ -389,21 +393,22 @@ class GameScene : public IScene {
         float ChargingFade = cfg_ChargingFade;
         chargeOverlayTarget_ = ChargingFade;
         chargeOverlayVisible_ = true;
-        TriggerCameraZoom(-0.12f, 0.25f);
+        SetStickZoomActive(true);
     }
     void OnChargeRelease(World &world, float chargeAmount01) {
+        SetStickZoomActive(false);
         chargeOverlayCurrent_ = std::max(chargeOverlayCurrent_, 0.55f);
         chargeOverlayTarget_ = 0.0f;
         chargeOverlayVisible_ = true;
         float impulse = std::clamp(chargeAmount01, 0.15f, 1.0f) * 0.12f;
         TriggerCameraShake(0.03f + impulse, 0.25f);
     }
-    
+
     void UpdateDeathFade(World &world, float /*dt*/) {
         if (!world.IsAlive(deathFadeAnimationEntity_)) return;
         auto *img = world.TryGet<UIImage>(deathFadeAnimationEntity_);
         auto *anim = world.TryGet<SpriteSheetAnimation>(deathFadeAnimationEntity_);
-            
+
         if (deathFadeVisible_) {
             if (img) img->opacity = 0.1f;
             if (anim && anim->isFinished && !anim->isPlaying) {
@@ -474,6 +479,7 @@ class GameScene : public IScene {
      */
     void OnWallHit(Entity player, World &world) {
         if (pendingRespawn_) return;
+        SetStickZoomActive(false);
 
         // 再生用フェードアニメーションを開始
         StartDeathFadeOut(world);
@@ -507,6 +513,34 @@ class GameScene : public IScene {
         respawnTimer_ = cfg_WallHitRespawnDelay.Get();
 
         DEBUGLOG("壁に衝突 - カメラシェイク開始、リスポーン待機中");
+    }
+
+    /** @brief タイムアップ時の処理（フェード＋遅延リスポーン） */
+    void OnTimeUp(Entity player, World &world) {
+        if (pendingRespawn_) return;
+        SetStickZoomActive(false);
+
+        StartDeathFadeOut(world);
+
+        if (auto *playerStatus = world.TryGet<PlayerStatus>(playerEntity_)) {
+            playerStatus->isStartAfterWallHit = true;
+        }
+
+        World *targetWorld = world_ ? world_ : &world;
+        if (targetWorld && targetWorld->IsAlive(player)) {
+            if (auto *v = targetWorld->TryGet<PlayerVelocity>(player)) {
+                v->velocity = {0.0f, 0.0f};
+                v->isBoosting = false;
+                v->isDecelerating = false;
+                v->boostSpeed = 0.0f;
+            }
+        }
+
+        pendingRespawn_ = true;
+        respawnPlayer_ = player;
+        respawnTimer_ = cfg_WallHitRespawnDelay.Get();
+
+        DEBUGLOG("時間切れ - フェード演出開始、リスポーン待機中");
     }
 
     /** @brief ワールドへのポインタを設定 */
@@ -1172,15 +1206,12 @@ class GameScene : public IScene {
     }
 
     void CreatFloorWall(World &world, const DirectX::XMFLOAT3 &position) {
-        Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
-        MeshRenderer renderer;
-        renderer.meshType = MeshType::Cube;
-        // 境界壁のデフォルト色を設定（白ではなく設定値）
-        renderer.color = DirectX::XMFLOAT3{cfg_FloorWallR, cfg_FloorWallG, cfg_FloorWallB};
+        DirectX::XMFLOAT3 diffPosition = {position.x, position.y - 1.0f, position.z};
+        Transform transform{diffPosition, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
 
         Entity worldwallEntity = world.Create()
                                      .With<Transform>(transform)
-                                     .With<MeshRenderer>(renderer)
+                                     .With<Model>(cfg_WallFBXPass)
                                      .With<WallTag>()
                                      .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                                      .With<FloorWallCollisionHandler>()
@@ -1365,10 +1396,11 @@ class GameScene : public IScene {
         if (shakeActive_) UpdateShake(dt, posOffset, targetOffset, upVec);
         if (impulseActive_) UpdateImpulse(dt, posOffset, targetOffset);
         if (zoomActive_) UpdateZoom(dt, fovDelta);
+        float stickZoomDelta = UpdateStickZoom(dt);
 
         camera_.position = {cameraPosition_.x + posOffset.x, cameraPosition_.y + posOffset.y, cameraPosition_.z + posOffset.z};
         camera_.target = {baseTarget_.x + targetOffset.x, baseTarget_.y + targetOffset.y, baseTarget_.z + targetOffset.z};
-        camera_.fovY = std::clamp(baseFovY_ + fovDelta, DirectX::XM_PIDIV4 * 0.25f, DirectX::XM_PIDIV2 * 1.5f);
+        camera_.fovY = std::clamp(baseFovY_ + fovDelta + stickZoomDelta, DirectX::XM_PIDIV4 * 0.25f, DirectX::XM_PIDIV2 * 1.5f);
         camera_.up = upVec;
 
         camera_.Proj = DirectX::XMMatrixPerspectiveFovLH(camera_.fovY, camera_.aspect, camera_.nearZ, camera_.farZ);
@@ -1494,6 +1526,21 @@ class GameScene : public IScene {
         fovDelta = -zoomAmount_ * zoomCurve;
     }
 
+    void SetStickZoomActive(bool active) {
+        stickZoomTarget_ = active ? std::max(0.0f, cfg_StickZoomAmount.Get()) : 0.0f;
+    }
+
+    float UpdateStickZoom(float dt) {
+        const float response = std::max(0.0f, cfg_StickZoomResponse.Get());
+        const float safeDt = std::max(dt, 0.0f);
+        const float lerpFactor = 1.0f - std::exp(-response * safeDt);
+        stickZoomCurrent_ += (stickZoomTarget_ - stickZoomCurrent_) * lerpFactor;
+        if (std::abs(stickZoomCurrent_) <= 1e-4f && std::abs(stickZoomTarget_) <= 1e-4f) {
+            stickZoomCurrent_ = 0.0f;
+        }
+        return stickZoomCurrent_;
+    }
+
     // =========================================
     // メンバー変数
     // =========================================
@@ -1549,6 +1596,8 @@ class GameScene : public IScene {
     float chargeOverlayTarget_ = 0.0f;
     bool chargeOverlayVisible_ = false;
     bool deathFadeVisible_ = false;
+    float stickZoomTarget_ = 0.0f;
+    float stickZoomCurrent_ = 0.0f;
 
     DirectX::XMFLOAT3 baseTarget_ = {0.0f, 0.0f, 0.0f};
 };
@@ -1563,6 +1612,13 @@ inline void GameScene_OnChargeStart(World &w) {
 }
 inline void GameScene_OnChargeRelease(World &w, float chargeAmount01) {
     if (g_GameScene) { g_GameScene->OnChargeRelease(w, chargeAmount01); }
+}
+inline void GameScene_OnTimeUp(World &w, Entity player) {
+    if (g_GameScene) {
+        g_GameScene->OnTimeUp(player, w);
+    } else {
+        ResetPlayerToStart(w, player, true);
+    }
 }
 
 inline void WallCollisionHandler::OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) {

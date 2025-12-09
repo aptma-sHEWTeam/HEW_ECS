@@ -22,6 +22,7 @@
 #include "app/DebugLog.h" // DEBUGLOG_ERRORのために追加
 #include <DirectXMath.h> // GoalAttractor 用
 #include "components/Transform.h" // GoalAttractor 用
+#include "components/GameStats.h"
 
 using namespace std;
 
@@ -399,7 +400,7 @@ struct LoadMovingObstacle : IComponent {
  * @brief ゴール中心へプレイヤーを一定時間で吸引する演出用Behaviour
  */
 struct GoalAttractor : Behaviour {
-    DirectX::XMFLOAT3 target{0.0f, 0.0f, 0.0f};  ///< 目標位置（Yは0固定想定）
+    DirectX::XMFLOAT3 target{0.0f, 0.0f, 0.0f};
     float duration = 0.15f;                       ///< 吸引にかける時間(秒)
     float elapsed = 0.0f;                        ///< 経過時間
     DirectX::XMFLOAT3 startPos{0.0f, 0.0f, 0.0f};///< 開始位置
@@ -421,13 +422,19 @@ struct GoalAttractor : Behaviour {
 
         DirectX::XMFLOAT3 pos{
             startPos.x + (target.x - startPos.x) * u,
-            0.0f,
+            startPos.y + (target.y - startPos.y) * u,
             startPos.z + (target.z - startPos.z) * u
         };
         t->position = pos;
 
         // 進行完了: 次のルームへ進めるリクエストを立てる
         if (tNorm >= 1.0f) {
+            // ゴールイン直後に制限時間をフルに戻して次ルームへ備える
+            w.ForEach<GameStatus>([](Entity, GameStatus &stats) {
+                stats.elapsedTime = cfg_LimitTime;
+                stats.timerRunning = false;
+                stats.waitingForPlayerMove = true;
+            });
             w.ForEach<StageProgress>([](Entity, StageProgress &sp) {
                 sp.requestAdvance = true;
             });

@@ -33,16 +33,19 @@ struct GameUIUpdater : Behaviour {
     void OnUpdate(World &w, Entity self, float dt) override {
         w.ForEach<GameStatus>([&](Entity e, GameStatus &stats) {
             // 経過時間の更新
-            if (!stats.isPaused) {
-                stats.elapsedTime -= dt;
+            if (!stats.isPaused && stats.timerRunning) {
+                stats.elapsedTime = std::max(0.0f, stats.elapsedTime - dt);
             }
 
             //スタート時間の更新
-            if (stats.StartCountDown > 0) {
-                stats.StartCountDown -= dt;
-            } 
-            else {
+            if (stats.StartCountDown > 0.0f) {
+                stats.StartCountDown = std::max(0.0f, stats.StartCountDown - dt);
+            }
+
+            if (!stats.StartChack && stats.StartCountDown <= 0.0f) {
                 stats.StartChack = true;
+                stats.waitingForPlayerMove = true;
+                stats.timerRunning = false;
             }
 
             //スコア表示の更新
