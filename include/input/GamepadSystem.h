@@ -19,6 +19,7 @@
 #include <cstdint>
 #include <cstring>
 #include <cmath>
+#include <initializer_list>
 
 #pragma comment(lib, "xinput.lib")
 #pragma comment(lib, "dinput8.lib")
@@ -182,6 +183,28 @@ class GamepadSystem {
      * @return true いずれかのゲームパッドで離された, false すべて離されていない
      */
     bool GetButtonUp(GamepadButton button) const;
+
+    // 複数ボタンのエイリアス取得（いずれかが真なら真）
+    /**
+     * @brief 複数のボタンのいずれかが押されているか
+     * @param[in] buttons ボタン識別子のリスト
+     * @return true いずれかのゲームパッドで押されている, false すべて押されていない
+     */
+    bool GetAnyButton(std::initializer_list<GamepadButton> buttons) const;
+
+    /**
+     * @brief 複数のボタンのいずれかが押された瞬間か
+     * @param[in] buttons ボタン識別子のリスト
+     * @return true いずれかのゲームパッドで押された, false すべて押されていない
+     */
+    bool GetAnyButtonDown(std::initializer_list<GamepadButton> buttons) const;
+
+    /**
+     * @brief 複数のボタンのいずれかが離された瞬間か
+     * @param[in] buttons ボタン識別子のリスト
+     * @return true いずれかのゲームパッドで離された, false すべて離されていない
+     */
+    bool GetAnyButtonUp(std::initializer_list<GamepadButton> buttons) const;
 
     // ========================================================
     // チャージ&リリースシステム（統合版）
@@ -367,7 +390,6 @@ class GamepadSystem {
             rightStickJustReleased = false;
         }
     };
-
     /**
      * @brief XInputデバイスの状態を更新
      * @param[in] index ゲームパッドインデックス
