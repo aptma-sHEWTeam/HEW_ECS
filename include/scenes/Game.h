@@ -56,6 +56,7 @@
 inline static ConfigVar<float> cfg_ChargingFade{"Animation.Fade", "ChargingFade", 0.4f};
 inline static ConfigVar<float> cfg_GoalDistance{"Distance.Goal",  "GoalDistance", 2.0f};
 inline static ConfigVar<float> cfg_SlowDirection{"Direction.Slow","SlowDistance", 0.2f};
+inline static ConfigVar<float> cfg_StickZoomResponse{"Camera.Stick", "StickZoomResponse", 9.0f};
 
 /**
  * @class GameScene
