@@ -426,6 +426,7 @@ class GameScene : public IScene {
         cameraFar_ = farZ;
     }
 
+    /** @brief プレイヤーを弾いたときの画面の揺れ */
     void ChargCameraAction(World &world) {
         world.ForEach<PlayerMovement>([&](Entity e, PlayerMovement &player) {
             float gx = player.gamepad_->GetLeftStickX();
@@ -442,6 +443,7 @@ class GameScene : public IScene {
 
             bool releasedSys = player.gamepad_->IsLeftStickReleased();
             bool releasedLocal = (player.wasCharging_ && !chargingNowLocal);
+
             if (releasedSys || releasedLocal) {
                 if (auto *pv = world.TryGet<PlayerVelocity>(playerEntity_)) {
                     const float vx = pv->velocity.x;
@@ -451,11 +453,16 @@ class GameScene : public IScene {
                         const float dirX = vx / len;
                         const float dirY = vy / len;
                         TriggerCameraImpulse(dirX, 0.0f, dirY, 0.2f, 0.1f);
-                    }
-                };
+                        if (static_cast<bool>(pv->velocity.x + pv->velocity.y)) {
+                            float vecX = pv->velocity.x / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
+                            float vecY = pv->velocity.y / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
+
+                            TriggerCameraImpulse(vecX, 0.0f, vecY, 0.1f, 0.07f);
+                        }
+                    };
+                }
             }
         });
-
     }
 
     /**

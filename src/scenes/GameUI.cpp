@@ -128,6 +128,24 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 
     ownedEntities_.push_back(timerImageEntity);
 
+    UITransform starttimeTransform;
+    starttimeTransform.position = {600.0f, 250.0f};
+    starttimeTransform.size = {1000.0f, 320.0f};
+    starttimeTransform.anchor = {0.0f, 0.0f};
+    starttimeTransform.pivot = {0.0f, 0.0f};
+
+     UIText starttimeText{L"rdy : 00:00"};
+    starttimeText.color = {1.0f, 0.0f, 0.0f, 1.0f};
+    starttimeText.formatId = "hud";
+    starttimeText.fontSize = 36.0f;
+    
+    Entity starttime = world.Create()
+                           .With<UITransform>(starttimeTransform)
+                           .With<UIText>(starttimeText)
+                           .Build();
+   
+
+    ownedEntities_.push_back(starttime);
 
 #ifdef _DEBUG
     UITransform fpsTransform;
@@ -231,6 +249,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         updater->stageTextEntity_[1] = stageEntity[1];
       //  updater->numEntity_ = numEntity;
         updater->timeImageEntity_ = timerImageEntity;
+        updater->startplayer_ = starttime;
     }
     ownedEntities_.push_back(uiUpdater);
 
