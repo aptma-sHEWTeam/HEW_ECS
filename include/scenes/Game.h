@@ -1169,11 +1169,6 @@ class GameScene : public IScene {
     }
 
     void CreateDashBoard(World &world, const DirectX::XMFLOAT3 &position, int blockType) {
-        Transform transform{{position}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
-        MeshRenderer renderer;
-        renderer.meshType = MeshType::Cube;
-        renderer.color = DirectX::XMFLOAT3{0.0f, 0.0f, 1.0f};
-
         DashBoardStatus status;
         status.blockID = blockType;
         float angle = 0.0f;
@@ -1187,6 +1182,13 @@ class GameScene : public IScene {
                 }
             }
         });
+
+        DirectX::XMFLOAT3 adjustedPos = position;
+        adjustedPos.y -= 0.5f;
+        Transform transform{{adjustedPos}, {0.0f, angle, 0.0f}, {1.0f, 1.0f, 1.0f}};
+        MeshRenderer renderer;
+        renderer.meshType = MeshType::Cube;
+        renderer.color = DirectX::XMFLOAT3{0.0f, 0.0f, 1.0f};
 
         status.accelAngle = angle;
 
