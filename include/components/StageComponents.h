@@ -22,6 +22,7 @@
 #include "app/DebugLog.h" // DEBUGLOG_ERRORのために追加
 #include <DirectXMath.h> // GoalAttractor 用
 #include "components/Transform.h" // GoalAttractor 用
+#include "components/GameStats.h"
 
 using namespace std;
 
@@ -428,6 +429,12 @@ struct GoalAttractor : Behaviour {
 
         // 進行完了: 次のルームへ進めるリクエストを立てる
         if (tNorm >= 1.0f) {
+            // ゴールイン直後に制限時間をフルに戻して次ルームへ備える
+            w.ForEach<GameStatus>([](Entity, GameStatus &stats) {
+                stats.elapsedTime = cfg_LimitTime;
+                stats.timerRunning = false;
+                stats.waitingForPlayerMove = true;
+            });
             w.ForEach<StageProgress>([](Entity, StageProgress &sp) {
                 sp.requestAdvance = true;
             });

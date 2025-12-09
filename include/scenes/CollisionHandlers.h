@@ -40,6 +40,7 @@ inline DirectX::XMFLOAT3 ResolvePlacementCenter(World &w, Entity entity, const T
 // GameScene の型に依存しないコールラッパー（PlayerComponents から利用）
 void GameScene_OnChargeStart(World &w);
 void GameScene_OnChargeRelease(World &w, float chargeAmount01);
+void GameScene_OnTimeUp(World &w, Entity player);
 
 /**
  * @brief プレイヤーをスタート地点にリセット（速度も完全リセット）
@@ -115,11 +116,13 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
             pmPlayer->ResetAngleHistory();
         }
 
-        if (resetTimer) {
-            w.ForEach<GameStatus>([](Entity, GameStatus &stats) {
+        w.ForEach<GameStatus>([&](Entity, GameStatus &stats) {
+            if (resetTimer) {
                 stats.elapsedTime = cfg_LimitTime;
-            });
-        }
+            }
+            stats.waitingForPlayerMove = true;
+            stats.timerRunning = false;
+        });
     }
 }
 
@@ -136,8 +139,8 @@ inline void CheckTimeLimit(World &w, Entity player, float timeLimitSeconds) {
         // 経過時間が制限時間を超えたかチェック
         if (stats.elapsedTime <= 0) {
             DEBUGLOG("Timeout");
-            // プレイヤーをスタート地点にリセット（タイマーもリセット）
-            ResetPlayerToStart(w, player, true);
+            GameScene_OnTimeUp(w, player);
+            stats.elapsedTime = timeLimitSeconds;
         }
     });
 }
