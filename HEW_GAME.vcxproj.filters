@@ -344,6 +344,7 @@
     <ClInclude Include="include\util\Random.h">
       <Filter>Header Files\util</Filter>
     </ClInclude>
+    <ClInclude Include="SoundComponent.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include=".github\ISSUE_TEMPLATE\01_task.yml">

@@ -15,6 +15,7 @@
 #include "ecs/World.h"
 #include "components/Transform.h"
 #include "components/MeshRenderer.h"
+#include"components/GameStats.h"
 #include "input/InputSystem.h"
 #include "input/GamepadSystem.h"
 #include "components/Collision.h"
@@ -169,6 +170,21 @@ struct PlayerMovement : Behaviour {
             restoreCollisionRadius();
             ResetAngleHistory(); isCharging_ = false; wasCharging_ = false; wasChargingPrev_ = false; return;
         }
+
+        //タイマーが0になるまで動かない
+        w.ForEach<GameStatus>([&](Entity e, GameStatus &stats) {
+            if (stats.StartChack == false) {
+                v->velocity = {0.0f, 0.0f};
+                v->isBoosting = false;
+                v->isDecelerating = false;
+                v->boostSpeed = 0.0f;
+                ResetAngleHistory();
+                isCharging_ = false;
+                wasCharging_ = false;
+                wasChargingPrev_ = false;
+                return;
+            }
+        });
 
         v->speed = PlayerVelocity::cfg_Speed;
         minChargeSpeedFactor = cfg_MinChargeSpeed;

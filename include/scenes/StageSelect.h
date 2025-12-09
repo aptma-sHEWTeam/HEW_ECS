@@ -16,6 +16,7 @@
 #include "components/StageComponents.h"
 #include "graphics/TextSystem.h"
 #include "graphics/ImageSystem.h"
+#include "input/GamepadSystem.h"
 #include "systems/UISystem.h"
 #include "app/ServiceLocator.h"
 
@@ -87,41 +88,56 @@ class StageSlectScene : public IScene {
     }
 
     void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
-        // Wire input to UI interaction system once
-        world.ForEach<UIInteractionSystem>([&](Entity, UIInteractionSystem &sys) {
-            if (!sys.input_) {
-                sys.input_ = &input;
+        world.ForEach<GamepadSystem>([&](Entity e, GamepadSystem &padsystem) {
+            // Wire input to UI interaction system once
+            world.ForEach<UIInteractionSystem>([&](Entity, UIInteractionSystem &sys) {
+                if (!sys.input_) {
+                    sys.input_ = &input;
+                }
+            });
+
+            // Tick更新
+            world.Tick(deltaTime);
+
+            //enterを押したらシーン移動
+            if (input.GetKeyDown(VK_RETURN)) {
+                DEBUGLOG("Enter pressed!");
+                auto *maneger = ServiceLocator::TryGet<SceneManager>();
+                maneger->ChangeScene("Game", world);
             }
+            if (padsystem.GetButtonDown(padsystem.Button_A)) {
+                DEBUGLOG("Enter pressed!");
+                auto *maneger = ServiceLocator::TryGet<SceneManager>();
+                maneger->ChangeScene("Game", world);
+            }
+
+            world.ForEach<StageProgress>([&](Entity e, StageProgress &stats) {
+                const int maxStage = GetAvailableStageCount();
+
+                if (input.GetKeyDown(VK_RIGHT) && stats.selectStage < maxStage) {
+                    stats.selectStage++;
+                }
+                if (input.GetKeyDown(VK_LEFT) && stats.selectStage > 1) {
+                    stats.selectStage--;
+                }
+
+                if (padsystem.GetButtonDown(padsystem.Button_B)) {
+                    stats.selectStage++;
+                }
+                if (padsystem.GetButton(padsystem.Button_X)) {
+                    stats.selectStage--;
+                }
+
+                stats.selectStage = std::clamp(stats.selectStage, 1, maxStage);
+
+                if (auto *StageSelectText = world.TryGet<UIText>(StageSelectEntity_)) {
+                    std::wstringstream ss;
+                    ss << L"StageNo : " << stats.selectStage << L"/" << maxStage;
+                    StageSelectText->text = ss.str();
+                }
+            });
         });
-
-        // Tick更新
-        world.Tick(deltaTime);
-
-        //enterを押したらシーン移動
-        if (input.GetKeyDown(VK_RETURN)) {
-            DEBUGLOG("Enter pressed!");
-            auto *maneger = ServiceLocator::TryGet<SceneManager>();
-            maneger->ChangeScene("Game", world);
-        }
-
-        world.ForEach<StageProgress>([&](Entity e, StageProgress &stats) {
-            const int maxStage = GetAvailableStageCount();
-
-            if (input.GetKeyDown(VK_RIGHT) && stats.selectStage < maxStage) {
-                stats.selectStage++;
-            }
-            if (input.GetKeyDown(VK_LEFT) && stats.selectStage > 1) {
-                stats.selectStage--;
-            }
-
-            stats.selectStage = std::clamp(stats.selectStage, 1, maxStage);
-
-            if (auto *StageSelectText = world.TryGet<UIText>(StageSelectEntity_)) {
-                std::wstringstream ss;
-                ss << L"StageNo : " << stats.selectStage << L"/" << maxStage;
-                StageSelectText->text = ss.str();
-            }
-        });
+       
         
     }
     void OnRender(World &world) override {

@@ -426,6 +426,7 @@ class GameScene : public IScene {
         cameraFar_ = farZ;
     }
 
+    /** @brief プレイヤーを弾いたときの画面の揺れ */
     void ChargCameraAction(World &world) {
         world.ForEach<PlayerMovement>([&](Entity e, PlayerMovement &player) {
             float gx = player.gamepad_->GetLeftStickX();
@@ -442,6 +443,7 @@ class GameScene : public IScene {
 
             bool releasedSys = player.gamepad_->IsLeftStickReleased();
             bool releasedLocal = (player.wasCharging_ && !chargingNowLocal);
+
             if (releasedSys || releasedLocal) {
                 if (auto *pv = world.TryGet<PlayerVelocity>(playerEntity_)) {
                     const float vx = pv->velocity.x;
@@ -451,11 +453,16 @@ class GameScene : public IScene {
                         const float dirX = vx / len;
                         const float dirY = vy / len;
                         TriggerCameraImpulse(dirX, 0.0f, dirY, 0.2f, 0.1f);
-                    }
-                };
+                        if (static_cast<bool>(pv->velocity.x + pv->velocity.y)) {
+                            float vecX = pv->velocity.x / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
+                            float vecY = pv->velocity.y / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
+
+                            TriggerCameraImpulse(vecX, 0.0f, vecY, 0.1f, 0.07f);
+                        }
+                    };
+                }
             }
         });
-
     }
 
     /**
@@ -895,7 +902,7 @@ class GameScene : public IScene {
                     CreateObjectB(world, position, blockType);
                 }
                 break;
-            case 54: CreateObjectC(world, position, blockType);
+            case 54: CreateObjectC(world, position, blockType);break;
         }
     }
 
@@ -998,6 +1005,7 @@ class GameScene : public IScene {
 
         Entity wallEntity = world.Create()
                                 .With<Transform>(transform)
+                                .With<Model>(cfg_HalfWallFBXPass)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
                                 .With<CollisionRightIsoTriPrism>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
@@ -1015,6 +1023,7 @@ class GameScene : public IScene {
 
         Entity wallEntity = world.Create()
                                 .With<Transform>(transform)
+                                .With<Model>(cfg_HalfWallFBXPass)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
                                 .With<CollisionRightIsoTriPrism>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
@@ -1032,6 +1041,7 @@ class GameScene : public IScene {
 
         Entity wallEntity = world.Create()
                                 .With<Transform>(transform)
+                                .With<Model>(cfg_HalfWallFBXPass)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
                                 .With<CollisionRightIsoTriPrism>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
@@ -1049,6 +1059,7 @@ class GameScene : public IScene {
 
         Entity wallEntity = world.Create()
                                 .With<Transform>(transform)
+                                .With<Model>(cfg_HalfWallFBXPass)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
                                 .With<CollisionRightIsoTriPrism>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
@@ -1106,13 +1117,13 @@ class GameScene : public IScene {
     }
 
     void CreateObjectA(World & world, const DirectX::XMFLOAT3 &position, int blockType) {
-        Transform transform{position, {0.0f, 0.0f, 0.0f}, {2.0f, 1.0f, 1.5f}};
+        Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::Cube;
-        renderer.color = DirectX::XMFLOAT3{1.0f,1.0f,0.0f}; //黄色
 
         Entity ObjectAEntity = world.Create()
                                      .With<Transform>(transform)
+                                     .With<Model>(cfg_AObstacleFBXPass)
                                      .With<MeshRenderer>(renderer)
                                      .With<WallTag>()
                                      .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
@@ -1123,13 +1134,13 @@ class GameScene : public IScene {
     }
 
     void CreateObjectB(World &world, const DirectX::XMFLOAT3 &position, int blockType) {
-        Transform transform{position, {0.0f, 0.0f, 0.0f}, {3.0f, 2.0f, 2.0f}};
+        Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::Cube;
-        renderer.color = DirectX::XMFLOAT3{0.0f, 1.0f, 1.0f}; //シアン
 
         Entity ObjectAEntity = world.Create()
                                    .With<Transform>(transform)
+                                   .With<Model>(cfg_BObstacleFBXPass)
                                    .With<MeshRenderer>(renderer)
                                    .With<WallTag>()
                                    .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
@@ -1143,10 +1154,10 @@ class GameScene : public IScene {
         Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::Cube;
-        renderer.color = DirectX::XMFLOAT3{1.0f, 0.0f, 1.0f}; //マゼンタ
 
         Entity ObjectAEntity = world.Create()
                                    .With<Transform>(transform)
+                                   .With<Model>(cfg_CObstacleFBXPass)
                                    .With<MeshRenderer>(renderer)
                                    .With<WallTag>()
                                    .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
