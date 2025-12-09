@@ -50,6 +50,10 @@
 #include "graphics/Camera.h"
 #include <comdef.h>
 #include "animation/Animation.h"
+#include "config/ConfigVar.h"
+
+//Config Var
+inline static ConfigVar<float> cfg_ChargingFade{"Animation.Fade", "ChargingFade", 0.4f};
 
 /**
  * @class GameScene
@@ -378,7 +382,8 @@ class GameScene : public IScene {
 
     // チャージ開始/解放演出
     void OnChargeStart(World &world) {
-        chargeOverlayTarget_ = 0.35f;
+        float ChargingFade = cfg_ChargingFade;
+        chargeOverlayTarget_ = ChargingFade;
         chargeOverlayVisible_ = true;
         TriggerCameraZoom(-0.12f, 0.25f);
     }
@@ -396,7 +401,7 @@ class GameScene : public IScene {
         auto *anim = world.TryGet<SpriteSheetAnimation>(deathFadeAnimationEntity_);
 
         if (deathFadeVisible_) {
-            if (img) img->opacity = 1.0f;
+            if (img) img->opacity = 0.1f;
             if (anim && anim->isFinished && !anim->isPlaying) {
                 deathFadeVisible_ = false;
                 if (img) img->opacity = 0.0f;
@@ -1169,11 +1174,6 @@ class GameScene : public IScene {
     }
 
     void CreateDashBoard(World &world, const DirectX::XMFLOAT3 &position, int blockType) {
-        Transform transform{{position}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
-        MeshRenderer renderer;
-        renderer.meshType = MeshType::Cube;
-        renderer.color = DirectX::XMFLOAT3{0.0f, 0.0f, 1.0f};
-
         DashBoardStatus status;
         status.blockID = blockType;
         float angle = 0.0f;
@@ -1187,6 +1187,13 @@ class GameScene : public IScene {
                 }
             }
         });
+
+        DirectX::XMFLOAT3 adjustedPos = position;
+        adjustedPos.y -= 0.5f;
+        Transform transform{{adjustedPos}, {0.0f, angle, 0.0f}, {1.0f, 1.0f, 1.0f}};
+        MeshRenderer renderer;
+        renderer.meshType = MeshType::Cube;
+        renderer.color = DirectX::XMFLOAT3{0.0f, 0.0f, 1.0f};
 
         status.accelAngle = angle;
 

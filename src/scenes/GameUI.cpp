@@ -201,27 +201,6 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         ownedEntities_.push_back(stageEntity[i]);
     }
 
-    /* UITransform numTransform;
-    numTransform.position = {1175.0f, 84.0f}; 
-    numTransform.size = {200.0f, 80.0f};
-    numTransform.anchor = {0.0f, 0.0f};
-    numTransform.pivot = {0.0f, 0.0f};
-
-    UIText numText;
-    numText.text = L"11  1";
-    numText.color = {1.0f, 1.0f, 1.0f, 1.0f};
-    numText.formatId = "hud";
-
-    Entity numEntity = world.Create()
-                           .With<UITransform>(numTransform)
-                           .With<UIText>(numText)
-                           .Build();
-
-    ownedEntities_.push_back(numEntity);*/
-
-
-
-
     UITransform pauseTransform;
     pauseTransform.position = {0.0f, 0.0f};
     pauseTransform.size = {0.0f, 0.0f};
@@ -333,14 +312,14 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
    deathFadeAnimationEntity_ = deathFadeAnimation;
 
    // チャージ中の軽い暗転オーバーレイ（アルファをコード側で制御）
-   UIImage chargeOverlay{L"./Assets/Textures/Fade/tex_fade.png"};
+   UIImage chargeOverlay{L"./Assets/Textures/Fade/tex_fade_Charging.png"};
    chargeOverlay.opacity = 0.0f;
    chargeOverlay.keepAspect = false;
 
    SpriteSheetAnimation chargeOverlayAnim;
    chargeOverlayAnim.frameCount = 1;
-   chargeOverlayAnim.frameTime = 0.1f;
-   chargeOverlayAnim.columns = 1;
+   chargeOverlayAnim.frameTime = 0.5f;
+   chargeOverlayAnim.columns = 1.0;
    chargeOverlayAnim.rows = 1;
    chargeOverlayAnim.isLooping = false;
    chargeOverlayAnim.isPlaying = false;
