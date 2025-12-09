@@ -399,7 +399,7 @@ struct LoadMovingObstacle : IComponent {
  * @brief ゴール中心へプレイヤーを一定時間で吸引する演出用Behaviour
  */
 struct GoalAttractor : Behaviour {
-    DirectX::XMFLOAT3 target{0.0f, 0.0f, 0.0f};  ///< 目標位置（Yは0固定想定）
+    DirectX::XMFLOAT3 target{0.0f, 0.0f, 0.0f};
     float duration = 0.15f;                       ///< 吸引にかける時間(秒)
     float elapsed = 0.0f;                        ///< 経過時間
     DirectX::XMFLOAT3 startPos{0.0f, 0.0f, 0.0f};///< 開始位置
@@ -421,7 +421,7 @@ struct GoalAttractor : Behaviour {
 
         DirectX::XMFLOAT3 pos{
             startPos.x + (target.x - startPos.x) * u,
-            0.0f,
+            startPos.y + (target.y - startPos.y) * u,
             startPos.z + (target.z - startPos.z) * u
         };
         t->position = pos;

@@ -420,9 +420,6 @@
     <None Include="docs\UI_System_Guide.md">
       <Filter>Docs</Filter>
     </None>
-  </ItemGroup>
-  <ItemGroup>
-    <Text Include="debug_log.txt" />
-    <Text Include="x64\Debug\debug_log.txt" />
+    <None Include="Assets\Settings\config.toml" />
   </ItemGroup>
 </Project>
