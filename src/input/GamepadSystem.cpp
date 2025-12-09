@@ -687,6 +687,27 @@ bool GamepadSystem::GetButtonUp(GamepadButton button) const {
     return false;
 }
 
+bool GamepadSystem::GetAnyButton(std::initializer_list<GamepadButton> buttons) const {
+    for (auto b : buttons) {
+        if (GetButton(b)) return true;
+    }
+    return false;
+}
+
+bool GamepadSystem::GetAnyButtonDown(std::initializer_list<GamepadButton> buttons) const {
+    for (auto b : buttons) {
+        if (GetButtonDown(b)) return true;
+    }
+    return false;
+}
+
+bool GamepadSystem::GetAnyButtonUp(std::initializer_list<GamepadButton> buttons) const {
+    for (auto b : buttons) {
+        if (GetButtonUp(b)) return true;
+    }
+    return false;
+}
+
 // ========================================================
 // チャージ&リリースシステム（統合版）
 // ========================================================
