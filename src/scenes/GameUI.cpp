@@ -164,6 +164,8 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 
     ownedEntities_.push_back(roomImageEntity);
 
+
+
     UIText stageText[2];
 
     stageText[0].text = {L"Room : 0/"};
@@ -175,13 +177,16 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     stageText[1].color = {0.0f, 0.5f, 1.0f, 1.0f};
     stageText[1].formatId = "hud";
 
+    
+
+
     UITransform stageTransform[2];
-    stageTransform[0].position = {1360.0f, 84.0f};
+    stageTransform[0].position = {1450.0f, 84.0f};
     stageTransform[0].size = {200.0f, 80.0f};
     stageTransform[0].anchor = {0.0f, 0.0f};
     stageTransform[0].pivot = {1.0f, 0.0f};
 
-    stageTransform[1].position = {stageTransform[0].position.x + 65.0f, stageTransform[0].position.y};
+    stageTransform[1].position = {stageTransform[0].position.x - 65.0f, stageTransform[0].position.y};
     stageTransform[1].size = stageTransform[0].size;
     stageTransform[1].anchor = stageTransform[0].anchor;
     stageTransform[1].pivot = stageTransform[0].pivot;
@@ -224,10 +229,12 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         updater->pauseTextEntity_ = pauseEntity;
         updater->stageTextEntity_[0] = stageEntity[0];
         updater->stageTextEntity_[1] = stageEntity[1];
+      //  updater->numEntity_ = numEntity;
         updater->timeImageEntity_ = timerImageEntity;
     }
     ownedEntities_.push_back(uiUpdater);
 
+   
    /* UITransform UIanimation;
     UIanimation.position = {0.0f, -280.0f};
     UIanimation.size = {1280.0f, 1280.0f};
