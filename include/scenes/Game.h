@@ -54,6 +54,8 @@
 
 //Config Var
 inline static ConfigVar<float> cfg_ChargingFade{"Animation.Fade", "ChargingFade", 0.4f};
+inline static ConfigVar<float> cfg_GoalDistance{"Distance.Goal",  "GoalDistance", 2.0f};
+inline static ConfigVar<float> cfg_SlowDirection{"Direction.Slow","SlowDistance", 0.2f};
 
 /**
  * @class GameScene
@@ -245,6 +247,8 @@ class GameScene : public IScene {
 
         // 目標(ゴール)接近時のスロー演出用タイムスケール
         float timeScale = 1.0f;
+        float GoalDistance = cfg_GoalDistance;
+        float SlowDirection = cfg_SlowDirection;
         if (world.IsAlive(playerEntity_) && world.IsAlive(goalEntity_)) {
             auto *tPlayer = world.TryGet<Transform>(playerEntity_);
             auto *tGoal = world.TryGet<Transform>(goalEntity_);
@@ -252,9 +256,9 @@ class GameScene : public IScene {
                 const float dx = tPlayer->position.x - tGoal->position.x;
                 const float dz = tPlayer->position.z - tGoal->position.z;
                 const float dist = std::sqrt(dx * dx + dz * dz);
-                const float slowThreshold = 3.0f; // ゴールに近づいたとみなす距離
+                const float slowThreshold = GoalDistance; // ゴールに近づいたとみなす距離
                 if (dist <= slowThreshold) {
-                    timeScale = 0.2f; // スロー演出
+                    timeScale = SlowDirection; // スロー演出
                 }
             }
         }
@@ -394,12 +398,12 @@ class GameScene : public IScene {
         float impulse = std::clamp(chargeAmount01, 0.15f, 1.0f) * 0.12f;
         TriggerCameraShake(0.03f + impulse, 0.25f);
     }
-
+    
     void UpdateDeathFade(World &world, float /*dt*/) {
         if (!world.IsAlive(deathFadeAnimationEntity_)) return;
         auto *img = world.TryGet<UIImage>(deathFadeAnimationEntity_);
         auto *anim = world.TryGet<SpriteSheetAnimation>(deathFadeAnimationEntity_);
-
+            
         if (deathFadeVisible_) {
             if (img) img->opacity = 0.1f;
             if (anim && anim->isFinished && !anim->isPlaying) {

@@ -9,7 +9,9 @@
 #include "animation/Animation.h"
 #include "components/CountUIComponent.h"
 #include "components/UIImageComponents.h"
+#include "config/ConfigVar.h"
 
+inline static ConfigVar<float> cfg_FadeFrameTime{"Fade.Out", "FadeFrameTime", 0.01f};
 
 void GameScene::CreateTextFormats() {
     TextSystem::TextFormat hudFormat;
@@ -277,6 +279,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 
     ownedEntities_.push_back(animation);
    fadeAnimationEntity_ = animation;*/
+    float fadeFrameTime = cfg_FadeFrameTime;
 
    UITransform FadeAnimation;
    FadeAnimation.position = {0.0f, 0.0f};
@@ -290,7 +293,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 
    SpriteSheetAnimation fadeOut;
    fadeOut.frameCount = 18;
-   fadeOut.frameTime = 0.08f;
+   fadeOut.frameTime = fadeFrameTime;
    fadeOut.columns = 18;
    fadeOut.rows = 1;
    // フェードは初期状態では再生しない（壁ヒット時に再生開始）
