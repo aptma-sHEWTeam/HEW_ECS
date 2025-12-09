@@ -7,6 +7,7 @@
 #include "ecs/Entity.h"
 #include "ecs/World.h"
 #include "systems/UISystem.h"
+#include <algorithm>
 #include <sstream>
 #include <iomanip>
 
@@ -23,6 +24,9 @@ struct GameUIUpdater : Behaviour {
     Entity timerBackgroundEntity_;
     Entity timeImageEntity_;
     Entity timerUiEntity_;
+    Entity numEntity_;
+    int cachedStage_ = -1;
+    int cachedRoomCount_ = 1;
     Entity startplayer_;
     
 
@@ -98,20 +102,41 @@ struct GameUIUpdater : Behaviour {
 
         // ステージの更新
         w.ForEach<StageProgress>([&](Entity e, StageProgress &sp) {
+            RefreshRoomCount(sp.currentStage);
+
             if (auto *stageText = w.TryGet<UIText>(stageTextEntity_[0])) {
                 std::wstringstream ss;
-                ss << L" " << sp.currentStage;
+               // ss << 11; 
+                ss << cachedRoomCount_;
+                //ss << L"Room : " << sp.currentRoom << L"/";
                 stageText->text = ss.str();
             }
 
             if (auto *stageText = w.TryGet<UIText>(stageTextEntity_[1])) {
                 std::wstringstream ss;
-                ss << L" " << sp.selectStage;
+               // ss << 1; 
+                ss << sp.currentRoom; 
+              //  ss << cachedRoomCount_;
                 stageText->text = ss.str();
             }
         });
 
         // ルームの更新
 
+    }
+
+  private:
+    static int CountRoomsInStage(int stage) {
+        int count = 0;
+        while (ResolveStageRoomCsvPath(stage, count + 1)) {
+            ++count;
+        }
+        return std::max(count, 1);
+    }
+
+    void RefreshRoomCount(int stage) {
+        if (cachedStage_ == stage) return;
+        cachedStage_ = stage;
+        cachedRoomCount_ = CountRoomsInStage(stage);
     }
 };

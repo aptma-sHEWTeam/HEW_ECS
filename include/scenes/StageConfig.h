@@ -71,12 +71,16 @@ inline ConfigVar<float> cfg_BakeLightB{"Lighting.Bake", "ColorB", 0.9f};
 inline ConfigVar<float> cfg_FloorWallR{"Stage.Wall.Visual", "FloorWallColorR", 0.5f};
 inline ConfigVar<float> cfg_FloorWallG{"Stage.Wall.Visual", "FloorWallColorG", 0.5f};
 inline ConfigVar<float> cfg_FloorWallB{"Stage.Wall.Visual", "FloorWallColorB", 0.5f};
-inline ConfigVar<float> cfg_WallSize{"Stage.Wall.Geometry", "WallSize", 3.0f};
+inline ConfigVar<float> cfg_WallSize{"Stage.Wall.Geometry", "WallSize", 1.0f};
 
 // FBX�p�X�ݒ�
 inline ConfigVar<std::string> cfg_PlayerFBXPass{"Player.Asset", "PlayerFBXPass", "Assets/Models/Player/obj_player.fbx"};
-inline ConfigVar<std::string> cfg_FloorFBXPass{"Stage.Floor.Asset", "FloorFBXPass", "Assets/Models/StageObj/Ground/obj_ground.fbx"};
+inline ConfigVar<std::string> cfg_FloorFBXPass{"Stage.Floor.Asset", "FloorFBXPass", "Assets/Models/StageObj/Ground/floor_cube.fbx"};
 inline ConfigVar<std::string> cfg_WallFBXPass{"Stage.Wall.Asset", "WallFBXPass", "Assets/Models/StageObj/Wall/obj_wall.fbx"};
+inline ConfigVar<std::string> cfg_StartFBXPass{"Stage.Start.Asset", "StartFBXPass", "Assets/Models/StageObj/Start/obj_start.fbx"};
+inline ConfigVar<std::string> cfg_GoalFBXPass{"Stage.Goal.Asset", "GoalFBXPass", "Assets/Models/StageObj/Goal/obj_goal.fbx"};
+inline ConfigVar<std::string> cfg_MovingObstacleFBXPass{"Stage.MovingObstacle.Asset", "MovingObstacleFBXPass", "Assets/Models/StageObj/Move/vehicle.fbx"};
+inline ConfigVar<std::string> cfg_DashBoardFBXPass{"Stage.DashBoard.Asset", "DashBoardFBXPass", "Assets/Models/StageObj/SpeedUp/obj_speedup.fbx"};
 
 // UI�ݒ�
 inline ConfigVar<float> cfg_UICountPosX{"UI.StageHUD.Counter", "CountPosX", 20.0f};

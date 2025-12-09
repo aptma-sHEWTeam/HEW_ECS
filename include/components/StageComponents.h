@@ -400,7 +400,7 @@ struct LoadMovingObstacle : IComponent {
  */
 struct GoalAttractor : Behaviour {
     DirectX::XMFLOAT3 target{0.0f, 0.0f, 0.0f};  ///< 目標位置（Yは0固定想定）
-    float duration = 1.2f;                       ///< 吸引にかける時間(秒)
+    float duration = 0.6f;                       ///< 吸引にかける時間(秒)
     float elapsed = 0.0f;                        ///< 経過時間
     DirectX::XMFLOAT3 startPos{0.0f, 0.0f, 0.0f};///< 開始位置
 
@@ -433,6 +433,76 @@ struct GoalAttractor : Behaviour {
             });
             // 自身のBehaviourを取り外す
             w.Remove<GoalAttractor>(self);
+        }
+    }
+};
+
+/**
+ * @struct MovingObstacle
+ * @brief 動く障害物の挙動を制御するコンポーネント
+ */
+struct MovingObstacle : Behaviour {
+    DirectX::XMFLOAT3 startPos{};
+    DirectX::XMFLOAT3 endPos{};
+    DirectX::XMFLOAT3 delta{};
+    DirectX::XMFLOAT3 baseScale{1.0f, 1.0f, 1.0f};
+    float waitAtStart = 0.0f;
+    float waitAtEnd = 0.0f;
+    float travelTime = 1.0f;
+    float timer = 0.0f;
+    bool firstLoop = true;
+    enum class State { WaitStart, MoveForward, WaitEnd, MoveBack } state = State::WaitStart;
+
+    void OnUpdate(World &w, Entity self, float dt) override {
+        auto *t = w.TryGet<Transform>(self);
+        if (!t) return;
+
+        // スケールが他所で変更されないよう固定
+        t->scale = baseScale;
+
+        timer += dt;
+
+        auto lerpVec = [](const DirectX::XMFLOAT3 &a, const DirectX::XMFLOAT3 &b, float r) {
+            return DirectX::XMFLOAT3{
+                a.x + (b.x - a.x) * r,
+                a.y + (b.y - a.y) * r,
+                a.z + (b.z - a.z) * r};
+        };
+
+        switch (state) {
+            case State::WaitStart:
+                if (timer >= (firstLoop ? waitAtStart : waitAtEnd)) {
+                    timer = 0.0f;
+                    firstLoop = false;
+                    state = State::MoveForward;
+                }
+                break;
+            case State::MoveForward: {
+                float ratio = std::clamp(timer / std::max(travelTime, 0.0001f), 0.0f, 1.0f);
+                t->position = lerpVec(startPos, endPos, ratio);
+                if (timer >= travelTime) {
+                    timer = 0.0f;
+                    state = State::WaitEnd;
+                    t->position = endPos;
+                }
+                break;
+            }
+            case State::WaitEnd:
+                if (timer >= waitAtEnd) {
+                    timer = 0.0f;
+                    state = State::MoveBack;
+                }
+                break;
+            case State::MoveBack: {
+                float ratio = std::clamp(timer / std::max(travelTime, 0.0001f), 0.0f, 1.0f);
+                t->position = lerpVec(endPos, startPos, ratio);
+                if (timer >= travelTime) {
+                    timer = 0.0f;
+                    state = State::WaitStart;
+                    t->position = startPos;
+                }
+                break;
+            }
         }
     }
 };

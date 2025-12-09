@@ -82,7 +82,8 @@ struct UIRenderSystem {
     void DrawButtonText(const UITransform &transform, const UIText &text) { DrawText(transform, text); }
     void DrawText(const UITransform &transform, const UIText &text) {
         DirectX::XMFLOAT2 pos = transform.GetScreenPosition(screenWidth_, screenHeight_);
-        TextSystem::TextParams p; p.text = text.text; p.x = pos.x; p.y = pos.y; p.width = transform.size.x; p.height = transform.size.y; p.color = text.color; p.formatId = text.formatId; p.fontSize = text.fontSize; textSystem_->DrawText(p);
+        TextSystem::TextParams p; p.text = text.text; p.x = pos.x; p.y = pos.y; p.width = transform.size.x; p.height = transform.size.y; p.color = text.color; p.formatId = text.formatId; p.fontSize = text.fontSize; 
+        textSystem_->DrawText(p);
     }
     void DrawImage(const UITransform &transform, const UIImage &img) {
         DirectX::XMFLOAT2 pos = transform.GetScreenPosition(screenWidth_, screenHeight_);

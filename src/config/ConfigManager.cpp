@@ -1,10 +1,12 @@
 #include "config/ConfigManager.h"
 #include "config/ConfigVar.h"
+#include "app/DebugLog.h"
 #include <fstream>
 #include <sstream>
 #include <iostream>
 #include <algorithm>
 #include <map>
+#include <optional>
 
 namespace fs = std::filesystem;
 
@@ -77,12 +79,30 @@ static std::string Trim(const std::string& str) {
     return str.substr(first, (last - first + 1));
 }
 
+static std::optional<fs::path> FindConfigToml(const fs::path& preferred) {
+    if (fs::exists(preferred)) return preferred;
+
+    fs::path cur = fs::current_path();
+    for (int i = 0; i < 5; ++i) {
+        fs::path candidate = cur / "Assets" / "Settings" / "config.toml";
+        if (fs::exists(candidate)) return candidate;
+        if (!cur.has_parent_path()) break;
+        cur = cur.parent_path();
+    }
+    return std::nullopt;
+}
+
 void ConfigManager::LoadTOML() {
-    fs::path tomlPath = fs::path(m_AssetPath) / "Settings/config.toml";
-    if (!fs::exists(tomlPath)) {
+    fs::path preferred = fs::path(m_AssetPath) / "Settings" / "config.toml";
+    auto resolved = FindConfigToml(preferred);
+    if (!resolved) {
+        DEBUGLOG_WARNING("[ConfigManager] config.toml が見つかりませんでした。現在の作業ディレクトリ付近を探索しましたが失敗しました。");
         m_IsDirty = true; // File doesn't exist, so we need to write defaults
         return;
     }
+    fs::path tomlPath = *resolved;
+    // 見つけたパスに合わせて AssetPath を補正
+    m_AssetPath = tomlPath.parent_path().parent_path().string();
 
     std::ifstream file(tomlPath);
     if (!file.is_open()) return;
@@ -130,6 +150,13 @@ void ConfigManager::LoadTOML() {
 
 void ConfigManager::SaveTOML() {
     fs::path tomlPath = fs::path(m_AssetPath) / "Settings/config.toml";
+    std::error_code ec;
+    fs::create_directories(tomlPath.parent_path(), ec);
+    if (ec) {
+        DEBUGLOG_ERROR(std::string("[ConfigManager] 設定ディレクトリの作成に失敗しました: ") + ec.message());
+        return;
+    }
+
     std::ofstream file(tomlPath);
     if (!file.is_open()) return;
 

@@ -6,6 +6,7 @@
 #include "graphics/RenderSystem.h"
 #include <vector>
 #include <cmath>
+#include <algorithm>
 
 /**
  * @file Animation.h
@@ -281,6 +282,8 @@ struct UVAnimation : Behaviour {
 struct SpriteSheetAnimation : Behaviour 
 {
     int frameCount = 1;
+    int columns = 0; // 0の場合はframeCountを横一列で使用
+    int rows = 0;    // 0の場合は必要行数を自動計算
     float frameTime = 0.1f;
     bool isLooping = false;
     bool isPlaying = false;
@@ -288,6 +291,7 @@ struct SpriteSheetAnimation : Behaviour
     float currentTime = 0.0f;
     int currentFrame = 0;
     bool isFinished = false;
+    int playbackDirection = 1; ///< 1:正方向, -1:逆方向再生
 
     //描画時にUIImageが参照するuv    {x,y,w,h}
     std::vector<std::array<float, 4>>uv{};
@@ -311,19 +315,27 @@ struct SpriteSheetAnimation : Behaviour
         if (currentTime >= frameTime)
         {
             currentTime -= frameTime;
-            currentFrame++;
+            currentFrame += playbackDirection;
 
-            if (currentFrame >= frameCount)
-            {
-                if (isLooping)
-                {
-                    currentFrame = 0;
+            if (playbackDirection >= 0) {
+                if (currentFrame >= frameCount) {
+                    if (isLooping) {
+                        currentFrame = 0;
+                    } else {
+                        currentFrame = frameCount - 1;
+                        isPlaying = false;
+                        isFinished = true;
+                    }
                 }
-                else
-                {
-                    currentFrame = frameCount - 1;
-                    isPlaying = false;
-                    isFinished = true;
+            } else {
+                if (currentFrame < 0) {
+                    if (isLooping) {
+                        currentFrame = frameCount - 1;
+                    } else {
+                        currentFrame = 0;
+                        isPlaying = false;
+                        isFinished = true;
+                    }
                 }
             }
         }
@@ -346,21 +358,33 @@ struct SpriteSheetAnimation : Behaviour
         uv.resize(frameCount);
 
         if (frameCount <= 0) return;
-        float width = 1.0f / static_cast<float>(frameCount);
-        
-        for (int i = 0; i < frameCount;i++)
-        {
-            // uv = {x, y, w, h} (正規化座標)
-            uv[i][0] = width * static_cast<float>(i); // x
-            uv[i][1] = 0.0f;                          // y
-            uv[i][2] = width;                         // w
-            uv[i][3] = 1.0f;                          // h
+
+        const int effCols = std::max(1, columns > 0 ? columns : frameCount);
+        const int effRows = std::max(1, rows > 0 ? rows : (frameCount + effCols - 1) / effCols);
+        const float width = 1.0f / static_cast<float>(effCols);
+        const float height = 1.0f / static_cast<float>(effRows);
+
+        for (int i = 0; i < frameCount; i++) {
+            const int col = i % effCols;
+            const int row = i / effCols;
+            uv[i][0] = width * static_cast<float>(col); // x
+            uv[i][1] = height * static_cast<float>(row); // y
+            uv[i][2] = width;                           // w
+            uv[i][3] = height;                          // h
         }
     }
     
-    void StartAnimation()
+    void StartAnimation(int direction = 1, bool resetFrame = true)
     {
-        isPlaying = true;
+        playbackDirection = (direction >= 0) ? 1 : -1;
+        if (resetFrame) {
+            currentFrame = (playbackDirection >= 0) ? 0 : std::max(0, frameCount - 1);
+            currentTime = 0.0f;
+        } else {
+            currentFrame = std::clamp(currentFrame, 0, std::max(0, frameCount - 1));
+        }
+        isPlaying = (frameCount > 0);
+        isFinished = false;
     }
 
     void StopAnimation() 

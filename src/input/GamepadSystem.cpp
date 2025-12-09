@@ -502,6 +502,8 @@ void GamepadSystem::UpdateChargeSystem(int index, float dt) {
     // 左スティックのチャージ判定
     float leftMagnitude = sqrtf(pad.leftStickX * pad.leftStickX + pad.leftStickY * pad.leftStickY);
     bool leftCharging = leftMagnitude > CHARGE_DETECTION_THRESHOLD;
+    bool wasLeftCharging = pad.leftStickWasCharging;
+    pad.leftStickJustReleased = false;
 
     if (leftCharging) {
         // チャージ中
@@ -511,10 +513,12 @@ void GamepadSystem::UpdateChargeSystem(int index, float dt) {
         pad.leftStickWasCharging = true;
     } else {
         // ニュートラル
-        if (pad.leftStickWasCharging) {
-            // リリースされた瞬間(次のフレームでリセット)
+        if (wasLeftCharging) {
+            pad.leftStickJustReleased = true;
+            pad.leftStickChargeTime = 0.0f;
+            pad.leftStickIntensitySum = 0.0f;
+            pad.leftStickChargeSamples = 0;
         } else {
-            // チャージデータをリセット
             pad.leftStickChargeTime = 0.0f;
             pad.leftStickIntensitySum = 0.0f;
             pad.leftStickChargeSamples = 0;
@@ -525,6 +529,8 @@ void GamepadSystem::UpdateChargeSystem(int index, float dt) {
     //右スティックのチャージ判定
     float rightMagnitude = sqrtf(pad.rightStickX * pad.rightStickX + pad.rightStickY * pad.rightStickY);
     bool rightCharging = rightMagnitude > CHARGE_DETECTION_THRESHOLD;
+    bool wasRightCharging = pad.rightStickWasCharging;
+    pad.rightStickJustReleased = false;
 
     if (rightCharging) {
         // チャージ中
@@ -534,10 +540,12 @@ void GamepadSystem::UpdateChargeSystem(int index, float dt) {
         pad.rightStickWasCharging = true;
     } else {
         // ニュートラル
-        if (pad.rightStickWasCharging) {
-            // リリースされた瞬間(次のフレームでリセット)
+        if (wasRightCharging) {
+            pad.rightStickJustReleased = true;
+            pad.rightStickChargeTime = 0.0f;
+            pad.rightStickIntensitySum = 0.0f;
+            pad.rightStickChargeSamples = 0;
         } else {
-            // チャージデータをリセット
             pad.rightStickChargeTime = 0.0f;
             pad.rightStickIntensitySum = 0.0f;
             pad.rightStickChargeSamples = 0;
@@ -737,21 +745,17 @@ bool GamepadSystem::IsLeftStickReleased() const {
     for (int i = 0; i < MAX_GAMEPADS; ++i) {
         if (gamepads_[i].connected) {
             GamepadState &pad = const_cast<GamepadState &>(gamepads_[i]);
-            float magnitude = sqrtf(pad.leftStickX * pad.leftStickX + pad.leftStickY * pad.leftStickY);
-            bool isNowCharging = magnitude > CHARGE_DETECTION_THRESHOLD;
-
             static constexpr float BOUNCE_IGNORE_TIME = 0.05f;
-            if (pad.leftStickWasCharging && !isNowCharging) {
-                if (pad.leftStickReleaseTimer > 0.0f) {
-                    continue;
-                }
+            if (pad.leftStickJustReleased && pad.leftStickReleaseTimer <= 0.0f) {
                 pad.leftStickReleaseTimer = BOUNCE_IGNORE_TIME;
+                pad.leftStickJustReleased = false;
                 return true;
             }
 
             if (pad.leftStickReleaseTimer > 0.0f) {
                 pad.leftStickReleaseTimer -= deltaTime_;
             }
+            pad.leftStickJustReleased = false;
         }
     }
     return false;
@@ -761,21 +765,17 @@ bool GamepadSystem::IsRightStickReleased() const {
     for (int i = 0; i < MAX_GAMEPADS; ++i) {
         if (gamepads_[i].connected) {
             GamepadState &pad = const_cast<GamepadState &>(gamepads_[i]);
-            float magnitude = sqrtf(pad.rightStickX * pad.rightStickX + pad.rightStickY * pad.rightStickY);
-            bool isNowCharging = magnitude > CHARGE_DETECTION_THRESHOLD;
-
             static constexpr float BOUNCE_IGNORE_TIME = 0.05f;
-            if (pad.rightStickWasCharging && !isNowCharging) {
-                if (pad.rightStickReleaseTimer > 0.0f) {
-                    continue;
-                }
+            if (pad.rightStickJustReleased && pad.rightStickReleaseTimer <= 0.0f) {
                 pad.rightStickReleaseTimer = BOUNCE_IGNORE_TIME;
+                pad.rightStickJustReleased = false;
                 return true;
             }
 
             if (pad.rightStickReleaseTimer > 0.0f) {
                 pad.rightStickReleaseTimer -= deltaTime_;
             }
+            pad.rightStickJustReleased = false;
         }
     }
     return false;

@@ -18,6 +18,9 @@
 #include <filesystem>
 #include <algorithm>
 
+// 追加: IScene 定義を利用するためにシーンマネージャのヘッダーをインクルード
+#include "scenes/SceneManager.h"
+
 // リファクタリング: 分離されたヘッダーをインクルード
 #include "scenes/CameraReaction.h"
 #include "scenes/StageConfig.h"
@@ -46,6 +49,11 @@
 #include "graphics/TextureManager.h"
 #include "graphics/Camera.h"
 #include <comdef.h>
+#include "animation/Animation.h"
+#include "config/ConfigVar.h"
+
+//Config Var
+inline static ConfigVar<float> cfg_ChargingFade{"Animation.Fade", "ChargingFade", 0.4f};
 
 /**
  * @class GameScene
@@ -253,6 +261,7 @@ class GameScene : public IScene {
 
         // ステージ進行リクエストの処理
         HandleStageAdvance(world);
+        UpdateStageTransition(world, deltaTime * timeScale);
 
         // 入力システムの参照を設定
         SetupInputReferences(world, input);
@@ -262,6 +271,8 @@ class GameScene : public IScene {
 
         // 遅延リスポーンのタイマーを更新
         UpdateDelayedRespawn(deltaTime * timeScale, world);
+        UpdateChargeOverlay(world, deltaTime * timeScale);
+        UpdateDeathFade(world, deltaTime * timeScale);
 
         // カメラリアクションを更新
         UpdateCameraReaction(deltaTime * timeScale, world);
@@ -369,6 +380,37 @@ class GameScene : public IScene {
         camera_.Update();
     }
 
+    // チャージ開始/解放演出
+    void OnChargeStart(World &world) {
+        float ChargingFade = cfg_ChargingFade;
+        chargeOverlayTarget_ = ChargingFade;
+        chargeOverlayVisible_ = true;
+        TriggerCameraZoom(-0.12f, 0.25f);
+    }
+    void OnChargeRelease(World &world, float chargeAmount01) {
+        chargeOverlayCurrent_ = std::max(chargeOverlayCurrent_, 0.55f);
+        chargeOverlayTarget_ = 0.0f;
+        chargeOverlayVisible_ = true;
+        float impulse = std::clamp(chargeAmount01, 0.15f, 1.0f) * 0.12f;
+        TriggerCameraShake(0.03f + impulse, 0.25f);
+    }
+
+    void UpdateDeathFade(World &world, float /*dt*/) {
+        if (!world.IsAlive(deathFadeAnimationEntity_)) return;
+        auto *img = world.TryGet<UIImage>(deathFadeAnimationEntity_);
+        auto *anim = world.TryGet<SpriteSheetAnimation>(deathFadeAnimationEntity_);
+
+        if (deathFadeVisible_) {
+            if (img) img->opacity = 0.1f;
+            if (anim && anim->isFinished && !anim->isPlaying) {
+                deathFadeVisible_ = false;
+                if (img) img->opacity = 0.0f;
+            }
+        } else {
+            if (img) img->opacity = 0.0f;
+        }
+    }
+
     /** @brief カメラオブジェクトへのconst参照を取得 */
     const Camera& GetCamera() const { return camera_; }
 
@@ -429,6 +471,9 @@ class GameScene : public IScene {
     void OnWallHit(Entity player, World &world) {
         if (pendingRespawn_) return;
 
+        // 再生用フェードアニメーションを開始
+        StartDeathFadeOut(world);
+
         if (auto* playerStatus = world.TryGet<PlayerStatus>(playerEntity_))
         {
             playerStatus->isStartAfterWallHit = true;
@@ -467,6 +512,14 @@ class GameScene : public IScene {
     bool IsRespawnPending() const { return pendingRespawn_; }
 
   private:
+    struct StageAdvanceInfo {
+        bool active = false;
+        bool stageBuilt = false;
+        int stage = 0;
+        int nextRoom = 0;
+        std::string nextRoomPath;
+    };
+
     // =========================================
     // 初期化ヘルパーメソッド
     // =========================================
@@ -511,27 +564,110 @@ class GameScene : public IScene {
                     return;
                 }
 
-                // 既存のステージCSV読み込みエンティティを破棄
+                if (pendingStageAdvance_.active) {
+                    DEBUGLOG_WARNING("[StageCreate] 既に遷移中のため新規リクエストを破棄しました");
+                    return;
+                }
+
+                pendingStageAdvance_.active = true;
+                pendingStageAdvance_.stageBuilt = false;
+                pendingStageAdvance_.stage = sp.currentStage;
+                pendingStageAdvance_.nextRoom = nextRoomIndex;
+                pendingStageAdvance_.nextRoomPath = *nextRoomPath;
+                stageAdvanceTimer_ = 0.0f;
+
+                StartFadeOutNormal(world);
+                DEBUGLOG("同一ステージ内で次のルームへ進行(フェード演出開始): Stage" + std::to_string(sp.currentStage) + ", room" + std::to_string(pendingStageAdvance_.nextRoom));
+            }
+        });
+    }
+
+    void UpdateStageTransition(World &world, float dt) {
+        if (!pendingStageAdvance_.active) return;
+
+        stageAdvanceTimer_ += dt;
+        auto *anim = world.TryGet<SpriteSheetAnimation>(fadeAnimationEntity_);
+        const float fadeDuration = GetFadeDurationSeconds(world, fadeAnimationEntity_);
+        const float waitDuration = (fadeDuration > 0.0f) ? fadeDuration : 1.0f;
+
+        const bool fadeOutFinished = anim && !anim->isPlaying && anim->isFinished && anim->playbackDirection >= 0;
+        if (!pendingStageAdvance_.stageBuilt) {
+            if (fadeOutFinished || stageAdvanceTimer_ >= waitDuration) {
+                stageAdvanceTimer_ = 0.0f;
+
                 std::vector<Entity> stageCreateEntities;
-                world.ForEach<StageCreate>([&](Entity e, StageCreate &) {
-                    stageCreateEntities.push_back(e);
-                });
+                world.ForEach<StageCreate>([&](Entity e, StageCreate &) { stageCreateEntities.push_back(e); });
                 for (auto e : stageCreateEntities) {
                     if (world.IsAlive(e)) {
                         world.DestroyEntityWithCause(e, World::Cause::StageReset);
                     }
                 }
 
-                // ステージ番号は維持し、ルームのみ進める
-                sp.currentRoom = nextRoomIndex;
+                world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+                    sp.currentRoom = pendingStageAdvance_.nextRoom;
+                });
 
-                Entity newStageEntity = world.Create().With<StageCreate>(*nextRoomPath).Build();
+                Entity newStageEntity = world.Create().With<StageCreate>(pendingStageAdvance_.nextRoomPath).Build();
                 ownedEntities_.push_back(newStageEntity);
 
-                DEBUGLOG("同一ステージ内で次のルームへ進行: Stage" + std::to_string(sp.currentStage) + ", room" + std::to_string(sp.currentRoom));
-                SetupStage(world, sp.currentStage);
+                DEBUGLOG("同一ステージ内で次のルームへ進行: Stage" + std::to_string(pendingStageAdvance_.stage) + ", room" + std::to_string(pendingStageAdvance_.nextRoom));
+                SetupStage(world, pendingStageAdvance_.stage);
+                pendingStageAdvance_.stageBuilt = true;
+                StartFadeInNormal(world);
             }
-        });
+            return;
+        }
+
+        const bool fadeInFinished = anim && !anim->isPlaying && anim->isFinished && anim->playbackDirection < 0;
+        if (fadeInFinished || stageAdvanceTimer_ >= waitDuration) {
+            pendingStageAdvance_ = {};
+            stageAdvanceTimer_ = 0.0f;
+        }
+    }
+
+    void StartFadeOutNormal(World &world) { StartSpriteFade(world, fadeAnimationEntity_, 1, false); }
+    void StartFadeInNormal(World &world) { StartSpriteFade(world, fadeAnimationEntity_, -1, false); }
+    void StartDeathFadeOut(World &world) { deathFadeVisible_ = true; StartSpriteFade(world, deathFadeAnimationEntity_, 1, true); }
+
+    void StartSpriteFade(World &world, Entity target, int direction, bool forceOpaque) {
+        if (!world.IsAlive(target)) return;
+        if (auto *anim = world.TryGet<SpriteSheetAnimation>(target)) {
+            anim->isLooping = false;
+            anim->StartAnimation(direction);
+            ApplyFadeFrame(world, target, *anim);
+            if (forceOpaque) {
+                if (auto *img = world.TryGet<UIImage>(target)) {
+                    img->opacity = 1.0f;
+                }
+            }
+        }
+        // 対象が死亡フェード以外の場合、不要時は透明化
+        if (!forceOpaque) {
+            if (auto *img = world.TryGet<UIImage>(target)) {
+                img->opacity = 1.0f;
+            }
+        }
+    }
+
+    float GetFadeDurationSeconds(World &world, Entity target) const {
+        if (auto *anim = world.TryGet<SpriteSheetAnimation>(target)) {
+            const int count = std::max(anim->frameCount, 0);
+            return anim->frameTime * static_cast<float>(count);
+        }
+        return 0.0f;
+    }
+
+    void ApplyFadeFrame(World &world, Entity target, SpriteSheetAnimation &anim) {
+        if (anim.uv.size() != static_cast<size_t>(anim.frameCount)) {
+            anim.UpdateUV();
+        }
+
+        if (auto *img = world.TryGet<UIImage>(target)) {
+            const int frameIndex = std::clamp(anim.currentFrame, 0, std::max(0, anim.frameCount - 1));
+            if (!anim.uv.empty()) {
+                img->uvRect = anim.uv[frameIndex];
+            }
+        }
     }
 
     void SetupInputReferences(World &world, InputSystem &input) {
@@ -636,7 +772,7 @@ class GameScene : public IScene {
             if (idx >= 5) {
                 MovingObstaclePattern p;
                 p.dirX = vals[0];
-                p.dirY = vals[1];
+                p.dirY = -vals[1];
                 p.waitAtStart = vals[2];
                 p.waitAtEnd = vals[3];
                 p.travelTime = std::max(vals[4], 0.0001f);
@@ -771,15 +907,13 @@ class GameScene : public IScene {
     }
 
     void CreateFloor(World &world, const DirectX::XMFLOAT3 &position) {
-        DirectX::XMFLOAT3 floorPos = {position.x, position.y - 1, position.z};
-        Transform transform{{floorPos}, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_FloorThickness, 1.0f}};
-        MeshRenderer renderer;
-        renderer.meshType = MeshType::Cube;
+        // 各マスにフロアFBXをそのまま配置する（スケールは1x1x1、Yは設定値でオフセット）
+        DirectX::XMFLOAT3 floorPos = {position.x, position.y + cfg_FloorYOffset, position.z};
+        Transform transform{{floorPos}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
 
         Entity floor = world.Create()
                            .With<Transform>(transform)
                            .With<Model>(cfg_FloorFBXPass)
-                           .With<MeshRenderer>(renderer)
                            .Build();
 
         // ステージ切り替え時に破棄されるよう、ステージ所有リストへ登録
@@ -849,14 +983,12 @@ class GameScene : public IScene {
     }
 
     void CreateWall(World &world, const DirectX::XMFLOAT3 &position) {
-        Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
-        MeshRenderer renderer;
-        renderer.meshType = MeshType::Cube;
+        DirectX::XMFLOAT3 diffPosition = {position.x, position.y - 1.0f, position.z};
+        Transform transform{diffPosition, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
 
         Entity wallEntity = world.Create()
                                 .With<Transform>(transform)
                                 .With<Model>(cfg_WallFBXPass)
-                                .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
                                 .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                                 .With<WallCollisionHandler>()
@@ -933,72 +1065,6 @@ class GameScene : public IScene {
         stageOwnedEntities_.push_back(wallEntity);
     }
 
-    struct MovingObstacle : Behaviour {
-        DirectX::XMFLOAT3 startPos{};
-        DirectX::XMFLOAT3 endPos{};
-        DirectX::XMFLOAT3 delta{};
-        DirectX::XMFLOAT3 baseScale{1.0f, 1.0f, 1.0f};
-        float waitAtStart = 0.0f;
-        float waitAtEnd = 0.0f;
-        float travelTime = 1.0f;
-        float timer = 0.0f;
-        bool firstLoop = true;
-        enum class State { WaitStart, MoveForward, WaitEnd, MoveBack } state = State::WaitStart;
-
-        void OnUpdate(World &w, Entity self, float dt) override {
-            auto *t = w.TryGet<Transform>(self);
-            if (!t) return;
-
-            // スケールが他所で変更されないよう固定
-            t->scale = baseScale;
-
-            timer += dt;
-
-            auto lerpVec = [](const DirectX::XMFLOAT3 &a, const DirectX::XMFLOAT3 &b, float r) {
-                return DirectX::XMFLOAT3{
-                    a.x + (b.x - a.x) * r,
-                    a.y + (b.y - a.y) * r,
-                    a.z + (b.z - a.z) * r};
-            };
-
-            switch (state) {
-                case State::WaitStart:
-                    if (timer >= (firstLoop ? waitAtStart : waitAtEnd)) {
-                        timer = 0.0f;
-                        firstLoop = false;
-                        state = State::MoveForward;
-                    }
-                    break;
-                case State::MoveForward: {
-                    float ratio = std::clamp(timer / std::max(travelTime, 0.0001f), 0.0f, 1.0f);
-                    t->position = lerpVec(startPos, endPos, ratio);
-                    if (timer >= travelTime) {
-                        timer = 0.0f;
-                        state = State::WaitEnd;
-                        t->position = endPos;
-                    }
-                    break;
-                }
-                case State::WaitEnd:
-                    if (timer >= waitAtEnd) {
-                        timer = 0.0f;
-                        state = State::MoveBack;
-                    }
-                    break;
-                case State::MoveBack: {
-                    float ratio = std::clamp(timer / std::max(travelTime, 0.0001f), 0.0f, 1.0f);
-                    t->position = lerpVec(endPos, startPos, ratio);
-                    if (timer >= travelTime) {
-                        timer = 0.0f;
-                        state = State::WaitStart;
-                        t->position = startPos;
-                    }
-                    break;
-                }
-            }
-        }
-    };
-
     void CreateMovingObstacle(World &world, const DirectX::XMFLOAT3 &position, int blockType) {
         MovingObstacle obstacle;
         obstacle.startPos = position;
@@ -1031,20 +1097,17 @@ class GameScene : public IScene {
             }
         });
 
-        MeshRenderer renderer;
-        renderer.meshType = MeshType::Cube;
-        renderer.color = DirectX::XMFLOAT3{1.0f, 0.3f, 0.3f}; // 目立つ赤
 
         Transform transform{position, {0.0f, 0.0f, 0.0f}, obstacle.baseScale};
 
         Entity entity = world.Create()
-                              .With<Transform>(transform)
-                              .With<MeshRenderer>(renderer)
-                              .With<WallTag>()
-                              .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
-                              .With<WallCollisionHandler>()
-                              .With<MovingObstacle>(obstacle)
-                              .Build();
+                            .With<Transform>(transform)
+                            .With<Model>(cfg_MovingObstacleFBXPass)
+                            .With<WallTag>()
+                            .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                            .With<WallCollisionHandler>()
+                            .With<MovingObstacle>(obstacle)
+                            .Build();
 
         stageOwnedEntities_.push_back(entity);
     }
@@ -1104,6 +1167,8 @@ class GameScene : public IScene {
         Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::Cube;
+        // 境界壁のデフォルト色を設定（白ではなく設定値）
+        renderer.color = DirectX::XMFLOAT3{cfg_FloorWallR, cfg_FloorWallG, cfg_FloorWallB};
 
         Entity worldwallEntity = world.Create()
                                      .With<Transform>(transform)
@@ -1117,11 +1182,6 @@ class GameScene : public IScene {
     }
 
     void CreateDashBoard(World &world, const DirectX::XMFLOAT3 &position, int blockType) {
-        Transform transform{{position}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
-        MeshRenderer renderer;
-        renderer.meshType = MeshType::Cube;
-        renderer.color = DirectX::XMFLOAT3{0.0f, 0.0f, 1.0f};
-
         DashBoardStatus status;
         status.blockID = blockType;
         float angle = 0.0f;
@@ -1136,11 +1196,18 @@ class GameScene : public IScene {
             }
         });
 
+        DirectX::XMFLOAT3 adjustedPos = position;
+        adjustedPos.y -= 0.5f;
+        Transform transform{{adjustedPos}, {0.0f, angle, 0.0f}, {1.0f, 1.0f, 1.0f}};
+        MeshRenderer renderer;
+        renderer.meshType = MeshType::Cube;
+        renderer.color = DirectX::XMFLOAT3{0.0f, 0.0f, 1.0f};
+
         status.accelAngle = angle;
 
         Entity dashBoardEntity = world.Create()
                                      .With<Transform>(transform)
-                                     .With<MeshRenderer>(renderer)
+                                     .With<Model>(cfg_DashBoardFBXPass)
                                      .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                                      .With<GimmickTag>()
                                      .With<DashBordCollisionHandler>()
@@ -1247,7 +1314,7 @@ class GameScene : public IScene {
     // 遅延リスポーン・カメラリアクション更新
     // =========================================
 
-    void UpdateDelayedRespawn(float dt, World &world) 
+    void UpdateDelayedRespawn(float dt, World &world)
     {
 
 
@@ -1261,6 +1328,7 @@ class GameScene : public IScene {
         respawnTimer_ -= dt;
         if (respawnTimer_ <= 0.0f) {
             ResetPlayerToStart(world, respawnPlayer_, true);
+            StartFadeInNormal(world);
             pendingRespawn_ = false;
             g_respawnPending = false;
             respawnTimer_ = 0.0f;
@@ -1289,6 +1357,19 @@ class GameScene : public IScene {
 
         camera_.Proj = DirectX::XMMatrixPerspectiveFovLH(camera_.fovY, camera_.aspect, camera_.nearZ, camera_.farZ);
         camera_.Update();
+    }
+
+    void UpdateChargeOverlay(World &world, float dt) {
+        if (!world.IsAlive(chargeOverlayEntity_)) return;
+        const float lerpRate = 1.0f - std::exp(-6.0f * std::max(0.0f, dt));
+        chargeOverlayCurrent_ = chargeOverlayCurrent_ + (chargeOverlayTarget_ - chargeOverlayCurrent_) * lerpRate;
+        chargeOverlayCurrent_ = std::clamp(chargeOverlayCurrent_, 0.0f, 1.0f);
+        if (auto *img = world.TryGet<UIImage>(chargeOverlayEntity_)) {
+            img->opacity = chargeOverlayVisible_ ? chargeOverlayCurrent_ : 0.0f;
+        }
+        if (chargeOverlayVisible_ && chargeOverlayCurrent_ <= 0.01f && chargeOverlayTarget_ <= 0.01f) {
+            chargeOverlayVisible_ = false;
+        }
     }
 
     void UpdateShake(float dt, DirectX::XMFLOAT3 &posOffset, DirectX::XMFLOAT3 &targetOffset, DirectX::XMFLOAT3 &upVec) {
@@ -1412,6 +1493,8 @@ class GameScene : public IScene {
     Entity goalEntity_{};
     Entity gimmickEntity_{};
     Entity fadeAnimationEntity_{};
+    Entity deathFadeAnimationEntity_{};
+    Entity chargeOverlayEntity_{};
     DirectX::XMFLOAT3 cameraPosition_ = {0.0f, 30.0f, -7.0f};
     DirectX::XMFLOAT3 currentTarget_ = {0.0f, 0.0f, 0.0f};
     Camera camera_{};
@@ -1444,6 +1527,12 @@ class GameScene : public IScene {
     Entity respawnPlayer_{};
     float respawnTimer_ = 0.0f;
     World *world_ = nullptr;
+    StageAdvanceInfo pendingStageAdvance_{};
+    float stageAdvanceTimer_ = 0.0f;
+    float chargeOverlayCurrent_ = 0.0f;
+    float chargeOverlayTarget_ = 0.0f;
+    bool chargeOverlayVisible_ = false;
+    bool deathFadeVisible_ = false;
 
     DirectX::XMFLOAT3 baseTarget_ = {0.0f, 0.0f, 0.0f};
 };
@@ -1451,6 +1540,15 @@ class GameScene : public IScene {
 // =========================================
 // 衝突ハンドラーの実装（GameScene定義後）
 // =========================================
+
+// GameScene への依存を持たない UI トリガーのラッパー（定義後ならメンバー呼び出し可）
+inline void GameScene_OnChargeStart(World &w) {
+    if (g_GameScene) { g_GameScene->OnChargeStart(w); }
+}
+inline void GameScene_OnChargeRelease(World &w, float chargeAmount01) {
+    if (g_GameScene) { g_GameScene->OnChargeRelease(w, chargeAmount01); }
+}
+
 inline void WallCollisionHandler::OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) {
     if (w.Has<PlayerTag>(other)) {
         DEBUGLOG("壁がプレイヤーと衝突 - カメラシェイク＋遅延リスポーン");
