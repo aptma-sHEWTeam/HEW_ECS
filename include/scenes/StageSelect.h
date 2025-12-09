@@ -88,7 +88,7 @@ class StageSlectScene : public IScene {
     }
 
     void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
-        world.ForEach<GamepadSystem>([&](Entity e, GamepadSystem &padsystem) {
+            world.ForEach<GamepadSystem>([&](Entity e, GamepadSystem &padsystem) {
             // Wire input to UI interaction system once
             world.ForEach<UIInteractionSystem>([&](Entity, UIInteractionSystem &sys) {
                 if (!sys.input_) {
@@ -99,7 +99,7 @@ class StageSlectScene : public IScene {
             // Tick更新
             world.Tick(deltaTime);
 
-            //enterを押したらシーン移動
+            //シーン切り替え
             if (input.GetKeyDown(VK_RETURN)) {
                 DEBUGLOG("Enter pressed!");
                 auto *maneger = ServiceLocator::TryGet<SceneManager>();
@@ -114,6 +114,7 @@ class StageSlectScene : public IScene {
             world.ForEach<StageProgress>([&](Entity e, StageProgress &stats) {
                 const int maxStage = GetAvailableStageCount();
 
+                //ステージ切り替え
                 if (input.GetKeyDown(VK_RIGHT) && stats.selectStage < maxStage) {
                     stats.selectStage++;
                 }
@@ -125,6 +126,13 @@ class StageSlectScene : public IScene {
                     stats.selectStage++;
                 }
                 if (padsystem.GetButton(padsystem.Button_X)) {
+                    stats.selectStage--;
+                }
+
+                if (padsystem.GetButtonDown(padsystem.Button_DPad_Right)) {
+                    stats.selectStage++;
+                }
+                if (padsystem.GetButton(padsystem.Button_DPad_Left)) {
                     stats.selectStage--;
                 }
 
