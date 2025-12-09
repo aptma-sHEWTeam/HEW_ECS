@@ -1192,26 +1192,34 @@ class GameScene : public IScene {
     void CreateDashBoard(World &world, const DirectX::XMFLOAT3 &position, int blockType) {
         DashBoardStatus status;
         status.blockID = blockType;
-        float angle = 0.0f;
+        float csvAngleDeg = 0.0f;
 
         world.ForEach<LoadAngle>([&](Entity, LoadAngle &loadAngle) {
             const int angleIndex = blockType - 30;
             if (angleIndex >= 0 && angleIndex < static_cast<int>(loadAngle.stageAngle.size())) {
                 const auto &row = loadAngle.stageAngle[angleIndex];
                 if (!row.empty()) {
-                    angle = static_cast<float>(row[0]);
+                    csvAngleDeg = static_cast<float>(row[0]);
                 }
             }
         });
 
+        // 角度を正規化（-360～360 -> 0～360）し、ゲームロジック用の加速度角度はCSV仕様そのままを採用
+        while (csvAngleDeg < 0.0f) csvAngleDeg += 360.0f;
+        while (csvAngleDeg >= 360.0f) csvAngleDeg -= 360.0f;
+
+        // 見た目補正: FBXのデフォルト向きが+90度ずれているため、モデルの回転のみ+90度補正
+        const float visualYawDeg = -csvAngleDeg + 90.0f + 180.0f; // 180度反転で見た目を加速方向に合わせる
+
         DirectX::XMFLOAT3 adjustedPos = position;
         adjustedPos.y -= 0.5f;
-        Transform transform{{adjustedPos}, {0.0f, angle, 0.0f}, {1.0f, 1.0f, 1.0f}};
+        Transform transform{{adjustedPos}, {0.0f, visualYawDeg, 0.0f}, {1.0f, 1.0f, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::Cube;
         renderer.color = DirectX::XMFLOAT3{0.0f, 0.0f, 1.0f};
 
-        status.accelAngle = angle;
+        // プレイヤーへの影響角度はCSVそのまま（見た目補正は加えない）
+        status.accelAngle = csvAngleDeg;
 
         Entity dashBoardEntity = world.Create()
                                      .With<Transform>(transform)
