@@ -71,7 +71,7 @@ inline ConfigVar<float> cfg_BakeLightB{"Lighting.Bake", "ColorB", 0.9f};
 inline ConfigVar<float> cfg_FloorWallR{"Stage.Wall.Visual", "FloorWallColorR", 0.5f};
 inline ConfigVar<float> cfg_FloorWallG{"Stage.Wall.Visual", "FloorWallColorG", 0.5f};
 inline ConfigVar<float> cfg_FloorWallB{"Stage.Wall.Visual", "FloorWallColorB", 0.5f};
-inline ConfigVar<float> cfg_WallSize{"Stage.Wall.Geometry", "WallSize", 3.0f};
+inline ConfigVar<float> cfg_WallSize{"Stage.Wall.Geometry", "WallSize", 1.0f};
 
 // FBX�p�X�ݒ�
 inline ConfigVar<std::string> cfg_PlayerFBXPass{"Player.Asset", "PlayerFBXPass", "Assets/Models/Player/obj_player.fbx"};

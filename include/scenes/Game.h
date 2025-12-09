@@ -976,13 +976,10 @@ class GameScene : public IScene {
 
     void CreateWall(World &world, const DirectX::XMFLOAT3 &position) {
         Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
-        MeshRenderer renderer;
-        renderer.meshType = MeshType::Cube;
 
         Entity wallEntity = world.Create()
                                 .With<Transform>(transform)
                                 .With<Model>(cfg_WallFBXPass)
-                                .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
                                 .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                                 .With<WallCollisionHandler>()
@@ -1306,7 +1303,7 @@ class GameScene : public IScene {
     // 遅延リスポーン・カメラリアクション更新
     // =========================================
 
-    void UpdateDelayedRespawn(float dt, World &world) 
+    void UpdateDelayedRespawn(float dt, World &world)
     {
 
 
