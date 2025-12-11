@@ -1027,8 +1027,13 @@ class GameScene : public IScene {
     }
 
     void CreateGoal(World &world, const DirectX::XMFLOAT3 &position) {
+        LoadGoalAngle goalangle;
+        
+        float angle = static_cast<float>(goalangle.goalAngle[0][0]);
+
+
         DirectX::XMFLOAT3 diffPosition = {position.x, position.y - 1.0f, position.z};
-        Transform t{diffPosition, {0, 0, 0}, {1, 1, 1}};
+        Transform t{diffPosition, {0,angle, 0}, {1, 1, 1}};
         MeshRenderer r;
         r.meshType = MeshType::Cube;
         r.color = DirectX::XMFLOAT3{cfg_GoalR, cfg_GoalG, cfg_GoalB};
@@ -1046,6 +1051,7 @@ class GameScene : public IScene {
         Entity e = world.Create()
                        .With<Transform>(t)
                        .With<MeshRenderer>(r)
+                       .With<Model>(cfg_GoalFBXPass)
                        .With<EmissiveMaterial>(emissive)
                        .With<EmissivePulse>(pulse)
                        .With<PointLight>(light)

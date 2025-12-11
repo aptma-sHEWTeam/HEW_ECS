@@ -79,7 +79,7 @@ inline ConfigVar<std::string> cfg_FloorFBXPass{"Stage.Floor.Asset", "FloorFBXPas
 inline ConfigVar<std::string> cfg_WallFBXPass{"Stage.Wall.Asset", "WallFBXPass", "Assets/Models/StageObj/Wall/obj_wall.fbx"};
 inline ConfigVar<std::string> cfg_HalfWallFBXPass{"Stage.HalfWall.Asset", "HalfWallFBXPass", "Assets/Models/StageObj/Wall/obj_wall_half.fbx"};
 inline ConfigVar<std::string> cfg_StartFBXPass{"Stage.Start.Asset", "StartFBXPass", "Assets/Models/StageObj/Start/obj_start.fbx"};
-inline ConfigVar<std::string> cfg_GoalFBXPass{"Stage.Goal.Asset", "GoalFBXPass", "Assets/Models/StageObj/Goal/obj_goal.fbx"};
+inline ConfigVar<std::string> cfg_GoalFBXPass{"Stage.Goal.Asset", "GoalFBXPass", "Assets/Models/StageObj/StageGoal/obj_stagegoal.fbx"};
 inline ConfigVar<std::string> cfg_MovingObstacleFBXPass{"Stage.MovingObstacle.Asset", "MovingObstacleFBXPass", "Assets/Models/StageObj/Move/vehicle.fbx"};
 inline ConfigVar<std::string> cfg_DashBoardFBXPass{"Stage.DashBoard.Asset", "DashBoardFBXPass", "Assets/Models/StageObj/SpeedUp/obj_speedup.fbx"};
 inline ConfigVar<std::string> cfg_AObstacleFBXPass{"Stage.PC.Asset","AObstacle","Assets/Models/StageObj/PC/PC.fbx"};
