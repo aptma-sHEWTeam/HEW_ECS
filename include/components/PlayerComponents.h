@@ -183,6 +183,7 @@ struct PlayerMovement : Behaviour {
         }
 
         //タイマーが0になるまで動かない
+        bool startBlocked = false;
         w.ForEach<GameStatus>([&](Entity e, GameStatus &stats) {
             if (stats.StartChack == false) {
                 v->velocity = {0.0f, 0.0f};
@@ -193,9 +194,10 @@ struct PlayerMovement : Behaviour {
                 isCharging_ = false;
                 wasCharging_ = false;
                 wasChargingPrev_ = false;
-                return;
+                startBlocked = true;
             }
         });
+        if (startBlocked) { restoreCollisionRadius(); return; }
 
         v->speed = PlayerVelocity::cfg_Speed;
         minChargeSpeedFactor = cfg_MinChargeSpeed;
@@ -334,6 +336,36 @@ struct PlayerGuide : Behaviour {
         }
     }
 };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
