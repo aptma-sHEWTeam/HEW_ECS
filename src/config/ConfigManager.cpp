@@ -26,6 +26,8 @@ void ConfigManager::Initialize(const std::string& assetPath) {
 
     // Always load TOML regardless of build type
     LoadTOML();
+    // If config.toml was missing or some vars were missing, m_IsDirty will be true.
+    // In that case we must create/save config.toml unconditionally so it always exists.
     if (m_IsDirty) {
         SaveTOML();
         m_IsDirty = false;
@@ -37,10 +39,10 @@ void ConfigManager::Update() {
 
     fs::path tomlPath = fs::path(m_AssetPath) / "Settings/config.toml";
     if (!fs::exists(tomlPath)) {
-        if (m_IsDirty) { // If we have vars but no file, create it
-             SaveTOML();
-             m_IsDirty = false;
-        }
+        // If the config file is missing at any time, recreate it from current vars.
+        m_IsDirty = true;
+        SaveTOML();
+        m_IsDirty = false;
         return;
     }
 
@@ -97,7 +99,9 @@ void ConfigManager::LoadTOML() {
     auto resolved = FindConfigToml(preferred);
     if (!resolved) {
         DEBUGLOG_WARNING("[ConfigManager] config.toml が見つかりませんでした。現在の作業ディレクトリ付近を探索しましたが失敗しました。");
-        m_IsDirty = true; // File doesn't exist, so we need to write defaults
+        // Mark dirty so caller can decide to save defaults. Do not early-save here to
+        // keep responsibilities of loading vs saving separate.
+        m_IsDirty = true;
         return;
     }
     fs::path tomlPath = *resolved;
@@ -105,7 +109,11 @@ void ConfigManager::LoadTOML() {
     m_AssetPath = tomlPath.parent_path().parent_path().string();
 
     std::ifstream file(tomlPath);
-    if (!file.is_open()) return;
+    if (!file.is_open()) {
+        // File path exists but couldn't be opened; mark dirty so we can try to recreate it.
+        m_IsDirty = true;
+        return;
+    }
 
     std::string line;
     std::string currentSection = "";

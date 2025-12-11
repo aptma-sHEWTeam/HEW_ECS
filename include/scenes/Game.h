@@ -58,6 +58,8 @@ inline static ConfigVar<float> cfg_GoalDistance{"Distance.Goal",  "GoalDistance"
 inline static ConfigVar<float> cfg_SlowDirection{"Direction.Slow","SlowDistance", 0.2f};
 inline static ConfigVar<float> cfg_StickZoomAmount{"Camera.Stick", "StickZoomAmount", 0.07f};
 inline static ConfigVar<float> cfg_StickZoomResponse{"Camera.Stick", "StickZoomResponse", 9.0f};
+// 追加: ステージクリア待機時間
+inline static ConfigVar<float> cfg_StageClearWait{"UI.StageClear", "WaitSeconds", 2.0f};
 
 /**
  * @class GameScene
@@ -76,6 +78,11 @@ class GameScene : public IScene {
 
         // このシーンインスタンスへのグローバルポインタを設定
         g_GameScene = this;
+
+        // ステージクリア状態の初期化
+        stageClearActive_ = false;
+        stageClearTimer_ = 0.0f;
+        stageClearTextEntity_ = {};
 
         // ステージ進行情報が無ければ生成
         bool hasStageProgress = false;
@@ -246,6 +253,21 @@ class GameScene : public IScene {
                 deltaTime = 0.0f;
             }
         });
+
+        // ステージクリア待機中の処理
+        if (stageClearActive_) {
+            stageClearTimer_ += deltaTime;
+            if (auto *txt = world.TryGet<UIText>(stageClearTextEntity_)) {
+                txt->text = L"ステージクリア！";
+            }
+            // 一定時間経過でステージセレクトへ
+            if (stageClearTimer_ >= cfg_StageClearWait.Get()) {
+                if (auto *mgr = ServiceLocator::TryGet<SceneManager>()) {
+                    mgr->ChangeScene("StageSelect", world);
+                    return;
+                }
+            }
+        }
 
         // 目標(ゴール)接近時のスロー演出用タイムスケール
         float timeScale = 1.0f;
@@ -598,7 +620,22 @@ class GameScene : public IScene {
                 const int nextRoomIndex = sp.currentRoom + 1;
                 auto nextRoomPath = ResolveStageRoomCsvPath(sp.currentStage, nextRoomIndex);
                 if (!nextRoomPath) {
-                    DEBUGLOG_WARNING("[StageCreate] Stage" + std::to_string(sp.currentStage) + "/room" + std::to_string(nextRoomIndex) + ".csv が見つかりません。進行をキャンセルします");
+                    DEBUGLOG_WARNING("[StageCreate] Stage" + std::to_string(sp.currentStage) + "/room" + std::to_string(nextRoomIndex) + ".csv が見つかりません。ステージクリア扱いにします");
+
+                    // ステージクリア演出: テキスト表示して一定時間後にステージセレクトへ
+                    stageClearActive_ = true;
+                    stageClearTimer_ = 0.0f;
+
+                    // タイマー停止（ゲーム進行用）
+                    world.ForEach<GameStatus>([](Entity, GameStatus &stats) {
+                        stats.timerRunning = false;
+                    });
+
+                    if (world.IsAlive(stageClearTextEntity_)) {
+                        if (auto *txt = world.TryGet<UIText>(stageClearTextEntity_)) {
+                            txt->text = L"ステージクリア！";
+                        }
+                    }
                     return;
                 }
 
@@ -1558,6 +1595,11 @@ class GameScene : public IScene {
     Entity fadeAnimationEntity_{};
     Entity deathFadeAnimationEntity_{};
     Entity chargeOverlayEntity_{};
+    // 追加: ステージクリア用テキストエンティティと状態
+    Entity stageClearTextEntity_{};
+    bool stageClearActive_ = false;
+    float stageClearTimer_ = 0.0f;
+
     DirectX::XMFLOAT3 cameraPosition_ = {0.0f, 30.0f, -7.0f};
     DirectX::XMFLOAT3 currentTarget_ = {0.0f, 0.0f, 0.0f};
     Camera camera_{};

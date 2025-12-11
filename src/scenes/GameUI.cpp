@@ -237,6 +237,24 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                              .Build();
     ownedEntities_.push_back(pauseEntity);
 
+    // 追加: ステージクリア表示（最初は非表示＝空文字）
+    UITransform clearTransform;
+    clearTransform.position = {0.0f, 140.0f}; // 画面中央より少し下
+    clearTransform.size = {900.0f, 140.0f};
+    clearTransform.anchor = {0.5f, 0.5f};
+    clearTransform.pivot = {0.5f, 0.5f};
+
+    UIText clearText{L""};
+    clearText.color = {1.0f, 1.0f, 0.2f, 1.0f};
+    clearText.formatId = "pause"; // 大きい中央寄せフォントを流用
+
+    Entity clearEntity = world.Create()
+                           .With<UITransform>(clearTransform)
+                           .With<UIText>(clearText)
+                           .Build();
+    ownedEntities_.push_back(clearEntity);
+    stageClearTextEntity_ = clearEntity;
+
     Entity uiUpdater = world.Create()
                            .With<GameUIUpdater>()
                            .Build();
