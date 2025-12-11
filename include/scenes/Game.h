@@ -53,13 +53,13 @@
 #include "config/ConfigVar.h"
 
 //Config Var
-inline static ConfigVar<float> cfg_ChargingFade{"Animation.Fade", "ChargingFade", 0.4f};
-inline static ConfigVar<float> cfg_GoalDistance{"Distance.Goal",  "GoalDistance", 2.0f};
-inline static ConfigVar<float> cfg_SlowDirection{"Direction.Slow","SlowDistance", 0.2f};
-inline static ConfigVar<float> cfg_StickZoomAmount{"Camera.Stick", "StickZoomAmount", 0.07f};
-inline static ConfigVar<float> cfg_StickZoomResponse{"Camera.Stick", "StickZoomResponse", 9.0f};
+// チャージ中オーバーレイのフェード量（0～1）は Animation.h の cfg_ChargingFade を参照
+inline static ConfigVar<float> cfg_GoalDistance{"Distance.Goal",  "GoalDistance", 2.0f, "ゴール接近スロー演出を開始する距離"};
+inline static ConfigVar<float> cfg_SlowDirection{"Direction.Slow","SlowDistance", 0.2f, "ゴール接近時に適用するタイムスケール"};
+inline static ConfigVar<float> cfg_StickZoomAmount{"Camera.Stick", "StickZoomAmount", 0.07f, "チャージ中のカメラズーム量"};
+inline static ConfigVar<float> cfg_StickZoomResponse{"Camera.Stick", "StickZoomResponse", 9.0f, "カメラズーム追従速度"};
 // 追加: ステージクリア待機時間
-inline static ConfigVar<float> cfg_StageClearWait{"UI.StageClear", "WaitSeconds", 2.0f};
+inline static ConfigVar<float> cfg_StageClearWait{"UI.StageClear", "WaitSeconds", 2.0f, "ステージクリア表示後にシーン遷移するまでの待機時間"};
 
 /**
  * @class GameScene

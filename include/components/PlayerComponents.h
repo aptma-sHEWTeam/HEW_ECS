@@ -37,13 +37,13 @@ void GameScene_OnChargeRelease(World &w, float chargeAmount01);
 #include "config/ConfigVar.h"
 
 // ConfigVar (重複排除)
-inline static ConfigVar<float> cfg_MinChargeSpeed{"Player.Charge", "MinChargeSpeedFactor", 0.4f};
-inline static ConfigVar<float> cfg_ChargeMaxTime{"Player.Charge", "ChargeMaxTime", 0.2f};
-inline static ConfigVar<float> cfg_ReleaseThreshold{"Player.Charge", "ReleaseThreshold", 0.3f};
-inline static ConfigVar<float> cfg_ChargeMoveAmount{"Player.Charge", "ChargeMoveAmount", 0.025f};
-inline static ConfigVar<float> cfg_LimitX{"Player.Bounds", "LimitX", 15.0f};
-inline static ConfigVar<float> cfg_LimitY{"Player.Bounds", "LimitY", 15.0f};
-inline static ConfigVar<float> cfg_AccelerateMagnification{"Player.Movement", "AccelerateMagnification", 1.5f};
+inline static ConfigVar<float> cfg_MinChargeSpeed{"Player.Charge", "MinChargeSpeedFactor", 0.4f, "チャージ中の最小移動速度倍率"};
+inline static ConfigVar<float> cfg_ChargeMaxTime{"Player.Charge", "ChargeMaxTime", 0.2f, "最大チャージ時間（秒）"};
+inline static ConfigVar<float> cfg_ReleaseThreshold{"Player.Charge", "ReleaseThreshold", 0.3f, "チャージ開始と解放を判定するスティック入力しきい値"};
+inline static ConfigVar<float> cfg_ChargeMoveAmount{"Player.Charge", "ChargeMoveAmount", 0.025f, "チャージ中に移動させる量の係数"};
+inline static ConfigVar<float> cfg_LimitX{"Player.Bounds", "LimitX", 15.0f, "プレイヤー移動範囲のX方向上限"};
+inline static ConfigVar<float> cfg_LimitY{"Player.Bounds", "LimitY", 15.0f, "プレイヤー移動範囲のY方向上限"};
+inline static ConfigVar<float> cfg_AccelerateMagnification{"Player.Movement", "AccelerateMagnification", 1.5f, "チャージショット時の加速倍率"};
 
 namespace PlayerConstants {
 constexpr int ANGLE_HISTORY_SIZE = 30;

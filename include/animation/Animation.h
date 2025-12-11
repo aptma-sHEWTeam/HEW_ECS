@@ -7,6 +7,7 @@
 #include <vector>
 #include <cmath>
 #include <algorithm>
+#include "config/ConfigVar.h"
 
 /**
  * @file Animation.h
@@ -396,3 +397,6 @@ struct SpriteSheetAnimation : Behaviour
     }
 
 };
+
+// チャージ中オーバーレイ用フェード係数
+inline static ConfigVar<float> cfg_ChargingFade{"Animation.Fade", "ChargingFade", 0.4f, "チャージ中オーバーレイのフェード量（0～1）"};
