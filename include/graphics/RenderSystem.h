@@ -251,6 +251,7 @@ struct RenderSystem {
         ps_.Reset();
         layout_.Reset();
         vsCb_.Reset();
+        skinningCb_.Reset();
         psCb_.Reset();
         psLightCb_.Reset();
         rasterState_.Reset();
@@ -300,6 +301,13 @@ struct RenderSystem {
         DirectX::XMFLOAT3 nrm;
         DirectX::XMFLOAT3 tan;
         DirectX::XMFLOAT3 bitan;
+        uint32_t boneIndices[4];
+        float boneWeights[4];
+    };
+
+    struct SkinningConstants {
+        DirectX::XMFLOAT4X4 boneTransforms[128];
+        DirectX::XMFLOAT4 skinDebug; // x:weightSum<=0 flag
     };
 
     // DirectX11リソース
@@ -307,6 +315,8 @@ struct RenderSystem {
     Microsoft::WRL::ComPtr<ID3D11PixelShader> ps_;
     Microsoft::WRL::ComPtr<ID3D11InputLayout> layout_;
     Microsoft::WRL::ComPtr<ID3D11Buffer> vsCb_;
+    Microsoft::WRL::ComPtr<ID3D11Buffer> skinningCb_;
+    DirectX::XMFLOAT4 skinDebugCPU_{0, 0, 0, 0}; // デバッグ用
     Microsoft::WRL::ComPtr<ID3D11Buffer> psCb_;
     Microsoft::WRL::ComPtr<ID3D11Buffer> psLightCb_;
     Microsoft::WRL::ComPtr<ID3D11RasterizerState> rasterState_;
@@ -325,38 +335,82 @@ struct RenderSystem {
     bool CompileShaders(GfxDevice &gfx) {
         const char *VS = R"(
             cbuffer PerObject : register(b0) {
-          float4x4 gWorld;
-         float4x4 gWVP;
-       float4 gUVTransform;
-     };
-
-     struct VSIn {
-      float3 pos : POSITION;
-                float2 tex : TEXCOORD;
-      float3 nrm : NORMAL;
-      float3 tan : TANGENT;
-       float3 bitan : BITANGENT;
-         };
-
-            struct VSOut {
-         float4 pos : SV_POSITION;
-        float2 tex : TEXCOORD;
-       float3 nrm : NORMAL;
-       float3 tan : TANGENT;
-     float3 bitan : BITANGENT;
-        float3 worldPos : WORLDPOS;
+                float4x4 gWorld;
+                float4x4 gWVP;
+                float4 gUVTransform;
             };
 
-    VSOut main(VSIn i) {
-         VSOut o;
-           o.pos = mul(float4(i.pos, 1.0f), gWVP);
-        o.worldPos = mul(float4(i.pos, 1.0f), gWorld).xyz;
-         o.nrm = mul(i.nrm, (float3x3)gWorld);
-        o.tan = mul(i.tan, (float3x3)gWorld);
-           o.bitan = mul(i.bitan, (float3x3)gWorld);
-         o.tex = i.tex * gUVTransform.zw + gUVTransform.xy;
-    return o;
-       }
+            cbuffer Skinning : register(b1) {
+                float4x4 gBoneTransforms[128];
+                float4 gSkinDebug; // x:weightSum<=0 flag
+            };
+
+            struct VSIn {
+                float3 pos : POSITION;
+                float2 tex : TEXCOORD;
+                float3 nrm : NORMAL;
+                float3 tan : TANGENT;
+                float3 bitan : BITANGENT;
+                uint4 boneIndices : BLENDINDICES;
+                float4 boneWeights : BLENDWEIGHT;
+            };
+
+            struct VSOut {
+                float4 pos : SV_POSITION;
+                float2 tex : TEXCOORD;
+                float3 nrm : NORMAL;
+                float3 tan : TANGENT;
+                float3 bitan : BITANGENT;
+                float3 worldPos : WORLDPOS;
+            };
+
+            VSOut main(VSIn i) {
+                VSOut o;
+
+                float3 posL = i.pos;
+                float3 nrmL = i.nrm;
+                float3 tanL = i.tan;
+                float3 bitanL = i.bitan;
+
+                // スキニング計算
+                float weights[4] = {i.boneWeights.x, i.boneWeights.y, i.boneWeights.z, i.boneWeights.w};
+                uint indices[4] = {i.boneIndices.x, i.boneIndices.y, i.boneIndices.z, i.boneIndices.w};
+
+                // ウェイトの合計を確認（0ならスキニングしない）
+                float weightSum = weights[0] + weights[1] + weights[2] + weights[3];
+                // gSkinDebug は定数バッファの値であり、シェーダー内で書き換え不可のため、代わりにローカル変数で保持
+                float dbgZeroWeight = (weightSum <= 0.001f) ? 1.0f : 0.0f;
+                
+                if (weightSum > 0.001f) {
+                    float3 p = 0.0f;
+                    float3 n = 0.0f;
+                    float3 t = 0.0f;
+                    float3 b = 0.0f;
+
+                    [unroll]
+                    for(int j=0; j<4; ++j) {
+                        float w = weights[j];
+                        if (w > 0.0f) {
+                            p += mul(float4(posL, 1.0f), gBoneTransforms[indices[j]]).xyz * w;
+                            n += mul(nrmL, (float3x3)gBoneTransforms[indices[j]]) * w;
+                            t += mul(tanL, (float3x3)gBoneTransforms[indices[j]]) * w;
+                            b += mul(bitanL, (float3x3)gBoneTransforms[indices[j]]) * w;
+                        }
+                    }
+                    posL = p;
+                    nrmL = normalize(n);
+                    tanL = normalize(t);
+                    bitanL = normalize(b);
+                }
+
+                o.pos = mul(float4(posL, 1.0f), gWVP);
+                o.worldPos = mul(float4(posL, 1.0f), gWorld).xyz;
+                o.nrm = mul(nrmL, (float3x3)gWorld);
+                o.tan = mul(tanL, (float3x3)gWorld);
+                o.bitan = mul(bitanL, (float3x3)gWorld);
+                o.tex = i.tex * gUVTransform.zw + gUVTransform.xy;
+                return o;
+            }
         )";
 
         const char *PS = R"(
@@ -584,9 +638,11 @@ struct RenderSystem {
             {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
             {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
             {"TANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
-            {"BITANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}};
+            {"BITANGENT", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
+            {"BLENDINDICES", 0, DXGI_FORMAT_R32G32B32A32_UINT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
+            {"BLENDWEIGHT", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0}};
 
-        HRESULT hr = gfx.Dev()->CreateInputLayout(il, 5, vsBlob_->GetBufferPointer(), vsBlob_->GetBufferSize(), layout_.GetAddressOf());
+        HRESULT hr = gfx.Dev()->CreateInputLayout(il, 7, vsBlob_->GetBufferPointer(), vsBlob_->GetBufferSize(), layout_.GetAddressOf());
         if (FAILED(hr)) {
             DEBUGLOG_ERROR("[RenderSystem] 入力レイアウトの作成失敗 (HRESULT: 0x" + std::to_string(hr) + ")");
             return false;
@@ -612,6 +668,14 @@ struct RenderSystem {
         HRESULT hr = gfx.Dev()->CreateBuffer(&cbd, nullptr, vsCb_.GetAddressOf());
         if (FAILED(hr)) {
             DEBUGLOG_ERROR("[RenderSystem] VS定数バッファの作成失敗 (HRESULT: 0x" + std::to_string(hr) + ")");
+            return false;
+        }
+
+        // Skinning 定数バッファ
+        cbd.ByteWidth = sizeof(SkinningConstants);
+        hr = gfx.Dev()->CreateBuffer(&cbd, nullptr, skinningCb_.GetAddressOf());
+        if (FAILED(hr)) {
+            DEBUGLOG_ERROR("[RenderSystem] Skinning定数バッファの作成失敗 (HRESULT: 0x" + std::to_string(hr) + ")");
             return false;
         }
 
@@ -1016,7 +1080,7 @@ struct RenderSystem {
             // ワールド行列の計算
             DirectX::XMMATRIX worldMatrix = CalculateWorldMatrix(w, e, *t, worldCache);
 
-            // 定数バッファの更新
+                // 定数バッファの更新
             UpdateVSConstants(gfx, worldMatrix, cam, mc.uvOffset, mc.uvScale);
             UpdatePSConstants(gfx,
                               mc.color,
@@ -1028,6 +1092,44 @@ struct RenderSystem {
                               mc.reflectance,
                               mc.reflectionColor,
                               mc.specularEccentricity);
+
+            // スキニング定数バッファの更新とバインド
+            if (mc.isSkinned) {
+                SkinningConstants skCbuf;
+                // ボーン変換行列をコピー (最大128個まで) - 転置しない
+                size_t boneCount = std::min(mc.skeleton.boneTransforms.size(), size_t(128));
+                for (size_t i = 0; i < boneCount; ++i) {
+                    skCbuf.boneTransforms[i] = mc.skeleton.boneTransforms[i];
+                }
+                skCbuf.skinDebug = skinDebugCPU_;
+                // 足りない分は単位行列で埋める（念のため）
+                for (size_t i = boneCount; i < 128; ++i) {
+                    DirectX::XMStoreFloat4x4(&skCbuf.boneTransforms[i], DirectX::XMMatrixIdentity());
+                }
+                
+                gfx.Ctx()->UpdateSubresource(skinningCb_.Get(), 0, nullptr, &skCbuf, 0, 0);
+                gfx.Ctx()->VSSetConstantBuffers(1, 1, skinningCb_.GetAddressOf());
+
+#ifdef _DEBUG
+                static int s_skinningLogCount = 0;
+                if (s_skinningLogCount < 3) {
+                    DEBUGLOG("Skinning debug: boneCount=" + std::to_string(boneCount) +
+                             ", skeletonSize=" + std::to_string(mc.skeleton.bones.size()) +
+                             ", bone0 m41,m42,m43=" +
+                             std::to_string(mc.skeleton.boneTransforms.empty() ? 0.0f : mc.skeleton.boneTransforms[0]._41) + "," +
+                             std::to_string(mc.skeleton.boneTransforms.empty() ? 0.0f : mc.skeleton.boneTransforms[0]._42) + "," +
+                             std::to_string(mc.skeleton.boneTransforms.empty() ? 0.0f : mc.skeleton.boneTransforms[0]._43) +
+                             ", dbgZeroWeight=" + std::to_string(skinDebugCPU_.x));
+                    s_skinningLogCount++;
+                }
+#endif
+            } else {
+                // スキニングなしの場合は単位行列などをセットするか、何もしない
+                // シェーダー側でウェイト0なら計算されないので、バインドしなくてもゴミ値で計算されるだけだが、念のため単位行列をセットしておくと安全
+                // ここではパフォーマンス優先でバインドしない（ウェイト0で保護されている前提）
+                // ただし、もし前の描画でバインドされていたら？ -> シェーダーが同じならスロットは残るかもしれないが、
+                // 今回のシェーダーはウェイトの合計を見て分岐しているので大丈夫なはず。
+            }
 
             // エミッシブ/マテリアルの設定
             RenderingSystem::GetInstance().SetMaterialForEntity(gfx.Ctx(), e, w);

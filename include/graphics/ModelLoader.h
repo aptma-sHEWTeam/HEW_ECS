@@ -14,6 +14,9 @@ public:
     // FBX/OBJなどをロードし、ノード階層を保持したままメッシュとローカルTRSを返す
     static std::vector<ModelPrefabNode> LoadModel(const std::string& filePath);
 
+    // アニメーションのみをロードする
+    static std::vector<ModelComponent::AnimationClip> LoadAnimation(const std::string& filePath);
+
 private:
     static void ProcessNode(
         const aiNode* node,

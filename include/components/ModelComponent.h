@@ -39,4 +39,46 @@ struct ModelComponent {
     // UVオフセットとスケール (将来的に必要に応じて拡張)
     DirectX::XMFLOAT2 uvOffset{ 0.0f, 0.0f };
     DirectX::XMFLOAT2 uvScale{ 1.0f, 1.0f };
+
+    // スキニングアニメーション用データ
+    struct Bone {
+        std::string name;
+        DirectX::XMFLOAT4X4 offsetMatrix; // メッシュ空間からボーン空間への変換
+        int parentIndex = -1;
+    };
+
+    struct Skeleton {
+        std::vector<Bone> bones;
+        std::vector<DirectX::XMFLOAT4X4> boneTransforms; // 現在のボーン変換行列 (アニメーション適用後)
+    };
+
+    Skeleton skeleton;
+    bool isSkinned = false; // スキニングが有効かどうか
+    
+    // アニメーションデータ
+    struct Keyframe {
+        float time;
+        DirectX::XMFLOAT3 position;
+        DirectX::XMFLOAT4 rotation; // Quaternion
+        DirectX::XMFLOAT3 scale;
+    };
+
+    struct BoneAnimation {
+        std::string boneName;
+        int boneIndex;
+        std::vector<Keyframe> keyframes;
+        bool hasPositionKeys = false;
+        bool hasRotationKeys = false;
+        bool hasScaleKeys = false;
+    };
+
+    struct AnimationClip {
+        std::string name;
+        float duration;
+        float ticksPerSecond;
+        std::vector<BoneAnimation> boneAnimations;
+    };
+    
+    // このモデルが持つアニメーションのリスト (別ファイルからロードする場合もある)
+    std::vector<AnimationClip> animations;
 };

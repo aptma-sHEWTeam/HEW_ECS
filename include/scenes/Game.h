@@ -51,6 +51,8 @@
 #include <comdef.h>
 #include "animation/Animation.h"
 #include "config/ConfigVar.h"
+#include "graphics/ModelLoader.h"
+#include "components/Animator.h"
 
 //Config Var
 // チャージ中オーバーレイのフェード量（0～1）は Animation.h の cfg_ChargingFade を参照
@@ -591,17 +593,96 @@ class GameScene : public IScene {
         float s = cfg_PlayerScale;
         Transform transform{{0.0f, 0.0f, cfg_PlayerStartY}, {0.0f, 0.0f, 0.0f}, {s, s, s}};
 
-        Entity player = world.Create()
-                            .With<Transform>(transform)
-                            .With<Model>(cfg_PlayerFBXPass)
-                            .With<PlayerTag>()
-                            .With<PlayerVelocity>()
-                            .With<PlayerMovement>()
-                            .With<PlayerStatus>()
-                            .With<PlayerGuide>()
-                            .With<CollisionSphere>(0.4f)
-                            .With<PlayerCollisionHandler>()
-                            .Build();
+        // ユーザー指定のパスでモデルとアニメーションをロード
+        // "Assets/Models/Player/obj_player.fbx"
+        // "Assets/Models/Player/anm_fry.fbx"
+        std::string modelPath = "Assets/Models/Player/obj_player.fbx";
+        std::string animPath = "Assets/Models/Player/anm_fry.fbx";
+
+        std::vector<ModelPrefabNode> nodes = ModelLoader::LoadModel(modelPath);
+        std::vector<ModelComponent::AnimationClip> clips = ModelLoader::LoadAnimation(animPath);
+        if (clips.empty()) {
+            DEBUGLOG_WARNING("No animation clips loaded from " + animPath + ". Fallback to model file animations.");
+            auto fallbackClips = ModelLoader::LoadAnimation(modelPath);
+            if (!fallbackClips.empty()) {
+                clips = std::move(fallbackClips);
+            } else {
+                DEBUGLOG_WARNING("No animation clips found in model file either: " + modelPath);
+            }
+        }
+
+        // ノードが見つからない場合のフォールバック（既存ロジック）
+        if (nodes.empty()) {
+            DEBUGLOG_ERROR("Failed to load player model for verification. Fallback to default.");
+            Entity player = world.Create()
+                                .With<Transform>(transform)
+                                .With<Model>(cfg_PlayerFBXPass)
+                                .With<PlayerTag>()
+                                .With<PlayerVelocity>()
+                                .With<PlayerMovement>()
+                                .With<PlayerStatus>()
+                                .With<PlayerGuide>()
+                                .With<CollisionSphere>(0.4f)
+                                .With<PlayerCollisionHandler>()
+                                .Build();
+            playerEntity_ = player;
+            ownedEntities_.push_back(player);
+            return;
+        }
+
+        // メッシュを持つ最初のノードをプレイヤーとする（通常は1つあるいはルート）
+        // ノード階層がある場合、ルートにTransformやPlayerコンポーネントをつけ、
+        // 子エンティティを作るべきだが、既存コードは単一エンティティ前提。
+        // ここでは「メッシュを持つ最初のノード」に全コンポーネントをつけるアプローチをとる。
+        // もしメッシュが子ノードにあるなら、親ノード（ルート）を作る必要があるかもしれないが、
+        // 今回の検証では簡易的に処理する。
+        
+        // メッシュノードを探す
+        ModelPrefabNode* targetNode = nullptr;
+        for (auto& node : nodes) {
+            if (node.hasMesh) {
+                targetNode = &node;
+                break;
+            }
+        }
+        if (!targetNode && !nodes.empty()) targetNode = &nodes[0]; // メッシュなくてもルートを使う
+
+        // エンティティ作成
+        Entity player = world.CreateEntity();
+        
+        world.Add<Transform>(player, transform);
+
+        // ModelComponent (Mesh & Skeleton)
+        if (targetNode && targetNode->hasMesh) {
+            world.Add<ModelComponent>(player, targetNode->component);
+
+             // Animator
+            if (targetNode->component.isSkinned) {
+                Animator animator;
+                for (const auto& clip : clips) {
+                    animator.AddAnimation(clip);
+                }
+                // 最初のアニメーションを再生
+                if (!clips.empty()) {
+                    animator.Play(clips[0].name, true);
+                    DEBUGLOG("Playing animation: " + clips[0].name);
+                } else {
+                    DEBUGLOG_WARNING("No animation clips loaded.");
+                }
+                world.Add<Animator>(player, animator);
+            }
+        } else {
+             world.Add<Model>(player, modelPath);
+        }
+
+        // Player固有コンポーネント
+        world.Add<PlayerTag>(player);
+        world.Add<PlayerVelocity>(player);
+        world.Add<PlayerMovement>(player);
+        world.Add<PlayerStatus>(player);
+        world.Add<PlayerGuide>(player);
+        world.Add<CollisionSphere>(player, 0.4f);
+        world.Add<PlayerCollisionHandler>(player);
 
         playerEntity_ = player;
         ownedEntities_.push_back(player);

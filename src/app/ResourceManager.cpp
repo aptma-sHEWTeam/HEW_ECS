@@ -6,7 +6,6 @@ const std::vector<ModelPrefabNode>& ResourceManager::GetModel(const std::string&
 
     auto it = modelCache_.find(filePath);
     if (it != modelCache_.end()) {
-        DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "Model cache hit: " + filePath);
         return it->second;
     }
 

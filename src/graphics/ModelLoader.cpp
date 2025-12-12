@@ -1,4 +1,5 @@
 #include "graphics/ModelLoader.h"
+#include "app/DebugLog.h"
 #include "app/ServiceLocator.h"
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
@@ -7,6 +8,10 @@
 #include <filesystem>
 #include <algorithm>
 #include <cctype>
+#include <map>
+#include <unordered_map>
+#include <cmath>
+#include <limits>
 
 // 頂点構造体
 struct SimpleVertex {
@@ -15,6 +20,8 @@ struct SimpleVertex {
     DirectX::XMFLOAT3 Normal;
     DirectX::XMFLOAT3 Tangent;
     DirectX::XMFLOAT3 Bitangent;
+    uint32_t BoneIndices[4] = {0, 0, 0, 0};
+    float BoneWeights[4] = {0.0f, 0.0f, 0.0f, 0.0f};
 };
 
 namespace {
@@ -40,7 +47,118 @@ DirectX::XMFLOAT3 QuaternionToEulerDeg(const DirectX::XMVECTOR& q) {
         XMConvertToDegrees(eulerRad.y),
         XMConvertToDegrees(eulerRad.z) };
 }
+
+// Assimp のテクスチャパスを正規化して実際のファイルパスに解決する
+static std::string ResolveTexturePath(const std::string& rawPath, const std::string& directory)
+{
+    if (rawPath.empty()) return {};
+
+    std::string path = rawPath;
+
+    // バックスラッシュをスラッシュに統一
+    std::replace(path.begin(), path.end(), '\\', '/');
+
+    // パス前後の空白を削る
+    while (!path.empty() && std::isspace(static_cast<unsigned char>(path.front()))) path.erase(path.begin());
+    while (!path.empty() && std::isspace(static_cast<unsigned char>(path.back()))) path.pop_back();
+
+    // 絶対パス or ドライブレター付きならそのまま
+    if (path.size() > 1 && path[1] == ':') {
+        return path;
+    }
+    if (!path.empty() && (path[0] == '/' || path[0] == '\\')) {
+        return path;
+    }
+
+    // カレントとモデルディレクトリの両方を試す
+    std::filesystem::path rel = path;
+    if (std::filesystem::exists(rel)) {
+        return std::filesystem::canonical(rel).string();
+    }
+
+    std::filesystem::path dir = directory;
+    std::filesystem::path underModel = dir / rel;
+    if (std::filesystem::exists(underModel)) {
+        return std::filesystem::canonical(underModel).string();
+    }
+
+    // モデルディレクトリ直下の Texture, Textures, textures などもよくある
+    static const char* kTexDirs[] = { "", "Texture", "Textures", "texture", "textures", "Tex", "tex" };
+    for (const char* sub : kTexDirs) {
+        std::filesystem::path candidate = dir;
+        if (sub && *sub) candidate /= sub;
+        candidate /= rel.filename();
+        if (std::filesystem::exists(candidate)) {
+            return std::filesystem::canonical(candidate).string();
+        }
+    }
+
+    return {};
+}
+
+// FBXインポートで付与される "$AssimpFbx$_Translation" などのノード名を元のボーン名に戻す
+static std::string SanitizeFbxChannelName(const std::string& rawName) {
+    std::string name = rawName;
+    const std::string marker = "_$AssimpFbx$_";
+    size_t pos = name.find(marker);
+    if (pos != std::string::npos) {
+        name.erase(pos); // 以降を丸ごと削る（PreRotation, PostRotation, Translation等すべて切り捨て）
+    }
+    return name;
+}
+
+static ModelComponent::Keyframe& FindOrCreateKeyframe(std::vector<ModelComponent::Keyframe>& frames, float time) {
+    constexpr float EPS = 1e-4f;
+    for (auto& f : frames) {
+        if (std::fabs(f.time - time) < EPS) {
+            return f;
+        }
+    }
+
+    ModelComponent::Keyframe kf{};
+    kf.time = time;
+    const float nan = std::numeric_limits<float>::quiet_NaN();
+    kf.position = {nan, nan, nan};
+    kf.rotation = {nan, nan, nan, nan};
+    kf.scale = {nan, nan, nan};
+    frames.push_back(kf);
+    return frames.back();
+}
 } // namespace
+
+// ノードツリーから「ボーン名 -> 親ボーン名」を収集（サフィックス除去後）
+static void CollectBoneParents(const aiNode* node,
+                               const std::unordered_set<std::string>& boneNames,
+                               std::unordered_map<std::string, std::string>& outParent) {
+    if (!node) return;
+    std::string name = SanitizeFbxChannelName(node->mName.C_Str());
+    std::string parentName;
+    if (node->mParent) {
+        parentName = SanitizeFbxChannelName(node->mParent->mName.C_Str());
+    }
+
+    if (boneNames.count(name)) {
+        if (!parentName.empty() && parentName != name) {
+            outParent[name] = parentName;
+        }
+    }
+
+    for (unsigned int i = 0; i < node->mNumChildren; ++i) {
+        CollectBoneParents(node->mChildren[i], boneNames, outParent);
+    }
+}
+
+// ノード名を収集してインデックス化（メッシュが無いFBXでも名前解決するため）
+static void CollectNodeNames(const aiNode* node, std::map<std::string, int>& outIndexByName) {
+    if (!node) return;
+    std::string name = SanitizeFbxChannelName(node->mName.C_Str());
+    if (!name.empty() && outIndexByName.find(name) == outIndexByName.end()) {
+        outIndexByName[name] = static_cast<int>(outIndexByName.size());
+    }
+    for (unsigned int i = 0; i < node->mNumChildren; ++i) {
+        CollectNodeNames(node->mChildren[i], outIndexByName);
+    }
+}
 
 std::vector<ModelPrefabNode> ModelLoader::LoadModel(const std::string& filePath)
 {
@@ -271,61 +389,351 @@ ModelComponent ModelLoader::ProcessMesh(
         // シェーディングが当たらず真っ白になるため解除する。
     }
 
+
+    // ボーンの処理
+    if (mesh->HasBones()) {
+        mc.isSkinned = true;
+        mc.skeleton.bones.resize(mesh->mNumBones);
+        mc.skeleton.boneTransforms.resize(mesh->mNumBones);
+
+        // 事前に全ボーン名セットを構築
+        std::unordered_set<std::string> allBoneNames;
+        allBoneNames.reserve(mesh->mNumBones);
+        for (unsigned int i = 0; i < mesh->mNumBones; ++i) {
+            allBoneNames.insert(SanitizeFbxChannelName(mesh->mBones[i]->mName.C_Str()));
+        }
+
+        // ノードツリーから親関係を収集
+        std::unordered_map<std::string, std::string> parentByName;
+        CollectBoneParents(scene->mRootNode, allBoneNames, parentByName);
+
+        // ボーン名からインデックスへのマップ (親検索用) ※AssimpFbxサフィックスを除去して統一
+        std::unordered_map<std::string, int> boneNameToIndex;
+        for (unsigned int i = 0; i < mesh->mNumBones; i++) {
+            std::string sanitized = SanitizeFbxChannelName(mesh->mBones[i]->mName.C_Str());
+            boneNameToIndex[sanitized] = i;
+        }
+
+        for (unsigned int i = 0; i < mesh->mNumBones; i++) {
+            aiBone* bone = mesh->mBones[i];
+            std::string boneName = SanitizeFbxChannelName(bone->mName.C_Str());
+            
+            mc.skeleton.bones[i].name = boneName;
+            
+            // オフセット行列はメッシュ空間->ボーン空間(バインド)の変換。転置せずそのまま格納する。
+            aiMatrix4x4 offset = bone->mOffsetMatrix;
+            // offset.Transpose(); // 転置は不要
+            memcpy(&mc.skeleton.bones[i].offsetMatrix, &offset, sizeof(DirectX::XMFLOAT4X4));
+            
+            // ウェイトの登録
+            for (unsigned int j = 0; j < bone->mNumWeights; j++) {
+                const aiVertexWeight& weight = bone->mWeights[j];
+                unsigned int vertexId = weight.mVertexId;
+                float w = weight.mWeight;
+
+                if (vertexId >= vertices.size()) continue;
+
+                // 空いているスロットを探す
+                for (int k = 0; k < 4; k++) {
+                    if (vertices[vertexId].BoneWeights[k] == 0.0f) {
+                        vertices[vertexId].BoneWeights[k] = w;
+                        vertices[vertexId].BoneIndices[k] = i;
+                        break;
+                    }
+                }
+            }
+
+            // 親ボーンの検索
+            std::string parentName;
+            auto itParentName = parentByName.find(boneName);
+            if (itParentName != parentByName.end()) {
+                parentName = itParentName->second;
+            }
+            if (!parentName.empty() && parentName != boneName) {
+                auto pit = boneNameToIndex.find(parentName);
+                if (pit != boneNameToIndex.end()) {
+                    mc.skeleton.bones[i].parentIndex = pit->second;
+                } else {
+                    mc.skeleton.bones[i].parentIndex = -1;
+#ifdef _DEBUG
+                    DEBUGLOG_WARNING("ModelLoader: parent not found in mesh bones for '" + boneName + "', parent='" + parentName + "'");
+#endif
+                }
+            } else {
+                mc.skeleton.bones[i].parentIndex = -1;
+#ifdef _DEBUG
+                DEBUGLOG_WARNING("ModelLoader: parent missing or self for '" + boneName + "', set to -1");
+#endif
+            }
+        }
+        
+        // ウェイトの正規化 (合計が1になるように)
+        size_t zeroWeightVerts = 0;
+        for (auto& v : vertices) {
+            float sum = v.BoneWeights[0] + v.BoneWeights[1] + v.BoneWeights[2] + v.BoneWeights[3];
+            if (sum > 0.0f) {
+                for (int k = 0; k < 4; k++) v.BoneWeights[k] /= sum;
+            } else {
+                zeroWeightVerts++;
+            }
+        }
+
+#ifdef _DEBUG
+        DEBUGLOG("Skeleton for mesh (bones=" + std::to_string(mesh->mNumBones) +
+                 ", zeroWeightVerts=" + std::to_string(zeroWeightVerts) +
+                 ", totalVerts=" + std::to_string(vertices.size()) + "):");
+        for (unsigned int i = 0; i < mesh->mNumBones; ++i) {
+            const auto& b = mc.skeleton.bones[i];
+            DEBUGLOG("  Bone[" + std::to_string(i) + "]: name=" + b.name +
+                     ", parentIndex=" + std::to_string(b.parentIndex));
+        }
+#endif
+    }
+
     return mc;
 }
 
-static std::string TryAlternativeTexturePaths(const std::string& primaryFullPath, const std::string& directory, const std::string& filename) {
-    // 1) primaryFullPath
-    if (std::filesystem::exists(primaryFullPath)) return primaryFullPath;
+// アニメーションクリップ構築（ノードベースの名前解決対応）
+static std::vector<ModelComponent::AnimationClip> BuildClipsFromAssimp(const aiScene* scene) {
+    std::vector<ModelComponent::AnimationClip> clips;
+    if (!scene || !scene->mAnimations || scene->mNumAnimations == 0) return clips;
 
-    // 2) directory + "/" + filename (already primary), try variations of separators
-    std::string alt1 = directory + "\\" + filename;
-    if (std::filesystem::exists(alt1)) return alt1;
-
-    // 3) filename relative to directory not existing, try file in model folder root with common image extensions
-    std::filesystem::path dirPath(directory);
-    std::vector<std::string> exts{ ".png", ".jpg", ".jpeg", ".bmp", ".tga" };
-    std::filesystem::path base = std::filesystem::path(filename).stem();
-    for (const auto& ext : exts) {
-        std::filesystem::path candidate = dirPath / (base.string() + ext);
-        if (std::filesystem::exists(candidate)) return candidate.string();
+    // ノードツリーから名前→インデックスを収集（スキニング配列とは異なるため使用しない）
+    std::map<std::string, int> nameIndex;
+    if (scene->mRootNode) {
+        CollectNodeNames(scene->mRootNode, nameIndex);
     }
 
-    // 4) If filename includes subdirs that don't exist, fallback to basename in directory
-    std::filesystem::path fnamePath(filename);
-    std::filesystem::path basename = fnamePath.filename();
-    std::filesystem::path candidate = dirPath / basename;
-    if (std::filesystem::exists(candidate)) return candidate.string();
+#ifdef _DEBUG
+    DEBUGLOG("BuildClipsFromAssimp: node-tree names collected (for reference only):");
+    for (const auto& kv : nameIndex) {
+        DEBUGLOG("  name=" + kv.first + ", idx=" + std::to_string(kv.second));
+    }
+#endif
 
-    return primaryFullPath; // fallback
+    for (unsigned int i = 0; i < scene->mNumAnimations; ++i) {
+        const aiAnimation* a = scene->mAnimations[i];
+        if (!a) continue;
+
+        ModelComponent::AnimationClip clip;
+        clip.name = (a->mName.length > 0) ? a->mName.C_Str() : ("Anim_" + std::to_string(i));
+        clip.duration = static_cast<float>(a->mDuration);
+        clip.ticksPerSecond = (a->mTicksPerSecond != 0.0) ? static_cast<float>(a->mTicksPerSecond) : 30.0f;
+
+        std::unordered_map<std::string, ModelComponent::BoneAnimation> boneAnimMap;
+        for (unsigned int c = 0; c < a->mNumChannels; ++c) {
+            const aiNodeAnim* ch = a->mChannels[c];
+            if (!ch) continue;
+
+            std::string rawName = ch->mNodeName.C_Str();
+            std::string sanitizedName = SanitizeFbxChannelName(rawName);
+
+            auto& boneAnim = boneAnimMap[sanitizedName];
+            if (boneAnim.boneName.empty()) {
+                boneAnim.boneName = sanitizedName;
+                // 重要: スキニング側（meshの mBones[] 配列）と一致するインデックスは、後段の AnimationSystem で
+                // 名前マッピングにより決定されるため、ここでは -1 を設定しておく。
+                boneAnim.boneIndex = -1;
+#ifdef _DEBUG
+                DEBUGLOG("  Channel->BoneAnimation: raw=" + rawName +
+                         ", name=" + sanitizedName +
+                         ", mappedIndex(mesh)=-1 (deferred by AnimationSystem)");
+#endif
+            }
+
+            // 位置キー
+            for (unsigned int k = 0; k < ch->mNumPositionKeys; ++k) {
+                const aiVectorKey& vk = ch->mPositionKeys[k];
+                auto& kf = FindOrCreateKeyframe(boneAnim.keyframes, static_cast<float>(vk.mTime));
+                kf.position = { vk.mValue.x, vk.mValue.y, vk.mValue.z };
+                boneAnim.hasPositionKeys = true;
+            }
+            // 回転キー
+            for (unsigned int k = 0; k < ch->mNumRotationKeys; ++k) {
+                const aiQuatKey& rk = ch->mRotationKeys[k];
+                auto& kf = FindOrCreateKeyframe(boneAnim.keyframes, static_cast<float>(rk.mTime));
+                kf.rotation = { rk.mValue.x, rk.mValue.y, rk.mValue.z, rk.mValue.w };
+                boneAnim.hasRotationKeys = true;
+            }
+            // スケールキー
+            for (unsigned int k = 0; k < ch->mNumScalingKeys; ++k) {
+                const aiVectorKey& sk = ch->mScalingKeys[k];
+                auto& kf = FindOrCreateKeyframe(boneAnim.keyframes, static_cast<float>(sk.mTime));
+                kf.scale = { sk.mValue.x, sk.mValue.y, sk.mValue.z };
+                boneAnim.hasScaleKeys = true;
+            }
+        }
+
+        // キーフレーム整形と追加
+        for (auto& pair : boneAnimMap) {
+            auto& boneAnim = pair.second;
+            if (boneAnim.keyframes.empty()) continue;
+            std::sort(boneAnim.keyframes.begin(), boneAnim.keyframes.end(),
+                      [](const ModelComponent::Keyframe& a, const ModelComponent::Keyframe& b) { return a.time < b.time; });
+
+            DirectX::XMFLOAT3 lastPos{0.0f, 0.0f, 0.0f};
+            DirectX::XMFLOAT4 lastRot{0.0f, 0.0f, 0.0f, 1.0f};
+            DirectX::XMFLOAT3 lastScale{1.0f, 1.0f, 1.0f};
+            bool hasPos = false, hasRot = false, hasScale = false;
+
+            for (auto& kf : boneAnim.keyframes) {
+                if (std::isnan(kf.position.x) || std::isnan(kf.position.y) || std::isnan(kf.position.z)) {
+                    kf.position = hasPos ? lastPos : DirectX::XMFLOAT3{0.0f, 0.0f, 0.0f};
+                } else { lastPos = kf.position; hasPos = true; }
+                if (std::isnan(kf.rotation.w)) {
+                    kf.rotation = hasRot ? lastRot : DirectX::XMFLOAT4{0.0f, 0.0f, 0.0f, 1.0f};
+                } else { lastRot = kf.rotation; hasRot = true; }
+                if (std::isnan(kf.scale.x) || std::isnan(kf.scale.y) || std::isnan(kf.scale.z)) {
+                    kf.scale = hasScale ? lastScale : DirectX::XMFLOAT3{1.0f, 1.0f, 1.0f};
+                } else { lastScale = kf.scale; hasScale = true; }
+            }
+
+            clip.boneAnimations.push_back(std::move(boneAnim));
+        }
+
+        // 最小時刻を0に正規化
+        float minTime = std::numeric_limits<float>::infinity();
+        for (const auto& ba : clip.boneAnimations) {
+            if (!ba.keyframes.empty()) {
+                minTime = std::min(minTime, ba.keyframes.front().time);
+            }
+        }
+        if (std::isfinite(minTime) && minTime != 0.0f) {
+            for (auto& ba : clip.boneAnimations) {
+                for (auto& kf : ba.keyframes) {
+                    kf.time -= minTime;
+                }
+            }
+            clip.duration = std::max(0.0f, clip.duration - minTime);
+        }
+
+        if (!clip.boneAnimations.empty() && clip.duration > 0.0f) {
+            clips.push_back(std::move(clip));
+        }
+    }
+
+    return clips;
+}
+
+std::vector<ModelComponent::AnimationClip> ModelLoader::LoadAnimation(const std::string& path)
+{
+    DEBUGLOG("ModelLoader::LoadAnimation - begin: " + path);
+
+    std::vector<ModelComponent::AnimationClip> clips;
+
+    Assimp::Importer importer;
+
+    const unsigned int primaryFlags =
+        aiProcess_Triangulate |
+        aiProcess_LimitBoneWeights |
+        aiProcess_JoinIdenticalVertices |
+        aiProcess_SortByPType;
+
+    DEBUGLOG("Assimp (primary) flags: Triangulate | LimitBoneWeights | JoinIdenticalVertices | SortByPType");
+
+    const aiScene* scene = importer.ReadFile(path, primaryFlags);
+    if (!scene) {
+        DEBUGLOG_WARNING(std::string("Assimp Error (anim,primary): ") + importer.GetErrorString() + " | file=" + path);
+    } else {
+        DEBUGLOG("Assimp primary load OK: " + path +
+                 ", animations=" + std::to_string(scene->mNumAnimations) +
+                 ", meshes=" + std::to_string(scene->mNumMeshes));
+
+        for (unsigned int i = 0; i < scene->mNumAnimations; ++i) {
+            const aiAnimation* a = scene->mAnimations[i];
+            std::string name = (a && a->mName.length > 0) ? a->mName.C_Str() : ("Anim_" + std::to_string(i));
+            DEBUGLOG("  aiAnimation[" + std::to_string(i) + "]: name=" + name +
+                     ", durationTicks=" + std::to_string(a ? a->mDuration : 0.0) +
+                     ", ticksPerSec=" + std::to_string(a ? a->mTicksPerSecond : 0.0) +
+                     ", channels=" + std::to_string(a ? a->mNumChannels : 0u));
+        }
+    }
+
+    Assimp::Importer fallbackImporter;
+    const aiScene* fallbackScene = nullptr;
+    if (!scene || scene->mNumAnimations == 0) {
+        const unsigned int fallbackFlags = aiProcess_Triangulate;
+        DEBUGLOG("Assimp (fallback-minimal) flags: Triangulate");
+
+        fallbackScene = fallbackImporter.ReadFile(path, fallbackFlags);
+        if (!fallbackScene) {
+            DEBUGLOG_WARNING(std::string("Assimp Error (anim,fallback-minimal): ") +
+                             fallbackImporter.GetErrorString() + " | file=" + path);
+        } else {
+            DEBUGLOG("Assimp fallback-minimal load OK: " + path +
+                     ", animations=" + std::to_string(fallbackScene->mNumAnimations) +
+                     ", meshes=" + std::to_string(fallbackScene->mNumMeshes));
+
+            for (unsigned int i = 0; i < fallbackScene->mNumAnimations; ++i) {
+                const aiAnimation* a = fallbackScene->mAnimations[i];
+                std::string name = (a && a->mName.length > 0) ? a->mName.C_Str() : ("Anim_" + std::to_string(i));
+                DEBUGLOG("  [FB] aiAnimation[" + std::to_string(i) + "]: name=" + name +
+                         ", durationTicks=" + std::to_string(a ? a->mDuration : 0.0) +
+                         ", ticksPerSec=" + std::to_string(a ? a->mTicksPerSecond : 0.0) +
+                         ", channels=" + std::to_string(a ? a->mNumChannels : 0u));
+            }
+        }
+
+        if (fallbackScene) {
+            scene = fallbackScene;
+        }
+    }
+
+    if (!scene || scene->mNumAnimations == 0) {
+        DEBUGLOG_WARNING("Failed to load any animations from: " + path);
+        DEBUGLOG("ModelLoader::LoadAnimation - end (no clips): " + path);
+        return clips;
+    }
+
+    clips = BuildClipsFromAssimp(scene);
+
+    DEBUGLOG("ModelLoader::LoadAnimation - end: " + path +
+             ", clips=" + std::to_string(clips.size()));
+    return clips;
 }
 
 TextureManager::TextureHandle ModelLoader::LoadMaterialTextures(
     aiMaterial* mat,
     aiTextureType type,
     const std::string& directory,
-    const std::string& modelFilePath
-) {
-    auto& texMgr = ServiceLocator::Get<TextureManager>();
-    TextureManager::TextureHandle textureHandle = TextureManager::INVALID_TEXTURE;
-    for (unsigned int i = 0; i < mat->GetTextureCount(type); i++) {
-        aiString str;
-        mat->GetTexture(type, i, &str);
-        std::string filename = str.C_Str();
+    const std::string& modelFilePath)
+{
+    TextureManager::TextureHandle handle = TextureManager::INVALID_TEXTURE;
 
-        // Build primary texture path relative to the model directory
-        std::string fullPath = directory.empty() ? filename : (directory + "/" + filename);
-
-        // Fallback: if not found, try same-named image in the FBX folder
-        std::string resolved = TryAlternativeTexturePaths(fullPath, directory, filename);
-
-        textureHandle = texMgr.LoadFromFile(resolved.c_str());
-        if (textureHandle != TextureManager::INVALID_TEXTURE) {
-            DEBUGLOG_CATEGORY(DebugLog::Category::Render, "Loaded texture: " + resolved);
-            break; // use first available texture
-        } else {
-            DEBUGLOG_WARNING("Failed to load texture: " + resolved);
-        }
+    if (!mat) {
+        return handle;
     }
-    return textureHandle;
+
+    TextureManager& texMgr = ServiceLocator::Get<TextureManager>();
+
+    const unsigned int texCount = mat->GetTextureCount(type);
+    if (texCount == 0) {
+        return handle;
+    }
+
+    aiString pathStr;
+    if (mat->GetTexture(type, 0, &pathStr) != AI_SUCCESS) {
+        return handle;
+    }
+
+    std::string rawPath = pathStr.C_Str();
+    std::string resolved = ResolveTexturePath(rawPath, directory);
+
+    if (resolved.empty()) {
+        DEBUGLOG_WARNING("ModelLoader: texture path could not be resolved: '" + rawPath +
+                         "' (model: " + modelFilePath + ")");
+        return handle;
+    }
+
+    // TextureManager は LoadFromFile(const char*) を提供
+    handle = texMgr.LoadFromFile(resolved.c_str());
+    if (handle == TextureManager::INVALID_TEXTURE) {
+        DEBUGLOG_WARNING("ModelLoader: failed to load texture: " + resolved +
+                         " (model: " + modelFilePath + ")");
+    } else {
+        DEBUGLOG_CATEGORY(DebugLog::Category::Render,
+            "ModelLoader: loaded texture '" + resolved + "' for model '" + modelFilePath + "'");
+    }
+
+    return handle;
 }

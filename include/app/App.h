@@ -47,6 +47,8 @@
 #include "app/DebugLog.h"
 #endif
 
+#include "systems/AnimationSystem.h"
+
 // コンポーネント
 #include "components/Transform.h"
 #include "components/MeshRenderer.h"
@@ -262,6 +264,7 @@ struct App {
             }
 
             // ========== UPDATE PHASE (Fixed Step) ==========
+            int fixedSteps = 0;
             while (accumulator >= fixedDeltaTime) {
                 auto updateStartTime = std::chrono::high_resolution_clock::now();
 
@@ -303,6 +306,10 @@ struct App {
                 // 固定ステップなので、Updateを呼ぶならfixedDeltaTimeを渡すべき。
                 // フォーカスがないときに時間を進めないなら、accumulatorを加算しない、あるいはここでスキップする。
 
+                // アニメーションシステムの更新
+                AnimationSystem::GetInstance().Update(world_, fixedDeltaTime);
+                fixedSteps++;
+
                 if (isWindowFocused_) {
                     try {
                         // GameSceneにWorld参照を渡す（遅延リスポーンなどで使用）
@@ -321,6 +328,11 @@ struct App {
             auto updateEndTime = std::chrono::high_resolution_clock::now();
             std::chrono::duration<float> updateDuration = updateEndTime - updateStartTime;
             currentMetrics_.updateTime = updateDuration.count();
+            }
+
+            // 固定ステップが一度も実行されなかった場合でもアニメを進める（初期フレームのTポーズ回避）
+            if (fixedSteps == 0) {
+                AnimationSystem::GetInstance().Update(world_, std::min(accumulator, fixedDeltaTime));
             }
 
             // ========== RENDER PHASE (Variable Step) ==========
@@ -932,5 +944,4 @@ private:
 // 作成者: 山内陽
 // バージョン: v5.1 - Doxygenコメントを追加
 // ========================================================
-
 

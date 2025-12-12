@@ -221,11 +221,13 @@
     <ClCompile Include="src\main.cpp" />
     <ClCompile Include="src\pch.cpp" />
     <ClCompile Include="src\scenes\GameUI.cpp" />
+    <ClCompile Include="src\systems\AnimationSystem.cpp" />
     <ClCompile Include="src\systems\EmissiveRenderSystem.cpp" />
     <ClCompile Include="src\systems\LightSystem.cpp" />
     <ClCompile Include="src\systems\SpatialHashGrid.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\systems\AnimationSystem.h" />
     <ClInclude Include="RoomUIComponents.h" />
     <ClInclude Include="SoundComponent.h" />
     <ClInclude Include="StageStatus.h" />

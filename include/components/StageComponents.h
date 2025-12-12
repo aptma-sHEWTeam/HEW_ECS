@@ -56,13 +56,19 @@ struct StageProgress : IComponent {
 inline int GetAvailableStageCount() {
     namespace fs = std::filesystem;
     const fs::path baseDir{"Assets/StageData/StageCollision"};
+    static std::optional<int> cachedCount;
+    static bool hasLoggedMissingDir = false;
     std::error_code ec;
 
     if (!fs::exists(baseDir, ec) || ec) {
-        DEBUGLOG_WARNING("[Stage] StageCollision ディレクトリが見つかりません。既定で1を使用します");
-        return 1;
+        if (!hasLoggedMissingDir) {
+            DEBUGLOG_WARNING("[Stage] StageCollision ディレクトリが見つかりません。既定で1を使用します");
+            hasLoggedMissingDir = true;
+        }
+        return cachedCount.value_or(1);
     }
 
+    hasLoggedMissingDir = false;
     int maxStage = 1;
     for (const auto& entry : fs::directory_iterator(baseDir, ec)) {
         if (ec) break;
@@ -88,6 +94,7 @@ inline int GetAvailableStageCount() {
         tryUpdate("Stage");
     }
 
+    cachedCount = maxStage;
     return maxStage;
 }
 
@@ -513,7 +520,6 @@ struct MovingObstacle : Behaviour {
         }
     }
 };
-
 
 
 

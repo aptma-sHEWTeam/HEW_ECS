@@ -123,6 +123,9 @@
     <ClCompile Include="src\systems\SpatialHashGrid.cpp">
       <Filter>Source Files\systems</Filter>
     </ClCompile>
+    <ClCompile Include="src\systems\AnimationSystem.cpp">
+      <Filter>Source Files\systems</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="RoomUIComponents.h">
@@ -339,6 +342,9 @@
       <Filter>Header Files\util</Filter>
     </ClInclude>
     <ClInclude Include="SoundComponent.h" />
+    <ClInclude Include="include\systems\AnimationSystem.h">
+      <Filter>Header Files\systems</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include=".github\ISSUE_TEMPLATE\01_task.yml">
