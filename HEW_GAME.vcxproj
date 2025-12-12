@@ -314,7 +314,6 @@
     <None Include=".github\workflows\notify_inprogress_digest.yml" />
     <None Include=".github\workflows\sync-main-to-teams.yml" />
     <None Include="Assets\Settings\config.toml" />
-    <None Include="Assets\Textures\test.png" />
     <None Include="docs\ChargeSystem_Guide.md" />
     <None Include="docs\ChargeSystem_QuickRef.md" />
     <None Include="docs\Collision_Event_System.md" />

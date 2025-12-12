@@ -77,7 +77,7 @@ inline ConfigVar<float> cfg_WallSize{"Stage.Wall.Geometry", "WallSize", 1.0f, "�
 inline ConfigVar<std::string> cfg_PlayerFBXPass{"Player.Asset", "PlayerFBXPass", "Assets/Models/Player/obj_player.fbx", "プレイヤーモデル FBX パス"};
 inline ConfigVar<std::string> cfg_FloorFBXPass{"Stage.Floor.Asset", "FloorFBXPass", "Assets/Models/StageObj/Ground/floor_cube.fbx", "床モデル FBX パス"};
 inline ConfigVar<std::string> cfg_WallFBXPass{"Stage.Wall.Asset", "WallFBXPass", "Assets/Models/StageObj/Wall/obj_wall.fbx", "壁モデル FBX パス"};
-inline ConfigVar<std::string> cfg_HalfWallFBXPass{"Stage.Wall.Asset", "HalfWallFBXPass", "Assets/Models/StageObj/Wall/obj_wallいろ.fbx", "半分の高さの壁 FBX パス"};
+inline ConfigVar<std::string> cfg_HalfWallFBXPass{"Stage.Wall.Asset", "HalfWallFBXPass", "Assets/Models/StageObj/Wall/obj_wall_half.fbx", "半分の高さの壁 FBX パス"};
 inline ConfigVar<std::string> cfg_StartFBXPass{"Stage.Start.Asset", "StartFBXPass", "Assets/Models/StageObj/Start/obj_start.fbx", "スタートマーカー FBX パス"};
 inline ConfigVar<std::string> cfg_GoalFBXPass{"Stage.Goal.Asset", "GoalFBXPass", "Assets/Models/StageObj/Goal/obj_goal.fbx", "ゴールマーカー FBX パス"};
 inline ConfigVar<std::string> cfg_MovingObstacleFBXPass{"Stage.MovingObstacle.Asset", "MovingObstacleFBXPass", "Assets/Models/StageObj/Move/vehicle.fbx", "動く障害物 FBX パス"};
