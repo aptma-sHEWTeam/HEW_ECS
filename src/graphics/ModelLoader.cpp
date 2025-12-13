@@ -12,6 +12,7 @@
 #include <unordered_map>
 #include <cmath>
 #include <limits>
+#include <sstream>
 
 // 頂点構造体
 struct SimpleVertex {
@@ -123,6 +124,24 @@ static ModelComponent::Keyframe& FindOrCreateKeyframe(std::vector<ModelComponent
     kf.scale = {nan, nan, nan};
     frames.push_back(kf);
     return frames.back();
+}
+
+static std::string ToString(const aiMatrix4x4& m) {
+    std::ostringstream oss;
+    oss << "[" << m.a1 << "," << m.a2 << "," << m.a3 << "," << m.a4
+        << " | " << m.b1 << "," << m.b2 << "," << m.b3 << "," << m.b4
+        << " | " << m.c1 << "," << m.c2 << "," << m.c3 << "," << m.c4
+        << " | " << m.d1 << "," << m.d2 << "," << m.d3 << "," << m.d4 << "]";
+    return oss.str();
+}
+
+static std::string ToString(const DirectX::XMFLOAT4X4& m) {
+    std::ostringstream oss;
+    oss << "[" << m._11 << "," << m._12 << "," << m._13 << "," << m._14
+        << " | " << m._21 << "," << m._22 << "," << m._23 << "," << m._24
+        << " | " << m._31 << "," << m._32 << "," << m._33 << "," << m._34
+        << " | " << m._41 << "," << m._42 << "," << m._43 << "," << m._44 << "]";
+    return oss.str();
 }
 } // namespace
 
@@ -297,32 +316,22 @@ ModelComponent ModelLoader::ProcessMesh(
         }
     }
 
-    // ModelComponentを作成
     ModelComponent mc{};
     mc.indexCount = static_cast<UINT>(indices.size());
 
-    // 頂点バッファの作成
-    D3D11_BUFFER_DESC vbd{};
-    vbd.ByteWidth = static_cast<UINT>(vertices.size() * sizeof(SimpleVertex));
-    vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-    vbd.Usage = D3D11_USAGE_IMMUTABLE;
-    D3D11_SUBRESOURCE_DATA vinit{ vertices.data(), 0, 0 };
-    if (FAILED(gfx.Dev()->CreateBuffer(&vbd, &vinit, mc.vertexBuffer.GetAddressOf()))) {
-        DEBUGLOG_ERROR("Failed to create vertex buffer for model.");
-        mc.indexCount = 0;
-        return mc;
-    }
-
-    // インデックスバッファの作成
-    D3D11_BUFFER_DESC ibd{};
-    ibd.ByteWidth = static_cast<UINT>(indices.size() * sizeof(unsigned short));
-    ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;
-    ibd.Usage = D3D11_USAGE_IMMUTABLE;
-    D3D11_SUBRESOURCE_DATA iinit{ indices.data(), 0, 0 };
-    if (FAILED(gfx.Dev()->CreateBuffer(&ibd, &iinit, mc.indexBuffer.GetAddressOf()))) {
-        DEBUGLOG_ERROR("Failed to create index buffer for model.");
-        mc.indexCount = 0;
-        return mc;
+    // シーンルートのグローバル行列の逆行列を保存しておく（スキニング用）
+    if (scene && scene->mRootNode) {
+        aiMatrix4x4 rootGlobalRaw = scene->mRootNode->mTransformation;
+        aiMatrix4x4 rootGlobal = rootGlobalRaw;
+        rootGlobal.Transpose(); // Assimp列優先→DirectX行優先
+        aiMatrix4x4 inv = rootGlobal;
+        inv.Inverse();
+        memcpy(&mc.globalInverse, &inv, sizeof(DirectX::XMFLOAT4X4));
+#ifdef _DEBUG
+        DEBUGLOG("ModelLoader: root transform (Assimp col-major) = " + ToString(rootGlobalRaw));
+        DEBUGLOG("ModelLoader: root transform (DX row-major)    = " + ToString(rootGlobal));
+        DEBUGLOG("ModelLoader: globalInverse (DX row-major)     = " + ToString(mc.globalInverse));
+#endif
     }
 
     // マテリアルを処理
@@ -414,16 +423,44 @@ ModelComponent ModelLoader::ProcessMesh(
             boneNameToIndex[sanitized] = i;
         }
 
+        // 親に存在するがボーン配列に無いノード（例: RootNode）をスケルトンに追加して親子関係を失わないようにする
+        for (const auto& kv : parentByName) {
+            const std::string& parentName = kv.second;
+            if (boneNameToIndex.find(parentName) == boneNameToIndex.end()) {
+                int newIndex = static_cast<int>(mc.skeleton.bones.size());
+                ModelComponent::Bone pseudo{};
+                pseudo.name = parentName;
+                pseudo.parentIndex = -1;
+                DirectX::XMStoreFloat4x4(&pseudo.offsetMatrix, DirectX::XMMatrixIdentity());
+                mc.skeleton.bones.push_back(pseudo);
+                mc.skeleton.boneTransforms.push_back(DirectX::XMFLOAT4X4{
+                    1,0,0,0,
+                    0,1,0,0,
+                    0,0,1,0,
+                    0,0,0,1
+                });
+                boneNameToIndex[parentName] = newIndex;
+#ifdef _DEBUG
+                DEBUGLOG_WARNING("ModelLoader: added pseudo parent bone '" + parentName + "' idx=" + std::to_string(newIndex));
+#endif
+            }
+        }
+
         for (unsigned int i = 0; i < mesh->mNumBones; i++) {
             aiBone* bone = mesh->mBones[i];
             std::string boneName = SanitizeFbxChannelName(bone->mName.C_Str());
             
             mc.skeleton.bones[i].name = boneName;
             
-            // オフセット行列はメッシュ空間->ボーン空間(バインド)の変換。転置せずそのまま格納する。
+            // オフセット行列はメッシュ空間->ボーン空間(バインド)の変換。シェーダー側で行ベクトル mul(pos, M) を使う前提のため転置して保存。
             aiMatrix4x4 offset = bone->mOffsetMatrix;
-            // offset.Transpose(); // 転置は不要
+            offset.Transpose();
             memcpy(&mc.skeleton.bones[i].offsetMatrix, &offset, sizeof(DirectX::XMFLOAT4X4));
+#ifdef _DEBUG
+            if (boneName == "Hips") {
+                DEBUGLOG("ModelLoader: Hips offset (DX row-major, transposed) = " + ToString(mc.skeleton.bones[i].offsetMatrix));
+            }
+#endif
             
             // ウェイトの登録
             for (unsigned int j = 0; j < bone->mNumWeights; j++) {
@@ -444,27 +481,33 @@ ModelComponent ModelLoader::ProcessMesh(
             }
 
             // 親ボーンの検索
-            std::string parentName;
+            // 親ボーン探索: 非ボーンノード(Armature等)を経由する場合は最近傍のボーン祖先まで辿る
+            auto resolveParentIndex = [&](const std::string& startName) -> int {
+                std::string cur = startName;
+                std::unordered_set<std::string> visited;
+                while (!cur.empty() && !visited.count(cur)) {
+                    visited.insert(cur);
+                    auto pit = boneNameToIndex.find(cur);
+                    if (pit != boneNameToIndex.end()) return pit->second;
+                    auto up = parentByName.find(cur);
+                    if (up == parentByName.end()) break;
+                    cur = up->second;
+                }
+                return -1;
+            };
+
+            int parentIdx = -1;
             auto itParentName = parentByName.find(boneName);
             if (itParentName != parentByName.end()) {
-                parentName = itParentName->second;
+                parentIdx = resolveParentIndex(itParentName->second);
             }
-            if (!parentName.empty() && parentName != boneName) {
-                auto pit = boneNameToIndex.find(parentName);
-                if (pit != boneNameToIndex.end()) {
-                    mc.skeleton.bones[i].parentIndex = pit->second;
-                } else {
-                    mc.skeleton.bones[i].parentIndex = -1;
+            mc.skeleton.bones[i].parentIndex = parentIdx;
 #ifdef _DEBUG
-                    DEBUGLOG_WARNING("ModelLoader: parent not found in mesh bones for '" + boneName + "', parent='" + parentName + "'");
-#endif
-                }
-            } else {
-                mc.skeleton.bones[i].parentIndex = -1;
-#ifdef _DEBUG
-                DEBUGLOG_WARNING("ModelLoader: parent missing or self for '" + boneName + "', set to -1");
-#endif
+            if (parentIdx < 0) {
+                DEBUGLOG_WARNING("ModelLoader: parent not resolved for '" + boneName + "', originalParent='" +
+                                  (itParentName != parentByName.end() ? itParentName->second : std::string("(none)")) + "'");
             }
+#endif
         }
         
         // ウェイトの正規化 (合計が1になるように)
@@ -474,6 +517,9 @@ ModelComponent ModelLoader::ProcessMesh(
             if (sum > 0.0f) {
                 for (int k = 0; k < 4; k++) v.BoneWeights[k] /= sum;
             } else {
+                // ウェイトが付与されなかった頂点はルートボーンに1.0を割り当てて伸縮を防ぐ
+                v.BoneWeights[0] = 1.0f;
+                v.BoneIndices[0] = 0;
                 zeroWeightVerts++;
             }
         }
@@ -487,7 +533,47 @@ ModelComponent ModelLoader::ProcessMesh(
             DEBUGLOG("  Bone[" + std::to_string(i) + "]: name=" + b.name +
                      ", parentIndex=" + std::to_string(b.parentIndex));
         }
+        // サンプル頂点のボーンインデックス/ウェイトをいくつか出力
+        const size_t sampleCount = std::min<size_t>(5, vertices.size());
+        for (size_t vi = 0; vi < sampleCount; ++vi) {
+            const auto& v = vertices[vi];
+            float sumW = v.BoneWeights[0] + v.BoneWeights[1] + v.BoneWeights[2] + v.BoneWeights[3];
+            DEBUGLOG("  Vert[" + std::to_string(vi) + "]: idx={" +
+                     std::to_string(v.BoneIndices[0]) + "," +
+                     std::to_string(v.BoneIndices[1]) + "," +
+                     std::to_string(v.BoneIndices[2]) + "," +
+                     std::to_string(v.BoneIndices[3]) + "} w={" +
+                     std::to_string(v.BoneWeights[0]) + "," +
+                     std::to_string(v.BoneWeights[1]) + "," +
+                     std::to_string(v.BoneWeights[2]) + "," +
+                     std::to_string(v.BoneWeights[3]) + "} sum=" +
+                     std::to_string(sumW));
+        }
 #endif
+    }
+
+    // 頂点バッファの作成（ボーン／ウェイト処理の後で作ること）
+    D3D11_BUFFER_DESC vbd{};
+    vbd.ByteWidth = static_cast<UINT>(vertices.size() * sizeof(SimpleVertex));
+    vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    vbd.Usage = D3D11_USAGE_IMMUTABLE;
+    D3D11_SUBRESOURCE_DATA vinit{ vertices.data(), 0, 0 };
+    if (FAILED(gfx.Dev()->CreateBuffer(&vbd, &vinit, mc.vertexBuffer.GetAddressOf()))) {
+        DEBUGLOG_ERROR("Failed to create vertex buffer for model.");
+        mc.indexCount = 0;
+        return mc;
+    }
+
+    // インデックスバッファの作成
+    D3D11_BUFFER_DESC ibd{};
+    ibd.ByteWidth = static_cast<UINT>(indices.size() * sizeof(unsigned short));
+    ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+    ibd.Usage = D3D11_USAGE_IMMUTABLE;
+    D3D11_SUBRESOURCE_DATA iinit{ indices.data(), 0, 0 };
+    if (FAILED(gfx.Dev()->CreateBuffer(&ibd, &iinit, mc.indexBuffer.GetAddressOf()))) {
+        DEBUGLOG_ERROR("Failed to create index buffer for model.");
+        mc.indexCount = 0;
+        return mc;
     }
 
     return mc;
@@ -519,8 +605,10 @@ static std::vector<ModelComponent::AnimationClip> BuildClipsFromAssimp(const aiS
         clip.name = (a->mName.length > 0) ? a->mName.C_Str() : ("Anim_" + std::to_string(i));
         clip.duration = static_cast<float>(a->mDuration);
         clip.ticksPerSecond = (a->mTicksPerSecond != 0.0) ? static_cast<float>(a->mTicksPerSecond) : 30.0f;
+        const float origDuration = clip.duration;
 
         std::unordered_map<std::string, ModelComponent::BoneAnimation> boneAnimMap;
+        float maxTime = -std::numeric_limits<float>::infinity();
         for (unsigned int c = 0; c < a->mNumChannels; ++c) {
             const aiNodeAnim* ch = a->mChannels[c];
             if (!ch) continue;
@@ -570,6 +658,7 @@ static std::vector<ModelComponent::AnimationClip> BuildClipsFromAssimp(const aiS
             if (boneAnim.keyframes.empty()) continue;
             std::sort(boneAnim.keyframes.begin(), boneAnim.keyframes.end(),
                       [](const ModelComponent::Keyframe& a, const ModelComponent::Keyframe& b) { return a.time < b.time; });
+            maxTime = std::max(maxTime, boneAnim.keyframes.back().time);
 
             DirectX::XMFLOAT3 lastPos{0.0f, 0.0f, 0.0f};
             DirectX::XMFLOAT4 lastRot{0.0f, 0.0f, 0.0f, 1.0f};
@@ -604,7 +693,12 @@ static std::vector<ModelComponent::AnimationClip> BuildClipsFromAssimp(const aiS
                     kf.time -= minTime;
                 }
             }
-            clip.duration = std::max(0.0f, clip.duration - minTime);
+            const float durationFromKeys = std::isfinite(maxTime) ? (maxTime - minTime) : 0.0f;
+            const float durationFromAssimp = origDuration - minTime;
+            clip.duration = std::max(0.0f, std::max(durationFromKeys, durationFromAssimp));
+        } else {
+            const float durationFromKeys = std::isfinite(maxTime) ? maxTime : 0.0f;
+            clip.duration = std::max(0.0f, std::max(durationFromKeys, origDuration));
         }
 
         if (!clip.boneAnimations.empty() && clip.duration > 0.0f) {

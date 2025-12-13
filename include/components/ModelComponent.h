@@ -81,4 +81,11 @@ struct ModelComponent {
     
     // このモデルが持つアニメーションのリスト (別ファイルからロードする場合もある)
     std::vector<AnimationClip> animations;
+
+    DirectX::XMFLOAT4X4 globalInverse = {
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 0.0f, 1.0f
+    };
 };

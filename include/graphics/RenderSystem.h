@@ -341,7 +341,7 @@ struct RenderSystem {
             };
 
             cbuffer Skinning : register(b1) {
-                float4x4 gBoneTransforms[128];
+                row_major float4x4 gBoneTransforms[128]; // CPU側はrow-majorで送る
                 float4 gSkinDebug; // x:weightSum<=0 flag
             };
 
@@ -366,11 +366,11 @@ struct RenderSystem {
 
             VSOut main(VSIn i) {
                 VSOut o;
-
-                float3 posL = i.pos;
                 float3 nrmL = i.nrm;
                 float3 tanL = i.tan;
                 float3 bitanL = i.bitan;
+                // local position before skinning (used by skinning code)
+                float3 posL = i.pos;
 
                 // スキニング計算
                 float weights[4] = {i.boneWeights.x, i.boneWeights.y, i.boneWeights.z, i.boneWeights.w};
@@ -391,6 +391,7 @@ struct RenderSystem {
                     for(int j=0; j<4; ++j) {
                         float w = weights[j];
                         if (w > 0.0f) {
+                            // row_major行列 × 行ベクトル
                             p += mul(float4(posL, 1.0f), gBoneTransforms[indices[j]]).xyz * w;
                             n += mul(nrmL, (float3x3)gBoneTransforms[indices[j]]) * w;
                             t += mul(tanL, (float3x3)gBoneTransforms[indices[j]]) * w;
@@ -1096,7 +1097,7 @@ struct RenderSystem {
             // スキニング定数バッファの更新とバインド
             if (mc.isSkinned) {
                 SkinningConstants skCbuf;
-                // ボーン変換行列をコピー (最大128個まで) - 転置しない
+                // ボーン変換行列をコピー (最大128個まで) - 転置しない（row_major前提）
                 size_t boneCount = std::min(mc.skeleton.boneTransforms.size(), size_t(128));
                 for (size_t i = 0; i < boneCount; ++i) {
                     skCbuf.boneTransforms[i] = mc.skeleton.boneTransforms[i];
