@@ -821,6 +821,37 @@ class GameScene : public IScene {
         return angles;
     }
 
+    std::vector<std::vector<int>> LoadGoalAngleCsv(const std::string &csvPath) {
+        std::vector<std::vector<int>> goalangles;
+        std::ifstream file(csvPath);
+        if (!file.is_open()) {
+            DEBUGLOG_ERROR("[Goal] 角度CSVが開けません: " + csvPath);
+            return goalangles;
+        }
+
+        std::string line;
+        while (std::getline(file, line)) {
+            if (line.empty()) {
+                continue;
+            }
+            std::vector<int> row;
+            std::stringstream ss(line);
+            std::string cell;
+            while (std::getline(ss, cell, ',')) {
+                try {
+                    row.push_back(std::stoi(cell));
+                } catch (const std::exception &ex) {
+                    DEBUGLOG_WARNING(std::string("[Goal] CSVパース失敗: ") + cell + " (" + ex.what() + ")");
+                }
+            }
+            if (!row.empty()) {
+                goalangles.push_back(row);
+            }
+        }
+
+        return goalangles;
+    }
+
     std::vector<MovingObstaclePattern> LoadMovingObstacleCsv(const std::string &csvPath) {
         std::vector<MovingObstaclePattern> patterns;
         std::ifstream file(csvPath);
