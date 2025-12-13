@@ -177,24 +177,13 @@ void ConfigManager::SaveTOML() {
     for (const auto& [sectionName, vars] : sections) {
         file << "[" << sectionName << "]\n";
         for (auto* var : vars) {
-            std::string val = var->GetValueAsString();
-            // Quote strings if needed (simple check)
-            // For this simple parser, we assume strings need quotes if they aren't numbers/bools
-            // But GetValueAsString implementation for string already returns raw string.
-            // We should probably add quotes for string types.
-            // Since we don't have type info easily here without casting, let's rely on the fact
-            // that SetValueFromString handles unquoting.
-            // A robust way would be to have GetValueAsTOMLString in interface.
-            // For now, let's just write it. If it's a string type, we might want to quote it.
-            // But wait, GetValueAsString for bool returns "true"/"false".
-            // Let's just write it as is. If it's a string value "hello", it writes hello.
-            // The parser handles quotes. We should add them if it's a string.
-            // For simplicity, let's just write raw.
+            // Emit comment just above the key if provided
+            const std::string comment = var->GetComment();
+            if (!comment.empty()) {
+                file << "# " << comment << "\n";
+            }
 
-            // Actually, to be safe with our parser:
-            // If the value contains spaces and isn't quoted, our parser might be fine since we take everything after =
-            // But standard TOML requires quotes for strings.
-            // Let's try to detect if it's a number or bool, otherwise quote.
+            std::string val = var->GetValueAsString();
             bool isNumber = !val.empty() && val.find_first_not_of("0123456789.-") == std::string::npos;
             bool isBool = val == "true" || val == "false";
 
@@ -207,7 +196,6 @@ void ConfigManager::SaveTOML() {
         file << "\n";
     }
 
-    // Update time so we don't hot-reload our own save
     file.close();
     m_LastWriteTime = fs::last_write_time(tomlPath);
 }
