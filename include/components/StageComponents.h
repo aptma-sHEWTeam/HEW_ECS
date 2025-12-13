@@ -301,6 +301,58 @@ struct LoadMove : IComponent {
 };
 
 /**
+ * @struct LoadGoalAngle
+ * @brief ゴールの角度をCSVファイルから読み込むコンポーネント
+ */
+struct LoadGoalAngle : IComponent {
+    /**
+     * @brief ファイルストリーム
+     */
+    ifstream m_file;
+
+    /**
+     * @brief 動くブロックのデータを格納するベクター
+     */
+    vector<vector<int>> goalAngle;
+
+    /**
+     * @brief　コンストラクタ
+     */
+    LoadGoalAngle() {
+        m_file.open("Assets/StageData/Goal/goal.csv");
+        if (!m_file.is_open())
+            cerr << "Error: Could not open Assets/StageData/Goal/goal.csv" << endl;
+        else {
+            loadGoalAngle();
+        }
+    }
+
+    void loadGoalAngle() {
+        string line;
+        while (getline(m_file, line)) {
+            vector<int> row;
+            stringstream sstream(line);
+            string cell;
+
+            while (getline(sstream, cell, ',')) {
+                try {
+                    row.push_back(stoi(cell));
+                } catch (const std::invalid_argument &error) {
+                    cerr << "無効な数値: " << cell << " (" << error.what() << ")" << endl;
+                } catch (const std::out_of_range &error) {
+                    cerr << "範囲外の数値: " << cell << " (" << error.what() << ")" << endl;
+                }
+            }
+            goalAngle.push_back(row);
+        }
+        m_file.close();
+    }
+
+    LoadGoalAngle(const LoadGoalAngle &) = delete;
+    LoadGoalAngle &operator=(const LoadGoalAngle &) = delete;
+};
+
+/**
  * @struct MoveBlockStatus
  * @brief 移動するブロックのステータス管理
  */
