@@ -1014,7 +1014,7 @@ class GameScene : public IScene {
 
     void CreateFloor(World &world, const DirectX::XMFLOAT3 &position) {
         // 各マスにフロアFBXをそのまま配置する（スケールは1x1x1、Yは設定値でオフセット）
-        DirectX::XMFLOAT3 floorPos = {position.x, position.y + cfg_FloorYOffset, position.z};
+        DirectX::XMFLOAT3 floorPos = {position.x, position.y + 1.3f+ cfg_FloorYOffset, position.z};
         Transform transform{{floorPos}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
 
         Entity floor = world.Create()
@@ -1027,7 +1027,7 @@ class GameScene : public IScene {
     }
 
     void CreateStart(World &world, const DirectX::XMFLOAT3 &position) {
-        DirectX::XMFLOAT3 diffPosition = {position.x, position.y - 1.0f, position.z};
+        DirectX::XMFLOAT3 diffPosition = {position.x, position.y - 0.5f, position.z};
         Transform t{diffPosition, {0, 0, 0}, {1, 1, 1}};
         MeshRenderer r;
         r.meshType = MeshType::Cube;
@@ -1071,7 +1071,7 @@ class GameScene : public IScene {
         });
 
 
-        DirectX::XMFLOAT3 diffPosition = {position.x, position.y - 1.0f, position.z};
+        DirectX::XMFLOAT3 diffPosition = {position.x, position.y - 0.5f, position.z};
         Transform t{diffPosition, {0,angle, 0}, {1, 1, 1}};
         MeshRenderer r;
         r.meshType = MeshType::Cube;
