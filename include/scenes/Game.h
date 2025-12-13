@@ -902,6 +902,37 @@ class GameScene : public IScene {
         return angles;
     }
 
+    std::vector<std::vector<int>> LoadGoalAngleCsv(const std::string &csvPath) {
+        std::vector<std::vector<int>> goalangles;
+        std::ifstream file(csvPath);
+        if (!file.is_open()) {
+            DEBUGLOG_ERROR("[Goal] 角度CSVが開けません: " + csvPath);
+            return goalangles;
+        }
+
+        std::string line;
+        while (std::getline(file, line)) {
+            if (line.empty()) {
+                continue;
+            }
+            std::vector<int> row;
+            std::stringstream ss(line);
+            std::string cell;
+            while (std::getline(ss, cell, ',')) {
+                try {
+                    row.push_back(std::stoi(cell));
+                } catch (const std::exception &ex) {
+                    DEBUGLOG_WARNING(std::string("[Goal] CSVパース失敗: ") + cell + " (" + ex.what() + ")");
+                }
+            }
+            if (!row.empty()) {
+                goalangles.push_back(row);
+            }
+        }
+
+        return goalangles;
+    }
+
     std::vector<MovingObstaclePattern> LoadMovingObstacleCsv(const std::string &csvPath) {
         std::vector<MovingObstaclePattern> patterns;
         std::ifstream file(csvPath);
@@ -947,7 +978,7 @@ class GameScene : public IScene {
         light.SetAttenuation(cfg_PointLightConst.Get(), cfg_PointLightLinear.Get(), cfg_PointLightQuadratic.Get());
     }
 
-    void CreateStageMap(World &world) {
+    void CreateStageMap(World &world,int stagenumber) {
         world.ForEach<StageCreate>([&](Entity, StageCreate &stagecreate) {
             float tileSize = 1.0f;
 
@@ -983,7 +1014,7 @@ class GameScene : public IScene {
                     if (x == max_x_index) CreatFloorWall(world, {worldX + tileSize, worldY, worldZ});
 
                     if (blockType != 0) {
-                        CreateBlockByType(world, blockposition, blockType);
+                        CreateBlockByType(world, blockposition, blockType,stagenumber);
                     }
                 }
             }
@@ -1038,10 +1069,10 @@ class GameScene : public IScene {
         });
     }
 
-    void CreateBlockByType(World &world, const DirectX::XMFLOAT3 &position, int blockType) {
+    void CreateBlockByType(World &world, const DirectX::XMFLOAT3 &position, int blockType,int stagenumber) {
         switch (blockType) {
             case 1: CreateStart(world, position); break;
-            case 2: CreateGoal(world, position); break;
+            case 2: CreateGoal(world, position, stagenumber); break;
             case 3: CreateWall(world, position); break;
             case 5: CreateRightDownCorner(world, position); break;
             case 6: CreateLeftDownCorner(world, position); break;
@@ -1107,9 +1138,22 @@ class GameScene : public IScene {
         stageOwnedEntities_.push_back(e);
     }
 
-    void CreateGoal(World &world, const DirectX::XMFLOAT3 &position) {
+    void CreateGoal(World &world, const DirectX::XMFLOAT3 &position, int currentstage) {
+        int stageIndex = currentstage - 1;
+        if (stageIndex < 0)
+            stageIndex = 0;
+        float angle = 0.0f;
+        world.ForEach<LoadGoalAngle>([&](Entity, LoadGoalAngle & data){
+            if (!data.goalAngle.empty() && data.goalAngle.size() > 0 &&
+                data.goalAngle[0].size() > static_cast<size_t>(stageIndex))
+            {
+                angle = static_cast<float>(data.goalAngle[0][stageIndex]);
+            }
+        });
+
+
         DirectX::XMFLOAT3 diffPosition = {position.x, position.y - 1.0f, position.z};
-        Transform t{diffPosition, {0, 0, 0}, {1, 1, 1}};
+        Transform t{diffPosition, {0,angle, 0}, {1, 1, 1}};
         MeshRenderer r;
         r.meshType = MeshType::Cube;
         r.color = DirectX::XMFLOAT3{cfg_GoalR, cfg_GoalG, cfg_GoalB};
@@ -1127,6 +1171,7 @@ class GameScene : public IScene {
         Entity e = world.Create()
                        .With<Transform>(t)
                        .With<MeshRenderer>(r)
+                       .With<Model>(cfg_GoalFBXPass)
                        .With<EmissiveMaterial>(emissive)
                        .With<EmissivePulse>(pulse)
                        .With<PointLight>(light)
@@ -1161,7 +1206,7 @@ class GameScene : public IScene {
 
         Entity wallEntity = world.Create()
                                 .With<Transform>(transform)
-                                .With<Model>(cfg_HalfWallFBXPass)
+                                .With<Model>(cfg_WallFBXPass)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
                                 .With<CollisionRightIsoTriPrism>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
@@ -1179,7 +1224,7 @@ class GameScene : public IScene {
 
         Entity wallEntity = world.Create()
                                 .With<Transform>(transform)
-                                .With<Model>(cfg_HalfWallFBXPass)
+                                .With<Model>(cfg_WallFBXPass)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
                                 .With<CollisionRightIsoTriPrism>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
@@ -1197,7 +1242,7 @@ class GameScene : public IScene {
 
         Entity wallEntity = world.Create()
                                 .With<Transform>(transform)
-                                .With<Model>(cfg_HalfWallFBXPass)
+                                .With<Model>(cfg_WallFBXPass)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
                                 .With<CollisionRightIsoTriPrism>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
@@ -1215,7 +1260,7 @@ class GameScene : public IScene {
 
         Entity wallEntity = world.Create()
                                 .With<Transform>(transform)
-                                .With<Model>(cfg_HalfWallFBXPass)
+                                .With<Model>(cfg_WallFBXPass)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
                                 .With<CollisionRightIsoTriPrism>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
@@ -1465,9 +1510,34 @@ class GameScene : public IScene {
                 Entity moveEntity = world.Create().With<LoadMovingObstacle>(loadMove).Build();
                 stageOwnedEntities_.push_back(moveEntity);
             }
+
+            //// ゴールの角度CSVもステージごとにロード
+            //auto goalAngleCsvPath = ResolveMovingObstacleCsvPath(stagecreate.csvPath);
+            //std::vector<std::vector<int>> goalAngles;
+            //if (goalAngleCsvPath) {
+            //    goalAngles = LoadGoalAngleCsv(*goalAngleCsvPath);
+            //    if (movePatterns.empty()) {
+            //        DEBUGLOG_WARNING("[MoveObstacle] CSVが空、または読み込みに失敗しました: " + *moveCsvPath);
+            //    }
+            //} else {
+            //    DEBUGLOG_WARNING("[MoveObstacle] CSVパスを解決できません: " + stagecreate.csvPath);
+            //}
+
+            //bool goalAngleUpdated = false;
+            //world.ForEach<LoadGoalAngle>([&](Entity, LoadGoalAngle &loadgoalangle) {
+            //    loadgoalangle.goalAngle = goalAngles;
+            //    goalAngleUpdated = true;
+            //});
+
+            //if (!goalAngleUpdated) {
+            //    LoadGoalAngle loadGoalAngle;
+            //    loadGoalAngle.goalAngle = goalAngles;
+            //    Entity goalAngleEntity = world.Create().With<LoadGoalAngle>(loadGoalAngle).Build();
+            //    stageOwnedEntities_.push_back(goalAngleEntity);
+            //}
         });
 
-        CreateStageMap(world);
+        CreateStageMap(world, stage);
         BakeStageLighting(world);
 
         if (world.IsAlive(playerEntity_)) {
