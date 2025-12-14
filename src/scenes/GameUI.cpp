@@ -6,12 +6,12 @@
 #include "scenes/Game.h"
 #include "systems/UISystem.h"
 #include "graphics/TextSystem.h"
-#include "animation/Animation.h"
 #include "components/CountUIComponent.h"
 #include "components/UIImageComponents.h"
 #include "config/ConfigVar.h"
+#include "animation/Animation.h" // cfg_ChargingFade / SpriteSheetAnimation など
 
-inline static ConfigVar<float> cfg_FadeFrameTime{"Fade.Out", "FadeFrameTime", 0.01f};
+inline static ConfigVar<float> cfg_FadeFrameTime{"Fade.Out", "FadeFrameTime", 0.01f, "フェードアウト1フレームの時間（秒）"};
 
 void GameScene::CreateTextFormats() {
     TextSystem::TextFormat hudFormat;

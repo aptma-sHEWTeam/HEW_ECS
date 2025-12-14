@@ -14,13 +14,16 @@ public:
     virtual void SetValueFromBinary(const void* data) = 0;
     virtual void GetValueAsBinary(void* data) const = 0;
     virtual size_t GetBinarySize() const = 0;
+    // Optional: short description used when emitting TOML comments
+    virtual std::string GetComment() const = 0;
 };
 
 template <typename T>
 class ConfigVar : public IConfigVar {
 public:
-    ConfigVar(const std::string& section, const std::string& name, const T& defaultValue)
-        : m_Section(section), m_Name(name), m_Value(defaultValue), m_DefaultValue(defaultValue) {
+    ConfigVar(const std::string& section, const std::string& name, const T& defaultValue,
+              const std::string& comment = {})
+        : m_Section(section), m_Name(name), m_Value(defaultValue), m_DefaultValue(defaultValue), m_Comment(comment) {
         ConfigManager::Instance().Register(this);
     }
 
@@ -38,6 +41,7 @@ public:
     // IConfigVar implementation
     std::string GetSection() const override { return m_Section; }
     std::string GetName() const override { return m_Name; }
+    std::string GetComment() const override { return m_Comment; }
 
     void SetValueFromString(const std::string& value) override {
         // Specializations or standard conversions would go here
@@ -68,11 +72,7 @@ public:
 
     void SetValueFromBinary(const void* data) override {
         if constexpr (std::is_same_v<T, std::string>) {
-            // Strings are tricky in simple binary dumps without length prefix
-            // For this simple implementation, we might need a fixed size or length prefix
-            // Let's assume the binary format handles strings differently or we skip them for now in binary
-            // Or better: The manager handles the reading and passes the pointer.
-            // For simplicity, let's assume we don't support binary strings yet or handle them in Manager.
+            // Not supported in binary for now
         } else {
             m_Value = *static_cast<const T*>(data);
         }
@@ -86,7 +86,7 @@ public:
 
     size_t GetBinarySize() const override {
         if constexpr (std::is_same_v<T, std::string>) {
-            return 0; // Dynamic size not supported in this simple fixed-struct binary approach yet
+            return 0;
         } else {
             return sizeof(T);
         }
@@ -97,4 +97,5 @@ private:
     std::string m_Name;
     T m_Value;
     T m_DefaultValue;
+    std::string m_Comment;
 };

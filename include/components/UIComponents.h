@@ -103,17 +103,17 @@ struct UIButton : IComponent {
     std::function<void()> onClick; ///< クリック時のコールバック
 
     // Configs
-    inline static ConfigVar<float> cfg_BtnNormalR{"UI.Button.Normal", "BtnNormalR", 0.2f};
-    inline static ConfigVar<float> cfg_BtnNormalG{"UI.Button.Normal", "BtnNormalG", 0.2f};
-    inline static ConfigVar<float> cfg_BtnNormalB{"UI.Button.Normal", "BtnNormalB", 0.2f};
+    inline static ConfigVar<float> cfg_BtnNormalR{"UI.Button.Normal", "BtnNormalR", 0.2f, "ボタン通常時の色 R"};
+    inline static ConfigVar<float> cfg_BtnNormalG{"UI.Button.Normal", "BtnNormalG", 0.2f, "ボタン通常時の色 G"};
+    inline static ConfigVar<float> cfg_BtnNormalB{"UI.Button.Normal", "BtnNormalB", 0.2f, "ボタン通常時の色 B"};
     
-    inline static ConfigVar<float> cfg_BtnHoverR{"UI.Button.Hover", "BtnHoverR", 0.3f};
-    inline static ConfigVar<float> cfg_BtnHoverG{"UI.Button.Hover", "BtnHoverG", 0.3f};
-    inline static ConfigVar<float> cfg_BtnHoverB{"UI.Button.Hover", "BtnHoverB", 0.3f};
+    inline static ConfigVar<float> cfg_BtnHoverR{"UI.Button.Hover", "BtnHoverR", 0.3f, "ボタンホバー時の色 R"};
+    inline static ConfigVar<float> cfg_BtnHoverG{"UI.Button.Hover", "BtnHoverG", 0.3f, "ボタンホバー時の色 G"};
+    inline static ConfigVar<float> cfg_BtnHoverB{"UI.Button.Hover", "BtnHoverB", 0.3f, "ボタンホバー時の色 B"};
 
-    inline static ConfigVar<float> cfg_BtnPressR{"UI.Button.Press", "BtnPressR", 0.15f};
-    inline static ConfigVar<float> cfg_BtnPressG{"UI.Button.Press", "BtnPressG", 0.15f};
-    inline static ConfigVar<float> cfg_BtnPressB{"UI.Button.Press", "BtnPressB", 0.15f};
+    inline static ConfigVar<float> cfg_BtnPressR{"UI.Button.Press", "BtnPressR", 0.15f, "ボタン押下時の色 R"};
+    inline static ConfigVar<float> cfg_BtnPressG{"UI.Button.Press", "BtnPressG", 0.15f, "ボタン押下時の色 G"};
+    inline static ConfigVar<float> cfg_BtnPressB{"UI.Button.Press", "BtnPressB", 0.15f, "ボタン押下時の色 B"};
 
     UIButton() {
         normalColor = {cfg_BtnNormalR, cfg_BtnNormalG, cfg_BtnNormalB, 1.0f};

@@ -26,15 +26,17 @@
  */
 class StageSlectScene : public IScene {
   public:
-    inline static ConfigVar<float> cfg_UICountPosX{"UI.StageSelect.Counter", "CountPosX", 20.0f};
-    inline static ConfigVar<float> cfg_UICountPosY{"UI.StageSelect.Counter", "CountPosY", 170.0f};
-    inline static ConfigVar<float> cfg_UICountW{"UI.StageSelect.Counter", "CountWidth", 200.0f};
-    inline static ConfigVar<float> cfg_UICountH{"UI.StageSelect.Counter", "CountHeight", 40.0f};
-    inline static ConfigVar<float> cfg_UICountR{"UI.StageSelect.Counter", "CountColorR", 0.0f};
-    inline static ConfigVar<float> cfg_UICountG{"UI.StageSelect.Counter", "CountColorG", 1.0f};
-    inline static ConfigVar<float> cfg_UICountB{"UI.StageSelect.Counter", "CountColorB", 1.0f};
+    // ステージセレクト画面のカウンタUI設定
+    inline static ConfigVar<float> cfg_UICountPosX{"UI.StageSelect.Counter", "CountPosX", 20.0f, "ステージセレクトカウンタのX座標"};
+    inline static ConfigVar<float> cfg_UICountPosY{"UI.StageSelect.Counter", "CountPosY", 170.0f, "ステージセレクトカウンタのY座標"};
+    inline static ConfigVar<float> cfg_UICountW{"UI.StageSelect.Counter", "CountWidth", 200.0f, "ステージセレクトカウンタの幅"};
+    inline static ConfigVar<float> cfg_UICountH{"UI.StageSelect.Counter", "CountHeight", 40.0f, "ステージセレクトカウンタの高さ"};
+    inline static ConfigVar<float> cfg_UICountR{"UI.StageSelect.Counter", "CountColorR", 0.0f, "ステージセレクトカウンタの色 R"};
+    inline static ConfigVar<float> cfg_UICountG{"UI.StageSelect.Counter", "CountColorG", 1.0f, "ステージセレクトカウンタの色 G"};
+    inline static ConfigVar<float> cfg_UICountB{"UI.StageSelect.Counter", "CountColorB", 1.0f, "ステージセレクトカウンタの色 B"};
 
     void OnEnter(World &world) override {
+        // 既存実装そのまま
         bool hasGameStatus = false;
         world.ForEach<GameStatus>([&](Entity, GameStatus &) { hasGameStatus = true; });
         if (!hasGameStatus) {
@@ -46,7 +48,7 @@ class StageSlectScene : public IScene {
         if (!hasStageProgress) {
             world.Create().With<StageProgress>().Build();
         }
-       
+        
         auto *gfx = ServiceLocator::TryGet<GfxDevice>();
         if (!gfx) {
             DEBUGLOG_ERROR("[StageSelect] GfxDevice not found");
@@ -88,17 +90,15 @@ class StageSlectScene : public IScene {
     }
 
     void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
-        // UI interaction wiring (once)
+        // 既存実装そのまま（前と同じ内容）
         world.ForEach<UIInteractionSystem>([&](Entity, UIInteractionSystem &sys) {
             if (!sys.input_) {
                 sys.input_ = &input;
             }
         });
 
-        // Tick 更新（常に呼ぶ）
         world.Tick(deltaTime);
 
-        // キーボード: Enter でシーン移動
         if (input.GetKeyDown(VK_RETURN)) {
             DEBUGLOG("Enter pressed!");
             if (auto *maneger = ServiceLocator::TryGet<SceneManager>()) {
@@ -106,10 +106,8 @@ class StageSlectScene : public IScene {
             }
         }
 
-        // ゲームパッド
         GamepadSystem *padsystem = ServiceLocator::TryGet<GamepadSystem>();
         if (padsystem) {
-            // 決定: A または Start または X (別配置吸収)
             if (padsystem->GetAnyButtonDown({GamepadSystem::Button_A, GamepadSystem::Button_Start, GamepadSystem::Button_X})) {
                 DEBUGLOG("Enter pressed!");
                 if (auto *maneger = ServiceLocator::TryGet<SceneManager>()) {
@@ -118,11 +116,9 @@ class StageSlectScene : public IScene {
             }
         }
 
-        // ステージ選択更新
         world.ForEach<StageProgress>([&](Entity, StageProgress &stats) {
             const int maxStage = GetAvailableStageCount();
 
-            // キーボード左右
             if (input.GetKeyDown(VK_RIGHT) && stats.selectStage < maxStage) {
                 stats.selectStage++;
             }
@@ -130,12 +126,12 @@ class StageSlectScene : public IScene {
                 stats.selectStage--;
             }
 
-            // パッド: DPad または B/X で左右移動
-            if (padsystem) {
-                if (padsystem->GetAnyButtonDown({GamepadSystem::Button_DPad_Right, GamepadSystem::Button_B})) {
+            GamepadSystem *padsystem2 = ServiceLocator::TryGet<GamepadSystem>();
+            if (padsystem2) {
+                if (padsystem2->GetAnyButtonDown({GamepadSystem::Button_DPad_Right, GamepadSystem::Button_B})) {
                     stats.selectStage++;
                 }
-                if (padsystem->GetAnyButtonDown({GamepadSystem::Button_DPad_Left, GamepadSystem::Button_X})) {
+                if (padsystem2->GetAnyButtonDown({GamepadSystem::Button_DPad_Left, GamepadSystem::Button_X})) {
                     stats.selectStage--;
                 }
             }
@@ -149,6 +145,7 @@ class StageSlectScene : public IScene {
             }
         });
     }
+
     void OnRender(World &world) override {
         world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
             sys.Render(world);

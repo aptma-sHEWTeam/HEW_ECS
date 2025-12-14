@@ -88,18 +88,18 @@ struct App {
 #endif
 
     // Camera設定（TOMLで編集可能）
-    inline static ConfigVar<float> cfg_CamFovDeg{"Camera.Base", "FovDegrees", 45.0f};
-    inline static ConfigVar<float> cfg_CamNear{"Camera.Base", "Near", 0.1f};
-    inline static ConfigVar<float> cfg_CamFar{"Camera.Base", "Far", 100.0f};
-    inline static ConfigVar<float> cfg_CamPosX{"Camera.Base", "PosX", 0.0f};
-    inline static ConfigVar<float> cfg_CamPosY{"Camera.Base", "PosY", 20.0f};
-    inline static ConfigVar<float> cfg_CamPosZ{"Camera.Base", "PosZ", -5.0f};
-    inline static ConfigVar<float> cfg_CamTargetX{"Camera.Base", "TargetX", 0.0f};
-    inline static ConfigVar<float> cfg_CamTargetY{"Camera.Base", "TargetY", 0.0f};
-    inline static ConfigVar<float> cfg_CamTargetZ{"Camera.Base", "TargetZ", -0.2f};
-    inline static ConfigVar<float> cfg_CamUpX{"Camera.Base", "UpX", 0.0f};
-    inline static ConfigVar<float> cfg_CamUpY{"Camera.Base", "UpY", 0.0f};
-    inline static ConfigVar<float> cfg_CamUpZ{"Camera.Base", "UpZ", 1.0f};
+    inline static ConfigVar<float> cfg_CamFovDeg{"Camera.Base", "FovDegrees", 45.0f, "メインカメラの垂直視野角（度）"};
+    inline static ConfigVar<float> cfg_CamNear{"Camera.Base", "Near", 0.1f, "メインカメラのニアクリップ距離"};
+    inline static ConfigVar<float> cfg_CamFar{"Camera.Base", "Far", 100.0f, "メインカメラのファークリップ距離"};
+    inline static ConfigVar<float> cfg_CamPosX{"Camera.Base", "PosX", 0.0f, "メインカメラ位置 X"};
+    inline static ConfigVar<float> cfg_CamPosY{"Camera.Base", "PosY", 20.0f, "メインカメラ位置 Y"};
+    inline static ConfigVar<float> cfg_CamPosZ{"Camera.Base", "PosZ", -5.0f, "メインカメラ位置 Z"};
+    inline static ConfigVar<float> cfg_CamTargetX{"Camera.Base", "TargetX", 0.0f, "メインカメラ注視点 X"};
+    inline static ConfigVar<float> cfg_CamTargetY{"Camera.Base", "TargetY", 0.0f, "メインカメラ注視点 Y"};
+    inline static ConfigVar<float> cfg_CamTargetZ{"Camera.Base", "TargetZ", -0.2f, "メインカメラ注視点 Z"};
+    inline static ConfigVar<float> cfg_CamUpX{"Camera.Base", "UpX", 0.0f, "メインカメラの上方向ベクトル X"};
+    inline static ConfigVar<float> cfg_CamUpY{"Camera.Base", "UpY", 0.0f, "メインカメラの上方向ベクトル Y"};
+    inline static ConfigVar<float> cfg_CamUpZ{"Camera.Base", "UpZ", 1.0f, "メインカメラの上方向ベクトル Z"};
 
     void InitializeGame() {
         DEBUGLOG("InitializeGame() begin");
@@ -165,6 +165,11 @@ struct App {
         DEBUGLOG("========================================");
         DEBUGLOG("App::Init() 開始");
         DEBUGLOG("ウィンドウサイズ: " + std::to_string(width) + "x" + std::to_string(height));
+
+        // ConfigManager を最初に初期化して config.toml を生成/読み込み
+        // 実行フォルダ直下に Assets がある前提。無ければこの呼び出しだけで
+        // Assets/Settings/config.toml を新規作成する。
+        ConfigManager::Instance().Initialize("Assets");
 
         // P2: COM初期化モードを明示的に記録
         HRESULT hrCom = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
