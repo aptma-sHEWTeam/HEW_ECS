@@ -591,13 +591,13 @@ class GameScene : public IScene {
 
     void CreatePlayer(World &world) {
         float s = cfg_PlayerScale;
-        Transform transform{{0.0f, 0.0f, cfg_PlayerStartY}, {0.0f, 0.0f, 90.0f}, {s, s, s}};
+        Transform transform{{0.0f, cfg_PlayerStartY, 0.0f}, {0.0f, 0.0f, 90.0f}, {s, s, s}};
 
         // ユーザー指定のパスでモデルとアニメーションをロード
         // "Assets/Models/Player/obj_player.fbx"
         // "Assets/Models/Player/anm_fry.fbx"
         std::string modelPath = "Assets/Models/Player/obj_player.fbx";
-        std::string animPath = "Assets/Models/Player/anm_fry01.fbx";
+        std::string animPath = "Assets/Models/Player/anm_fry.fbx";
 
         std::vector<ModelPrefabNode> nodes = ModelLoader::LoadModel(modelPath);
         std::vector<ModelComponent::AnimationClip> clips = ModelLoader::LoadAnimation(animPath);
