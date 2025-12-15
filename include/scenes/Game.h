@@ -591,51 +591,16 @@ class GameScene : public IScene {
 
     void CreatePlayer(World &world) {
         float s = cfg_PlayerScale;
-        Transform transform{{0.0f, 0.0f, cfg_PlayerStartY}, {0.0f, 0.0f, 0.0f}, {s, s, s}};
+        Transform transform{{0.0f, 0.0f, cfg_PlayerStartY}, {0.0f, 0.0f, 90.0f}, {s, s, s}};
 
         // ユーザー指定のパスでモデルとアニメーションをロード
         // "Assets/Models/Player/obj_player.fbx"
         // "Assets/Models/Player/anm_fry.fbx"
         std::string modelPath = "Assets/Models/Player/obj_player.fbx";
-        std::string animPath = "Assets/Models/Player/anm_fry.fbx";
+        std::string animPath = "Assets/Models/Player/anm_fry01.fbx";
 
         std::vector<ModelPrefabNode> nodes = ModelLoader::LoadModel(modelPath);
         std::vector<ModelComponent::AnimationClip> clips = ModelLoader::LoadAnimation(animPath);
-        if (clips.empty()) {
-            DEBUGLOG_WARNING("No animation clips loaded from " + animPath + ". Fallback to model file animations.");
-            auto fallbackClips = ModelLoader::LoadAnimation(modelPath);
-            if (!fallbackClips.empty()) {
-                clips = std::move(fallbackClips);
-            } else {
-                DEBUGLOG_WARNING("No animation clips found in model file either: " + modelPath);
-            }
-        }
-
-        // ノードが見つからない場合のフォールバック（既存ロジック）
-        if (nodes.empty()) {
-            DEBUGLOG_ERROR("Failed to load player model for verification. Fallback to default.");
-            Entity player = world.Create()
-                                .With<Transform>(transform)
-                                .With<Model>(cfg_PlayerFBXPass)
-                                .With<PlayerTag>()
-                                .With<PlayerVelocity>()
-                                .With<PlayerMovement>()
-                                .With<PlayerStatus>()
-                                .With<PlayerGuide>()
-                                .With<CollisionSphere>(0.4f)
-                                .With<PlayerCollisionHandler>()
-                                .Build();
-            playerEntity_ = player;
-            ownedEntities_.push_back(player);
-            return;
-        }
-
-        // メッシュを持つ最初のノードをプレイヤーとする（通常は1つあるいはルート）
-        // ノード階層がある場合、ルートにTransformやPlayerコンポーネントをつけ、
-        // 子エンティティを作るべきだが、既存コードは単一エンティティ前提。
-        // ここでは「メッシュを持つ最初のノード」に全コンポーネントをつけるアプローチをとる。
-        // もしメッシュが子ノードにあるなら、親ノード（ルート）を作る必要があるかもしれないが、
-        // 今回の検証では簡易的に処理する。
         
         // メッシュノードを探す
         ModelPrefabNode* targetNode = nullptr;
