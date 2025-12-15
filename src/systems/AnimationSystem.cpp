@@ -197,16 +197,6 @@ void AnimationSystem::Update(World& world, float dt) {
             for (size_t i = 0; i < mc.skeleton.bones.size(); ++i) {
                 anim.boneMapping[mc.skeleton.bones[i].name] = (int)i;
             }
-#ifdef _DEBUG
-            static bool s_loggedMapping = false;
-            if (!s_loggedMapping) {
-                DEBUGLOG("AnimationSystem: boneMapping for entity " + std::to_string(e.id) + ":");
-                for (const auto& kv : anim.boneMapping) {
-                    DEBUGLOG("  boneName=" + kv.first + ", index=" + std::to_string(kv.second));
-                }
-                s_loggedMapping = true;
-            }
-#endif
             anim.isMappingDirty = false;
         }
 
@@ -331,17 +321,5 @@ void AnimationSystem::Update(World& world, float dt) {
             XMMATRIX finalMat = offset * globalTransforms[i] * globalInv;
             XMStoreFloat4x4(&mc.skeleton.boneTransforms[i], finalMat);
         }
-
-#ifdef _DEBUG
-        static int s_loggedCount = 0;
-        if (s_loggedCount < 3) {
-            DEBUGLOG("Anim debug: clip='" + clip.name +
-                     "', duration=" + std::to_string(clip.duration) +
-                     ", ticksPerSec=" + std::to_string(clip.ticksPerSecond) +
-                     ", sampleTicks=" + std::to_string(sampleTicks) +
-                     ", boneAnims=" + std::to_string(clip.boneAnimations.size()));
-            s_loggedCount++;
-        }
-#endif
     });
 }

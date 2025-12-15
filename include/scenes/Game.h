@@ -17,6 +17,7 @@
 #include <optional>
 #include <filesystem>
 #include <algorithm>
+#include <vector>
 
 // 追加: IScene 定義を利用するためにシーンマネージャのヘッダーをインクルード
 #include "scenes/SceneManager.h"
@@ -33,6 +34,8 @@
 #include "components/CountUIComponent.h"
 #include "components/Rotator.h"
 #include "components/Light.h"
+#include "components/MeshRenderer.h"
+#include "components/Collision.h"
 #include "components/GameStats.h"
 #include "components/StageComponents.h"
 #include "components/EmissiveMaterial.h"
@@ -85,6 +88,20 @@ class GameScene : public IScene {
         stageClearActive_ = false;
         stageClearTimer_ = 0.0f;
         stageClearTextEntity_ = {};
+        stageOwnedEntities_.clear();
+
+        // 入り直し時に残存ステージエンティティがあれば除去（原点残留や重複生成を防ぐ）
+        {
+            std::vector<Entity> toDestroy;
+            world.ForEach<StageCreate>([&](Entity e, StageCreate &) { toDestroy.push_back(e); });
+            world.ForEach<WallTag>([&](Entity e, WallTag &) { toDestroy.push_back(e); });
+            world.ForEach<GoalTag>([&](Entity e, GoalTag &) { toDestroy.push_back(e); });
+            world.ForEach<StartTag>([&](Entity e, StartTag &) { toDestroy.push_back(e); });
+            world.ForEach<GimmickTag>([&](Entity e, GimmickTag &) { toDestroy.push_back(e); });
+            if (!toDestroy.empty()) {
+                world.DestroyAllEntitiesImmediate(World::Cause::SceneInit);
+            }
+        }
 
         // ステージ進行情報が無ければ生成
         bool hasStageProgress = false;
@@ -343,6 +360,36 @@ class GameScene : public IScene {
         g_GameScene = nullptr;
         RenderingSystem::GetInstance().Shutdown();
 
+        // ステージ生成物を優先的に破棄（シーン間で漏れないようにする）
+        for (const auto &entity : stageOwnedEntities_) {
+            if (world.IsAlive(entity)) {
+                world.DestroyEntityWithCause(entity, World::Cause::SceneUnload);
+            }
+        }
+        stageOwnedEntities_.clear();
+
+        // 念のため、ステージタグを持つものも一括で破棄
+        std::vector<Entity> stageTagged;
+        world.ForEach<WallTag>([&](Entity e, WallTag &) { stageTagged.push_back(e); });
+        world.ForEach<GoalTag>([&](Entity e, GoalTag &) { stageTagged.push_back(e); });
+        world.ForEach<StartTag>([&](Entity e, StartTag &) { stageTagged.push_back(e); });
+        world.ForEach<GimmickTag>([&](Entity e, GimmickTag &) { stageTagged.push_back(e); });
+        for (auto e : stageTagged) {
+            if (world.IsAlive(e)) {
+                world.DestroyEntityWithCause(e, World::Cause::SceneUnload);
+            }
+        }
+
+        // 残存のStageCreateがあれば破棄（次シーンで二重生成を防ぐ）
+        std::vector<Entity> stageCreates;
+        world.ForEach<StageCreate>([&](Entity e, StageCreate &) { stageCreates.push_back(e); });
+        for (auto e : stageCreates) {
+            if (world.IsAlive(e)) {
+                world.DestroyEntityWithCause(e, World::Cause::SceneUnload);
+            }
+        }
+        world.DestroyAllEntitiesImmediate(World::Cause::SceneUnload);
+
         for (const auto &entity : ownedEntities_) {
             if (world.IsAlive(entity)) {
                 world.DestroyEntityWithCause(entity, World::Cause::SceneUnload);
@@ -508,10 +555,8 @@ class GameScene : public IScene {
         // 再生用フェードアニメーションを開始
         StartDeathFadeOut(world);
 
-        if (auto* playerStatus = world.TryGet<PlayerStatus>(playerEntity_))
-        {
-            playerStatus->isStartAfterWallHit = true;
-            DEBUGLOG("isStartAfterWallHitがtrueになりました");
+        if (auto* playerStatus = world.TryGet<PlayerStatus>(playerEntity_)) {
+            UpdateWallHitState(*playerStatus, PlayerStatus::WallHitState::Shaking, "WallHit");
         }
 
         if (auto *pv = world.TryGet<PlayerVelocity>(playerEntity_)) {
@@ -547,7 +592,7 @@ class GameScene : public IScene {
         StartDeathFadeOut(world);
 
         if (auto *playerStatus = world.TryGet<PlayerStatus>(playerEntity_)) {
-            playerStatus->isStartAfterWallHit = true;
+            UpdateWallHitState(*playerStatus, PlayerStatus::WallHitState::Shaking, "TimeUp");
         }
 
         World *targetWorld = world_ ? world_ : &world;
@@ -577,6 +622,7 @@ class GameScene : public IScene {
     struct StageAdvanceInfo {
         bool active = false;
         bool stageBuilt = false;
+        bool stageResetPending = false;
         int stage = 0;
         int nextRoom = 0;
         std::string nextRoomPath;
@@ -682,6 +728,7 @@ class GameScene : public IScene {
                             txt->text = L"ステージクリア！";
                         }
                     }
+                    ClearGoalTransitionFlag(world);
                     return;
                 }
 
@@ -696,6 +743,7 @@ class GameScene : public IScene {
                 pendingStageAdvance_.nextRoom = nextRoomIndex;
                 pendingStageAdvance_.nextRoomPath = *nextRoomPath;
                 stageAdvanceTimer_ = 0.0f;
+                pendingStageAdvance_.stageResetPending = false;
 
                 StartFadeOutNormal(world);
                 DEBUGLOG("同一ステージ内で次のルームへ進行(フェード演出開始): Stage" + std::to_string(sp.currentStage) + ", room" + std::to_string(pendingStageAdvance_.nextRoom));
@@ -716,23 +764,27 @@ class GameScene : public IScene {
             if (fadeOutFinished || stageAdvanceTimer_ >= waitDuration) {
                 stageAdvanceTimer_ = 0.0f;
 
-                std::vector<Entity> stageCreateEntities;
-                world.ForEach<StageCreate>([&](Entity e, StageCreate &) { stageCreateEntities.push_back(e); });
-                for (auto e : stageCreateEntities) {
-                    if (world.IsAlive(e)) {
-                        world.DestroyEntityWithCause(e, World::Cause::StageReset);
+                if (!pendingStageAdvance_.stageResetPending) {
+                    std::vector<Entity> stageCreateEntities;
+                    world.ForEach<StageCreate>([&](Entity e, StageCreate &) { stageCreateEntities.push_back(e); });
+                    for (auto e : stageCreateEntities) {
+                        if (world.IsAlive(e)) {
+                            world.DestroyEntityWithCause(e, World::Cause::StageReset);
+                        }
                     }
+                    world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+                        sp.currentRoom = pendingStageAdvance_.nextRoom;
+                    });
+                    pendingStageAdvance_.stageResetPending = true;
+                    return;
                 }
-
-                world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
-                    sp.currentRoom = pendingStageAdvance_.nextRoom;
-                });
 
                 Entity newStageEntity = world.Create().With<StageCreate>(pendingStageAdvance_.nextRoomPath).Build();
                 ownedEntities_.push_back(newStageEntity);
 
                 DEBUGLOG("同一ステージ内で次のルームへ進行: Stage" + std::to_string(pendingStageAdvance_.stage) + ", room" + std::to_string(pendingStageAdvance_.nextRoom));
                 SetupStage(world, pendingStageAdvance_.stage);
+                pendingStageAdvance_.stageResetPending = false;
                 pendingStageAdvance_.stageBuilt = true;
                 StartFadeInNormal(world);
             }
@@ -743,6 +795,7 @@ class GameScene : public IScene {
         if (fadeInFinished || stageAdvanceTimer_ >= waitDuration) {
             pendingStageAdvance_ = {};
             stageAdvanceTimer_ = 0.0f;
+            ClearGoalTransitionFlag(world);
         }
     }
 
@@ -840,7 +893,7 @@ class GameScene : public IScene {
         std::vector<std::vector<int>> angles;
         std::ifstream file(csvPath);
         if (!file.is_open()) {
-            DEBUGLOG_ERROR("[SpeedUp] 角度CSVが開けません: " + csvPath);
+            DEBUGLOG("[SpeedUp] 角度CSVが開けません(仕様によりスキップ): " + csvPath);
             return angles;
         }
 
@@ -871,7 +924,7 @@ class GameScene : public IScene {
         std::vector<std::vector<int>> goalangles;
         std::ifstream file(csvPath);
         if (!file.is_open()) {
-            DEBUGLOG_ERROR("[Goal] 角度CSVが開けません: " + csvPath);
+            DEBUGLOG("[Goal] 角度CSVが開けません(仕様によりスキップ): " + csvPath);
             return goalangles;
         }
 
@@ -902,7 +955,7 @@ class GameScene : public IScene {
         std::vector<MovingObstaclePattern> patterns;
         std::ifstream file(csvPath);
         if (!file.is_open()) {
-            DEBUGLOG_ERROR("[MoveObstacle] CSVが開けません: " + csvPath);
+            DEBUGLOG("[MoveObstacle] CSVが開けません(仕様によりスキップ): " + csvPath);
             return patterns;
         }
 
@@ -943,49 +996,47 @@ class GameScene : public IScene {
         light.SetAttenuation(cfg_PointLightConst.Get(), cfg_PointLightLinear.Get(), cfg_PointLightQuadratic.Get());
     }
 
-    void CreateStageMap(World &world,int stagenumber) {
-        world.ForEach<StageCreate>([&](Entity, StageCreate &stagecreate) {
-            float tileSize = 1.0f;
+    void CreateStageMap(World &world, const StageCreate &stagecreate, int stagenumber) {
+        float tileSize = 1.0f;
 
-            if (stagecreate.stageMap.empty() || stagecreate.stageMap[0].empty()) {
-                return;
-            }
+        if (stagecreate.stageMap.empty() || stagecreate.stageMap[0].empty()) {
+            return;
+        }
 
-            float mapWidth = static_cast<float>(stagecreate.stageMap[0].size());
-            float mapHeight = static_cast<float>(stagecreate.stageMap.size());
+        float mapWidth = static_cast<float>(stagecreate.stageMap[0].size());
+        float mapHeight = static_cast<float>(stagecreate.stageMap.size());
 
-            const int max_x_index = static_cast<int>(stagecreate.stageMap[0].size() - 1);
-            const int max_y_index = static_cast<int>(stagecreate.stageMap.size() - 1);
+        const int max_x_index = static_cast<int>(stagecreate.stageMap[0].size() - 1);
+        const int max_y_index = static_cast<int>(stagecreate.stageMap.size() - 1);
 
-            const float offsetX = (mapWidth * tileSize) * 0.5f - (tileSize * 0.5f);
-            const float offsetZ = (mapHeight * tileSize) * 0.5f - (tileSize * 0.5f);
+        const float offsetX = (mapWidth * tileSize) * 0.5f - (tileSize * 0.5f);
+        const float offsetZ = (mapHeight * tileSize) * 0.5f - (tileSize * 0.5f);
 
-            for (int y = 0; y < stagecreate.stageMap.size(); ++y) {
-                for (int x = 0; x < stagecreate.stageMap[y].size(); ++x) {
-                    int blockType = stagecreate.stageMap[y][x];
+        for (int y = 0; y < static_cast<int>(stagecreate.stageMap.size()); ++y) {
+            for (int x = 0; x < static_cast<int>(stagecreate.stageMap[y].size()); ++x) {
+                int blockType = stagecreate.stageMap[y][x];
 
-                    float worldX = (static_cast<float>(x) * tileSize) - offsetX;
-                    float worldY = 0.0f;
-                    float worldZ = offsetZ - (static_cast<float>(y) * tileSize);
+                float worldX = (static_cast<float>(x) * tileSize) - offsetX;
+                float worldY = 0.0f;
+                float worldZ = offsetZ - (static_cast<float>(y) * tileSize);
 
-                    const DirectX::XMFLOAT3 blockposition = {worldX, worldY, worldZ};
+                const DirectX::XMFLOAT3 blockposition = {worldX, worldY, worldZ};
 
-                    CreateFloor(world, blockposition);
+                CreateFloor(world, blockposition);
 
-                    // ステージ境界壁
-                    if (y == 0) CreatFloorWall(world, {worldX, worldY, worldZ + tileSize});
-                    if (y == max_y_index) CreatFloorWall(world, {worldX, worldY, worldZ - tileSize});
-                    if (x == 0) CreatFloorWall(world, {worldX - tileSize, worldY, worldZ});
-                    if (x == max_x_index) CreatFloorWall(world, {worldX + tileSize, worldY, worldZ});
+                // ステージ境界壁
+                if (y == 0) CreatFloorWall(world, {worldX, worldY, worldZ + tileSize});
+                if (y == max_y_index) CreatFloorWall(world, {worldX, worldY, worldZ - tileSize});
+                if (x == 0) CreatFloorWall(world, {worldX - tileSize, worldY, worldZ});
+                if (x == max_x_index) CreatFloorWall(world, {worldX + tileSize, worldY, worldZ});
 
-                    if (blockType != 0) {
-                        CreateBlockByType(world, blockposition, blockType,stagenumber);
-                    }
+                if (blockType != 0) {
+                    CreateBlockByType(world, blockposition, blockType,stagenumber);
                 }
             }
+        }
 
-            BakeStageLights(world, stagecreate.stageMap, tileSize);
-        });
+        BakeStageLights(world, stagecreate.stageMap, tileSize);
     }
 
     void BakeStageLights(World &world, const std::vector<std::vector<int>> &stageMap, float tileSize) {
@@ -1066,6 +1117,7 @@ class GameScene : public IScene {
         Entity floor = world.Create()
                            .With<Transform>(transform)
                            .With<Model>(cfg_FloorFBXPass)
+                           .With<StageElementTag>()
                            .Build();
 
         // ステージ切り替え時に破棄されるよう、ステージ所有リストへ登録
@@ -1096,6 +1148,7 @@ class GameScene : public IScene {
                        .With<EmissivePulse>(pulse)
                        .With<PointLight>(light)
                        .With<StartTag>()
+                       .With<StageElementTag>()
                        .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                        .Build();
 
@@ -1141,6 +1194,7 @@ class GameScene : public IScene {
                        .With<EmissivePulse>(pulse)
                        .With<PointLight>(light)
                        .With<GoalTag>()
+                       .With<StageElementTag>()
                        .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                        .Build();
 
@@ -1155,6 +1209,7 @@ class GameScene : public IScene {
         Entity wallEntity = world.Create()
                                 .With<Transform>(transform)
                                 .With<Model>(cfg_WallFBXPass)
+                                .With<StageElementTag>()
                                 .With<WallTag>()
                                 .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                                 .With<WallCollisionHandler>()
@@ -1174,6 +1229,7 @@ class GameScene : public IScene {
                                 .With<Model>(cfg_WallFBXPass)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
+                                .With<StageElementTag>()
                                 .With<CollisionRightIsoTriPrism>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                                 .With<WallCollisionHandler>()
                                 .Build();
@@ -1192,6 +1248,7 @@ class GameScene : public IScene {
                                 .With<Model>(cfg_WallFBXPass)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
+                                .With<StageElementTag>()
                                 .With<CollisionRightIsoTriPrism>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                                 .With<WallCollisionHandler>()
                                 .Build();
@@ -1210,6 +1267,7 @@ class GameScene : public IScene {
                                 .With<Model>(cfg_WallFBXPass)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
+                                .With<StageElementTag>()
                                 .With<CollisionRightIsoTriPrism>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                                 .With<WallCollisionHandler>()
                                 .Build();
@@ -1228,6 +1286,7 @@ class GameScene : public IScene {
                                 .With<Model>(cfg_WallFBXPass)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
+                                .With<StageElementTag>()
                                 .With<CollisionRightIsoTriPrism>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                                 .With<WallCollisionHandler>()
                                 .Build();
@@ -1273,6 +1332,7 @@ class GameScene : public IScene {
         Entity entity = world.Create()
                             .With<Transform>(transform)
                             .With<Model>(cfg_MovingObstacleFBXPass)
+                            .With<StageElementTag>()
                             .With<WallTag>()
                             .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                             .With<WallCollisionHandler>()
@@ -1291,6 +1351,7 @@ class GameScene : public IScene {
                                      .With<Transform>(transform)
                                      .With<Model>(cfg_AObstacleFBXPass)
                                      .With<MeshRenderer>(renderer)
+                                     .With<StageElementTag>()
                                      .With<WallTag>()
                                      .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                                      .With<FloorWallCollisionHandler>()
@@ -1308,6 +1369,7 @@ class GameScene : public IScene {
                                    .With<Transform>(transform)
                                    .With<Model>(cfg_BObstacleFBXPass)
                                    .With<MeshRenderer>(renderer)
+                                   .With<StageElementTag>()
                                    .With<WallTag>()
                                    .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                                    .With<FloorWallCollisionHandler>()
@@ -1325,6 +1387,7 @@ class GameScene : public IScene {
                                    .With<Transform>(transform)
                                    .With<Model>(cfg_CObstacleFBXPass)
                                    .With<MeshRenderer>(renderer)
+                                   .With<StageElementTag>()
                                    .With<WallTag>()
                                    .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                                    .With<FloorWallCollisionHandler>()
@@ -1341,6 +1404,7 @@ class GameScene : public IScene {
                                      .With<Transform>(transform)
                                      .With<Model>(cfg_WallFBXPass)
                                      .With<WallTag>()
+                                     .With<StageElementTag>()
                                      .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                                      .With<FloorWallCollisionHandler>()
                                      .Build();
@@ -1385,6 +1449,7 @@ class GameScene : public IScene {
                                      .With<Model>(cfg_DashBoardFBXPass)
                                      .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                                      .With<GimmickTag>()
+                                     .With<StageElementTag>()
                                      .With<DashBordCollisionHandler>()
                                      .With<DashBoardStatus>(status)
                                      .Build();
@@ -1398,7 +1463,20 @@ class GameScene : public IScene {
         // Deprecated placeholder（現状は CreateStageMap 内で BakeStageLights を実行）
     }
 
+    void CollectDescendants(World &world, Entity parent, std::vector<Entity> &outList) {
+        auto *h = world.TryGet<TransformHierarchy>(parent);
+        if (!h) return;
+
+        for (auto child : h->GetChildren()) {
+            if (world.IsAlive(child)) {
+                outList.push_back(child);
+                CollectDescendants(world, child, outList);
+            }
+        }
+    }
+
     void SetupStage(World &world, int stage) {
+        DEBUGLOG("SetupStage: destroying stageOwnedEntities_ count=" + std::to_string(stageOwnedEntities_.size()));
         // 既存のステージ所有エンティティを破棄
         for (const auto &entity : stageOwnedEntities_) {
             if (world.IsAlive(entity)) {
@@ -1407,12 +1485,13 @@ class GameScene : public IScene {
         }
         stageOwnedEntities_.clear();
 
-        // 念のため、タグでステージ要素をクリーンアップ（過去の登録漏れ対策）
+        // StageElementTag を使ってステージ固有エンティティを一網打尽にする（子孫も含む）
         std::vector<Entity> toDestroy;
-        world.ForEach<WallTag>([&](Entity e, WallTag &) { toDestroy.push_back(e); });
-        world.ForEach<GoalTag>([&](Entity e, GoalTag &) { toDestroy.push_back(e); });
-        world.ForEach<StartTag>([&](Entity e, StartTag &) { toDestroy.push_back(e); });
-        world.ForEach<GimmickTag>([&](Entity e, GimmickTag &) { toDestroy.push_back(e); });
+        world.ForEach<StageElementTag>([&](Entity e, StageElementTag &) {
+            toDestroy.push_back(e);
+            CollectDescendants(world, e, toDestroy);
+        });
+        DEBUGLOG("SetupStage: StageElementTag candidates=" + std::to_string(toDestroy.size()));
         for (auto e : toDestroy) {
             if (world.IsAlive(e)) {
                 world.DestroyEntityWithCause(e, World::Cause::StageReset);
@@ -1421,21 +1500,50 @@ class GameScene : public IScene {
 
         // 破棄を即時反映（次のステージ生成と重ならないように）
         world.FlushDestroyEndOfFrame();
+        DEBUGLOG("SetupStage: after pre-stage flush alive=" + std::to_string(world.GetAliveCount()));
+        DiagnoseStageLeak(world, toDestroy.size());
 
         startEntity_ = {};
         goalEntity_ = {};
 
+        // 最新のStageCreateのみを利用し、それ以外は破棄して重複生成を防ぐ
+        Entity activeStageCreate{};
+        StageCreate *activeStagePtr = nullptr;
+        std::vector<Entity> duplicateStageCreates;
+        world.ForEach<StageCreate>([&](Entity e, StageCreate &sc) {
+            activeStageCreate = e;
+            activeStagePtr = &sc;
+            // ループ終端で最後に見つかったものを採用。途中で見つかったものは後で破棄。
+            duplicateStageCreates.push_back(e);
+        });
+        DEBUGLOG("SetupStage: StageCreate candidates=" + std::to_string(duplicateStageCreates.size()));
+        if (!duplicateStageCreates.empty()) {
+            // keep last
+            duplicateStageCreates.pop_back();
+        }
+        for (auto e : duplicateStageCreates) {
+            if (world.IsAlive(e)) {
+                world.DestroyEntityWithCause(e, World::Cause::StageReset);
+            }
+        }
+        if (!activeStagePtr) {
+            DEBUGLOG_ERROR("[StageCreate] 有効な StageCreate が存在しません。ステージ生成をスキップします");
+            return;
+        }
+        world.FlushDestroyEndOfFrame();
+        DEBUGLOG("SetupStage: stage cleanup complete, alive=" + std::to_string(world.GetAliveCount()));
+
         // ステージに紐づく加速角度CSVをロードしてLoadAngleコンポーネントに反映
-        world.ForEach<StageCreate>([&](Entity, StageCreate &stagecreate) {
-            auto angleCsvPath = ResolveSpeedUpCsvPath(stagecreate.csvPath);
+        {
+            auto angleCsvPath = ResolveSpeedUpCsvPath(activeStagePtr->csvPath);
             std::vector<std::vector<int>> angles;
             if (angleCsvPath) {
                 angles = LoadAngleCsv(*angleCsvPath);
                 if (angles.empty()) {
-                    DEBUGLOG_WARNING("[SpeedUp] 角度CSVが空、または読み込みに失敗しました: " + *angleCsvPath);
+                    DEBUGLOG("[SpeedUp] 角度CSVが空、または読み込みに失敗しました(仕様によりスキップ): " + *angleCsvPath);
                 }
             } else {
-                DEBUGLOG_WARNING("[SpeedUp] 角度CSVパスを解決できません: " + stagecreate.csvPath);
+                DEBUGLOG("[SpeedUp] 角度CSVパスを解決できません(仕様によりスキップ): " + activeStagePtr->csvPath);
             }
 
             bool updated = false;
@@ -1447,20 +1555,23 @@ class GameScene : public IScene {
             if (!updated) {
                 LoadAngle loadAngle;
                 loadAngle.stageAngle = angles;
-                Entity angleEntity = world.Create().With<LoadAngle>(loadAngle).Build();
+                Entity angleEntity = world.Create()
+                                           .With<LoadAngle>(loadAngle)
+                                           .With<StageElementTag>()
+                                           .Build();
                 stageOwnedEntities_.push_back(angleEntity);
             }
 
             // 動く障害物CSVもステージごとにロード
-            auto moveCsvPath = ResolveMovingObstacleCsvPath(stagecreate.csvPath);
+            auto moveCsvPath = ResolveMovingObstacleCsvPath(activeStagePtr->csvPath);
             std::vector<MovingObstaclePattern> movePatterns;
             if (moveCsvPath) {
                 movePatterns = LoadMovingObstacleCsv(*moveCsvPath);
                 if (movePatterns.empty()) {
-                    DEBUGLOG_WARNING("[MoveObstacle] CSVが空、または読み込みに失敗しました: " + *moveCsvPath);
+                    DEBUGLOG("[MoveObstacle] CSVが空、または読み込みに失敗しました(仕様によりスキップ): " + *moveCsvPath);
                 }
             } else {
-                DEBUGLOG_WARNING("[MoveObstacle] CSVパスを解決できません: " + stagecreate.csvPath);
+                DEBUGLOG("[MoveObstacle] CSVパスを解決できません(仕様によりスキップ): " + activeStagePtr->csvPath);
             }
 
             bool moveUpdated = false;
@@ -1472,42 +1583,85 @@ class GameScene : public IScene {
             if (!moveUpdated) {
                 LoadMovingObstacle loadMove;
                 loadMove.patterns = movePatterns;
-                Entity moveEntity = world.Create().With<LoadMovingObstacle>(loadMove).Build();
+                Entity moveEntity = world.Create()
+                                           .With<LoadMovingObstacle>(loadMove)
+                                           .With<StageElementTag>()
+                                           .Build();
                 stageOwnedEntities_.push_back(moveEntity);
             }
+        }
 
-            //// ゴールの角度CSVもステージごとにロード
-            //auto goalAngleCsvPath = ResolveMovingObstacleCsvPath(stagecreate.csvPath);
-            //std::vector<std::vector<int>> goalAngles;
-            //if (goalAngleCsvPath) {
-            //    goalAngles = LoadGoalAngleCsv(*goalAngleCsvPath);
-            //    if (movePatterns.empty()) {
-            //        DEBUGLOG_WARNING("[MoveObstacle] CSVが空、または読み込みに失敗しました: " + *moveCsvPath);
-            //    }
-            //} else {
-            //    DEBUGLOG_WARNING("[MoveObstacle] CSVパスを解決できません: " + stagecreate.csvPath);
-            //}
-
-            //bool goalAngleUpdated = false;
-            //world.ForEach<LoadGoalAngle>([&](Entity, LoadGoalAngle &loadgoalangle) {
-            //    loadgoalangle.goalAngle = goalAngles;
-            //    goalAngleUpdated = true;
-            //});
-
-            //if (!goalAngleUpdated) {
-            //    LoadGoalAngle loadGoalAngle;
-            //    loadGoalAngle.goalAngle = goalAngles;
-            //    Entity goalAngleEntity = world.Create().With<LoadGoalAngle>(loadGoalAngle).Build();
-            //    stageOwnedEntities_.push_back(goalAngleEntity);
-            //}
-        });
-
-        CreateStageMap(world, stage);
+        CreateStageMap(world, *activeStagePtr, stage);
         BakeStageLighting(world);
 
         if (world.IsAlive(playerEntity_)) {
             ResetPlayerToStart(world, playerEntity_);
         }
+    }
+
+    void ClearGoalTransitionFlag(World &world) {
+        world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+            sp.goalTransitioning = false;
+        });
+    }
+
+    void DiagnoseStageLeak(World &world, size_t stageElementCount) {
+        const size_t totalAlive = world.GetAliveCount();
+        if (totalAlive <= stageElementCount + 200) {
+            return;
+        }
+        size_t sampleCount = 0;
+        size_t untrackedMeshes = 0;
+        std::vector<uint32_t> sampleIds;
+        world.ForEach<MeshRenderer>([&](Entity e, MeshRenderer &) {
+            if (world.Has<StageElementTag>(e)) return;
+            if (world.Has<PlayerTag>(e)) return;
+            if (world.Has<UIText>(e)) return;
+            if (world.Has<GoalAttractor>(e)) return;
+            ++untrackedMeshes;
+            if (sampleCount < 5) {
+                sampleIds.push_back(e.id);
+                std::string comps = "Components: MeshRenderer ";
+                if (world.Has<Model>(e)) comps += "Model ";
+                if (world.Has<PointLight>(e)) comps += "PointLight ";
+                if (world.Has<CollisionBox>(e)) comps += "ColBox ";
+                if (world.Has<UIImage>(e)) comps += "UIImage ";
+                if (world.Has<Animator>(e)) comps += "Animator ";
+                if (auto *t = world.TryGet<Transform>(e)) {
+                    comps += "Pos(" + std::to_string(t->position.x) + "," + std::to_string(t->position.y) + ") ";
+                }
+                DEBUGLOG("Leak Candidate ID=" + std::to_string(e.id) + ": " + comps);
+                ++sampleCount;
+            }
+        });
+        if (untrackedMeshes > 0) {
+            std::stringstream ss;
+            ss << "Stage leak warning: totalAlive=" << totalAlive
+               << ", stageElements=" << stageElementCount
+               << ", untrackedMeshRenderer=" << untrackedMeshes;
+            if (!sampleIds.empty()) {
+                ss << ", sampleIDs=" << sampleIds[0];
+                for (size_t i = 1; i < sampleIds.size(); ++i) {
+                    ss << "," << sampleIds[i];
+                }
+            }
+            DEBUGLOG(ss.str());
+        }
+    }
+
+    static const char* WallHitStateToString(PlayerStatus::WallHitState state) {
+        switch (state) {
+            case PlayerStatus::WallHitState::Idle: return "Idle";
+            case PlayerStatus::WallHitState::Shaking: return "Shaking";
+            case PlayerStatus::WallHitState::RespawnWait: return "RespawnWait";
+            default: return "Unknown";
+        }
+    }
+
+    void UpdateWallHitState(PlayerStatus &status, PlayerStatus::WallHitState newState, const char *reason) {
+        if (status.wallHitState == newState) return;
+        status.wallHitState = newState;
+        DEBUGLOG(std::string("WallHitState -> ") + WallHitStateToString(newState) + " (" + reason + ")");
     }
 
     // =========================================
@@ -1529,14 +1683,17 @@ class GameScene : public IScene {
         if (respawnTimer_ <= 0.0f) {
             ResetPlayerToStart(world, respawnPlayer_, true);
             StartFadeInNormal(world);
+            if (auto* playerStatus = world.TryGet<PlayerStatus>(playerEntity_)) {
+                UpdateWallHitState(*playerStatus, PlayerStatus::WallHitState::Idle, "RespawnComplete");
+            }
             pendingRespawn_ = false;
             g_respawnPending = false;
             respawnTimer_ = 0.0f;
         }
-        if (auto* playerStatus = world.TryGet<PlayerStatus>(playerEntity_))
-        {
-            playerStatus->isStartAfterWallHit = false;
-            DEBUGLOG("isStartAfterWallHitがfalseになりました " );
+        if (auto* playerStatus = world.TryGet<PlayerStatus>(playerEntity_)) {
+            if (playerStatus->wallHitState == PlayerStatus::WallHitState::Shaking) {
+                UpdateWallHitState(*playerStatus, PlayerStatus::WallHitState::RespawnWait, "RespawnPending");
+            }
         }
     }
 
@@ -1781,6 +1938,9 @@ inline void GameScene_OnTimeUp(World &w, Entity player) {
 
 inline void WallCollisionHandler::OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) {
     if (w.Has<PlayerTag>(other)) {
+        // 床としての接触（法線が上向き）ならダメージ処理を行わない
+        if (info.normal.y > 0.5f) return;
+
         DEBUGLOG("壁がプレイヤーと衝突 - カメラシェイク＋遅延リスポーン");
         if (g_GameScene) {
             g_GameScene->OnWallHit(other, w);
@@ -1792,6 +1952,9 @@ inline void WallCollisionHandler::OnCollisionEnter(World &w, Entity self, Entity
 
 inline void FloorWallCollisionHandler::OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) {
     if (w.Has<PlayerTag>(other)) {
+        // 床としての接触なら無視
+        if (info.normal.y > 0.5f) return;
+
         DEBUGLOG("ステージ壁がプレイヤーと衝突 - カメラシェイク＋遅延リスポーン");
         if (g_GameScene) {
             g_GameScene->OnWallHit(other, w);

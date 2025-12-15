@@ -418,6 +418,5 @@
       <Filter>Docs</Filter>
     </None>
     <None Include="Assets\Settings\config.toml" />
-    <None Include="debug_log.csv" />
   </ItemGroup>
 </Project>

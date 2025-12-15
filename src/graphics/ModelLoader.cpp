@@ -284,7 +284,7 @@ ModelComponent ModelLoader::ProcessMesh(
     for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
         SimpleVertex vertex;
         vertex.Position = { mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z };
-        
+
         // テクスチャ座標が存在する場合
         if (mesh->mTextureCoords[0]) {
             vertex.TexCoord = { mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y };
@@ -440,28 +440,20 @@ ModelComponent ModelLoader::ProcessMesh(
                     0,0,0,1
                 });
                 boneNameToIndex[parentName] = newIndex;
-#ifdef _DEBUG
-                DEBUGLOG_WARNING("ModelLoader: added pseudo parent bone '" + parentName + "' idx=" + std::to_string(newIndex));
-#endif
             }
         }
 
         for (unsigned int i = 0; i < mesh->mNumBones; i++) {
             aiBone* bone = mesh->mBones[i];
             std::string boneName = SanitizeFbxChannelName(bone->mName.C_Str());
-            
+
             mc.skeleton.bones[i].name = boneName;
-            
+
             // オフセット行列はメッシュ空間->ボーン空間(バインド)の変換。シェーダー側で行ベクトル mul(pos, M) を使う前提のため転置して保存。
             aiMatrix4x4 offset = bone->mOffsetMatrix;
             offset.Transpose();
             memcpy(&mc.skeleton.bones[i].offsetMatrix, &offset, sizeof(DirectX::XMFLOAT4X4));
-#ifdef _DEBUG
-            if (boneName == "Hips") {
-                DEBUGLOG("ModelLoader: Hips offset (DX row-major, transposed) = " + ToString(mc.skeleton.bones[i].offsetMatrix));
-            }
-#endif
-            
+
             // ウェイトの登録
             for (unsigned int j = 0; j < bone->mNumWeights; j++) {
                 const aiVertexWeight& weight = bone->mWeights[j];
@@ -509,7 +501,7 @@ ModelComponent ModelLoader::ProcessMesh(
             }
 #endif
         }
-        
+
         // ウェイトの正規化 (合計が1になるように)
         size_t zeroWeightVerts = 0;
         for (auto& v : vertices) {
@@ -524,32 +516,6 @@ ModelComponent ModelLoader::ProcessMesh(
             }
         }
 
-#ifdef _DEBUG
-        DEBUGLOG("Skeleton for mesh (bones=" + std::to_string(mesh->mNumBones) +
-                 ", zeroWeightVerts=" + std::to_string(zeroWeightVerts) +
-                 ", totalVerts=" + std::to_string(vertices.size()) + "):");
-        for (unsigned int i = 0; i < mesh->mNumBones; ++i) {
-            const auto& b = mc.skeleton.bones[i];
-            DEBUGLOG("  Bone[" + std::to_string(i) + "]: name=" + b.name +
-                     ", parentIndex=" + std::to_string(b.parentIndex));
-        }
-        // サンプル頂点のボーンインデックス/ウェイトをいくつか出力
-        const size_t sampleCount = std::min<size_t>(5, vertices.size());
-        for (size_t vi = 0; vi < sampleCount; ++vi) {
-            const auto& v = vertices[vi];
-            float sumW = v.BoneWeights[0] + v.BoneWeights[1] + v.BoneWeights[2] + v.BoneWeights[3];
-            DEBUGLOG("  Vert[" + std::to_string(vi) + "]: idx={" +
-                     std::to_string(v.BoneIndices[0]) + "," +
-                     std::to_string(v.BoneIndices[1]) + "," +
-                     std::to_string(v.BoneIndices[2]) + "," +
-                     std::to_string(v.BoneIndices[3]) + "} w={" +
-                     std::to_string(v.BoneWeights[0]) + "," +
-                     std::to_string(v.BoneWeights[1]) + "," +
-                     std::to_string(v.BoneWeights[2]) + "," +
-                     std::to_string(v.BoneWeights[3]) + "} sum=" +
-                     std::to_string(sumW));
-        }
-#endif
     }
 
     // 頂点バッファの作成（ボーン／ウェイト処理の後で作ること）
@@ -590,13 +556,6 @@ static std::vector<ModelComponent::AnimationClip> BuildClipsFromAssimp(const aiS
         CollectNodeNames(scene->mRootNode, nameIndex);
     }
 
-#ifdef _DEBUG
-    DEBUGLOG("BuildClipsFromAssimp: node-tree names collected (for reference only):");
-    for (const auto& kv : nameIndex) {
-        DEBUGLOG("  name=" + kv.first + ", idx=" + std::to_string(kv.second));
-    }
-#endif
-
     for (unsigned int i = 0; i < scene->mNumAnimations; ++i) {
         const aiAnimation* a = scene->mAnimations[i];
         if (!a) continue;
@@ -622,11 +581,6 @@ static std::vector<ModelComponent::AnimationClip> BuildClipsFromAssimp(const aiS
                 // 重要: スキニング側（meshの mBones[] 配列）と一致するインデックスは、後段の AnimationSystem で
                 // 名前マッピングにより決定されるため、ここでは -1 を設定しておく。
                 boneAnim.boneIndex = -1;
-#ifdef _DEBUG
-                DEBUGLOG("  Channel->BoneAnimation: raw=" + rawName +
-                         ", name=" + sanitizedName +
-                         ", mappedIndex(mesh)=-1 (deferred by AnimationSystem)");
-#endif
             }
 
             // 位置キー
@@ -736,10 +690,6 @@ std::vector<ModelComponent::AnimationClip> ModelLoader::LoadAnimation(const std:
         for (unsigned int i = 0; i < scene->mNumAnimations; ++i) {
             const aiAnimation* a = scene->mAnimations[i];
             std::string name = (a && a->mName.length > 0) ? a->mName.C_Str() : ("Anim_" + std::to_string(i));
-            DEBUGLOG("  aiAnimation[" + std::to_string(i) + "]: name=" + name +
-                     ", durationTicks=" + std::to_string(a ? a->mDuration : 0.0) +
-                     ", ticksPerSec=" + std::to_string(a ? a->mTicksPerSecond : 0.0) +
-                     ", channels=" + std::to_string(a ? a->mNumChannels : 0u));
         }
     }
 
@@ -761,10 +711,6 @@ std::vector<ModelComponent::AnimationClip> ModelLoader::LoadAnimation(const std:
             for (unsigned int i = 0; i < fallbackScene->mNumAnimations; ++i) {
                 const aiAnimation* a = fallbackScene->mAnimations[i];
                 std::string name = (a && a->mName.length > 0) ? a->mName.C_Str() : ("Anim_" + std::to_string(i));
-                DEBUGLOG("  [FB] aiAnimation[" + std::to_string(i) + "]: name=" + name +
-                         ", durationTicks=" + std::to_string(a ? a->mDuration : 0.0) +
-                         ", ticksPerSec=" + std::to_string(a ? a->mTicksPerSecond : 0.0) +
-                         ", channels=" + std::to_string(a ? a->mNumChannels : 0u));
             }
         }
 
@@ -792,6 +738,9 @@ TextureManager::TextureHandle ModelLoader::LoadMaterialTextures(
     const std::string& directory,
     const std::string& modelFilePath)
 {
+    // 静的キャッシュ: 解決済みパス -> テクスチャハンドル
+    static std::map<std::string, TextureManager::TextureHandle> textureCache;
+
     TextureManager::TextureHandle handle = TextureManager::INVALID_TEXTURE;
 
     if (!mat) {
@@ -819,6 +768,14 @@ TextureManager::TextureHandle ModelLoader::LoadMaterialTextures(
         return handle;
     }
 
+    // キャッシュチェック
+    auto it = textureCache.find(resolved);
+    if (it != textureCache.end()) {
+        // キャッシュヒット
+        // DEBUGLOG_CATEGORY(DebugLog::Category::Render, "ModelLoader: Cache Hit for '" + resolved + "'");
+        return it->second;
+    }
+
     // TextureManager は LoadFromFile(const char*) を提供
     handle = texMgr.LoadFromFile(resolved.c_str());
     if (handle == TextureManager::INVALID_TEXTURE) {
@@ -827,6 +784,8 @@ TextureManager::TextureHandle ModelLoader::LoadMaterialTextures(
     } else {
         DEBUGLOG_CATEGORY(DebugLog::Category::Render,
             "ModelLoader: loaded texture '" + resolved + "' for model '" + modelFilePath + "'");
+        // キャッシュに登録
+        textureCache[resolved] = handle;
     }
 
     return handle;

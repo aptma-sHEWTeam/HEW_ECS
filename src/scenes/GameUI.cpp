@@ -328,8 +328,10 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
    ownedEntities_.push_back(fadeOutAnimation);
    fadeAnimationEntity_ = fadeOutAnimation;
 
-   // 死亡専用フェードアウト（テクスチャ: tex_fadekorigori.png, 18枚 77760x4320）
-   UIImage deathFade{L"./Assets/Textures/Fade/tex_fadekorigori.png"};
+   // 死亡専用フェードアウト
+   // 元の tex_fadekorigori.png (77760x4320) は巨大すぎてパフォーマンスに悪影響があるため、
+   // tex_fade.png (通常のフェード用) で代用する。
+   UIImage deathFade{L"./Assets/Textures/Fade/tex_fade.png"};
    deathFade.opacity = 1.0f;
    deathFade.keepAspect = false;
 

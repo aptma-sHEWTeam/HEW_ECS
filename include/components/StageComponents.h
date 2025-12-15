@@ -36,7 +36,15 @@ struct StartTag : IComponent {};
  * @struct GoalTag
  * @brief ステージのゴール地点を示すタグ
  */
-struct GoalTag : IComponent {};
+struct GoalTag : IComponent {
+    bool consumed = false;
+};
+
+/**
+ * @struct StageElementTag
+ * @brief ステージ固有エンティティを識別するタグ
+ */
+struct StageElementTag : IComponent {};
 
 /**
  * @struct StageProgress
@@ -47,6 +55,7 @@ struct StageProgress : IComponent {
     int selectStage = 1;
     int currentRoom = 1; // 現在のルーム番号（同一ステージ内の部屋）
     bool requestAdvance = false;
+    bool goalTransitioning = false;
 };
 
 /**

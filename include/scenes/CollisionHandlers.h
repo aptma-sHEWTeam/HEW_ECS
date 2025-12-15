@@ -152,12 +152,19 @@ inline void CheckTimeLimit(World &w, Entity player, float timeLimitSeconds) {
 struct PlayerCollisionHandler : ICollisionHandler {
     void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override {
         if (w.Has<GoalTag>(other)) {
-            DEBUGLOG("Player reached goal");
-
-            // 既にゴール吸引中なら重複処理を避ける
-            if (w.Has<GoalAttractor>(self)) {
+            StageProgress *progress = nullptr;
+            w.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+                if (!progress) progress = &sp;
+            });
+            auto *goalTag = w.TryGet<GoalTag>(other);
+            if ((progress && progress->goalTransitioning) ||
+                (goalTag && goalTag->consumed) ||
+                w.Has<GoalAttractor>(self)) {
                 return;
             }
+            if (progress) progress->goalTransitioning = true;
+            if (goalTag) goalTag->consumed = true;
+            DEBUGLOG("Player reached goal");
 
             // ゆっくり吸い込み: ゴール中心へイージングで寄せる
             auto *tPlayer = w.TryGet<Transform>(self);
