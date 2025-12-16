@@ -34,7 +34,7 @@ class EffekseerManager
 
    void Load();				///<読み込み処理
 
-   int  PlayEffect(const std::string &effectName, float x, float y, float z); ///<エフェクト再生
+   int PlayEffect(const std::string &effectName, DirectX::XMFLOAT3 pos); ///<エフェクト再生
    void StopEffect();		///<エフェクト停止
 
    void SetCamera();		///<カメラ処理

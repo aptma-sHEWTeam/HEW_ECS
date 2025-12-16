@@ -253,10 +253,10 @@ class GameScene : public IScene {
         EffekseerManager::GetInstance().Load();
 
         
-       EffekseerManager::GetInstance().PlayEffect("Goal", 0.0f, 5.0f, 0.0f);
-       EffekseerManager::GetInstance().PlayEffect("WarpIn", 5.0f, 5.0f, 0.0f);
-       EffekseerManager::GetInstance().PlayEffect("WarpOut", 4.0f, 5.0f, 4.0f);
-       EffekseerManager::GetInstance().PlayEffect("SpeedUp", -3.0f, 5.0f, 0.0f);
+      // EffekseerManager::GetInstance().PlayEffect("Goal", -6.5f, 1.0f, 6.0f);
+      
+     
+       
 
         DEBUGLOG("GameWithUIScene の初期化が正常に完了しました");
     }
@@ -1459,7 +1459,8 @@ class GameScene : public IScene {
 
         // プレイヤーへの影響角度はCSVそのまま（見た目補正は加えない）
         status.accelAngle = csvAngleDeg;
-
+        
+        //EffekseerManager::GetInstance().PlayEffect("SpeedUp", -3.0f, 5.0f, 0.0f);
         Entity dashBoardEntity = world.Create()
                                      .With<Transform>(transform)
                                      .With<Model>(cfg_DashBoardFBXPass)
