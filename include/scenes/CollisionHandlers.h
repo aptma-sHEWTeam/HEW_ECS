@@ -13,6 +13,7 @@
 #include "components/PlayerComponents.h"
 #include "components/StageComponents.h"
 #include "components/GameStats.h"
+#include "graphics/Effect.h"
 #include <limits>
 
 // 前方宣言
@@ -169,6 +170,10 @@ struct PlayerCollisionHandler : ICollisionHandler {
             // ゆっくり吸い込み: ゴール中心へイージングで寄せる
             auto *tPlayer = w.TryGet<Transform>(self);
             auto *tGoal = w.TryGet<Transform>(other);
+            
+            //エフェクト実装：ゴールとリンク
+            EffekseerManager::GetInstance().PlayEffect("WarpIn",tGoal->position);
+            
             if (tPlayer && tGoal) {
                 const DirectX::XMFLOAT3 goalCenter = ResolvePlacementCenter(w, other, *tGoal);
                 // 速度をリセット
@@ -183,6 +188,7 @@ struct PlayerCollisionHandler : ICollisionHandler {
                 GoalAttractor attract;
                 attract.target = goalCenter;
                 attract.duration = 0.15f; // よりゆっくり(秒)
+                
                 w.Add<GoalAttractor>(self, attract);
             }
         }

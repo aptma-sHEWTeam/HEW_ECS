@@ -74,11 +74,11 @@ void EffekseerManager::Load()
 //=====================
 //エフェクトの再生
 //=====================
-int  EffekseerManager::PlayEffect(const std::string& effectName,float x,float y,float z) 
+int  EffekseerManager::PlayEffect(const std::string& effectName,DirectX::XMFLOAT3 pos) 
 {
     auto it = m_effects.find(effectName);
 
-    int handle = m_pManager->Play(it->second, x, y, z);
+    int handle = m_pManager->Play(it->second, pos.x,pos.y,pos.z);
 
     return handle;
 }
