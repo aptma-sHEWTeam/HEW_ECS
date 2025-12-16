@@ -246,6 +246,7 @@
     <ClCompile Include="src\systems\EmissiveRenderSystem.cpp" />
     <ClCompile Include="src\systems\LightSystem.cpp" />
     <ClCompile Include="src\systems\SpatialHashGrid.cpp" />
+    <ClCompile Include="StageUI.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\systems\AnimationSystem.h" />
