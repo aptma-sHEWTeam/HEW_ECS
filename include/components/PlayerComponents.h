@@ -134,6 +134,11 @@ struct PlayerVelocity : Behaviour {
         if (t->position.x > limitX)  t->position.x =  limitX;
         if (t->position.z < -limitY) t->position.z = -limitY;
         if (t->position.z > limitY)  t->position.z =  limitY;
+        const float velLenSq = v->velocity.x * v->velocity.x + v->velocity.y * v->velocity.y;
+        if (velLenSq > PlayerConstants::EPSILON) {
+            const float rad = std::atan2f(v->velocity.y, v->velocity.x);
+            t->rotation.y = -rad * (90.0f / DirectX::XM_PI) * 2 + 90.0f;
+        }
     }
 
     DirectX::XMFLOAT2 GetVelocity() { return velocity; }

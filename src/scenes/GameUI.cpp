@@ -132,7 +132,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 
     UITransform starttimeTransform;
     starttimeTransform.position = {600.0f, 250.0f};
-    starttimeTransform.size = {1000.0f, 320.0f};
+    starttimeTransform.size = {300.0f, 300.0f};
     starttimeTransform.anchor = {0.0f, 0.0f};
     starttimeTransform.pivot = {0.0f, 0.0f};
 
