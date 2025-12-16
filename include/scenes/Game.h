@@ -1190,16 +1190,16 @@ class GameScene : public IScene {
       
         MeshRenderer r;
         r.meshType = MeshType::Cube;
-        r.color = DirectX::XMFLOAT3{cfg_GoalR, cfg_GoalG, cfg_GoalB};
+        r.color = DirectX::XMFLOAT3{cfg_GoalR=1.000000, cfg_GoalG=0.000000, cfg_GoalB=0.000000};
 
         EmissiveMaterial emissive{
-            DirectX::XMFLOAT3{cfg_GoalEmissiveR, cfg_GoalEmissiveG, cfg_GoalEmissiveB},
-            cfg_GoalEmissiveIntensity};
+            DirectX::XMFLOAT3{cfg_GoalEmissiveR=1.000000, cfg_GoalEmissiveG=0.000000, cfg_GoalEmissiveB=0.000000},
+            cfg_GoalEmissiveIntensity=1.000000};
         EmissivePulse pulse{cfg_GoalPulseMin, cfg_GoalPulseMax, cfg_GoalPulseSpeed};
         PointLight light{
-            DirectX::XMFLOAT3{cfg_GoalEmissiveR, cfg_GoalEmissiveG, cfg_GoalEmissiveB},
+            DirectX::XMFLOAT3{cfg_GoalEmissiveR=1.000000, cfg_GoalEmissiveG=0.000000, cfg_GoalEmissiveB=0.000000},
             cfg_GoalEmissiveIntensity,
-            cfg_GoalLightRange};
+            cfg_GoalLightRange=1.0};
         ApplyDefaultPointLightParams(light);
 
         
@@ -1276,7 +1276,7 @@ class GameScene : public IScene {
 
         Entity wallEntity = world.Create()
                                 .With<Transform>(transform)
-                                .With<Model>(cfg_WallFBXPass)
+                                .With<Model>(cfg_HalfWallFBXPass)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
                                 .With<StageElementTag>()
@@ -1298,7 +1298,7 @@ class GameScene : public IScene {
 
         Entity wallEntity = world.Create()
                                 .With<Transform>(transform)
-                                .With<Model>(cfg_WallFBXPass)
+                                .With<Model>(cfg_HalfWallFBXPass)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
                                 .With<StageElementTag>()
@@ -1320,7 +1320,7 @@ class GameScene : public IScene {
 
         Entity wallEntity = world.Create()
                                 .With<Transform>(transform)
-                                .With<Model>(cfg_WallFBXPass)
+                                .With<Model>(cfg_HalfWallFBXPass)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
                                 .With<StageElementTag>()
