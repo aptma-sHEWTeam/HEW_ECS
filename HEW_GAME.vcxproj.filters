@@ -123,6 +123,9 @@
     <ClCompile Include="src\systems\SpatialHashGrid.cpp">
       <Filter>Source Files\systems</Filter>
     </ClCompile>
+    <ClCompile Include="StageUI.cpp">
+      <Filter>Source Files\scenes</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="RoomUIComponents.h">
