@@ -40,12 +40,14 @@
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
+    <EffekseerLibraryDir>$(ProjectDir)libs\Effekseer\Debug</EffekseerLibraryDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugFast|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
+    <EffekseerLibraryDir>$(ProjectDir)libs\Effekseer\Debug</EffekseerLibraryDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -53,24 +55,28 @@
     <PlatformToolset>v143</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
+    <EffekseerLibraryDir>$(ProjectDir)libs\Effekseer</EffekseerLibraryDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
+    <EffekseerLibraryDir>$(ProjectDir)libs\Effekseer\Debug</EffekseerLibraryDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='DebugFast|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v143</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
+    <EffekseerLibraryDir>$(ProjectDir)libs\Effekseer\Debug</EffekseerLibraryDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
+    <EffekseerLibraryDir>$(ProjectDir)libs\Effekseer</EffekseerLibraryDir>
     <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
@@ -106,12 +112,14 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalIncludeDirectories>$(ProjectDir)include;libs/Effekseer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>
       </AdditionalLibraryDirectories>
+      <AdditionalDependencies>$(EffekseerLibraryDir)\Effekseer.lib;$(EffekseerLibraryDir)\EffekseerRendererDX11.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugFast|Win32'">
@@ -123,11 +131,13 @@
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalIncludeDirectories>$(ProjectDir)include;libs/Effekseer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>../EffekseerForDXLib;</AdditionalLibraryDirectories>
+      <AdditionalDependencies>$(EffekseerLibraryDir)\Effekseer.lib;$(EffekseerLibraryDir)\EffekseerRendererDX11.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -148,14 +158,14 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>
       </AdditionalLibraryDirectories>
-      <AdditionalDependencies>$(ProjectDir)libs\Effekseer\Effekseer.lib;$(ProjectDir)libs\Effekseer\EffekseerRendererDX11.lib;$(ProjectDir)libs\assimp-6.0.2\assimp-vc143-mt.lib</AdditionalDependencies>
+      <AdditionalDependencies>$(EffekseerLibraryDir)\Effekseer.lib;$(EffekseerLibraryDir)\EffekseerRendererDX11.lib;$(ProjectDir)libs\assimp-6.0.2\assimp-vc143-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>false</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_WINDOWS;ENABLE_GFX_DEBUG_LAYER=0;ENABLE_SHADER_DEBUG=0;_ITERATOR_DEBUG_LEVEL=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_WINDOWS;ENABLE_GFX_DEBUG_LAYER=0;ENABLE_SHADER_DEBUG=0;_ITERATOR_DEBUG_LEVEL=2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalIncludeDirectories>$(ProjectDir)include;libs/Effekseer;$(ProjectDir)libs\assimp-6.0.2\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
@@ -167,9 +177,8 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>
-      </AdditionalLibraryDirectories>
-      <AdditionalDependencies>assimp-vc143-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(ProjectDir)libs\assimp-6.0.2;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalDependencies>$(EffekseerLibraryDir)\Effekseer.lib;$(EffekseerLibraryDir)\EffekseerRendererDX11.lib;$(ProjectDir)libs\assimp-6.0.2\assimp-vc143-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>xcopy "$(ProjectDir)libs\assimp-6.0.2\assimp-vc143-mt.dll" "$(OutDir)" /Y</Command>
@@ -179,17 +188,18 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_WINDOWS;ENABLE_GFX_DEBUG_LAYER=0;ENABLE_SHADER_DEBUG=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;_WINDOWS;ENABLE_GFX_DEBUG_LAYER=0;ENABLE_SHADER_DEBUG=0;_ITERATOR_DEBUG_LEVEL=2;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <AdditionalIncludeDirectories>$(ProjectDir)include;libs/Effekseer;$(ProjectDir)libs\assimp-6.0.2\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>../EffekseerForDXLib;$(ProjectDir)libs\assimp-6.0.2;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>assimp-vc143-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(EffekseerLibraryDir)\Effekseer.lib;$(EffekseerLibraryDir)\EffekseerRendererDX11.lib;assimp-vc143-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>xcopy "$(ProjectDir)libs\assimp-6.0.2\assimp-vc143-mt.dll" "$(OutDir)" /Y</Command>
@@ -213,7 +223,7 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalLibraryDirectories>
       </AdditionalLibraryDirectories>
-      <AdditionalDependencies>$(ProjectDir)libs\Effekseer\Effekseer.lib;$(ProjectDir)libs\Effekseer\EffekseerRendererDX11.lib;$(ProjectDir)libs\assimp-6.0.2\assimp-vc143-mt.lib</AdditionalDependencies>
+      <AdditionalDependencies>$(EffekseerLibraryDir)\Effekseer.lib;$(EffekseerLibraryDir)\EffekseerRendererDX11.lib;$(ProjectDir)libs\assimp-6.0.2\assimp-vc143-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>xcopy "$(ProjectDir)libs\assimp-6.0.2\assimp-vc143-mt.dll" "$(OutDir)" /Y</Command>
@@ -343,10 +353,6 @@
     <None Include="docs\Transform_Hierarchy_Guide.md" />
     <None Include="docs\UI_System_Guide.md" />
     <None Include="README.md" />
-  </ItemGroup>
-  <ItemGroup>
-    <Library Include="libs\Effekseer\Effekseer.lib" />
-    <Library Include="libs\Effekseer\EffekseerRendererDX11.lib" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
