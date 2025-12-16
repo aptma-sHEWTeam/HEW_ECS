@@ -20,6 +20,7 @@ public:
 private:
     static void ProcessNode(
         const aiNode* node,
+        const DirectX::XMMATRIX& parentTransform,
         int parentIndex,
         const aiScene* scene,
         const std::string& directory,
@@ -29,6 +30,7 @@ private:
 
     static ModelComponent ProcessMesh(
         aiMesh* mesh,
+        const DirectX::XMMATRIX& nodeGlobalTransform,
         const aiScene* scene,
         const std::string& directory,
         const std::string& modelFilePath,

@@ -108,6 +108,13 @@ namespace {
         
         XMVECTOR r1 = XMLoadFloat4(&k1.rotation);
         XMVECTOR r2 = XMLoadFloat4(&k2.rotation);
+
+        // 最短経路補間 (Shortest Path Slerp)
+        // クォータニオンの内積が負の場合、遠回り（360度以上の回転）をしてしまうため、
+        // 片方を反転させて最短経路を取るようにする。
+        if (XMVectorGetX(XMQuaternionDot(r1, r2)) < 0.0f) {
+            r1 = XMVectorNegate(r1);
+        }
         
         return XMQuaternionSlerp(r1, r2, factor);
     }
@@ -273,7 +280,24 @@ void AnimationSystem::Update(World& world, float dt) {
                 T = InterpolatePosition(boneAnim, sampleTicks, T);
             }
 
-            // 左手指の補正: LeftHandThumb1〜Pinky1まで
+            const std::string& bName = mc.skeleton.bones[boneIndex].name;
+            // ユーザー提供の修正: 右肩(RightShoulder)をX軸-180度回転させる
+            if (bName.find("RightShoulder") != std::string::npos) {
+                XMVECTOR qFix = XMQuaternionRotationNormal(XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f), -XM_PI); // X軸 -180度
+                R = XMQuaternionMultiply(qFix, R);
+            }
+
+            //if (bName.find("LeftHand") != std::string::npos && 
+            //   (bName.find("Thumb1") != std::string::npos || 
+            //    bName.find("Index1") != std::string::npos || 
+            //    bName.find("Middle1") != std::string::npos || 
+            //    bName.find("Ring1") != std::string::npos || 
+            //    bName.find("Pinky1") != std::string::npos)) {
+            //    
+            //    XMVECTOR qFix = XMQuaternionRotationNormal(XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f), -XM_PI);
+            //    R = XMQuaternionMultiply(qFix, R);
+            //}
+
             nodeTransforms[boneIndex] = XMMatrixAffineTransformation(S, XMVectorZero(), R, T);
         }
 
@@ -282,6 +306,21 @@ void AnimationSystem::Update(World& world, float dt) {
         {
             XMMATRIX globalInvForRoot = XMLoadFloat4x4(&mc.globalInverse);
             rootTransform = XMMatrixInverse(nullptr, globalInvForRoot);
+            
+            // 補正: 全体の回転（X180度, Z-90度）
+            // 位置ずれを防ぐため、行列を分解して回転成分のみを変更し、移動成分は維持する。
+            XMVECTOR s, r, t;
+            if (XMMatrixDecompose(&s, &r, &t, rootTransform)) {
+                // 追加回転: X軸180度 -> Z軸-90度
+                XMVECTOR qRotX = XMQuaternionRotationNormal(XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f), XM_PI);
+                XMVECTOR qRotZ = XMQuaternionRotationNormal(XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), -XM_PIDIV2);
+                
+                // 回転順序: 元の回転 -> X回転 -> Z回転 (左から掛ける)
+                r = XMQuaternionMultiply(qRotX, r);
+                r = XMQuaternionMultiply(qRotZ, r);
+                
+                rootTransform = XMMatrixAffineTransformation(s, XMVectorZero(), r, t);
+            }
         }
         
         std::vector<XMMATRIX> globalTransforms(mc.skeleton.bones.size(), XMMatrixIdentity());
@@ -312,6 +351,29 @@ void AnimationSystem::Update(World& world, float dt) {
 
         for (size_t i = 0; i < mc.skeleton.bones.size(); ++i) {
             resolveGlobal(i);
+        }
+
+        // 位置補正: 全体の回転やアニメーション移動による位置ずれを解消するため、
+        // Hips/Rootボーンを原点に引き戻すオフセットを全ボーンに適用する。
+        XMVECTOR rootPos = XMVectorZero();
+        bool rootFound = false;
+        for (size_t i = 0; i < mc.skeleton.bones.size(); ++i) {
+            if (mc.skeleton.bones[i].name.find("Hips") != std::string::npos || 
+                mc.skeleton.bones[i].name.find("Root") != std::string::npos || 
+                mc.skeleton.bones[i].name.find("Pelvis") != std::string::npos) {
+                rootPos = globalTransforms[i].r[3];
+                rootFound = true;
+                break;
+            }
+        }
+        if (!rootFound && !mc.skeleton.bones.empty()) {
+            rootPos = globalTransforms[0].r[3];
+        }
+        // Y軸（高さ）は維持したい場合はYを0にするなどの調整も可能だが、
+        // 今回は「x+z+方向に移動」という横ずれ対策なので、全成分引いて原点に置く。
+        XMMATRIX invTrans = XMMatrixTranslationFromVector(XMVectorNegate(rootPos));
+        for (size_t i = 0; i < mc.skeleton.bones.size(); ++i) {
+            globalTransforms[i] = globalTransforms[i] * invTrans;
         }
         
         // 最終スキニング行列を計算: globalInv * boneGlobal * offset （列ベクトル前提でCBへは転置）

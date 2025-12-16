@@ -637,7 +637,7 @@ class GameScene : public IScene {
 
     void CreatePlayer(World &world) {
         float s = cfg_PlayerScale;
-        Transform transform{{0.0f, cfg_PlayerStartY, 0.0f}, {0.0f, 0.0f, 90.0f}, {s, s, s}};
+        Transform transform{{0.0f, cfg_PlayerStartY, 0.0f}, {0.0f, 0.0f, 0.0f}, {s, s, s}};
 
         // ユーザー指定のパスでモデルとアニメーションをロード
         // "Assets/Models/Player/obj_player.fbx"
@@ -647,7 +647,7 @@ class GameScene : public IScene {
 
         std::vector<ModelPrefabNode> nodes = ModelLoader::LoadModel(modelPath);
         std::vector<ModelComponent::AnimationClip> clips = ModelLoader::LoadAnimation(animPath);
-        
+
         // メッシュノードを探す
         ModelPrefabNode* targetNode = nullptr;
         for (auto& node : nodes) {
@@ -660,7 +660,7 @@ class GameScene : public IScene {
 
         // エンティティ作成
         Entity player = world.CreateEntity();
-        
+
         world.Add<Transform>(player, transform);
 
         // ModelComponent (Mesh & Skeleton)

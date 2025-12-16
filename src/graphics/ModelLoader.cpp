@@ -189,8 +189,11 @@ std::vector<ModelPrefabNode> ModelLoader::LoadModel(const std::string& filePath)
     // aiProcess_Triangulate: 全てのプリミティブを三角形に変換
     // aiProcess_FlipUVs: UV座標を反転 (DirectXの慣例に合わせる)
     // aiProcess_GenNormals: 法線がなければ生成
+    // aiProcess_PopulateArmatureData: ボーン構造を正規化し、ノードグラフとの整合性を高める
+    // aiProcess_MakeLeftHanded | aiProcess_FlipWindingOrder: DirectX用左手系変換（左右反転の解消）
     const aiScene* scene = importer.ReadFile(filePath,
-        aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenNormals | aiProcess_CalcTangentSpace);
+        aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenNormals | aiProcess_CalcTangentSpace |
+        aiProcess_PopulateArmatureData | aiProcess_MakeLeftHanded | aiProcess_FlipWindingOrder);
 
     // エラーチェック
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
@@ -209,7 +212,7 @@ std::vector<ModelPrefabNode> ModelLoader::LoadModel(const std::string& filePath)
     }
 
     // シーンのルートノードから再帰的に処理
-    ProcessNode(scene->mRootNode, -1, scene, directory, filePath, nodes, gfx);
+    ProcessNode(scene->mRootNode, DirectX::XMMatrixIdentity(), -1, scene, directory, filePath, nodes, gfx);
 
     if (nodes.empty()) {
         std::string msg = "Model contains no renderable nodes: " + filePath;
@@ -225,6 +228,7 @@ std::vector<ModelPrefabNode> ModelLoader::LoadModel(const std::string& filePath)
 
 void ModelLoader::ProcessNode(
     const aiNode* node,
+    const DirectX::XMMATRIX& parentTransform,
     int parentIndex,
     const aiScene* scene,
     const std::string& directory,
@@ -238,17 +242,23 @@ void ModelLoader::ProcessNode(
     aiVector3D translation;
     node->mTransformation.Decompose(scaling, rotation, translation);
 
+    // 現在のノードのグローバル変換行列を計算
+    DirectX::XMVECTOR s = DirectX::XMVectorSet(scaling.x, scaling.y, scaling.z, 0.f);
+    DirectX::XMVECTOR r = DirectX::XMVectorSet(rotation.x, rotation.y, rotation.z, rotation.w);
+    DirectX::XMVECTOR t = DirectX::XMVectorSet(translation.x, translation.y, translation.z, 1.f);
+    DirectX::XMMATRIX localTransform = DirectX::XMMatrixAffineTransformation(s, DirectX::XMVectorZero(), r, t);
+    DirectX::XMMATRIX currentGlobal = localTransform * parentTransform;
+
     ModelPrefabNode baseNode;
     baseNode.translation = { translation.x, translation.y, translation.z };
-    DirectX::XMVECTOR rot = DirectX::XMVectorSet(rotation.x, rotation.y, rotation.z, rotation.w);
-    baseNode.rotationDeg = QuaternionToEulerDeg(rot);
+    baseNode.rotationDeg = QuaternionToEulerDeg(r);
     baseNode.scale = { scaling.x, scaling.y, scaling.z };
     baseNode.parentIndex = parentIndex;
 
     // このノードが保持するメッシュ（複数ある場合は1つ目をこのノードに、2つ目以降は子ノードとして複製）
     if (node->mNumMeshes > 0) {
         aiMesh* mesh = scene->mMeshes[node->mMeshes[0]];
-        baseNode.component = ProcessMesh(mesh, scene, directory, modelFilePath, gfx);
+        baseNode.component = ProcessMesh(mesh, currentGlobal, scene, directory, modelFilePath, gfx);
         baseNode.hasMesh = baseNode.component.indexCount > 0;
     }
 
@@ -260,19 +270,20 @@ void ModelLoader::ProcessNode(
         ModelPrefabNode extra = baseNode;
         extra.parentIndex = currentIndex;
         aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-        extra.component = ProcessMesh(mesh, scene, directory, modelFilePath, gfx);
+        extra.component = ProcessMesh(mesh, currentGlobal, scene, directory, modelFilePath, gfx);
         extra.hasMesh = extra.component.indexCount > 0;
         outNodes.push_back(extra);
     }
 
     // 子ノードを再帰処理
     for (unsigned int i = 0; i < node->mNumChildren; ++i) {
-        ProcessNode(node->mChildren[i], currentIndex, scene, directory, modelFilePath, outNodes, gfx);
+        ProcessNode(node->mChildren[i], currentGlobal, currentIndex, scene, directory, modelFilePath, outNodes, gfx);
     }
 }
 
 ModelComponent ModelLoader::ProcessMesh(
     aiMesh* mesh,
+    const DirectX::XMMATRIX& nodeGlobalTransform,
     const aiScene* scene,
     const std::string& directory,
     const std::string& modelFilePath,
@@ -319,20 +330,9 @@ ModelComponent ModelLoader::ProcessMesh(
     ModelComponent mc{};
     mc.indexCount = static_cast<UINT>(indices.size());
 
-    // シーンルートのグローバル行列の逆行列を保存しておく（スキニング用）
-    if (scene && scene->mRootNode) {
-        aiMatrix4x4 rootGlobalRaw = scene->mRootNode->mTransformation;
-        aiMatrix4x4 rootGlobal = rootGlobalRaw;
-        rootGlobal.Transpose(); // Assimp列優先→DirectX行優先
-        aiMatrix4x4 inv = rootGlobal;
-        inv.Inverse();
-        memcpy(&mc.globalInverse, &inv, sizeof(DirectX::XMFLOAT4X4));
-#ifdef _DEBUG
-        DEBUGLOG("ModelLoader: root transform (Assimp col-major) = " + ToString(rootGlobalRaw));
-        DEBUGLOG("ModelLoader: root transform (DX row-major)    = " + ToString(rootGlobal));
-        DEBUGLOG("ModelLoader: globalInverse (DX row-major)     = " + ToString(mc.globalInverse));
-#endif
-    }
+    // ノードのグローバル変換の逆行列を計算（スキニング用: World -> Mesh空間）
+    DirectX::XMMATRIX inv = DirectX::XMMatrixInverse(nullptr, nodeGlobalTransform);
+    DirectX::XMStoreFloat4x4(&mc.globalInverse, inv);
 
     // マテリアルを処理
     if (mesh->mMaterialIndex >= 0) {
@@ -675,7 +675,9 @@ std::vector<ModelComponent::AnimationClip> ModelLoader::LoadAnimation(const std:
         aiProcess_Triangulate |
         aiProcess_LimitBoneWeights |
         aiProcess_JoinIdenticalVertices |
-        aiProcess_SortByPType;
+        aiProcess_SortByPType |
+        aiProcess_PopulateArmatureData |
+        aiProcess_MakeLeftHanded;
 
     DEBUGLOG("Assimp (primary) flags: Triangulate | LimitBoneWeights | JoinIdenticalVertices | SortByPType");
 
