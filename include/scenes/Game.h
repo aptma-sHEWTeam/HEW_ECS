@@ -1221,6 +1221,10 @@ class GameScene : public IScene {
         stageOwnedEntities_.push_back(e);
     }
 
+    void CreateGoalDoor(World &world, const DirectX::XMFLOAT3 &position) {
+        DirectX::XMFLOAT3 a = {};
+    }
+
     void CreateWall(World &world, const DirectX::XMFLOAT3 &position) {
         DirectX::XMFLOAT3 diffPosition = {position.x, position.y - WALL_MESH_Y_OFFSET, position.z};
         Transform transform{diffPosition, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
@@ -1270,7 +1274,7 @@ class GameScene : public IScene {
 
         Entity wallEntity = world.Create()
                                 .With<Transform>(transform)
-                                .With<Model>(cfg_WallFBXPass)
+                                .With<Model>(cfg_HalfWallFBXPass)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
                                 .With<StageElementTag>()
@@ -1292,7 +1296,7 @@ class GameScene : public IScene {
 
         Entity wallEntity = world.Create()
                                 .With<Transform>(transform)
-                                .With<Model>(cfg_WallFBXPass)
+                                .With<Model>(cfg_HalfWallFBXPass)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
                                 .With<StageElementTag>()
@@ -1314,7 +1318,7 @@ class GameScene : public IScene {
 
         Entity wallEntity = world.Create()
                                 .With<Transform>(transform)
-                                .With<Model>(cfg_WallFBXPass)
+                                .With<Model>(cfg_HalfWallFBXPass)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
                                 .With<StageElementTag>()
