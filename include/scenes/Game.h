@@ -1274,7 +1274,7 @@ class GameScene : public IScene {
 
         Entity wallEntity = world.Create()
                                 .With<Transform>(transform)
-                                .With<Model>(cfg_WallFBXPass)
+                                .With<Model>(cfg_HalfWallFBXPass)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
                                 .With<StageElementTag>()
@@ -1296,7 +1296,7 @@ class GameScene : public IScene {
 
         Entity wallEntity = world.Create()
                                 .With<Transform>(transform)
-                                .With<Model>(cfg_WallFBXPass)
+                                .With<Model>(cfg_HalfWallFBXPass)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
                                 .With<StageElementTag>()
@@ -1318,7 +1318,7 @@ class GameScene : public IScene {
 
         Entity wallEntity = world.Create()
                                 .With<Transform>(transform)
-                                .With<Model>(cfg_WallFBXPass)
+                                .With<Model>(cfg_HalfWallFBXPass)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
                                 .With<StageElementTag>()
