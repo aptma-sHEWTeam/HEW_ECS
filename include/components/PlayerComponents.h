@@ -46,7 +46,7 @@ inline static ConfigVar<float> cfg_LimitY{"Player.Bounds", "LimitY", 15.0f, "プ
 inline static ConfigVar<float> cfg_AccelerateMagnification{"Player.Movement", "AccelerateMagnification", 1.5f, "チャージショット時の加速倍率"};
 
 namespace PlayerConstants {
-constexpr int ANGLE_HISTORY_SIZE = 30;
+constexpr int ANGLE_HISTORY_SIZE = 10;
 constexpr float EPSILON = 1e-5f;
 }
 
@@ -167,11 +167,11 @@ struct PlayerMovement : Behaviour {
     float angleHistory[PlayerConstants::ANGLE_HISTORY_SIZE] = {};
     int angleIndex = 0; bool angleFilled = false;
     float sumSin = 0.0f; float sumCos = 0.0f;
-    int frame = 0; bool historyLocked_ = false;
+    int frame = 0;
 
     void ResetAngleHistory() {
         for (int i = 0; i < PlayerConstants::ANGLE_HISTORY_SIZE; ++i) angleHistory[i] = 0.0f;
-        angleIndex = 0; angleFilled = false; sumSin = 0.0f; sumCos = 0.0f; historyLocked_ = false;
+        angleIndex = 0; angleFilled = false; sumSin = 0.0f; sumCos = 0.0f;
     }
 
     void OnUpdate(World &w, Entity self, float dt) override {
@@ -253,12 +253,12 @@ struct PlayerMovement : Behaviour {
                 v->SlowFactor = (std::max(0.0f, v->speed - v->MinSpeed)) / std::max(0.0001f, chargeMaxTime);
                 float charge = gamepad_->GetLeftStickChargeAmount(chargeMaxTime); (void)charge;
 
-                if (!historyLocked_ && mag > PlayerConstants::EPSILON) {
+                if (mag > PlayerConstants::EPSILON) {
                     float ang = std::atan2f(lastStickDir_.y, lastStickDir_.x);
                     if (angleFilled) { sumSin -= std::sinf(angleHistory[angleIndex]); sumCos -= std::cosf(angleHistory[angleIndex]); }
                     angleHistory[angleIndex] = ang; sumSin += std::sinf(ang); sumCos += std::cosf(ang);
                     angleIndex = (angleIndex + 1) % PlayerConstants::ANGLE_HISTORY_SIZE;
-                    if (angleIndex == 0) { angleFilled = true; historyLocked_ = true; }
+                    if (angleIndex == 0) { angleFilled = true; }
                 }
             }
 
