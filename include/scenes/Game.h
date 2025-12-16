@@ -351,7 +351,7 @@ class GameScene : public IScene {
         }
 
 
-            EffekseerManager::GetInstance().Draw();
+            EffekseerManager::GetInstance().Draw(camera_);
 
         world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
             sys.Render(world);

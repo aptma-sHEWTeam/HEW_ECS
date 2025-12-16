@@ -1,6 +1,6 @@
-/**
+ï»¿/**
  * @file StageUI.cpp
- * @brief StageScene ‚Ì UI \’z‚ÆƒeƒLƒXƒgƒtƒH[ƒ}ƒbƒgÀ‘•
+ * @brief StageScene ã® UI æ§‹ç¯‰ã¨ãƒ†ã‚­ã‚¹ãƒˆãƒ•ã‚©ãƒ¼ãƒãƒƒãƒˆå®Ÿè£…
  */
 #include "pch.h"
 #include "scenes/Game.h"
@@ -10,14 +10,14 @@
 #include "components/CountUIComponent.h"
 #include "components/UIImageComponents.h"
 #include "config/ConfigVar.h"
-#include "animation/Animation.h" // cfg_ChargingFade / SpriteSheetAnimation ‚È‚Ç
+#include "animation/Animation.h" // cfg_ChargingFade / SpriteSheetAnimation ãªã©
 
-inline static ConfigVar<float> cfg_FadeFrameTime{"Fade.Out", "FadeFrameTime", 0.01f, "ƒtƒF[ƒhƒAƒEƒg1ƒtƒŒ[ƒ€‚ÌŠÔi•bj"};
+inline static ConfigVar<float> cfg_FadeFrameTime{"Fade.Out", "FadeFrameTime", 0.01f, "ãƒ•ã‚§ãƒ¼ãƒ‰ã‚¢ã‚¦ãƒˆ1ãƒ•ãƒ¬ãƒ¼ãƒ ã®æ™‚é–“ï¼ˆç§’ï¼‰"};
 
 void StageSlectScene::CreateTextFormats() {
     TextSystem::TextFormat hud;
     hud.fontSize = 50.0f;
-    hud.fontFamily = L"ƒƒCƒŠƒI";
+    hud.fontFamily = L"ãƒ¡ã‚¤ãƒªã‚ª";
     hud.alignment = DWRITE_TEXT_ALIGNMENT_LEADING;
     textSystem_.CreateTextFormat("hud", hud);
 }
@@ -42,7 +42,7 @@ void StageSlectScene::CreateStageSelectUI(World &world) {
     StageSelectEntity_ = e;
     ownedEntities_.push_back(e);
 
-    //‰F’ˆ‘D‚Ì•\¦
+    //å®‡å®™èˆ¹ã®è¡¨ç¤º
     UITransform selecttestImgTr;
     selecttestImgTr.position = {350.0f, 50.0f};
     selecttestImgTr.size = {600.0f, 600.0f};

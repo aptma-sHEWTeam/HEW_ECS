@@ -119,10 +119,10 @@ void EffekseerManager::StopEffect(const std::string &effectName)
 //=====================
 //カメラ処理
 //=====================
-void EffekseerManager::SetCamera()
+void EffekseerManager::SetCamera(const Camera& camera)
 {
-    const DirectX::XMMATRIX &appViewMat = m_Camera.GetViewMatrix();
-    const DirectX::XMMATRIX &appProjMat = m_Camera.GetProjectionMatrix();
+    const DirectX::XMMATRIX &appViewMat = camera.GetViewMatrix();
+    const DirectX::XMMATRIX &appProjMat = camera.GetProjectionMatrix();
 
     for (int i = 0;i < 4;i++)
     {
@@ -167,10 +167,10 @@ void EffekseerManager::Update()
 //=====================
 //描画処理
 //=====================
-void EffekseerManager::Draw()
+void EffekseerManager::Draw(const Camera& camera)
 {
     m_pRenderer->SetTime(time / 60.0f);
-    SetCamera();
+    SetCamera(camera);
     m_pRenderer->BeginRendering();
 
     Effekseer::Manager::DrawParameter drawParameter;

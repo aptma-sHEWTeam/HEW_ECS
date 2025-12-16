@@ -46,10 +46,10 @@ class EffekseerManager
    void StopEffect();		///<エフェクト停止
    void StopEffect(const std::string &effectName); ///<指定した名前のエフェクトを停止
 
-   void SetCamera();		///<カメラ処理
+   void SetCamera(const Camera& camera);		///<カメラ処理
 
    void Update();			///<更新処理
-   void Draw();				///<描画処理
+   void Draw(const Camera& camera);				///<描画処理
    
  private:
    EffekseerManager() = default;
