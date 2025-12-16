@@ -146,7 +146,7 @@ struct PlayerVelocity : Behaviour {
 };
 
 // ===============================
-// PlayerMovement（重複宣言整理）
+// PlayerMovement
 // ===============================
 struct PlayerMovement : Behaviour {
     InputSystem *input_ = nullptr;
