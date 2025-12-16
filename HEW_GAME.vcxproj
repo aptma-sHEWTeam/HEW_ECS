@@ -104,12 +104,14 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;ENABLE_GFX_DEBUG_LAYER=1;ENABLE_SHADER_DEBUG=1;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(ProjectDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)include;libs/Effekseer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>
+      </AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='DebugFast|Win32'">
@@ -119,12 +121,13 @@
       <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;ENABLE_GFX_DEBUG_LAYER=0;ENABLE_SHADER_DEBUG=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(ProjectDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)include;libs/Effekseer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>../EffekseerForDXLib;</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -136,12 +139,16 @@
       <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(ProjectDir)include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)include;$(ProjectDir)libs\Effekseer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalLibraryDirectories>
+      </AdditionalLibraryDirectories>
+      <AdditionalDependencies>$(ProjectDir)libs\Effekseer\Effekseer.lib;$(ProjectDir)libs\Effekseer\EffekseerRendererDX11.lib;$(ProjectDir)libs\assimp-6.0.2\assimp-vc143-mt.lib</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -151,7 +158,7 @@
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;ENABLE_GFX_DEBUG_LAYER=0;ENABLE_SHADER_DEBUG=0;_ITERATOR_DEBUG_LEVEL=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(ProjectDir)include;$(ProjectDir)libs\assimp-6.0.2\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)include;libs/Effekseer;$(ProjectDir)libs\assimp-6.0.2\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 /bigobj %(AdditionalOptions)</AdditionalOptions>
       <Optimization>Disabled</Optimization>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
@@ -160,7 +167,8 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(ProjectDir)libs\assimp-6.0.2;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>
+      </AdditionalLibraryDirectories>
       <AdditionalDependencies>assimp-vc143-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
@@ -174,13 +182,13 @@
       <PreprocessorDefinitions>_DEBUG;_WINDOWS;ENABLE_GFX_DEBUG_LAYER=0;ENABLE_SHADER_DEBUG=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(ProjectDir)include;$(ProjectDir)libs\assimp-6.0.2\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)include;libs/Effekseer;$(ProjectDir)libs\assimp-6.0.2\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(ProjectDir)libs\assimp-6.0.2;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>../EffekseerForDXLib;$(ProjectDir)libs\assimp-6.0.2;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalDependencies>assimp-vc143-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
@@ -196,14 +204,16 @@
       <PreprocessorDefinitions>NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <AdditionalIncludeDirectories>$(ProjectDir)include;$(ProjectDir)libs\assimp-6.0.2\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)include;$(ProjectDir)libs\Effekseer;$(ProjectDir)libs\assimp-6.0.2\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalLibraryDirectories>$(ProjectDir)libs\assimp-6.0.2;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>assimp-vc143-mt.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>
+      </AdditionalLibraryDirectories>
+      <AdditionalDependencies>$(ProjectDir)libs\Effekseer\Effekseer.lib;$(ProjectDir)libs\Effekseer\EffekseerRendererDX11.lib;$(ProjectDir)libs\assimp-6.0.2\assimp-vc143-mt.lib</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
       <Command>xcopy "$(ProjectDir)libs\assimp-6.0.2\assimp-vc143-mt.dll" "$(OutDir)" /Y</Command>
@@ -214,6 +224,7 @@
     <ClCompile Include="src\components\Collision.cpp" />
     <ClCompile Include="src\config\ConfigManager.cpp" />
     <ClCompile Include="src\ecs\World.cpp" />
+    <ClCompile Include="src\graphics\Effect.cpp" />
     <ClCompile Include="src\graphics\ImageSystem.cpp" />
     <ClCompile Include="src\graphics\ModelLoader.cpp" />
     <ClCompile Include="src\graphics\TextSystem.cpp" />
@@ -228,6 +239,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\systems\AnimationSystem.h" />
+    <ClInclude Include="include\Effekseer\EffekseerRendererDX11.h" />
+    <ClInclude Include="include\graphics\Effect.h" />
+    <ClInclude Include="libs\Effekseer\Effekseer.h" />
+    <ClInclude Include="libs\Effekseer\Effekseer.Modules.h" />
+    <ClInclude Include="libs\Effekseer\Effekseer.SIMD.h" />
     <ClInclude Include="RoomUIComponents.h" />
     <ClInclude Include="SoundComponent.h" />
     <ClInclude Include="StageStatus.h" />
@@ -327,6 +343,10 @@
     <None Include="docs\Transform_Hierarchy_Guide.md" />
     <None Include="docs\UI_System_Guide.md" />
     <None Include="README.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="libs\Effekseer\Effekseer.lib" />
+    <Library Include="libs\Effekseer\EffekseerRendererDX11.lib" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

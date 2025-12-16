@@ -58,6 +58,8 @@
 #include "scenes/Game.h"
 #include "scenes/StageSelect.h"
 
+#include "graphics/Effect.h"
+
 /**
  * @struct App
  * @brief ミニゲームのメインアプリケーションクラス
@@ -204,6 +206,9 @@ struct App {
         ServiceLocator::Register(&sceneManager_);
 
         SetupCamera(width, height);
+
+        // エフェクシアの初期化
+        EffekseerManager::GetInstance().Init(gfx_, camera_);
 
         // ゲームシーンの初期化
         InitializeGame();

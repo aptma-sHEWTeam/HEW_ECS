@@ -100,9 +100,9 @@ bool TextSystem::Init(GfxDevice &gfx) {
         std::wostringstream woss;
         const wchar_t* wmsg = ex.ErrorMessage() ? ex.ErrorMessage() : L"unknown";
         woss << L"TextSystem::Init _com_error hr=0x" << std::hex << ex.Error() << L" msg=" << wmsg;
-        std::wstring w = woss.str();
-        std::string n(w.begin(), w.end());
-        DEBUGLOG_ERROR(n);
+        //std::wstring w = woss.str();
+        //std::string n(w.begin(), w.end());
+        //DEBUGLOG_ERROR(n);
         return false;
     }
 }

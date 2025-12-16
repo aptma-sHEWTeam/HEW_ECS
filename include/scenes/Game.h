@@ -46,6 +46,7 @@
 #include "systems/UISystem.h"
 #include "graphics/TextSystem.h"
 #include "graphics/ImageSystem.h"
+#include "graphics/Effect.h"
 #include "app/ServiceLocator.h"
 #include "SenesUIController.h"
 #include "systems/ModelLoadingSystem.h"
@@ -249,6 +250,14 @@ class GameScene : public IScene {
 
         SetupStage(world, initialStage);
 
+        EffekseerManager::GetInstance().Load();
+
+        
+       EffekseerManager::GetInstance().PlayEffect("Goal", 0.0f, 5.0f, 0.0f);
+       EffekseerManager::GetInstance().PlayEffect("WarpIn", 5.0f, 5.0f, 0.0f);
+       EffekseerManager::GetInstance().PlayEffect("WarpOut", 4.0f, 5.0f, 4.0f);
+       EffekseerManager::GetInstance().PlayEffect("SpeedUp", -3.0f, 5.0f, 0.0f);
+
         DEBUGLOG("GameWithUIScene の初期化が正常に完了しました");
     }
 
@@ -333,6 +342,8 @@ class GameScene : public IScene {
         if (world.IsAlive(playerEntity_)) {
             CheckTimeLimit(world, playerEntity_, cfg_LimitTime);
         }
+
+       EffekseerManager::GetInstance().Update();
     }
 
     /**
@@ -345,9 +356,13 @@ class GameScene : public IScene {
             RenderingSystem::GetInstance().BindLightBuffer(gfx->Ctx(), 1);
         }
 
+     
+            EffekseerManager::GetInstance().Draw();
+
         world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
             sys.Render(world);
         });
+  
     }
 
     /**
@@ -618,6 +633,7 @@ class GameScene : public IScene {
     /** @brief リスポーン待機中かを取得 */
     bool IsRespawnPending() const { return pendingRespawn_; }
 
+
   private:
     struct StageAdvanceInfo {
         bool active = false;
@@ -753,7 +769,7 @@ class GameScene : public IScene {
 
     void UpdateStageTransition(World &world, float dt) {
         if (!pendingStageAdvance_.active) return;
-
+        
         stageAdvanceTimer_ += dt;
         auto *anim = world.TryGet<SpriteSheetAnimation>(fadeAnimationEntity_);
         const float fadeDuration = GetFadeDurationSeconds(world, fadeAnimationEntity_);
@@ -1458,7 +1474,6 @@ class GameScene : public IScene {
     }
 
 
-
     void BakeStageLighting(World & /*world*/) {
         // Deprecated placeholder（現状は CreateStageMap 内で BakeStageLights を実行）
     }
@@ -1850,6 +1865,8 @@ class GameScene : public IScene {
         }
         return stickZoomCurrent_;
     }
+
+
 
     // =========================================
     // メンバー変数
