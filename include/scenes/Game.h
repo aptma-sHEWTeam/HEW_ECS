@@ -1193,16 +1193,16 @@ class GameScene : public IScene {
         Transform t{diffPosition, {0,angle, 0}, {1, 1, 1}};
         MeshRenderer r;
         r.meshType = MeshType::Cube;
-        r.color = DirectX::XMFLOAT3{cfg_GoalR, cfg_GoalG, cfg_GoalB};
+        r.color = DirectX::XMFLOAT3{cfg_GoalR=1.000000, cfg_GoalG=0.000000, cfg_GoalB=0.000000};
 
         EmissiveMaterial emissive{
-            DirectX::XMFLOAT3{cfg_GoalEmissiveR, cfg_GoalEmissiveG, cfg_GoalEmissiveB},
-            cfg_GoalEmissiveIntensity};
+            DirectX::XMFLOAT3{cfg_GoalEmissiveR=1.000000, cfg_GoalEmissiveG=0.000000, cfg_GoalEmissiveB=0.000000},
+            cfg_GoalEmissiveIntensity=1.000000};
         EmissivePulse pulse{cfg_GoalPulseMin, cfg_GoalPulseMax, cfg_GoalPulseSpeed};
         PointLight light{
-            DirectX::XMFLOAT3{cfg_GoalEmissiveR, cfg_GoalEmissiveG, cfg_GoalEmissiveB},
+            DirectX::XMFLOAT3{cfg_GoalEmissiveR=1.000000, cfg_GoalEmissiveG=0.000000, cfg_GoalEmissiveB=0.000000},
             cfg_GoalEmissiveIntensity,
-            cfg_GoalLightRange};
+            cfg_GoalLightRange=1.0};
         ApplyDefaultPointLightParams(light);
 
         Entity e = world.Create()
