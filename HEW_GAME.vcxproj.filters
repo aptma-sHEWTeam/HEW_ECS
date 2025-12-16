@@ -13,12 +13,6 @@
     <Filter Include=".github\workflows">
       <UniqueIdentifier>{c178207f-b02d-4b74-a3d7-ea6970c08c33}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Assets">
-      <UniqueIdentifier>{6f8a14f8-ad26-4103-a6ee-beaa6d1e57d6}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Assets\Textures">
-      <UniqueIdentifier>{f2b3392a-b58d-4a30-926a-ea95c9424282}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Docs">
       <UniqueIdentifier>{656da903-e5c0-44df-8c2d-6bc61339405a}</UniqueIdentifier>
     </Filter>
@@ -395,9 +389,6 @@
     </None>
     <None Include=".github\workflows\sync-main-to-teams.yml">
       <Filter>.github\workflows</Filter>
-    </None>
-    <None Include="Assets\Textures\test.png">
-      <Filter>Assets\Textures</Filter>
     </None>
     <None Include="README.md" />
     <None Include="docs\ChargeSystem_Guide.md">
