@@ -1138,20 +1138,24 @@ class GameScene : public IScene {
     }
 
     void CreateStart(World &world, const DirectX::XMFLOAT3 &position) {
-        DirectX::XMFLOAT3 diffPosition = {position.x, position.y - 0.5f, position.z};
-        Transform t{diffPosition, {0, 0, 0}, {1, 1, 1}};
+        if (world.IsAlive(startEntity_)) return;
+
+        // 2x2マスの中心に合わせる (左上マス中心から X+0.5, Z-0.5)
+        DirectX::XMFLOAT3 diffPosition = {position.x + 0.5f, position.y - 0.5f, position.z - 0.5f};
+
+        Transform t{diffPosition, {0, 0, 0}, {1.0f, 1.0f, 1.0f}};
         MeshRenderer r;
         r.meshType = MeshType::Cube;
-        r.color = DirectX::XMFLOAT3{cfg_StartR, cfg_StartG, cfg_StartB};
+        r.color = DirectX::XMFLOAT3{cfg_StartR.Get(), cfg_StartG.Get(), cfg_StartB.Get()};
 
         EmissiveMaterial emissive{
-            DirectX::XMFLOAT3{cfg_StartEmissiveR, cfg_StartEmissiveG, cfg_StartEmissiveB},
-            cfg_StartEmissiveIntensity};
-        EmissivePulse pulse{cfg_StartPulseMin, cfg_StartPulseMax, cfg_StartPulseSpeed};
+            DirectX::XMFLOAT3{cfg_StartEmissiveR.Get(), cfg_StartEmissiveG.Get(), cfg_StartEmissiveB.Get()},
+            cfg_StartEmissiveIntensity.Get()};
+        EmissivePulse pulse{cfg_StartPulseMin.Get(), cfg_StartPulseMax.Get(), cfg_StartPulseSpeed.Get()};
         PointLight light{
-            DirectX::XMFLOAT3{cfg_StartEmissiveR, cfg_StartEmissiveG, cfg_StartEmissiveB},
-            cfg_StartEmissiveIntensity,
-            cfg_StartLightRange};
+            DirectX::XMFLOAT3{cfg_StartEmissiveR.Get(), cfg_StartEmissiveG.Get(), cfg_StartEmissiveB.Get()},
+            cfg_StartEmissiveIntensity.Get(),
+            cfg_StartLightRange.Get()};
         ApplyDefaultPointLightParams(light);
 
         Entity e = world.Create()
@@ -1162,7 +1166,7 @@ class GameScene : public IScene {
                        .With<PointLight>(light)
                        .With<StartTag>()
                        .With<StageElementTag>()
-                       .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                       .With<CollisionBox>(DirectX::XMFLOAT3{2.0f, 2.0f, 2.0f})
                        .Build();
 
         startEntity_ = e;
@@ -1170,6 +1174,8 @@ class GameScene : public IScene {
     }
 
     void CreateGoal(World &world,  const DirectX::XMFLOAT3 &position, int currentstage) {
+        if (world.IsAlive(goalEntity_)) return;
+
         int stageIndex = currentstage - 1;
         if (stageIndex < 0) stageIndex = 0;
 
@@ -1194,9 +1200,10 @@ class GameScene : public IScene {
             }
         });
 
-        DirectX::XMFLOAT3 diffPosition = {position.x, position.y - 0.5f, position.z};
+        // 2x2マスの中心に合わせる (左上マス中心から X+0.5, Z-0.5)
+        DirectX::XMFLOAT3 diffPosition = {position.x + 0.5f, position.y - 0.5f, position.z - 0.5f};
 
-        Transform t{diffPosition, {0,angle, 0}, {1, 1, 1}};
+        Transform t{diffPosition, {0, angle, 0}, {2.0f, 0.5f, 2.0f}};
 
         MeshRenderer r;
         r.meshType = MeshType::Cube;
@@ -1220,7 +1227,7 @@ class GameScene : public IScene {
                        .With<PointLight>(light)
                        .With<GoalTag>()
                        .With<StageElementTag>()
-                       .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                       .With<CollisionBox>(DirectX::XMFLOAT3{2.0f, 2.0f, 2.0f})
                        .Build();
 
         goalEntity_ = e;
