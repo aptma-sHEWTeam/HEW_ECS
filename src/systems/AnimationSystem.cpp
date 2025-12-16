@@ -273,6 +273,7 @@ void AnimationSystem::Update(World& world, float dt) {
                 T = InterpolatePosition(boneAnim, sampleTicks, T);
             }
 
+            // 左手指の補正: LeftHandThumb1〜Pinky1まで
             nodeTransforms[boneIndex] = XMMatrixAffineTransformation(S, XMVectorZero(), R, T);
         }
 
