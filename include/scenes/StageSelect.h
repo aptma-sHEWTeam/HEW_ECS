@@ -29,8 +29,8 @@
 class StageSlectScene : public IScene {
   public:
     // ステージセレクト画面のカウンタUI設定
-    inline static ConfigVar<float> cfg_UICountPosX{"UI.StageSelect.Counter", "CountPosX", 20.0f, "ステージセレクトカウンタのX座標"};
-    inline static ConfigVar<float> cfg_UICountPosY{"UI.StageSelect.Counter", "CountPosY", 170.0f, "ステージセレクトカウンタのY座標"};
+    inline static ConfigVar<float> cfg_UICountPosX{"UI.StageSelect.Counter", "CountPosX", 1000.0f, "ステージセレクトカウンタのX座標"};
+    inline static ConfigVar<float> cfg_UICountPosY{"UI.StageSelect.Counter", "CountPosY", 500.0f, "ステージセレクトカウンタのY座標"};
     inline static ConfigVar<float> cfg_UICountW{"UI.StageSelect.Counter", "CountWidth", 200.0f, "ステージセレクトカウンタの幅"};
     inline static ConfigVar<float> cfg_UICountH{"UI.StageSelect.Counter", "CountHeight", 40.0f, "ステージセレクトカウンタの高さ"};
     inline static ConfigVar<float> cfg_UICountR{"UI.StageSelect.Counter", "CountColorR", 0.0f, "ステージセレクトカウンタの色 R"};
@@ -147,7 +147,7 @@ class StageSlectScene : public IScene {
 
             if (auto *StageSelectText = world.TryGet<UIText>(StageSelectEntity_)) {
                 std::wstringstream ss;
-                ss << L"StageNo : " << stats.selectStage << L"/" << maxStage;
+                ss << L"PSS-00" << stats.selectStage;
                 StageSelectText->text = ss.str();
             }
         });
@@ -175,33 +175,9 @@ class StageSlectScene : public IScene {
     }
 
   private:
-    void CreateTextFormats() {
-        TextSystem::TextFormat hud;
-        hud.fontSize = 24.0f;
-        hud.fontFamily = L"メイリオ";
-        hud.alignment = DWRITE_TEXT_ALIGNMENT_LEADING;
-        textSystem_.CreateTextFormat("hud", hud);
-    }
+    void CreateTextFormats();
 
-    void CreateStageSelectUI(World &world) {
-        UITransform CountTransform;
-        CountTransform.position = {cfg_UICountPosX, cfg_UICountPosY};
-        CountTransform.size = {cfg_UICountW, cfg_UICountH};
-        CountTransform.anchor = {0.0f, 0.0f};
-        CountTransform.pivot = {0.0f, 0.0f};
-
-        UIText CountText{L"Stage Select: Press Enter"};
-        CountText.color = {cfg_UICountR, cfg_UICountG, cfg_UICountB, 1.0f};
-        CountText.formatId = "hud";
-
-        Entity e = world.Create()
-                       .With<UITransform>(CountTransform)
-                       .With<UIText>(CountText)
-                       .Build();
-
-        StageSelectEntity_ = e;
-        ownedEntities_.push_back(e);
-    }
+    void CreateStageSelectUI(World &world);
 
 
     TextSystem textSystem_{};

@@ -350,13 +350,13 @@ class GameScene : public IScene {
             RenderingSystem::GetInstance().BindLightBuffer(gfx->Ctx(), 1);
         }
 
-     
+
             EffekseerManager::GetInstance().Draw();
 
         world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
             sys.Render(world);
         });
-  
+
     }
 
     /**
@@ -638,6 +638,9 @@ class GameScene : public IScene {
         std::string nextRoomPath;
     };
 
+    static constexpr float WALL_MESH_Y_OFFSET = 2.3f;
+    static constexpr float WALL_COLLISION_CENTER_OFFSET = 1.8f;
+
     // =========================================
     // 初期化ヘルパーメソッド
     // =========================================
@@ -763,7 +766,7 @@ class GameScene : public IScene {
 
     void UpdateStageTransition(World &world, float dt) {
         if (!pendingStageAdvance_.active) return;
-        
+
         stageAdvanceTimer_ += dt;
         auto *anim = world.TryGet<SpriteSheetAnimation>(fadeAnimationEntity_);
         const float fadeDuration = GetFadeDurationSeconds(world, fadeAnimationEntity_);
@@ -1121,7 +1124,7 @@ class GameScene : public IScene {
 
     void CreateFloor(World &world, const DirectX::XMFLOAT3 &position) {
         // 各マスにフロアFBXをそのまま配置する（スケールは1x1x1、Yは設定値でオフセット）
-        DirectX::XMFLOAT3 floorPos = {position.x, position.y + 1.3f+ cfg_FloorYOffset, position.z};
+        DirectX::XMFLOAT3 floorPos = {position.x, position.y + cfg_FloorYOffset, position.z};
         Transform transform{{floorPos}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
 
         Entity floor = world.Create()
@@ -1220,8 +1223,12 @@ class GameScene : public IScene {
        
     }
 
+    void CreateGoalDoor(World &world, const DirectX::XMFLOAT3 &position) {
+        DirectX::XMFLOAT3 a = {};
+    }
+
     void CreateWall(World &world, const DirectX::XMFLOAT3 &position) {
-        DirectX::XMFLOAT3 diffPosition = {position.x, position.y - 1.0f, position.z};
+        DirectX::XMFLOAT3 diffPosition = {position.x, position.y - WALL_MESH_Y_OFFSET, position.z};
         Transform transform{diffPosition, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
 
         Entity wallEntity = world.Create()
@@ -1229,7 +1236,9 @@ class GameScene : public IScene {
                                 .With<Model>(cfg_WallFBXPass)
                                 .With<StageElementTag>()
                                 .With<WallTag>()
-                                .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                                .With<CollisionBox>(
+                                    DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f},
+                                    DirectX::XMFLOAT3{0.0f, WALL_COLLISION_CENTER_OFFSET, 0.0f})
                                 .With<WallCollisionHandler>()
                                 .Build();
 
@@ -1237,18 +1246,21 @@ class GameScene : public IScene {
     }
 
     void CreateRightDownCorner(World &world, const DirectX::XMFLOAT3 &position) {
-        Transform transform{position, {0.0f, 0.0f, 180.0f}, {1.0f, cfg_WallSize, 1.0f}};
+        DirectX::XMFLOAT3 diffPosition = {position.x, position.y - WALL_MESH_Y_OFFSET, position.z};
+        Transform transform{diffPosition, {0.0f, 0.0f, 180.0f}, {1.0f, cfg_WallSize, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::RightIsoTriPrism;
         renderer.color = DirectX::XMFLOAT3{cfg_WallR, cfg_WallG, cfg_WallB};
 
         Entity wallEntity = world.Create()
                                 .With<Transform>(transform)
-                                .With<Model>(cfg_WallFBXPass)
+                                .With<Model>(cfg_HalfWallFBXPass)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
                                 .With<StageElementTag>()
-                                .With<CollisionRightIsoTriPrism>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                                .With<CollisionRightIsoTriPrism>(
+                                    DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f},
+                                    DirectX::XMFLOAT3{0.0f, WALL_COLLISION_CENTER_OFFSET, 0.0f})
                                 .With<WallCollisionHandler>()
                                 .Build();
 
@@ -1256,7 +1268,8 @@ class GameScene : public IScene {
     }
 
     void CreateLeftDownCorner(World &world, const DirectX::XMFLOAT3 &position) {
-        Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
+        DirectX::XMFLOAT3 diffPosition = {position.x, position.y - WALL_MESH_Y_OFFSET, position.z};
+        Transform transform{diffPosition, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::RightIsoTriPrism;
         renderer.color = DirectX::XMFLOAT3{cfg_WallR, cfg_WallG, cfg_WallB};
@@ -1267,7 +1280,9 @@ class GameScene : public IScene {
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
                                 .With<StageElementTag>()
-                                .With<CollisionRightIsoTriPrism>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                                .With<CollisionRightIsoTriPrism>(
+                                    DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f},
+                                    DirectX::XMFLOAT3{0.0f, WALL_COLLISION_CENTER_OFFSET, 0.0f})
                                 .With<WallCollisionHandler>()
                                 .Build();
 
@@ -1275,7 +1290,8 @@ class GameScene : public IScene {
     }
 
     void CreateLeftUpCorner(World &world, const DirectX::XMFLOAT3 &position) {
-        Transform transform{position, {0.0f, 90.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
+        DirectX::XMFLOAT3 diffPosition = {position.x, position.y - WALL_MESH_Y_OFFSET, position.z};
+        Transform transform{diffPosition, {0.0f, 90.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::RightIsoTriPrism;
         renderer.color = DirectX::XMFLOAT3{cfg_WallR, cfg_WallG, cfg_WallB};
@@ -1286,7 +1302,9 @@ class GameScene : public IScene {
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
                                 .With<StageElementTag>()
-                                .With<CollisionRightIsoTriPrism>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                                .With<CollisionRightIsoTriPrism>(
+                                    DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f},
+                                    DirectX::XMFLOAT3{0.0f, WALL_COLLISION_CENTER_OFFSET, 0.0f})
                                 .With<WallCollisionHandler>()
                                 .Build();
 
@@ -1294,7 +1312,8 @@ class GameScene : public IScene {
     }
 
     void CreateRightUpCorner(World &world, const DirectX::XMFLOAT3 &position) {
-        Transform transform{position, {0.0f, 180.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
+        DirectX::XMFLOAT3 diffPosition = {position.x, position.y - WALL_MESH_Y_OFFSET, position.z};
+        Transform transform{diffPosition, {0.0f, 180.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::RightIsoTriPrism;
         renderer.color = DirectX::XMFLOAT3{cfg_WallR, cfg_WallG, cfg_WallB};
@@ -1305,7 +1324,9 @@ class GameScene : public IScene {
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
                                 .With<StageElementTag>()
-                                .With<CollisionRightIsoTriPrism>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                                .With<CollisionRightIsoTriPrism>(
+                                    DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f},
+                                    DirectX::XMFLOAT3{0.0f, WALL_COLLISION_CENTER_OFFSET, 0.0f})
                                 .With<WallCollisionHandler>()
                                 .Build();
 
@@ -1415,7 +1436,7 @@ class GameScene : public IScene {
     }
 
     void CreatFloorWall(World &world, const DirectX::XMFLOAT3 &position) {
-        DirectX::XMFLOAT3 diffPosition = {position.x, position.y - 1.0f, position.z};
+        DirectX::XMFLOAT3 diffPosition = {position.x, position.y - WALL_MESH_Y_OFFSET, position.z};
         Transform transform{diffPosition, {0.0f, 0.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
 
         Entity worldwallEntity = world.Create()
@@ -1423,7 +1444,9 @@ class GameScene : public IScene {
                                      .With<Model>(cfg_WallFBXPass)
                                      .With<WallTag>()
                                      .With<StageElementTag>()
-                                     .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                                     .With<CollisionBox>(
+                                         DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f},
+                                         DirectX::XMFLOAT3{0.0f, WALL_COLLISION_CENTER_OFFSET, 0.0f})
                                      .With<FloorWallCollisionHandler>()
                                      .Build();
 
@@ -1450,10 +1473,10 @@ class GameScene : public IScene {
         while (csvAngleDeg >= 360.0f) csvAngleDeg -= 360.0f;
 
         // 見た目補正: FBXのデフォルト向きが+90度ずれているため、モデルの回転のみ+90度補正
-        const float visualYawDeg = -csvAngleDeg + 90.0f + 180.0f; // 180度反転で見た目を加速方向に合わせる
+        const float visualYawDeg = -csvAngleDeg + 90.0f; // 180度反転で見た目を加速方向に合わせる
 
         DirectX::XMFLOAT3 adjustedPos = position;
-        adjustedPos.y -= 0.5f;
+        adjustedPos.y -= 1.5f;
         Transform transform{{adjustedPos}, {0.0f, visualYawDeg, 0.0f}, {1.0f, 1.0f, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::Cube;
