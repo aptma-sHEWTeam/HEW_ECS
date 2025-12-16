@@ -74,21 +74,46 @@ void EffekseerManager::Load()
 //=====================
 //エフェクトの再生
 //=====================
-int  EffekseerManager::PlayEffect(const std::string& effectName,DirectX::XMFLOAT3 pos) 
+int  EffekseerManager::PlayEffect(const std::string& effectName,DirectX::XMFLOAT3 pos, bool loop)
 {
     auto it = m_effects.find(effectName);
 
     int handle = m_pManager->Play(it->second, pos.x,pos.y,pos.z);
+    
+    if (loop)
+    {
+        LoopInfo info;
+        info.effectName = effectName;
+        info.position = pos;
+        info.handle = handle;
+        m_loopEffects.push_back(info);
+    }
 
     return handle;
 }
-
 //=====================
 //エフェクトの停止
 //=====================
 void EffekseerManager::StopEffect() 
 {
     m_pManager->StopAllEffects();
+    m_loopEffects.clear();
+}
+
+void EffekseerManager::StopEffect(const std::string &effectName)
+{
+    for (auto it = m_loopEffects.begin(); it != m_loopEffects.end(); )
+    {
+        if (it->effectName == effectName)
+        {
+            m_pManager->StopEffect(it->handle);
+            it = m_loopEffects.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
 }
 
 //=====================
@@ -126,6 +151,17 @@ void EffekseerManager::Update()
 
     m_pManager->Update();   
 
+    for (auto& info : m_loopEffects)
+    {
+        if (!m_pManager->Exists(info.handle))
+        {
+             auto it = m_effects.find(info.effectName);
+             if (it != m_effects.end())
+             {
+                 info.handle = m_pManager->Play(it->second, info.position.x, info.position.y, info.position.z);
+             }
+        }
+    }
 }
 
 //=====================

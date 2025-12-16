@@ -250,7 +250,7 @@ class GameScene : public IScene {
 
         SetupStage(world, initialStage);
 
-        EffekseerManager::GetInstance().Load();  
+        EffekseerManager::GetInstance().Load();
 
         DEBUGLOG("GameWithUIScene の初期化が正常に完了しました");
     }
@@ -1181,13 +1181,13 @@ class GameScene : public IScene {
                 angle = static_cast<float>(data.goalAngle[0][stageIndex]);
             }
         });
-        
-       
-           
+
+
+
         DirectX::XMFLOAT3 diffPosition = {position.x, position.y - 0.5f, position.z};
-       
+
         Transform t{diffPosition, {0,angle, 0}, {1, 1, 1}};
-      
+
         MeshRenderer r;
         r.meshType = MeshType::Cube;
         r.color = DirectX::XMFLOAT3{cfg_GoalR=1.000000, cfg_GoalG=0.000000, cfg_GoalB=0.000000};
@@ -1202,7 +1202,7 @@ class GameScene : public IScene {
             cfg_GoalLightRange=1.0};
         ApplyDefaultPointLightParams(light);
 
-        
+
         Entity e = world.Create()
                        .With<Transform>(t)
                        .With<MeshRenderer>(r)
@@ -1219,8 +1219,8 @@ class GameScene : public IScene {
         stageOwnedEntities_.push_back(e);
         //エフェクト実装：ゴールとリンク
         DirectX::XMFLOAT3 pos(5.0f, 5.0f, 0.0f);
-        EffekseerManager::GetInstance().PlayEffect("Goal",position);
-       
+        EffekseerManager::GetInstance().PlayEffect("Goal", diffPosition, true);
+
     }
 
     void CreateGoalDoor(World &world, const DirectX::XMFLOAT3 &position) {
@@ -1484,7 +1484,7 @@ class GameScene : public IScene {
 
         // プレイヤーへの影響角度はCSVそのまま（見た目補正は加えない）
         status.accelAngle = csvAngleDeg;
-        
+
         //EffekseerManager::GetInstance().PlayEffect("SpeedUp", -3.0f, 5.0f, 0.0f);
         Entity dashBoardEntity = world.Create()
                                      .With<Transform>(transform)
