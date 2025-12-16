@@ -1171,18 +1171,28 @@ class GameScene : public IScene {
 
     void CreateGoal(World &world,  const DirectX::XMFLOAT3 &position, int currentstage) {
         int stageIndex = currentstage - 1;
-        if (stageIndex < 0)
-            stageIndex = 0;
+        if (stageIndex < 0) stageIndex = 0;
+
+        // 現在のルーム番号を取得（1-based -> 0-based）
+        int roomIndex = 0;
+        world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+            roomIndex = sp.currentRoom - 1;
+        });
+        if (roomIndex < 0) roomIndex = 0;
+
         float angle = 0.0f;
         world.ForEach<LoadGoalAngle>([&](Entity, LoadGoalAngle & data){
-            if (!data.goalAngle.empty() && data.goalAngle.size() > 0 &&
-                data.goalAngle[0].size() > static_cast<size_t>(stageIndex))
-            {
-                angle = static_cast<float>(data.goalAngle[0][stageIndex]);
+            if (stageIndex < static_cast<int>(data.goalAngle.size())) {
+                const auto& row = data.goalAngle[stageIndex];
+                if (roomIndex < static_cast<int>(row.size())) {
+                    angle = static_cast<float>(row[roomIndex]);
+                } else if (!row.empty()) {
+                    angle = static_cast<float>(row[0]);
+                }
+            } else if (!data.goalAngle.empty() && !data.goalAngle[0].empty()) {
+                angle = static_cast<float>(data.goalAngle[0][0]);
             }
         });
-
-
 
         DirectX::XMFLOAT3 diffPosition = {position.x, position.y - 0.5f, position.z};
 
@@ -1190,23 +1200,21 @@ class GameScene : public IScene {
 
         MeshRenderer r;
         r.meshType = MeshType::Cube;
-        r.color = DirectX::XMFLOAT3{cfg_GoalR=1.000000, cfg_GoalG=0.000000, cfg_GoalB=0.000000};
+        r.color = DirectX::XMFLOAT3{cfg_GoalR.Get(), cfg_GoalG.Get(), cfg_GoalB.Get()};
 
         EmissiveMaterial emissive{
-            DirectX::XMFLOAT3{cfg_GoalEmissiveR=1.000000, cfg_GoalEmissiveG=0.000000, cfg_GoalEmissiveB=0.000000},
-            cfg_GoalEmissiveIntensity=1.000000};
-        EmissivePulse pulse{cfg_GoalPulseMin, cfg_GoalPulseMax, cfg_GoalPulseSpeed};
+            DirectX::XMFLOAT3{cfg_GoalEmissiveR.Get(), cfg_GoalEmissiveG.Get(), cfg_GoalEmissiveB.Get()},
+            cfg_GoalEmissiveIntensity.Get()};
+        EmissivePulse pulse{cfg_GoalPulseMin.Get(), cfg_GoalPulseMax.Get(), cfg_GoalPulseSpeed.Get()};
         PointLight light{
-            DirectX::XMFLOAT3{cfg_GoalEmissiveR=1.000000, cfg_GoalEmissiveG=0.000000, cfg_GoalEmissiveB=0.000000},
-            cfg_GoalEmissiveIntensity,
-            cfg_GoalLightRange=1.0};
+            DirectX::XMFLOAT3{cfg_GoalEmissiveR.Get(), cfg_GoalEmissiveG.Get(), cfg_GoalEmissiveB.Get()},
+            cfg_GoalEmissiveIntensity.Get(),
+            cfg_GoalLightRange.Get()};
         ApplyDefaultPointLightParams(light);
-
 
         Entity e = world.Create()
                        .With<Transform>(t)
                        .With<MeshRenderer>(r)
-                       .With<Model>(cfg_GoalFBXPass)
                        .With<EmissiveMaterial>(emissive)
                        .With<EmissivePulse>(pulse)
                        .With<PointLight>(light)
@@ -1217,10 +1225,7 @@ class GameScene : public IScene {
 
         goalEntity_ = e;
         stageOwnedEntities_.push_back(e);
-        //エフェクト実装：ゴールとリンク
-        DirectX::XMFLOAT3 pos(5.0f, 5.0f, 0.0f);
         EffekseerManager::GetInstance().PlayEffect("Goal", diffPosition, true);
-
     }
 
     void CreateGoalDoor(World &world, const DirectX::XMFLOAT3 &position) {
@@ -1878,7 +1883,8 @@ class GameScene : public IScene {
     }
 
     void SetStickZoomActive(bool active) {
-        stickZoomTarget_ = active ? std::max(0.0f, cfg_StickZoomAmount.Get()) : 0.0f;
+        // ズームインにするため負の値にする (FOVを狭める)
+        stickZoomTarget_ = active ? -std::abs(cfg_StickZoomAmount.Get()) : 0.0f;
     }
 
     float UpdateStickZoom(float dt) {
