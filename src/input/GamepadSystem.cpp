@@ -1156,9 +1156,9 @@ LCleanup:
         std::wostringstream woss;
         const wchar_t* wmsg = ex.ErrorMessage() ? ex.ErrorMessage() : L"unknown";
         woss << L"GamepadSystem::IsXInputDevice() - _com_error caught. hr=0x" << std::hex << ex.Error() << L" msg=" << wmsg;
-        std::wstring w = woss.str();
-        std::string n(w.begin(), w.end());
-        DEBUGLOG_ERROR(n);
+        //std::wstring w = woss.str();
+        //std::string n(w.begin(), w.end());
+        //DEBUGLOG_ERROR(n);
         return false;
     }
 }

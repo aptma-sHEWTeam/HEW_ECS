@@ -11,6 +11,8 @@
 #include <vector>
 #include <algorithm>
 
+#include "graphics/Effect.h"
+
 #include "config/ConfigVar.h"
 #include "components/UIComponents.h"
 #include "components/StageComponents.h"
@@ -198,6 +200,7 @@ class StageSlectScene : public IScene {
         StageSelectEntity_ = e;
         ownedEntities_.push_back(e);
     }
+
 
     TextSystem textSystem_{};
     ImageSystem imageSystem_{};

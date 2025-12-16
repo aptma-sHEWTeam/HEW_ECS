@@ -105,9 +105,9 @@ bool ImageSystem::LoadBitmap(const std::wstring &filePath, Microsoft::WRL::ComPt
     auto logHr = [&](const char* msg, HRESULT hrVal) {
         std::wstringstream wss;
         wss << L"[ImageSystem] " << msg << L" hr=0x" << std::hex << hrVal << L" path=" << filePath;
-        std::wstring w = wss.str();
-        std::string n(w.begin(), w.end());
-        DEBUGLOG_ERROR(n);
+        //std::wstring w = wss.str();
+        //std::string n(w.begin(), w.end());
+        //DEBUGLOG_ERROR(n);
     };
 
     try {
@@ -140,9 +140,9 @@ bool ImageSystem::LoadBitmap(const std::wstring &filePath, Microsoft::WRL::ComPt
             if (scaledWarned.insert(filePath).second) {
                 std::wstringstream wss;
                 wss << L"[ImageSystem] Downscale " << srcW << L"x" << srcH << L" -> " << dstW << L"x" << dstH << L" for path=" << filePath;
-                std::wstring w = wss.str();
-                std::string n(w.begin(), w.end());
-                DEBUGLOG_WARNING(n);
+                //std::wstring w = wss.str();
+                //std::string n(w.begin(), w.end());
+                //DEBUGLOG_WARNING(n);
             }
         }
 
@@ -165,9 +165,9 @@ bool ImageSystem::LoadBitmap(const std::wstring &filePath, Microsoft::WRL::ComPt
             auto &texMgr = ServiceLocator::Get<TextureManager>();
             auto handle = texMgr.GetDefaultWhite();
             if (handle != TextureManager::INVALID_TEXTURE && CreateBitmapFromHandle(handle, bmp)) {
-                std::wstring wmsg = L"[ImageSystem] Fallback to default white texture for path=" + filePath;
-                std::string n(wmsg.begin(), wmsg.end());
-                DEBUGLOG_WARNING(n);
+                //std::wstring wmsg = L"[ImageSystem] Fallback to default white texture for path=" + filePath;
+                //std::string n(wmsg.begin(), wmsg.end());
+                //DEBUGLOG_WARNING(n);
                 bitmapCache_[filePath] = bmp;
                 out = bmp;
                 return true;
@@ -182,9 +182,9 @@ bool ImageSystem::LoadBitmap(const std::wstring &filePath, Microsoft::WRL::ComPt
         std::wstringstream wss;
         const wchar_t* wmsg = ex.ErrorMessage() ? ex.ErrorMessage() : L"unknown";
         wss << L"[ImageSystem] LoadBitmap _com_error hr=0x" << std::hex << ex.Error() << L" msg=" << wmsg << L" path=" << filePath;
-        std::wstring w = wss.str();
-        std::string n(w.begin(), w.end());
-        DEBUGLOG_ERROR(n);
+        //std::wstring w = wss.str();
+        //std::string n(w.begin(), w.end());
+        //DEBUGLOG_ERROR(n);
         return false;
     }
 }
@@ -195,9 +195,9 @@ bool ImageSystem::Draw(const Params &p) {
     if (!LoadBitmap(p.filePath, bmp)) {
         static std::unordered_set<std::wstring> warned;
         if (warned.insert(p.filePath).second) {
-            std::wstring wmsg = L"[ImageSystem] Draw skipped (LoadBitmap failed) path=" + p.filePath;
-            std::string n(wmsg.begin(), wmsg.end());
-            DEBUGLOG_WARNING(n);
+            //std::wstring wmsg = L"[ImageSystem] Draw skipped (LoadBitmap failed) path=" + p.filePath;
+            //std::string n(wmsg.begin(), wmsg.end());
+            //DEBUGLOG_WARNING(n);
         }
         return false;
     }
