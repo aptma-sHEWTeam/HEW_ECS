@@ -57,6 +57,19 @@
 struct Camera {
     DirectX::XMMATRIX View;  ///< ビュー行列(カメラの位置・向き)
     DirectX::XMMATRIX Proj;  ///< プロジェクション行列(透視方法)
+
+    //View行列のゲッター
+    const DirectX::XMMATRIX& GetViewMatrix()
+    {
+        return View;
+    }
+
+    //Projの行列のゲッター
+    const DirectX::XMMATRIX& GetProjectionMatrix()
+    {
+        return Proj;
+    }
+
     
     DirectX::XMFLOAT3 position;  ///< カメラの位置
     DirectX::XMFLOAT3 target;    ///< カメラが見ている点(注視点)
