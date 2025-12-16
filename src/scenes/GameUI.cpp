@@ -140,12 +140,12 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     starttimeText.color = {1.0f, 0.0f, 0.0f, 1.0f};
     starttimeText.formatId = "hud";
     starttimeText.fontSize = 36.0f;
-    
+
     Entity starttime = world.Create()
                            .With<UITransform>(starttimeTransform)
                            .With<UIText>(starttimeText)
                            .Build();
-   
+
 
     ownedEntities_.push_back(starttime);
 
@@ -197,7 +197,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     stageText[1].color = {0.0f, 0.5f, 1.0f, 1.0f};
     stageText[1].formatId = "hud";
 
-    
+
 
 
     UITransform stageTransform[2];
@@ -273,7 +273,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     }
     ownedEntities_.push_back(uiUpdater);
 
-   
+
    /* UITransform UIanimation;
     UIanimation.position = {0.0f, -280.0f};
     UIanimation.size = {1280.0f, 1280.0f};
@@ -283,7 +283,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     UIImage ani{L"./Assets/Textures/Fade/tex_fadekorigori.png"};
     ani.opacity = 1.0f;
     ani.keepAspect = false;
-    
+
     SpriteSheetAnimation anim;
     anim.frameCount = 18;
     anim.frameTime = 0.08f;
@@ -328,8 +328,10 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
    ownedEntities_.push_back(fadeOutAnimation);
    fadeAnimationEntity_ = fadeOutAnimation;
 
-   // 死亡専用フェードアウト（テクスチャ: tex_fadekorigori.png, 18枚 77760x4320）
-   UIImage deathFade{L"./Assets/Textures/Fade/tex_fadekorigori.png"};
+   // 死亡専用フェードアウト
+   // 元の tex_fadekorigori.png (77760x4320) は巨大すぎてパフォーマンスに悪影響があるため、
+   // tex_fade.png (通常のフェード用) で代用する。
+   UIImage deathFade{L"./Assets/Textures/Fade/tex_fade.png"};
    deathFade.opacity = 1.0f;
    deathFade.keepAspect = false;
 
@@ -359,7 +361,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
    SpriteSheetAnimation chargeOverlayAnim;
    chargeOverlayAnim.frameCount = 1;
    chargeOverlayAnim.frameTime = 0.5f;
-   chargeOverlayAnim.columns = 1.0;
+   chargeOverlayAnim.columns = 1;
    chargeOverlayAnim.rows = 1;
    chargeOverlayAnim.isLooping = false;
    chargeOverlayAnim.isPlaying = false;

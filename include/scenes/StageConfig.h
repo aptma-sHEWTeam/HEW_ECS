@@ -19,7 +19,7 @@ inline ConfigVar<float> cfg_PlayerScale{"Stage.Player.Appearance", "PlayerScale"
 inline ConfigVar<float> cfg_PlayerR{"Stage.Player.Appearance", "PlayerColorR", 0.0f, "プレイヤー色 R"};
 inline ConfigVar<float> cfg_PlayerG{"Stage.Player.Appearance", "PlayerColorG", 0.0f, "プレイヤー色 G"};
 inline ConfigVar<float> cfg_PlayerB{"Stage.Player.Appearance", "PlayerColorB", 1.0f, "プレイヤー色 B"};
-inline ConfigVar<float> cfg_PlayerStartY{"Stage.Player.Appearance", "PlayerStartY", 5.0f, "プレイヤーの初期Y位置"};
+inline ConfigVar<float> cfg_PlayerStartY{"Stage.Player.Appearance", "PlayerStartY", 8.0f, "プレイヤーの初期Y位置"};
 inline ConfigVar<float> cfg_PlayerHeight{"Stage.Player.Appearance", "PlayerHeight", 2.0f, "プレイヤーのカプセル高さ"};
 
 // 床設定

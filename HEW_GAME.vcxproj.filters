@@ -123,8 +123,11 @@
     <ClCompile Include="src\systems\SpatialHashGrid.cpp">
       <Filter>Source Files\systems</Filter>
     </ClCompile>
-    <ClCompile Include="StageUI.cpp">
-      <Filter>Source Files\scenes</Filter>
+    <ClCompile Include="src\systems\AnimationSystem.cpp">
+      <Filter>Source Files\systems</Filter>
+    </ClCompile>
+    <ClCompile Include="src\graphics\Effect.cpp">
+      <Filter>Source Files\graphics</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -342,6 +345,16 @@
       <Filter>Header Files\util</Filter>
     </ClInclude>
     <ClInclude Include="SoundComponent.h" />
+    <ClInclude Include="include\systems\AnimationSystem.h">
+      <Filter>Header Files\systems</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Effekseer\EffekseerRendererDX11.h" />
+    <ClInclude Include="include\graphics\Effect.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\Effekseer\Effekseer.h" />
+    <ClInclude Include="libs\Effekseer\Effekseer.Modules.h" />
+    <ClInclude Include="libs\Effekseer\Effekseer.SIMD.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include=".github\ISSUE_TEMPLATE\01_task.yml">
@@ -415,5 +428,9 @@
       <Filter>Docs</Filter>
     </None>
     <None Include="Assets\Settings\config.toml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="libs\Effekseer\Effekseer.lib" />
+    <Library Include="libs\Effekseer\EffekseerRendererDX11.lib" />
   </ItemGroup>
 </Project>

@@ -11,6 +11,8 @@
 #include <vector>
 #include <algorithm>
 
+#include "graphics/Effect.h"
+
 #include "config/ConfigVar.h"
 #include "components/UIComponents.h"
 #include "components/StageComponents.h"
@@ -48,6 +50,11 @@ class StageSlectScene : public IScene {
         if (!hasStageProgress) {
             world.Create().With<StageProgress>().Build();
         }
+        maxStage_ = GetAvailableStageCount();
+        world.ForEach<StageProgress>([&](Entity, StageProgress &progress) {
+            progress.selectStage = std::clamp(progress.selectStage, 1, maxStage_);
+            progress.currentStage = std::clamp(progress.currentStage, 1, maxStage_);
+        });
         
         auto *gfx = ServiceLocator::TryGet<GfxDevice>();
         if (!gfx) {
@@ -117,7 +124,7 @@ class StageSlectScene : public IScene {
         }
 
         world.ForEach<StageProgress>([&](Entity, StageProgress &stats) {
-            const int maxStage = GetAvailableStageCount();
+            const int maxStage = maxStage_;
 
             if (input.GetKeyDown(VK_RIGHT) && stats.selectStage < maxStage) {
                 stats.selectStage++;
@@ -172,8 +179,10 @@ class StageSlectScene : public IScene {
 
     void CreateStageSelectUI(World &world);
 
+
     TextSystem textSystem_{};
     ImageSystem imageSystem_{};
     std::vector<Entity> ownedEntities_{};
     Entity StageSelectEntity_{};
+    int maxStage_ = 1;
 };

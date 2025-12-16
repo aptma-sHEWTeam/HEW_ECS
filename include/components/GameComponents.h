@@ -1,6 +1,7 @@
 #pragma once
 
 #include "components/Component.h"
+#include "components/Animator.h"
 #include <DirectXMath.h>
 
 /**

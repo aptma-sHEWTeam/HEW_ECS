@@ -323,6 +323,23 @@ public:
     }
 
     /**
+     * @brief 全エンティティを即時破棄（デバッグ/フェイルセーフ用）
+     * @param cause 起因タグ
+     */
+    void DestroyAllEntitiesImmediate(Cause cause = Cause::Unknown) {
+        std::lock_guard<std::mutex> lock(entityMutex_);
+        std::vector<uint32_t> aliveIds(alive_.begin(), alive_.end());
+        for (uint32_t id : aliveIds) {
+            DestroyEntityInternal(id, cause);
+        }
+        pendingDestroy_.clear();
+        pendingComponentRemove_.clear();
+        pendingBehaviours_.clear();
+        freeIdsPending_.clear();
+        ClearQueryCache();
+    }
+
+    /**
      * @brief コンポーネント削除（更新中は遅延）
      */
     template<class T>

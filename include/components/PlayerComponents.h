@@ -50,7 +50,14 @@ constexpr int ANGLE_HISTORY_SIZE = 30;
 constexpr float EPSILON = 1e-5f;
 }
 
-struct PlayerStatus : Behaviour { bool isStartAfterWallHit = false; };
+struct PlayerStatus : Behaviour {
+    enum class WallHitState {
+        Idle,
+        Shaking,
+        RespawnWait
+    };
+    WallHitState wallHitState = WallHitState::Idle;
+};
 
 // ===============================
 // PlayerVelocity（重複宣言整理）
@@ -212,7 +219,7 @@ struct PlayerMovement : Behaviour {
             if (input_->GetKey('D') || input_->GetKey(VK_RIGHT)) inputDir.x += 1.0f;
         }
 
-        if (gamepad_ && !playerStatus->isStartAfterWallHit) {
+        if (gamepad_ && playerStatus->wallHitState == PlayerStatus::WallHitState::Idle) {
             float gx = gamepad_->GetLeftStickX();
             float gy = gamepad_->GetLeftStickY();
             float mag = std::sqrt(gx * gx + gy * gy);
