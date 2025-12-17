@@ -252,12 +252,6 @@ class GameScene : public IScene {
 
         EffekseerManager::GetInstance().Load();
 
-
-       EffekseerManager::GetInstance().PlayEffect("Goal", 0.0f, 5.0f, 0.0f);
-       EffekseerManager::GetInstance().PlayEffect("WarpIn", 5.0f, 5.0f, 0.0f);
-       EffekseerManager::GetInstance().PlayEffect("WarpOut", 4.0f, 5.0f, 4.0f);
-       EffekseerManager::GetInstance().PlayEffect("SpeedUp", -3.0f, 5.0f, 0.0f);
-
         DEBUGLOG("GameWithUIScene の初期化が正常に完了しました");
     }
 
@@ -357,7 +351,7 @@ class GameScene : public IScene {
         }
 
 
-            EffekseerManager::GetInstance().Draw();
+            EffekseerManager::GetInstance().Draw(camera_);
 
         world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
             sys.Render(world);
@@ -1144,20 +1138,24 @@ class GameScene : public IScene {
     }
 
     void CreateStart(World &world, const DirectX::XMFLOAT3 &position) {
-        DirectX::XMFLOAT3 diffPosition = {position.x, position.y - 0.5f, position.z};
-        Transform t{diffPosition, {0, 0, 0}, {1, 1, 1}};
+        if (world.IsAlive(startEntity_)) return;
+
+        // 2x2マスの中心に合わせる (左上マス中心から X+0.5, Z-0.5)
+        DirectX::XMFLOAT3 diffPosition = {position.x + 0.5f, position.y - 1.5f, position.z - 0.5f};
+
+        Transform t{diffPosition, {0, 0, 0}, {2.0f, 0.5f, 2.0f}};
         MeshRenderer r;
         r.meshType = MeshType::Cube;
-        r.color = DirectX::XMFLOAT3{cfg_StartR, cfg_StartG, cfg_StartB};
+        r.color = DirectX::XMFLOAT3{cfg_StartR.Get(), cfg_StartG.Get(), cfg_StartB.Get()};
 
         EmissiveMaterial emissive{
-            DirectX::XMFLOAT3{cfg_StartEmissiveR, cfg_StartEmissiveG, cfg_StartEmissiveB},
-            cfg_StartEmissiveIntensity};
-        EmissivePulse pulse{cfg_StartPulseMin, cfg_StartPulseMax, cfg_StartPulseSpeed};
+            DirectX::XMFLOAT3{cfg_StartEmissiveR.Get(), cfg_StartEmissiveG.Get(), cfg_StartEmissiveB.Get()},
+            cfg_StartEmissiveIntensity.Get()};
+        EmissivePulse pulse{cfg_StartPulseMin.Get(), cfg_StartPulseMax.Get(), cfg_StartPulseSpeed.Get()};
         PointLight light{
-            DirectX::XMFLOAT3{cfg_StartEmissiveR, cfg_StartEmissiveG, cfg_StartEmissiveB},
-            cfg_StartEmissiveIntensity,
-            cfg_StartLightRange};
+            DirectX::XMFLOAT3{cfg_StartEmissiveR.Get(), cfg_StartEmissiveG.Get(), cfg_StartEmissiveB.Get()},
+            cfg_StartEmissiveIntensity.Get(),
+            cfg_StartLightRange.Get()};
         ApplyDefaultPointLightParams(light);
 
         Entity e = world.Create()
@@ -1168,57 +1166,73 @@ class GameScene : public IScene {
                        .With<PointLight>(light)
                        .With<StartTag>()
                        .With<StageElementTag>()
-                       .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                       .With<CollisionBox>(DirectX::XMFLOAT3{2.0f, 4.0f, 2.0f})
                        .Build();
 
         startEntity_ = e;
         stageOwnedEntities_.push_back(e);
     }
 
-    void CreateGoal(World &world, const DirectX::XMFLOAT3 &position, int currentstage) {
+    void CreateGoal(World &world,  const DirectX::XMFLOAT3 &position, int currentstage) {
+        if (world.IsAlive(goalEntity_)) return;
+
         int stageIndex = currentstage - 1;
-        if (stageIndex < 0)
-            stageIndex = 0;
+        if (stageIndex < 0) stageIndex = 0;
+
+        // 現在のルーム番号を取得（1-based -> 0-based）
+        int roomIndex = 0;
+        world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+            roomIndex = sp.currentRoom - 1;
+        });
+        if (roomIndex < 0) roomIndex = 0;
+
         float angle = 0.0f;
         world.ForEach<LoadGoalAngle>([&](Entity, LoadGoalAngle & data){
-            if (!data.goalAngle.empty() && data.goalAngle.size() > 0 &&
-                data.goalAngle[0].size() > static_cast<size_t>(stageIndex))
-            {
-                angle = static_cast<float>(data.goalAngle[0][stageIndex]);
+            if (stageIndex < static_cast<int>(data.goalAngle.size())) {
+                const auto& row = data.goalAngle[stageIndex];
+                if (roomIndex < static_cast<int>(row.size())) {
+                    angle = static_cast<float>(row[roomIndex]);
+                } else if (!row.empty()) {
+                    angle = static_cast<float>(row[0]);
+                }
+            } else if (!data.goalAngle.empty() && !data.goalAngle[0].empty()) {
+                angle = static_cast<float>(data.goalAngle[0][0]);
             }
         });
 
+        // 2x2マスの中心に合わせる (左上マス中心から X+0.5, Z-0.5)
+        DirectX::XMFLOAT3 diffPosition = {position.x + 0.5f, position.y - 1.5f, position.z - 0.5f};
 
-        DirectX::XMFLOAT3 diffPosition = {position.x, position.y - 0.5f, position.z};
-        Transform t{diffPosition, {0,angle, 0}, {1, 1, 1}};
+        Transform t{diffPosition, {0, angle, 0}, {2.0f, 0.5f, 2.0f}};
+
         MeshRenderer r;
         r.meshType = MeshType::Cube;
-        r.color = DirectX::XMFLOAT3{cfg_GoalR, cfg_GoalG, cfg_GoalB};
+        r.color = DirectX::XMFLOAT3{cfg_GoalR.Get(), cfg_GoalG.Get(), cfg_GoalB.Get()};
 
         EmissiveMaterial emissive{
-            DirectX::XMFLOAT3{cfg_GoalEmissiveR, cfg_GoalEmissiveG, cfg_GoalEmissiveB},
-            cfg_GoalEmissiveIntensity};
-        EmissivePulse pulse{cfg_GoalPulseMin, cfg_GoalPulseMax, cfg_GoalPulseSpeed};
+            DirectX::XMFLOAT3{cfg_GoalEmissiveR.Get(), cfg_GoalEmissiveG.Get(), cfg_GoalEmissiveB.Get()},
+            cfg_GoalEmissiveIntensity.Get()};
+        EmissivePulse pulse{cfg_GoalPulseMin.Get(), cfg_GoalPulseMax.Get(), cfg_GoalPulseSpeed.Get()};
         PointLight light{
-            DirectX::XMFLOAT3{cfg_GoalEmissiveR, cfg_GoalEmissiveG, cfg_GoalEmissiveB},
-            cfg_GoalEmissiveIntensity,
-            cfg_GoalLightRange=1.0};
+            DirectX::XMFLOAT3{cfg_GoalEmissiveR.Get(), cfg_GoalEmissiveG.Get(), cfg_GoalEmissiveB.Get()},
+            cfg_GoalEmissiveIntensity.Get(),
+            cfg_GoalLightRange.Get()};
         ApplyDefaultPointLightParams(light);
 
         Entity e = world.Create()
                        .With<Transform>(t)
                        .With<MeshRenderer>(r)
-                       .With<Model>(cfg_GoalFBXPass)
                        .With<EmissiveMaterial>(emissive)
                        .With<EmissivePulse>(pulse)
                        .With<PointLight>(light)
                        .With<GoalTag>()
                        .With<StageElementTag>()
-                       .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                       .With<CollisionBox>(DirectX::XMFLOAT3{2.0f, 4.0f, 2.0f})
                        .Build();
 
         goalEntity_ = e;
         stageOwnedEntities_.push_back(e);
+        EffekseerManager::GetInstance().PlayEffect("Goal", diffPosition, true);
     }
 
     void CreateGoalDoor(World &world, const DirectX::XMFLOAT3 &position) {
@@ -1274,7 +1288,7 @@ class GameScene : public IScene {
 
         Entity wallEntity = world.Create()
                                 .With<Transform>(transform)
-                                .With<Model>(cfg_WallFBXPass)
+                                .With<Model>(cfg_HalfWallFBXPass)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
                                 .With<StageElementTag>()
@@ -1296,7 +1310,7 @@ class GameScene : public IScene {
 
         Entity wallEntity = world.Create()
                                 .With<Transform>(transform)
-                                .With<Model>(cfg_WallFBXPass)
+                                .With<Model>(cfg_HalfWallFBXPass)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
                                 .With<StageElementTag>()
@@ -1318,7 +1332,7 @@ class GameScene : public IScene {
 
         Entity wallEntity = world.Create()
                                 .With<Transform>(transform)
-                                .With<Model>(cfg_WallFBXPass)
+                                .With<Model>(cfg_HalfWallFBXPass)
                                 .With<MeshRenderer>(renderer)
                                 .With<WallTag>()
                                 .With<StageElementTag>()
@@ -1483,6 +1497,7 @@ class GameScene : public IScene {
         // プレイヤーへの影響角度はCSVそのまま（見た目補正は加えない）
         status.accelAngle = csvAngleDeg;
 
+        //EffekseerManager::GetInstance().PlayEffect("SpeedUp", -3.0f, 5.0f, 0.0f);
         Entity dashBoardEntity = world.Create()
                                      .With<Transform>(transform)
                                      .With<Model>(cfg_DashBoardFBXPass)
@@ -1875,7 +1890,8 @@ class GameScene : public IScene {
     }
 
     void SetStickZoomActive(bool active) {
-        stickZoomTarget_ = active ? std::max(0.0f, cfg_StickZoomAmount.Get()) : 0.0f;
+        // ズームインにするため負の値にする (FOVを狭める)
+        stickZoomTarget_ = active ? -std::abs(cfg_StickZoomAmount.Get()) : 0.0f;
     }
 
     float UpdateStickZoom(float dt) {

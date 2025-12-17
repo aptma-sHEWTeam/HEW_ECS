@@ -17,10 +17,7 @@
 mono_crash.*
 
 # Build results
-[Dd]ebug/
 [Dd]ebugPublic/
-[Rr]elease/
-[Rr]eleases/
 debug_log.csv
 debug_log.txt
 metrics_log.csv

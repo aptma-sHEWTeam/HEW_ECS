@@ -79,9 +79,9 @@ inline ConfigVar<std::string> cfg_FloorFBXPass{"Stage.Floor.Asset", "FloorFBXPas
 inline ConfigVar<std::string> cfg_WallFBXPass{"Stage.Wall.Asset", "WallFBXPass", "Assets/Models/StageObj/Wall/obj_wall.fbx", "壁モデル FBX パス"};
 inline ConfigVar<std::string> cfg_HalfWallFBXPass{"Stage.Wall.Asset", "HalfWallFBXPass", "Assets/Models/StageObj/Wall/obj_wall_half.fbx", "半分の高さの壁 FBX パス"};
 inline ConfigVar<std::string> cfg_StartFBXPass{"Stage.Start.Asset", "StartFBXPass", "Assets/Models/StageObj/Start/obj_start.fbx", "スタートマーカー FBX パス"};
-inline ConfigVar<std::string> cfg_GoalFBXPass{"Stage.Goal.Asset", "GoalFBXPass", "Assets/Models/StageObj/Goal/obj_goal.fbx", "ゴールマーカー FBX パス"};
+inline ConfigVar<std::string> cfg_GoalFBXPass{"Stage.Goal.Asset", "GoalFBXPass", "Assets/Models/StageObj/StageGoal/obj_stagegoal.fbx", "ゴールマーカー FBX パス"};
 inline ConfigVar<std::string> cfg_MovingObstacleFBXPass{"Stage.MovingObstacle.Asset", "MovingObstacleFBXPass", "Assets/Models/StageObj/Move/vehicle.fbx", "動く障害物 FBX パス"};
-inline ConfigVar<std::string> cfg_DashBoardFBXPass{"Stage.DashBoard.Asset", "DashBoardFBXPass", "Assets/Models/StageObj/SpeedUp/obj_speedup.fbx", "加速板 FBX パス"};
+inline ConfigVar<std::string> cfg_DashBoardFBXPass{"Stage.DashBoard.Asset", "DashBoardFBXPass", "Assets/Models/StageObj/SpeedUp/obj_speedup2.fbx", "加速板 FBX パス"};
 inline ConfigVar<std::string> cfg_AObstacleFBXPass{"Stage.PC.Asset","AObstacle","Assets/Models/StageObj/PC/PC.fbx", "PC 障害物 FBX パス"};
 inline ConfigVar<std::string> cfg_BObstacleFBXPass{"Stage.GasPipe.Asset", "BObstacleFBXPass", "Assets/Models/StageObj/GasPipe/obj_obstacleB.fbx", "ガスパイプ障害物 FBX パス"};
 inline ConfigVar<std::string> cfg_CObstacleFBXPass{"Stage.Cube.Asset", "CObstacleFBXPass", "Assets/Models/StageObj/Cub/Cube.fbx", "キューブ障害物 FBX パス"};
