@@ -172,7 +172,7 @@ struct PlayerCollisionHandler : ICollisionHandler {
             auto *tGoal = w.TryGet<Transform>(other);
             
             //エフェクト実装：ゴールとリンク
-            EffekseerManager::GetInstance().PlayEffect("WarpIn",tGoal->position);
+            EffekseerManager::GetInstance().PlayEffect("WarpIn",tPlayer->position);
             
             if (tPlayer && tGoal) {
                 const DirectX::XMFLOAT3 goalCenter = ResolvePlacementCenter(w, other, *tGoal);
@@ -235,6 +235,7 @@ struct DashBordCollisionHandler : ICollisionHandler {
     void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override {
         auto *v = w.TryGet<PlayerVelocity>(other);              //速度コンポーネント取得
         auto *dash = w.TryGet<DashBoardStatus>(self);           //加速板のステータス取得
+        auto *tDashBord = w.TryGet<Transform>(other);
         if (!w.Has<PlayerTag>(other) || !v || !dash) {
             return;
         }
@@ -242,6 +243,8 @@ struct DashBordCollisionHandler : ICollisionHandler {
         const float angleRad = DirectX::XMConvertToRadians(dash->accelAngle);
         const DirectX::XMFLOAT2 boostDir{std::cosf(angleRad), std::sinf(angleRad)};
         const float boostSpeed = v->speed * v->Acceleration;
+
+         EffekseerManager::GetInstance().PlayEffect("SpeedUp", tDashBord->position);
 
         // 現在の速度を無視して、指定角度・指定大きさで上書き
         v->boostDir = boostDir;
