@@ -72,6 +72,7 @@ struct PlayerVelocity : Behaviour {
     bool isBoosting = false;
     bool isDecelerating = false;
     float DebugSpeed = 0.0f;
+    bool isRotate = false;    //プレイヤー回転
 
     DirectX::XMFLOAT2 velocity = {0.0f, 0.0f};
     DirectX::XMFLOAT2 boostDir = {0.0f, 0.0f};
@@ -135,9 +136,14 @@ struct PlayerVelocity : Behaviour {
         if (t->position.z < -limitY) t->position.z = -limitY;
         if (t->position.z > limitY)  t->position.z =  limitY;
         const float velLenSq = v->velocity.x * v->velocity.x + v->velocity.y * v->velocity.y;
-        if (velLenSq > PlayerConstants::EPSILON) {
-            const float rad = std::atan2f(v->velocity.y, v->velocity.x);
-            t->rotation.y = -rad * (90.0f / DirectX::XM_PI) * 2 + 90.0f;
+        
+
+        if (!v->isRotate)
+        {
+            if (velLenSq > PlayerConstants::EPSILON) {
+                const float rad = std::atan2f(v->velocity.y, v->velocity.x);
+                t->rotation.y = -rad * (90.0f / DirectX::XM_PI) * 2 + 90.0f;
+            }
         }
     }
 
@@ -249,12 +255,14 @@ struct PlayerMovement : Behaviour {
                 }
                 isCharging_ = true;
                 v->isDecelerating = true; // チャージ中は減速
+                v->isRotate = true;
                 // チャージ最大時間でMinSpeedまで落とすための減速量を算出（毎秒）
                 v->SlowFactor = (std::max(0.0f, v->speed - v->MinSpeed)) / std::max(0.0001f, chargeMaxTime);
                 float charge = gamepad_->GetLeftStickChargeAmount(chargeMaxTime); (void)charge;
 
                 if (mag > PlayerConstants::EPSILON) {
                     float ang = std::atan2f(lastStickDir_.y, lastStickDir_.x);
+                    t->rotation.y = -ang * (180.0f / DirectX::XM_PI) + 90.0f;
                     if (angleFilled) { sumSin -= std::sinf(angleHistory[angleIndex]); sumCos -= std::cosf(angleHistory[angleIndex]); }
                     angleHistory[angleIndex] = ang; sumSin += std::sinf(ang); sumCos += std::cosf(ang);
                     angleIndex = (angleIndex + 1) % PlayerConstants::ANGLE_HISTORY_SIZE;
@@ -275,6 +283,7 @@ struct PlayerMovement : Behaviour {
                         DirectX::XMFLOAT2 boostDir{dirX / dirLen, dirY / dirLen};
                         float maxBoost = v->speed * v->Acceleration;
                         v->StartBoost(boostDir, maxBoost);
+                        v->isRotate = false;
                         isCharging_ = false; v->isDecelerating = false;
                     }
                 }
@@ -288,6 +297,7 @@ struct PlayerMovement : Behaviour {
 
             if (!effectiveCharging && !chargingNowLocal) {
                 restoreCollisionRadius();
+                v->isRotate = false;
                 isCharging_ = false;
             }
 
@@ -348,64 +358,3 @@ struct PlayerGuide : Behaviour {
         }
     }
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

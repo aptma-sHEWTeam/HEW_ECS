@@ -174,7 +174,8 @@ struct PlayerCollisionHandler : ICollisionHandler {
             auto *tPlayer = w.TryGet<Transform>(self);
             auto *tGoal = w.TryGet<Transform>(other);
             
-           
+           EffekseerManager::GetInstance().PlayEffect("WarpOut", tGoal->position, false);
+
             if (tPlayer && tGoal) {
                 const DirectX::XMFLOAT3 goalCenter = ResolvePlacementCenter(w, other, *tGoal);
 
