@@ -35,9 +35,9 @@ inline ConfigVar<float> cfg_StartG{"Stage.Start.Visual", "StartColorG", 0.0f, "�
 inline ConfigVar<float> cfg_StartB{"Stage.Start.Visual", "StartColorB", 1.0f, "スタートマーカーの色 B"};
 
 // ゴールマーカー見た目
-inline ConfigVar<float> cfg_GoalR{"Stage.Goal.Visual", "GoalColorR", 1.0f, "ゴールマーカーの色 R"};
-inline ConfigVar<float> cfg_GoalG{"Stage.Goal.Visual", "GoalColorG", 1.0f, "ゴールマーカーの色 G"};
-inline ConfigVar<float> cfg_GoalB{"Stage.Goal.Visual", "GoalColorB", 0.0f, "ゴールマーカーの色 B"};
+inline ConfigVar<float> cfg_GoalR{"Stage.Goal.Visual", "GoalColorR", 1.000000f, "ゴールマーカーの色 R"};
+inline ConfigVar<float> cfg_GoalG{"Stage.Goal.Visual", "GoalColorG", 0.000000f, "ゴールマーカーの色 G"};
+inline ConfigVar<float> cfg_GoalB{"Stage.Goal.Visual", "GoalColorB", 0.000000f, "ゴールマーカーの色 B"};
 
 // 壁見た目
 inline ConfigVar<float> cfg_WallR{"Stage.Wall.Visual", "WallColorR", 1.0f, "壁の色 R"};
@@ -114,10 +114,10 @@ inline ConfigVar<float> cfg_StartPulseMax{"Stage.Start.Emissive", "StartPulseMax
 inline ConfigVar<float> cfg_StartPulseSpeed{"Stage.Start.Emissive", "StartPulseSpeed", 1.0f, "スタートパネル発光の速さ"};
 
 // ゴール演出用エミッシブ
-inline ConfigVar<float> cfg_GoalEmissiveR{"Stage.Goal.Emissive", "GoalEmissiveR", 1.0f, "ゴールオブジェクトのエミッシブ色 R"};
-inline ConfigVar<float> cfg_GoalEmissiveG{"Stage.Goal.Emissive", "GoalEmissiveG", 0.8f, "ゴールオブジェクトのエミッシブ色 G"};
-inline ConfigVar<float> cfg_GoalEmissiveB{"Stage.Goal.Emissive", "GoalEmissiveB", 0.0f, "ゴールオブジェクトのエミッシブ色 B"};
-inline ConfigVar<float> cfg_GoalEmissiveIntensity{"Stage.Goal.Emissive", "GoalEmissiveIntensity", 2.0f, "ゴールオブジェクトのエミッシブ強さ"};
+inline ConfigVar<float> cfg_GoalEmissiveR{"Stage.Goal.Emissive", "GoalEmissiveR", 1.000000f, "ゴールオブジェクトのエミッシブ色 R"};
+inline ConfigVar<float> cfg_GoalEmissiveG{"Stage.Goal.Emissive", "GoalEmissiveG", 0.000000f, "ゴールオブジェクトのエミッシブ色 G"};
+inline ConfigVar<float> cfg_GoalEmissiveB{"Stage.Goal.Emissive", "GoalEmissiveB", 0.000000f, "ゴールオブジェクトのエミッシブ色 B"};
+inline ConfigVar<float> cfg_GoalEmissiveIntensity{"Stage.Goal.Emissive", "GoalEmissiveIntensity", 1.000000f, "ゴールオブジェクトのエミッシブ強さ"};
 inline ConfigVar<float> cfg_GoalPulseMin{"Stage.Goal.Emissive", "GoalPulseMin", 4.0f, "ゴール発光の最小周期"};
 inline ConfigVar<float> cfg_GoalPulseMax{"Stage.Goal.Emissive", "GoalPulseMax", 10.0f, "ゴール発光の最大周期"};
 inline ConfigVar<float> cfg_GoalPulseSpeed{"Stage.Goal.Emissive", "GoalPulseSpeed", 1.0f, "ゴール発光の速さ"};
