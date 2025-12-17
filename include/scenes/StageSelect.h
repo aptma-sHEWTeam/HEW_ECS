@@ -69,7 +69,7 @@ class StageSlectScene : public IScene {
             DEBUGLOG_ERROR("[StageSelect] ImageSystem init failed");
             return;
         }
-        CreateTextFormats();
+        CreateTextNormalFormats();
 
         float screenWidth = static_cast<float>(gfx->Width());
         float screenHeight = static_cast<float>(gfx->Height());
@@ -92,6 +92,7 @@ class StageSlectScene : public IScene {
         }
         ownedEntities_.push_back(uiInteractionSystem);
 
+        CreateTextNormalFormats();
         // Create UI once
         CreateStageSelectUI(world);
     }
@@ -146,6 +147,7 @@ class StageSlectScene : public IScene {
             stats.selectStage = std::clamp(stats.selectStage, 1, maxStage);
 
             if (auto *StageSelectText = world.TryGet<UIText>(StageSelectEntity_)) {
+                CreateTextStageNoFormats();
                 std::wstringstream ss;
                 ss << L"PSS-00" << stats.selectStage;
                 StageSelectText->text = ss.str();
@@ -175,7 +177,8 @@ class StageSlectScene : public IScene {
     }
 
   private:
-    void CreateTextFormats();
+    void CreateTextStageNoFormats();
+    void CreateTextNormalFormats();
 
     void CreateStageSelectUI(World &world);
 
