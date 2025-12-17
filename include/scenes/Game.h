@@ -1141,9 +1141,9 @@ class GameScene : public IScene {
         if (world.IsAlive(startEntity_)) return;
 
         // 2x2マスの中心に合わせる (左上マス中心から X+0.5, Z-0.5)
-        DirectX::XMFLOAT3 diffPosition = {position.x + 0.5f, position.y - 0.5f, position.z - 0.5f};
+        DirectX::XMFLOAT3 diffPosition = {position.x + 0.5f, position.y - 1.5f, position.z - 0.5f};
 
-        Transform t{diffPosition, {0, 0, 0}, {1.0f, 1.0f, 1.0f}};
+        Transform t{diffPosition, {0, 0, 0}, {2.0f, 0.5f, 2.0f}};
         MeshRenderer r;
         r.meshType = MeshType::Cube;
         r.color = DirectX::XMFLOAT3{cfg_StartR.Get(), cfg_StartG.Get(), cfg_StartB.Get()};
@@ -1166,7 +1166,7 @@ class GameScene : public IScene {
                        .With<PointLight>(light)
                        .With<StartTag>()
                        .With<StageElementTag>()
-                       .With<CollisionBox>(DirectX::XMFLOAT3{2.0f, 2.0f, 2.0f})
+                       .With<CollisionBox>(DirectX::XMFLOAT3{2.0f, 4.0f, 2.0f})
                        .Build();
 
         startEntity_ = e;
@@ -1201,7 +1201,7 @@ class GameScene : public IScene {
         });
 
         // 2x2マスの中心に合わせる (左上マス中心から X+0.5, Z-0.5)
-        DirectX::XMFLOAT3 diffPosition = {position.x + 0.5f, position.y - 0.5f, position.z - 0.5f};
+        DirectX::XMFLOAT3 diffPosition = {position.x + 0.5f, position.y - 1.5f, position.z - 0.5f};
 
         Transform t{diffPosition, {0, angle, 0}, {2.0f, 0.5f, 2.0f}};
 
@@ -1227,7 +1227,7 @@ class GameScene : public IScene {
                        .With<PointLight>(light)
                        .With<GoalTag>()
                        .With<StageElementTag>()
-                       .With<CollisionBox>(DirectX::XMFLOAT3{2.0f, 2.0f, 2.0f})
+                       .With<CollisionBox>(DirectX::XMFLOAT3{2.0f, 4.0f, 2.0f})
                        .Build();
 
         goalEntity_ = e;
