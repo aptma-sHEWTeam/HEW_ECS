@@ -138,6 +138,18 @@ void EffekseerManager::SetCamera(const Camera& camera)
     m_pRenderer->SetProjectionMatrix(m_efkProjMat);
 }
 
+//=============================
+//エフェクトの座標更新処理
+//============================
+void EffekseerManager::SetEffectPosition(int handle, DirectX::XMFLOAT3 pos) 
+{
+    if (m_pManager != nullptr)
+    {
+        //直接ハンドルと新しいざひょうをお渡しする
+        m_pManager->SetLocation(handle, pos.x, pos.y, pos.z);
+    }
+}
+
 //=====================
 //更新処理
 //=====================

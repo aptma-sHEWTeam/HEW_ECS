@@ -23,6 +23,7 @@
 #include <DirectXMath.h> // GoalAttractor 用
 #include "components/Transform.h" // GoalAttractor 用
 #include "components/GameStats.h"
+#include "graphics/Effect.h"
 
 using namespace std;
 
@@ -473,6 +474,8 @@ struct GoalAttractor : Behaviour {
     float elapsed = 0.0f;                        ///< 経過時間
     DirectX::XMFLOAT3 startPos{0.0f, 0.0f, 0.0f};///< 開始位置
 
+    Effekseer::Handle effectHandle = -1;        ///<再生時のハンドル保存
+
     void OnStart(World &w, Entity self) override {
         if (auto *t = w.TryGet<Transform>(self)) {
             startPos = t->position;
@@ -494,7 +497,7 @@ struct GoalAttractor : Behaviour {
             startPos.z + (target.z - startPos.z) * u
         };
         t->position = pos;
-
+      
         // 進行完了: 次のルームへ進めるリクエストを立てる
         if (tNorm >= 1.0f) {
             // ゴールイン直後に制限時間をフルに戻して次ルームへ備える
@@ -509,7 +512,15 @@ struct GoalAttractor : Behaviour {
             // 自身のBehaviourを取り外す
             w.Remove<GoalAttractor>(self);
         }
+
+        //エフェクトの座標をプレイヤーの現在地にリンク
+        if (effectHandle != -1)
+        {
+            EffekseerManager::GetInstance().SetEffectPosition(effectHandle, t->position);
+        }
+        
     }
+    
 };
 
 /**
