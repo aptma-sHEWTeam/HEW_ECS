@@ -1496,8 +1496,6 @@ class GameScene : public IScene {
                                      .Build();
 
         stageOwnedEntities_.push_back(dashBoardEntity);
-
-       
     }
 
 
