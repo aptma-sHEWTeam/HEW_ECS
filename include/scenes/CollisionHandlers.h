@@ -166,13 +166,16 @@ struct PlayerCollisionHandler : ICollisionHandler {
             if (progress) progress->goalTransitioning = true;
             if (goalTag) goalTag->consumed = true;
             DEBUGLOG("Player reached goal");
+            
+            //ゴールエフェクト停止
+            EffekseerManager::GetInstance().StopEffect("Goal");
 
             // ゆっくり吸い込み: ゴール中心へイージングで寄せる
             auto *tPlayer = w.TryGet<Transform>(self);
             auto *tGoal = w.TryGet<Transform>(other);
             
             //エフェクト実装：ゴールとリンク
-            EffekseerManager::GetInstance().PlayEffect("WarpIn", tPlayer->position);
+            EffekseerManager::GetInstance().PlayEffect("WarpIn",tGoal->position, false);
             
             if (tPlayer && tGoal) {
                 const DirectX::XMFLOAT3 goalCenter = ResolvePlacementCenter(w, other, *tGoal);

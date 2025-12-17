@@ -18,6 +18,14 @@
 #include "graphics/Camera.h"
 #include "DirectXMath.h"
 #include<map>
+#include<list>
+
+struct LoopInfo
+{
+    std::string effectName;
+    DirectX::XMFLOAT3 position;
+    int handle;
+};
 
 class EffekseerManager
 {
@@ -34,13 +42,14 @@ class EffekseerManager
 
    void Load();				///<読み込み処理
 
-   int PlayEffect(const std::string &effectName, DirectX::XMFLOAT3 pos); ///<エフェクト再生
+   int PlayEffect(const std::string &effectName, DirectX::XMFLOAT3 pos, bool loop = false); ///<エフェクト再生
    void StopEffect();		///<エフェクト停止
+   void StopEffect(const std::string &effectName); ///<指定した名前のエフェクトを停止
 
-   void SetCamera();		///<カメラ処理
+   void SetCamera(const Camera& camera);		///<カメラ処理
 
    void Update();			///<更新処理
-   void Draw();				///<描画処理
+   void Draw(const Camera& camera);				///<描画処理
    
  private:
    EffekseerManager() = default;
@@ -64,4 +73,6 @@ class EffekseerManager
     std::map < int, std::string>m_playingEffects;
 
 	std::vector<int> m_playingHandles;
+
+    std::list<LoopInfo> m_loopEffects;
 };
