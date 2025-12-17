@@ -174,11 +174,13 @@ struct PlayerCollisionHandler : ICollisionHandler {
             auto *tPlayer = w.TryGet<Transform>(self);
             auto *tGoal = w.TryGet<Transform>(other);
             
-            //エフェクト実装：ゴールとリンク
-            EffekseerManager::GetInstance().PlayEffect("WarpIn",tGoal->position, false);
-            
+           
             if (tPlayer && tGoal) {
                 const DirectX::XMFLOAT3 goalCenter = ResolvePlacementCenter(w, other, *tGoal);
+
+               int handle =  EffekseerManager::GetInstance().PlayEffect("WarpIn", tPlayer->position, false);
+            
+                
                 // 速度をリセット
                 if (auto *v = w.TryGet<PlayerVelocity>(self)) {
                     v->velocity = {0.0f, 0.0f};
@@ -191,6 +193,7 @@ struct PlayerCollisionHandler : ICollisionHandler {
                 GoalAttractor attract;
                 attract.target = goalCenter;
                 attract.duration = 0.15f; // よりゆっくり(秒)
+                attract.effectHandle = handle;
                 
                 w.Add<GoalAttractor>(self, attract);
             }
