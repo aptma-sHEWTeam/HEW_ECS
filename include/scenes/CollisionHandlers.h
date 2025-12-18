@@ -100,6 +100,7 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
 
         if (auto *tPlayer = w.TryGet<Transform>(player)) {
             tPlayer->position = spawnPoint;
+            EffekseerManager::GetInstance().PlayEffect("WarpOut", tPlayer->position, false);
         }
 
         if (auto *vPlayer = w.TryGet<PlayerVelocity>(player)) {
@@ -173,8 +174,6 @@ struct PlayerCollisionHandler : ICollisionHandler {
             // ゆっくり吸い込み: ゴール中心へイージングで寄せる
             auto *tPlayer = w.TryGet<Transform>(self);
             auto *tGoal = w.TryGet<Transform>(other);
-            
-           EffekseerManager::GetInstance().PlayEffect("WarpOut", tGoal->position, false);
 
             if (tPlayer && tGoal) {
                 const DirectX::XMFLOAT3 goalCenter = ResolvePlacementCenter(w, other, *tGoal);
