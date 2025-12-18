@@ -45,6 +45,7 @@ inline static ConfigVar<float> cfg_LimitX{"Player.Bounds", "LimitX", 15.0f, "プ
 inline static ConfigVar<float> cfg_LimitY{"Player.Bounds", "LimitY", 15.0f, "プレイヤー移動範囲のY方向上限"};
 inline static ConfigVar<float> cfg_AccelerateMagnification{"Player.Movement", "AccelerateMagnification", 1.5f, "チャージショット時の加速倍率"};
 
+
 namespace PlayerConstants {
 constexpr int ANGLE_HISTORY_SIZE = 10;
 constexpr float EPSILON = 1e-5f;

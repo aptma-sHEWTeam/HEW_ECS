@@ -64,7 +64,7 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
             t->position = mo.startPos;
         }
     });
-    
+
     DirectX::XMFLOAT3 spawnMin{
         std::numeric_limits<float>::max(),
         std::numeric_limits<float>::max(),
@@ -136,7 +136,7 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
 inline void CheckTimeLimit(World &w, Entity player, float timeLimitSeconds) {
     // GameStatusコンポーネントを持つエンティティを検索
     w.ForEach<GameStatus>([&](Entity e, GameStatus &stats) {
-        
+
         // 経過時間が制限時間を超えたかチェック
         if (stats.elapsedTime <= 0) {
             DEBUGLOG("Timeout");
@@ -166,17 +166,17 @@ struct PlayerCollisionHandler : ICollisionHandler {
             if (progress) progress->goalTransitioning = true;
             if (goalTag) goalTag->consumed = true;
             DEBUGLOG("Player reached goal");
-            
+
             //ゴールエフェクト停止
             EffekseerManager::GetInstance().StopEffect("Goal");
 
             // ゆっくり吸い込み: ゴール中心へイージングで寄せる
             auto *tPlayer = w.TryGet<Transform>(self);
             auto *tGoal = w.TryGet<Transform>(other);
-            
+
             //エフェクト実装：ゴールとリンク
             EffekseerManager::GetInstance().PlayEffect("WarpIn",tGoal->position, false);
-            
+
             if (tPlayer && tGoal) {
                 const DirectX::XMFLOAT3 goalCenter = ResolvePlacementCenter(w, other, *tGoal);
                 // 速度をリセット
@@ -191,7 +191,7 @@ struct PlayerCollisionHandler : ICollisionHandler {
                 GoalAttractor attract;
                 attract.target = goalCenter;
                 attract.duration = 0.15f; // よりゆっくり(秒)
-                
+
                 w.Add<GoalAttractor>(self, attract);
             }
         }
@@ -244,7 +244,7 @@ struct DashBordCollisionHandler : ICollisionHandler {
 
         const float angleRad = DirectX::XMConvertToRadians(dash->accelAngle);
         const DirectX::XMFLOAT2 boostDir{std::cosf(angleRad), std::sinf(angleRad)};
-        const float boostSpeed = v->speed * v->Acceleration;
+        const float boostSpeed = v->speed * v->Acceleration * cfg_AccelerateAccfication;
 
         // 現在の速度を無視して、指定角度・指定大きさで上書き
         v->boostDir = boostDir;
