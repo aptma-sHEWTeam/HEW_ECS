@@ -100,6 +100,7 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
 
         if (auto *tPlayer = w.TryGet<Transform>(player)) {
             tPlayer->position = spawnPoint;
+            EffekseerManager::GetInstance().PlayEffect("WarpOut", tPlayer->position, false);
         }
 
         if (auto *vPlayer = w.TryGet<PlayerVelocity>(player)) {
