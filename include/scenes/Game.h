@@ -1048,6 +1048,10 @@ class GameScene : public IScene {
                 if (y == max_y_index) CreatFloorWall(world, {worldX, worldY, worldZ - tileSize});
                 if (x == 0) CreatFloorWall(world, {worldX - tileSize, worldY, worldZ});
                 if (x == max_x_index) CreatFloorWall(world, {worldX + tileSize, worldY, worldZ});
+                if (x == 0 && y == 0) CreatFloorWall(world, {worldX - tileSize, worldY, worldZ + tileSize});
+                if (x == max_x_index && y == 0) CreatFloorWall(world, {worldX + tileSize, worldY, worldZ + tileSize});
+                if (x == 0 && y == max_y_index) CreatFloorWall(world, {worldX - tileSize, worldY, worldZ - tileSize});
+                if (x == max_x_index && y == max_y_index) CreatFloorWall(world, {worldX + tileSize, worldY, worldZ - tileSize});
 
                 if (blockType != 0) {
                     CreateBlockByType(world, blockposition, blockType,stagenumber);
