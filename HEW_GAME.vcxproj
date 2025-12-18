@@ -231,6 +231,7 @@
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="SoundSystem.cpp" />
     <ClCompile Include="src\app\ResourceManager.cpp" />
     <ClCompile Include="src\components\Collision.cpp" />
     <ClCompile Include="src\config\ConfigManager.cpp" />
@@ -258,6 +259,7 @@
     <ClInclude Include="libs\Effekseer\Effekseer.SIMD.h" />
     <ClInclude Include="RoomUIComponents.h" />
     <ClInclude Include="SoundComponent.h" />
+    <ClInclude Include="SoundSystem.h" />
     <ClInclude Include="StageStatus.h" />
     <ClInclude Include="include\animation\Animation.h" />
     <ClInclude Include="include\app\App.h" />

@@ -126,3 +126,5 @@ inline ConfigVar<float> cfg_GoalPulseSpeed{"Stage.Goal.Emissive", "GoalPulseSpee
 inline ConfigVar<float> cfg_StartLightRange{"Stage.Start.Light", "StartLightRange", 5.0f, "スタート地点のライト照射距離"};
 inline ConfigVar<float> cfg_GoalLightRange{"Stage.Goal.Light", "GoalLightRange", 8.0f, "ゴール地点のライト照射距離"};
 
+// プレイヤー移動設定
+inline static ConfigVar<float> cfg_AccelerateAccfication{"Player.Movement", "AccelerateAccfication", 1.5f, "加速版接触時の加速倍率"};
