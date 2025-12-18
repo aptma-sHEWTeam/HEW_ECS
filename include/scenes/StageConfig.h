@@ -8,6 +8,7 @@
 #pragma once
 
 #include <string>
+#include <xaudio2.h>
 #include "config/ConfigVar.h"
 
 // =========================================
@@ -126,3 +127,18 @@ inline ConfigVar<float> cfg_GoalPulseSpeed{"Stage.Goal.Emissive", "GoalPulseSpee
 inline ConfigVar<float> cfg_StartLightRange{"Stage.Start.Light", "StartLightRange", 5.0f, "スタート地点のライト照射距離"};
 inline ConfigVar<float> cfg_GoalLightRange{"Stage.Goal.Light", "GoalLightRange", 8.0f, "ゴール地点のライト照射距離"};
 
+//サウンド設定
+inline ConfigVar<std::string> cfg_ColdMP3Pass{"Stage.Cold.SE", "ColdMP3Pass", "Assets/Sound/cold.mp3", "はじき時の風音"};
+inline ConfigVar<std::string> cfg_CollideMP3Pass{"Stage.Collide.SE", "CollideMP3Pass", "Assets/Sound/collide.mp3", "衝突時の音"};
+inline ConfigVar<std::string> cfg_DeathMP3Pass{"Stage.Death.SE", "DeathMP3Pass", "Assets/Sound/death.mp3", "死亡時の音"};
+inline ConfigVar<std::string> cfg_DriftMP3Pass{"Stage.Drift.SE", "DriftMP3Pass", "Assets/Sound/drift.mp3", "ドリフト音"};
+inline ConfigVar<std::string> cfg_Fire1MP3Pass{"Stage.Fire1.SE", "Fire1MP3Pass", "Assets/Sound/fire1.mp3", "ジェットパック段階音１"};
+inline ConfigVar<std::string> cfg_Fire2MP3Pass{"Stage.Fire2.SE", "Fire2MP3Pass", "Assets/Sound/fire2.mp3", "ジェットパック段階音２"};
+inline ConfigVar<std::string> cfg_Fire3MP3Pass{"Stage.Fire3.SE", "Fire3MP3Pass", "Assets/Sound/fire3.mp3", "ジェットパック段階音３"};
+inline ConfigVar<std::string> cfg_SirenMP3Pass{"Stage.Siren.SE", "SirenMP3Pass", "Assets/Sound/siren.mp3", "警報音"};
+inline ConfigVar<std::string> cfg_StartMP3Pass{"Stage.Start.SE", "StartMP3Pass", "Assets/Sound/start.mp3", "スタート時の音"};
+inline ConfigVar<std::string> cfg_WarpDownMP3Pass{"Stage.WarpDown.SE", "WarpDownMP3Pass", "Assets/Sound/warpdown.mp3", "ワープから出る音"};
+inline ConfigVar<std::string> cfg_WarpUpMP3Pass{"Stage.WarpUp.SE", "WarpUpMP3Pass", "Assets/Sound/warpup.mp3", "ワープに入ったときの音"};
+inline ConfigVar<float> cfg_MasterVolume{"Stage.Master.Volume", "MasterVolume", 1.0f, "マスタの大きさ"};
+inline ConfigVar<float> cfg_BGMVolume{"Stage.BGM.Volume", "BGMVolume", 1.0f, "BGMの大きさ"};
+inline ConfigVar<float> cfg_SEVolume{"Stage.SE.Volume", "SEVolume", 1.0f, "SEの大きさ"};

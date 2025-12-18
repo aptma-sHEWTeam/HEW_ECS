@@ -129,6 +129,10 @@
     <ClCompile Include="src\graphics\Effect.cpp">
       <Filter>Source Files\graphics</Filter>
     </ClCompile>
+    <ClCompile Include="StageUI.cpp" />
+    <ClCompile Include="src\systems\SoundSystem.cpp">
+      <Filter>Source Files\systems</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="RoomUIComponents.h">
@@ -355,6 +359,9 @@
     <ClInclude Include="libs\Effekseer\Effekseer.h" />
     <ClInclude Include="libs\Effekseer\Effekseer.Modules.h" />
     <ClInclude Include="libs\Effekseer\Effekseer.SIMD.h" />
+    <ClInclude Include="include\systems\SoundSystem.h">
+      <Filter>Header Files\systems</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include=".github\ISSUE_TEMPLATE\01_task.yml">
@@ -428,9 +435,5 @@
       <Filter>Docs</Filter>
     </None>
     <None Include="Assets\Settings\config.toml" />
-  </ItemGroup>
-  <ItemGroup>
-    <Library Include="libs\Effekseer\Effekseer.lib" />
-    <Library Include="libs\Effekseer\EffekseerRendererDX11.lib" />
   </ItemGroup>
 </Project>
