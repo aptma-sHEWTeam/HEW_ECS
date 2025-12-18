@@ -1042,6 +1042,10 @@ class GameScene : public IScene {
                 if (y == max_y_index) CreatFloorWall(world, {worldX, worldY, worldZ - tileSize});
                 if (x == 0) CreatFloorWall(world, {worldX - tileSize, worldY, worldZ});
                 if (x == max_x_index) CreatFloorWall(world, {worldX + tileSize, worldY, worldZ});
+                if (x == 0 && y == 0) CreatFloorWall(world, {worldX - tileSize, worldY, worldZ + tileSize});
+                if (x == max_x_index && y == 0) CreatFloorWall(world, {worldX + tileSize, worldY, worldZ + tileSize});
+                if (x == 0 && y == max_y_index) CreatFloorWall(world, {worldX - tileSize, worldY, worldZ - tileSize});
+                if (x == max_x_index && y == max_y_index) CreatFloorWall(world, {worldX + tileSize, worldY, worldZ - tileSize});
 
                 if (blockType != 0) {
                     CreateBlockByType(world, blockposition, blockType,stagenumber);
@@ -1496,8 +1500,8 @@ class GameScene : public IScene {
 
         // プレイヤーへの影響角度はCSVそのまま（見た目補正は加えない）
         status.accelAngle = csvAngleDeg;
+       
 
-        //EffekseerManager::GetInstance().PlayEffect("SpeedUp", -3.0f, 5.0f, 0.0f);
         Entity dashBoardEntity = world.Create()
                                      .With<Transform>(transform)
                                      .With<Model>(cfg_DashBoardFBXPass)

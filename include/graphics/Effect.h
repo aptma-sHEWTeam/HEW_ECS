@@ -48,6 +48,8 @@ class EffekseerManager
 
    void SetCamera(const Camera& camera);		///<カメラ処理
 
+   void SetEffectPosition(int handle, DirectX::XMFLOAT3 pos);
+
    void Update();			///<更新処理
    void Draw(const Camera& camera);				///<描画処理
    
