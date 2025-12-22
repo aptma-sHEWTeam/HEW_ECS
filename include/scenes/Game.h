@@ -256,7 +256,7 @@ class GameScene : public IScene {
         SetupStage(world, initialStage);
 
         EffekseerManager::GetInstance().Load();
-        
+
         // 追加機能の初期化
         if (!skybox_.Initialize(*gfx)) {
              DEBUGLOG("[ERROR] SkyboxSystem::Initialize() 失敗");
@@ -274,7 +274,7 @@ class GameScene : public IScene {
                  DEBUGLOG_WARNING("Failed to load Assets/Textures/Skybox/Skybox.png. Background will be clear color.");
              }
         }
-        
+
         // シャドウマップ初期化
         if (!shadowMap_.Init(gfx->Dev(), 1024)) {
             DEBUGLOG("[ERROR] OmniShadowMap::Init() 失敗");
@@ -334,7 +334,7 @@ class GameScene : public IScene {
                 const float dz = tPlayer->position.z - tGoal->position.z;
                 const float dist = std::sqrt(dx * dx + dz * dz);
                 const float slowThreshold = GoalDistance; // ゴールに近づいたとみなす距離
-                if (dist <= slowThreshold) {
+                if (dist <= slowThreshold && !pendingRespawn_) { // 死亡(リスポーン待機)中はスローにしない
                     timeScale = SlowDirection; // スロー演出
                 }
             }
@@ -369,7 +369,7 @@ class GameScene : public IScene {
         }
 
        EffekseerManager::GetInstance().Update();
-       
+
        skyboxRotation_ += cfg_SkyboxSpeed.Get() * deltaTime;
     }
 
@@ -388,7 +388,7 @@ class GameScene : public IScene {
         int shadowIdx = RenderingSystem::GetInstance().GetShadowLightIndex();
         try {
             auto& renderer = ServiceLocator::Get<RenderSystem>(); // RenderSystemを取得
-            
+
             if (shadowIdx >= 0) {
                  PointLightGPU pLight = RenderingSystem::GetInstance().GetLightGPU(shadowIdx);
                  shadowSystem_.RenderShadows(*gfx, world, pLight.position, pLight.range, shadowMap_);
@@ -1175,6 +1175,7 @@ class GameScene : public IScene {
             case 6: CreateLeftDownCorner(world, position); break;
             case 7: CreateLeftUpCorner(world, position); break;
             case 8: CreateRightUpCorner(world, position); break;
+            case 54: CreateObjectC(world, position, blockType); break;
             default:
                 if (blockType >= 10 && blockType < 20) {
                     CreateMovingObstacle(world, position, blockType);
@@ -1186,7 +1187,6 @@ class GameScene : public IScene {
                     CreateObjectB(world, position, blockType);
                 }
                 break;
-            case 54: CreateObjectC(world, position, blockType);break;
         }
     }
 
@@ -1199,6 +1199,7 @@ class GameScene : public IScene {
                            .With<Transform>(transform)
                            .With<Model>(cfg_FloorFBXPass)
                            .With<StageElementTag>()
+                           .With<StaticCollider>()
                            .Build();
 
         // ステージ切り替え時に破棄されるよう、ステージ所有リストへ登録
@@ -1235,6 +1236,7 @@ class GameScene : public IScene {
                        .With<StartTag>()
                        .With<StageElementTag>()
                        .With<CollisionBox>(DirectX::XMFLOAT3{2.0f, 4.0f, 2.0f})
+                       .With<StaticCollider>()
                        .Build();
 
         startEntity_ = e;
@@ -1296,6 +1298,7 @@ class GameScene : public IScene {
                        .With<GoalTag>()
                        .With<StageElementTag>()
                        .With<CollisionBox>(DirectX::XMFLOAT3{2.0f, 4.0f, 2.0f})
+                       .With<StaticCollider>()
                        .Build();
 
         goalEntity_ = e;
@@ -1320,6 +1323,7 @@ class GameScene : public IScene {
                                     DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f},
                                     DirectX::XMFLOAT3{0.0f, WALL_COLLISION_CENTER_OFFSET, 0.0f})
                                 .With<WallCollisionHandler>()
+                                .With<StaticCollider>()
                                 .Build();
 
         stageOwnedEntities_.push_back(wallEntity);
@@ -1327,7 +1331,7 @@ class GameScene : public IScene {
 
     void CreateRightDownCorner(World &world, const DirectX::XMFLOAT3 &position) {
         DirectX::XMFLOAT3 diffPosition = {position.x, position.y - WALL_MESH_Y_OFFSET, position.z};
-        Transform transform{diffPosition, {0.0f, 0.0f, 180.0f}, {1.0f, cfg_WallSize, 1.0f}};
+        Transform transform{diffPosition, {0.0f, 270.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::RightIsoTriPrism;
         renderer.color = DirectX::XMFLOAT3{cfg_WallR, cfg_WallG, cfg_WallB};
@@ -1340,8 +1344,10 @@ class GameScene : public IScene {
                                 .With<StageElementTag>()
                                 .With<CollisionRightIsoTriPrism>(
                                     DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f},
-                                    DirectX::XMFLOAT3{0.0f, WALL_COLLISION_CENTER_OFFSET, 0.0f})
+                                    DirectX::XMFLOAT3{0.0f, WALL_COLLISION_CENTER_OFFSET, 0.0f},
+                                    false)
                                 .With<WallCollisionHandler>()
+                                .With<StaticCollider>()
                                 .Build();
 
         stageOwnedEntities_.push_back(wallEntity);
@@ -1362,8 +1368,10 @@ class GameScene : public IScene {
                                 .With<StageElementTag>()
                                 .With<CollisionRightIsoTriPrism>(
                                     DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f},
-                                    DirectX::XMFLOAT3{0.0f, WALL_COLLISION_CENTER_OFFSET, 0.0f})
+                                    DirectX::XMFLOAT3{0.0f, WALL_COLLISION_CENTER_OFFSET, 0.0f},
+                                    false)
                                 .With<WallCollisionHandler>()
+                                .With<StaticCollider>()
                                 .Build();
 
         stageOwnedEntities_.push_back(wallEntity);
@@ -1384,8 +1392,10 @@ class GameScene : public IScene {
                                 .With<StageElementTag>()
                                 .With<CollisionRightIsoTriPrism>(
                                     DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f},
-                                    DirectX::XMFLOAT3{0.0f, WALL_COLLISION_CENTER_OFFSET, 0.0f})
+                                    DirectX::XMFLOAT3{0.0f, WALL_COLLISION_CENTER_OFFSET, 0.0f},
+                                    false)
                                 .With<WallCollisionHandler>()
+                                .With<StaticCollider>()
                                 .Build();
 
         stageOwnedEntities_.push_back(wallEntity);
@@ -1406,16 +1416,19 @@ class GameScene : public IScene {
                                 .With<StageElementTag>()
                                 .With<CollisionRightIsoTriPrism>(
                                     DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f},
-                                    DirectX::XMFLOAT3{0.0f, WALL_COLLISION_CENTER_OFFSET, 0.0f})
+                                    DirectX::XMFLOAT3{0.0f, WALL_COLLISION_CENTER_OFFSET, 0.0f},
+                                    true)
                                 .With<WallCollisionHandler>()
+                                .With<StaticCollider>()
                                 .Build();
 
         stageOwnedEntities_.push_back(wallEntity);
     }
 
     void CreateMovingObstacle(World &world, const DirectX::XMFLOAT3 &position, int blockType) {
+        DirectX::XMFLOAT3 diffPosition = {position.x, position.y + cfg_FloorYOffset + 1.0f, position.z};
         MovingObstacle obstacle;
-        obstacle.startPos = position;
+        obstacle.startPos = diffPosition;
         obstacle.baseScale = DirectX::XMFLOAT3{1.0f, 1.0f, 1.0f};
 
         auto resolvePatternIndex = [](int type) -> std::optional<int> {
@@ -1434,9 +1447,9 @@ class GameScene : public IScene {
                 const auto &p = data.patterns[*patternIndex];
                 obstacle.delta = DirectX::XMFLOAT3{p.dirX, 0.0f, -p.dirY}; // ステージ座標のYはワールドZと逆向き
                 obstacle.endPos = DirectX::XMFLOAT3{
-                    position.x + obstacle.delta.x,
-                    position.y + obstacle.delta.y,
-                    position.z + obstacle.delta.z};
+                    diffPosition.x + obstacle.delta.x,
+                    diffPosition.y + obstacle.delta.y,
+                    diffPosition.z + obstacle.delta.z};
                 obstacle.waitAtStart = p.waitAtStart;
                 obstacle.waitAtEnd = p.waitAtEnd;
                 obstacle.travelTime = p.travelTime;
@@ -1446,7 +1459,7 @@ class GameScene : public IScene {
         });
 
 
-        Transform transform{position, {0.0f, 0.0f, 0.0f}, obstacle.baseScale};
+        Transform transform{diffPosition, {0.0f, 0.0f, 0.0f}, obstacle.baseScale};
 
         Entity entity = world.Create()
                             .With<Transform>(transform)
@@ -1474,6 +1487,7 @@ class GameScene : public IScene {
                                      .With<WallTag>()
                                      .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                                      .With<FloorWallCollisionHandler>()
+                                     .With<StaticCollider>()
                                      .Build();
 
         stageOwnedEntities_.push_back(ObjectAEntity);
@@ -1492,6 +1506,7 @@ class GameScene : public IScene {
                                    .With<WallTag>()
                                    .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                                    .With<FloorWallCollisionHandler>()
+                                   .With<StaticCollider>()
                                    .Build();
 
         stageOwnedEntities_.push_back(ObjectAEntity);
@@ -1510,6 +1525,7 @@ class GameScene : public IScene {
                                    .With<WallTag>()
                                    .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                                    .With<FloorWallCollisionHandler>()
+                                   .With<StaticCollider>()
                                    .Build();
 
         stageOwnedEntities_.push_back(ObjectAEntity);
@@ -1528,6 +1544,7 @@ class GameScene : public IScene {
                                          DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f},
                                          DirectX::XMFLOAT3{0.0f, WALL_COLLISION_CENTER_OFFSET, 0.0f})
                                      .With<FloorWallCollisionHandler>()
+                                     .With<StaticCollider>()
                                      .Build();
 
         stageOwnedEntities_.push_back(worldwallEntity);
@@ -1564,7 +1581,7 @@ class GameScene : public IScene {
 
         // プレイヤーへの影響角度はCSVそのまま（見た目補正は加えない）
         status.accelAngle = csvAngleDeg;
-       
+
 
         Entity dashBoardEntity = world.Create()
                                      .With<Transform>(transform)
@@ -1574,6 +1591,7 @@ class GameScene : public IScene {
                                      .With<StageElementTag>()
                                      .With<DashBordCollisionHandler>()
                                      .With<DashBoardStatus>(status)
+                                     .With<StaticCollider>()
                                      .Build();
 
         stageOwnedEntities_.push_back(dashBoardEntity);
@@ -2063,6 +2081,13 @@ inline void GameScene_OnTimeUp(World &w, Entity player) {
 
 inline void WallCollisionHandler::OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) {
     if (w.Has<PlayerTag>(other)) {
+         // ゴール演出中は壁判定を無効化
+        bool isGoalTransition = false;
+        w.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+            if (sp.goalTransitioning) isGoalTransition = true;
+        });
+        if (isGoalTransition) return;
+
         // 床としての接触（法線が上向き）ならダメージ処理を行わない
         if (info.normal.y > 0.5f) return;
 
@@ -2077,6 +2102,13 @@ inline void WallCollisionHandler::OnCollisionEnter(World &w, Entity self, Entity
 
 inline void FloorWallCollisionHandler::OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) {
     if (w.Has<PlayerTag>(other)) {
+         // ゴール演出中は壁判定を無効化
+        bool isGoalTransition = false;
+        w.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+            if (sp.goalTransitioning) isGoalTransition = true;
+        });
+        if (isGoalTransition) return;
+
         // 床としての接触なら無視
         if (info.normal.y > 0.5f) return;
 

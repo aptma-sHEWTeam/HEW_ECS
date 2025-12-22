@@ -125,6 +125,11 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
             stats.waitingForPlayerMove = true;
             stats.timerRunning = false;
         });
+
+        // ゴール遷移フラグをクリアして、プレイヤーが再び操作可能になるようにする
+        w.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+            sp.goalTransitioning = false;
+        });
     }
 }
 
@@ -164,6 +169,57 @@ struct PlayerCollisionHandler : ICollisionHandler {
                 w.Has<GoalAttractor>(self)) {
                 return;
             }
+
+            // 壁越しゴール対策: プレイヤーとゴールの間に壁(WallTag)があるかレイキャストで簡易チェック
+            auto *tPlayer = w.TryGet<Transform>(self);
+            auto *tGoal = w.TryGet<Transform>(other);
+            if (tPlayer && tGoal) {
+                DirectX::XMFLOAT3 startPos = tPlayer->position;
+                DirectX::XMFLOAT3 endPos = ResolvePlacementCenter(w, other, *tGoal); // ゴール中心
+
+                DirectX::XMVECTOR vStart = DirectX::XMLoadFloat3(&startPos);
+                DirectX::XMVECTOR vEnd = DirectX::XMLoadFloat3(&endPos);
+                DirectX::XMVECTOR vDiff = DirectX::XMVectorSubtract(vEnd, vStart);
+                DirectX::XMVECTOR vDist = DirectX::XMVector3Length(vDiff);
+                float dist = DirectX::XMVectorGetX(vDist);
+
+                if (dist > 1e-4f) {
+                    DirectX::XMVECTOR vDir = DirectX::XMVectorScale(vDiff, 1.0f / dist);
+                    
+                    bool blocked = false;
+                    // 全てのWallTagを持つエンティティに対してレイキャスト
+                    // Note: World::ForEachは2コンポーネントまでしかサポートしていないため、Transformは内部で取得
+                    w.ForEach<WallTag, CollisionBox>([&](Entity e, WallTag&, CollisionBox& box) {
+                        if (blocked) return; // 既にブロックされていたらスキップ
+                        
+                        auto* tWallPtr = w.TryGet<Transform>(e);
+                        if (!tWallPtr) return;
+                        const Transform& tWall = *tWallPtr;
+
+                        // 壁のAABBを作成
+                        DirectX::XMFLOAT3 center = box.GetWorldCenter(tWall);
+                        DirectX::XMFLOAT3 scaledSize = box.GetScaledSize(tWall);
+                        DirectX::XMFLOAT3 extents = {scaledSize.x * 0.5f, scaledSize.y * 0.5f, scaledSize.z * 0.5f};
+                        
+                        DirectX::BoundingBox aabb(center, extents);
+                        float hitDist = 0.0f;
+                        // レイ判定 (origin, direction, dist)
+                        if (aabb.Intersects(vStart, vDir, hitDist)) {
+                             // プレイヤーより先、かつゴールより手前でヒットしたか
+                             // (近い壁ほどhitDistは小さい。0なら自分の中。)
+                             if (hitDist > 0.1f && hitDist < dist - 0.2f) { // マージンを考慮
+                                 blocked = true;
+                                 DEBUGLOG("Goal blocked by wall entity " + std::to_string(e.id));
+                             }
+                        }
+                    });
+
+                    if (blocked) {
+                        return; // 壁があるのでゴールしない
+                    }
+                }
+            }
+
             if (progress) progress->goalTransitioning = true;
             if (goalTag) goalTag->consumed = true;
             DEBUGLOG("Player reached goal");
@@ -172,11 +228,12 @@ struct PlayerCollisionHandler : ICollisionHandler {
             EffekseerManager::GetInstance().StopEffect("Goal");
 
             // ゆっくり吸い込み: ゴール中心へイージングで寄せる
-            auto *tPlayer = w.TryGet<Transform>(self);
-            auto *tGoal = w.TryGet<Transform>(other);
+            // tPlayer, tGoalは既に上で取得済み
 
             //エフェクト実装：ゴールとリンク
-            EffekseerManager::GetInstance().PlayEffect("WarpIn",tGoal->position, false);
+            if (tGoal) {
+                 EffekseerManager::GetInstance().PlayEffect("WarpIn",tGoal->position, false);
+            }
 
             if (tPlayer && tGoal) {
                 const DirectX::XMFLOAT3 goalCenter = ResolvePlacementCenter(w, other, *tGoal);

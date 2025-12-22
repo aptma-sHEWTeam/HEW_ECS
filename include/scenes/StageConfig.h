@@ -26,7 +26,7 @@ inline ConfigVar<float> cfg_PlayerHeight{"Stage.Player.Appearance", "PlayerHeigh
 inline ConfigVar<float> cfg_FloorR{"Stage.Floor.Visual", "FloorColorR", 0.5f, "床の色 R"};
 inline ConfigVar<float> cfg_FloorG{"Stage.Floor.Visual", "FloorColorG", 0.5f, "床の色 G"};
 inline ConfigVar<float> cfg_FloorB{"Stage.Floor.Visual", "FloorColorB", 0.5f, "床の色 B"};
-inline ConfigVar<float> cfg_FloorYOffset{"Stage.Floor.Geometry", "FloorYOffset", -2.0f, "床メッシュのYオフセット"};
+inline ConfigVar<float> cfg_FloorYOffset{"Stage.Floor.Geometry", "FloorYOffset", -2.5f, "床メッシュのYオフセット"};
 inline ConfigVar<float> cfg_FloorThickness{"Stage.Floor.Geometry", "FloorThickness", 0.2f, "床の厚み"};
 
 // スタートマーカー見た目
