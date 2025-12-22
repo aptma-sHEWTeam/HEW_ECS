@@ -7,7 +7,7 @@
 
 #include <DirectXMath.h>
 
-static constexpr int MAX_POINT_LIGHTS = 8;
+static constexpr int MAX_POINT_LIGHTS = 64;
 
 struct PointLightData {
     DirectX::XMFLOAT3 position;

@@ -149,6 +149,26 @@ public:
     }
 
     /**
+     * @brief バックバッファへの描画を復元（クリアなし）
+     * 
+     * @details
+     * 他のレンダーターゲット（シャドウマップなど）への描画後に、
+     * メインのバックバッファへの描画に戻すために使用します。
+     */
+    void RestoreBackBuffer() {
+        context_->OMSetRenderTargets(1, rtv_.GetAddressOf(), dsv_.Get());
+
+        D3D11_VIEWPORT vp{};
+        vp.Width = static_cast<FLOAT>(width_);
+        vp.Height = static_cast<FLOAT>(height_);
+        vp.MinDepth = 0.0f;
+        vp.MaxDepth = 1.0f;
+        vp.TopLeftX = 0;
+        vp.TopLeftY = 0;
+        context_->RSSetViewports(1, &vp);
+    }
+
+    /**
      * @brief フレーム終了(画面表示)
      *
      * @details

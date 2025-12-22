@@ -31,6 +31,9 @@
 // DirectX11 & ECS システム
 #include "graphics/GfxDevice.h"
 #include "graphics/RenderSystem.h"
+#include "graphics/SkyboxSystem.h"
+#include "graphics/OmniShadowMap.h"
+#include "systems/ShadowRenderSystem.h"
 #include "ecs/World.h"
 #include "graphics/Camera.h"
 #include "input/InputSystem.h"
@@ -355,7 +358,7 @@ struct App {
                 camera_ = gs->GetCamera();
             }
 
-            renderer_.Render(world_, camera_);
+            // シーンのレンダリング
             sceneManager_.Render(world_);
 
 #if ENABLE_DEBUG_VISUALS
@@ -675,6 +678,7 @@ private:
             return false;
         }
         DEBUGLOG("RenderSystemを正常に初期化");
+        ServiceLocator::Register(&renderer_);
 
         input_.Init();
         DEBUGLOG("InputSystemを初期化");

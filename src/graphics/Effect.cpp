@@ -77,6 +77,16 @@ void EffekseerManager::Load()
 int  EffekseerManager::PlayEffect(const std::string& effectName,DirectX::XMFLOAT3 pos, bool loop)
 {
     auto it = m_effects.find(effectName);
+    if (it == m_effects.end()) {
+        // エフェクトが見つからない場合は警告を出して戻る
+        // DEBUGLOG mechanism is available via include or extern?
+        // Effect.cpp includes "graphics/Effect.h" which doesn't include DebugLog.h.
+        // SkyboxSystem.cpp included "app/DebugLog.h".
+        // I'll stick to printf or OutputDebugString if DEBUGLOG not available, OR just return -1 silently/safely.
+        // Or better, see if I can include DebugLog.h.
+        // Given I can't easily check all includes, I will just return -1.
+        return -1;
+    }
 
     int handle = m_pManager->Play(it->second, pos.x,pos.y,pos.z);
     

@@ -56,7 +56,11 @@
 #include "animation/Animation.h"
 #include "config/ConfigVar.h"
 #include "graphics/ModelLoader.h"
+#include "graphics/ModelLoader.h"
 #include "components/Animator.h"
+#include "graphics/SkyboxSystem.h"
+#include "graphics/OmniShadowMap.h"
+#include "systems/ShadowRenderSystem.h"
 
 //Config Var
 // チャージ中オーバーレイのフェード量（0～1）は Animation.h の cfg_ChargingFade を参照
@@ -66,6 +70,7 @@ inline static ConfigVar<float> cfg_StickZoomAmount{"Camera.Stick", "StickZoomAmo
 inline static ConfigVar<float> cfg_StickZoomResponse{"Camera.Stick", "StickZoomResponse", 9.0f, "カメラズーム追従速度"};
 // 追加: ステージクリア待機時間
 inline static ConfigVar<float> cfg_StageClearWait{"UI.StageClear", "WaitSeconds", 2.0f, "ステージクリア表示後にシーン遷移するまでの待機時間"};
+inline static ConfigVar<float> cfg_SkyboxSpeed{"Skybox", "Speed", 0.05f, "スカイボックスの回転速度(rad/sec)"};
 
 /**
  * @class GameScene
@@ -251,6 +256,32 @@ class GameScene : public IScene {
         SetupStage(world, initialStage);
 
         EffekseerManager::GetInstance().Load();
+        
+        // 追加機能の初期化
+        if (!skybox_.Initialize(*gfx)) {
+             DEBUGLOG("[ERROR] SkyboxSystem::Initialize() 失敗");
+        } else {
+             // Skyboxロード (アセットパスは適宜調整)
+             // "Assets/Textures/Skybox/Sky.jpg" 等が存在するか確認が必要
+             // ここではデフォルトのスカイボックスをロードしようとするが、キューブマップ用の6枚画像が必要
+             // Skyboxロード
+             auto& texMgr = ServiceLocator::Get<TextureManager>();
+             // SkyboxSystemをEquirectangular(2D)対応に変更したため、LoadFromFileで読み込む
+             auto handle = texMgr.LoadFromFile("Assets/Textures/Skybox/Skybox.png");
+             if (handle != TextureManager::INVALID_TEXTURE) {
+                 skybox_.SetTexture(handle);
+             } else {
+                 DEBUGLOG_WARNING("Failed to load Assets/Textures/Skybox/Skybox.png. Background will be clear color.");
+             }
+        }
+        
+        // シャドウマップ初期化
+        if (!shadowMap_.Init(gfx->Dev(), 1024)) {
+            DEBUGLOG("[ERROR] OmniShadowMap::Init() 失敗");
+        }
+        if (!shadowSystem_.Initialize(*gfx)) {
+            DEBUGLOG("[ERROR] ShadowRenderSystem::Initialize() 失敗");
+        }
 
         DEBUGLOG("GameWithUIScene の初期化が正常に完了しました");
     }
@@ -338,6 +369,8 @@ class GameScene : public IScene {
         }
 
        EffekseerManager::GetInstance().Update();
+       
+       skyboxRotation_ += cfg_SkyboxSpeed.Get() * deltaTime;
     }
 
     /**
@@ -346,17 +379,40 @@ class GameScene : public IScene {
      */
     void OnRender(World &world) override {
         auto *gfx = ServiceLocator::TryGet<GfxDevice>();
-        if (gfx) {
-            RenderingSystem::GetInstance().BindLightBuffer(gfx->Ctx(), 1);
+        if (!gfx) return;
+
+        // ライティング情報の更新
+        RenderingSystem::GetInstance().UpdateLights(world, camera_.position);
+
+        // シャドウレンダリング
+        int shadowIdx = RenderingSystem::GetInstance().GetShadowLightIndex();
+        try {
+            auto& renderer = ServiceLocator::Get<RenderSystem>(); // RenderSystemを取得
+            
+            if (shadowIdx >= 0) {
+                 PointLightGPU pLight = RenderingSystem::GetInstance().GetLightGPU(shadowIdx);
+                 shadowSystem_.RenderShadows(*gfx, world, pLight.position, pLight.range, shadowMap_);
+                 gfx->RestoreBackBuffer();
+                 renderer.SetShadowMap(shadowMap_.GetSRV());
+            } else {
+                 renderer.SetShadowMap(nullptr);
+            }
+
+            // スカイボックスを先に描画 (背景)
+            skybox_.Render(*gfx, camera_, skyboxRotation_);
+
+            // メインレンダリング (不透明オブジェクト)
+            renderer.Render(world, camera_);
+
+        } catch (...) {
+            DEBUGLOG_ERROR("Failed to get RenderSystem from ServiceLocator");
         }
 
-
-            EffekseerManager::GetInstance().Draw(camera_);
+        EffekseerManager::GetInstance().Draw(camera_);
 
         world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
             sys.Render(world);
         });
-
     }
 
     /**
@@ -405,6 +461,10 @@ class GameScene : public IScene {
             }
         }
         ownedEntities_.clear();
+
+        shadowSystem_.Shutdown();
+        shadowMap_.Shutdown();
+        skybox_.Shutdown();
 
         textSystem_.Shutdown();
         imageSystem_.Shutdown();
@@ -637,6 +697,10 @@ class GameScene : public IScene {
         int nextRoom = 0;
         std::string nextRoomPath;
     };
+
+    SkyboxSystem skybox_;
+    OmniShadowMap shadowMap_;
+    ShadowRenderSystem shadowSystem_;
 
     static constexpr float WALL_MESH_Y_OFFSET = 2.3f;
     static constexpr float WALL_COLLISION_CENTER_OFFSET = 1.8f;
@@ -1975,6 +2039,7 @@ class GameScene : public IScene {
     float stickZoomCurrent_ = 0.0f;
 
     DirectX::XMFLOAT3 baseTarget_ = {0.0f, 0.0f, 0.0f};
+    float skyboxRotation_ = 0.0f;
 };
 
 // =========================================
