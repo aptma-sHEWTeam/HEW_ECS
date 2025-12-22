@@ -17,17 +17,17 @@ enum class BgmId : uint32_t {
 };
 enum class SeId : uint32_t {
     None = 0,
-    Ok,
-    Ng,
-    Build,
-    Refund,
-    Tip,
-    Reward,
-    Warn,
-    LifeDown,
-    Alert,
-    Enter,
-    Exit
+    Cold,
+    Collide,
+    Death,
+    Drift,
+    Fire1,
+    Fire2,
+    Fire3,
+    Siren,
+    Start,
+    WarpDown,
+    WarpUp
 };
 
 // -------------------------

@@ -57,6 +57,7 @@
 #include "config/ConfigVar.h"
 #include "graphics/ModelLoader.h"
 #include "components/Animator.h"
+#include "systems/SoundSystem.h"
 
 //Config Var
 // チャージ中オーバーレイのフェード量（0～1）は Animation.h の cfg_ChargingFade を参照
