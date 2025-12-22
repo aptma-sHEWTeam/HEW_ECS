@@ -99,7 +99,7 @@ struct App {
     inline static ConfigVar<float> cfg_CamPosY{"Camera.Base", "PosY", 20.0f, "メインカメラ位置 Y"};
     inline static ConfigVar<float> cfg_CamPosZ{"Camera.Base", "PosZ", -5.0f, "メインカメラ位置 Z"};
     inline static ConfigVar<float> cfg_CamTargetX{"Camera.Base", "TargetX", 0.0f, "メインカメラ注視点 X"};
-    inline static ConfigVar<float> cfg_CamTargetY{"Camera.Base", "TargetY", 0.0f, "メインカメラ注視点 Y"};
+    inline static ConfigVar<float> cfg_CamTargetY{"Camera.Base", "TargetY", 2.0f, "メインカメラ注視点 Y"};
     inline static ConfigVar<float> cfg_CamTargetZ{"Camera.Base", "TargetZ", -0.2f, "メインカメラ注視点 Z"};
     inline static ConfigVar<float> cfg_CamUpX{"Camera.Base", "UpX", 0.0f, "メインカメラの上方向ベクトル X"};
     inline static ConfigVar<float> cfg_CamUpY{"Camera.Base", "UpY", 0.0f, "メインカメラの上方向ベクトル Y"};
