@@ -24,7 +24,8 @@ struct LoopInfo
 {
     std::string effectName;
     DirectX::XMFLOAT3 position;
-    int handle;
+    int currentHandle;
+    int originalHandle;
 };
 
 class EffekseerManager
