@@ -56,8 +56,11 @@
 #include "animation/Animation.h"
 #include "config/ConfigVar.h"
 #include "graphics/ModelLoader.h"
+#include "graphics/ModelLoader.h"
 #include "components/Animator.h"
-#include "systems/SoundSystem.h"
+#include "graphics/SkyboxSystem.h"
+#include "graphics/OmniShadowMap.h"
+#include "systems/ShadowRenderSystem.h"
 
 //Config Var
 // チャージ中オーバーレイのフェード量（0～1）は Animation.h の cfg_ChargingFade を参照
@@ -67,6 +70,7 @@ inline static ConfigVar<float> cfg_StickZoomAmount{"Camera.Stick", "StickZoomAmo
 inline static ConfigVar<float> cfg_StickZoomResponse{"Camera.Stick", "StickZoomResponse", 9.0f, "カメラズーム追従速度"};
 // 追加: ステージクリア待機時間
 inline static ConfigVar<float> cfg_StageClearWait{"UI.StageClear", "WaitSeconds", 2.0f, "ステージクリア表示後にシーン遷移するまでの待機時間"};
+inline static ConfigVar<float> cfg_SkyboxSpeed{"Skybox", "Speed", 0.05f, "スカイボックスの回転速度(rad/sec)"};
 
 /**
  * @class GameScene
@@ -253,11 +257,31 @@ class GameScene : public IScene {
 
         EffekseerManager::GetInstance().Load();
 
+        // 追加機能の初期化
+        if (!skybox_.Initialize(*gfx)) {
+             DEBUGLOG("[ERROR] SkyboxSystem::Initialize() 失敗");
+        } else {
+             // Skyboxロード (アセットパスは適宜調整)
+             // "Assets/Textures/Skybox/Sky.jpg" 等が存在するか確認が必要
+             // ここではデフォルトのスカイボックスをロードしようとするが、キューブマップ用の6枚画像が必要
+             // Skyboxロード
+             auto& texMgr = ServiceLocator::Get<TextureManager>();
+             // SkyboxSystemをEquirectangular(2D)対応に変更したため、LoadFromFileで読み込む
+             auto handle = texMgr.LoadFromFile("Assets/Textures/Skybox/Skybox.png");
+             if (handle != TextureManager::INVALID_TEXTURE) {
+                 skybox_.SetTexture(handle);
+             } else {
+                 DEBUGLOG_WARNING("Failed to load Assets/Textures/Skybox/Skybox.png. Background will be clear color.");
+             }
+        }
 
-       EffekseerManager::GetInstance().PlayEffect("Goal", 0.0f, 5.0f, 0.0f);
-       EffekseerManager::GetInstance().PlayEffect("WarpIn", 5.0f, 5.0f, 0.0f);
-       EffekseerManager::GetInstance().PlayEffect("WarpOut", 4.0f, 5.0f, 4.0f);
-       EffekseerManager::GetInstance().PlayEffect("SpeedUp", -3.0f, 5.0f, 0.0f);
+        // シャドウマップ初期化
+        if (!shadowMap_.Init(gfx->Dev(), 1024)) {
+            DEBUGLOG("[ERROR] OmniShadowMap::Init() 失敗");
+        }
+        if (!shadowSystem_.Initialize(*gfx)) {
+            DEBUGLOG("[ERROR] ShadowRenderSystem::Initialize() 失敗");
+        }
 
        //サウンドの初期化
        SOUND_SYS.Init();
@@ -313,7 +337,7 @@ class GameScene : public IScene {
                 const float dz = tPlayer->position.z - tGoal->position.z;
                 const float dist = std::sqrt(dx * dx + dz * dz);
                 const float slowThreshold = GoalDistance; // ゴールに近づいたとみなす距離
-                if (dist <= slowThreshold) {
+                if (dist <= slowThreshold && !pendingRespawn_) { // 死亡(リスポーン待機)中はスローにしない
                     timeScale = SlowDirection; // スロー演出
                 }
             }
@@ -352,6 +376,8 @@ class GameScene : public IScene {
 
 
        EffekseerManager::GetInstance().Update();
+
+       skyboxRotation_ += cfg_SkyboxSpeed.Get() * deltaTime;
     }
 
     /**
@@ -360,17 +386,40 @@ class GameScene : public IScene {
      */
     void OnRender(World &world) override {
         auto *gfx = ServiceLocator::TryGet<GfxDevice>();
-        if (gfx) {
-            RenderingSystem::GetInstance().BindLightBuffer(gfx->Ctx(), 1);
+        if (!gfx) return;
+
+        // ライティング情報の更新
+        RenderingSystem::GetInstance().UpdateLights(world, camera_.position);
+
+        // シャドウレンダリング
+        int shadowIdx = RenderingSystem::GetInstance().GetShadowLightIndex();
+        try {
+            auto& renderer = ServiceLocator::Get<RenderSystem>(); // RenderSystemを取得
+
+            if (shadowIdx >= 0) {
+                 PointLightGPU pLight = RenderingSystem::GetInstance().GetLightGPU(shadowIdx);
+                 shadowSystem_.RenderShadows(*gfx, world, pLight.position, pLight.range, shadowMap_);
+                 gfx->RestoreBackBuffer();
+                 renderer.SetShadowMap(shadowMap_.GetSRV());
+            } else {
+                 renderer.SetShadowMap(nullptr);
+            }
+
+            // スカイボックスを先に描画 (背景)
+            skybox_.Render(*gfx, camera_, skyboxRotation_);
+
+            // メインレンダリング (不透明オブジェクト)
+            renderer.Render(world, camera_);
+
+        } catch (...) {
+            DEBUGLOG_ERROR("Failed to get RenderSystem from ServiceLocator");
         }
 
-
-            EffekseerManager::GetInstance().Draw();
+        EffekseerManager::GetInstance().Draw(camera_);
 
         world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
             sys.Render(world);
         });
-
     }
 
     /**
@@ -420,6 +469,10 @@ class GameScene : public IScene {
             }
         }
         ownedEntities_.clear();
+
+        shadowSystem_.Shutdown();
+        shadowMap_.Shutdown();
+        skybox_.Shutdown();
 
         textSystem_.Shutdown();
         imageSystem_.Shutdown();
@@ -652,6 +705,10 @@ class GameScene : public IScene {
         int nextRoom = 0;
         std::string nextRoomPath;
     };
+
+    SkyboxSystem skybox_;
+    OmniShadowMap shadowMap_;
+    ShadowRenderSystem shadowSystem_;
 
     static constexpr float WALL_MESH_Y_OFFSET = 2.3f;
     static constexpr float WALL_COLLISION_CENTER_OFFSET = 1.8f;
@@ -1126,6 +1183,7 @@ class GameScene : public IScene {
             case 6: CreateLeftDownCorner(world, position); break;
             case 7: CreateLeftUpCorner(world, position); break;
             case 8: CreateRightUpCorner(world, position); break;
+            case 54: CreateObjectC(world, position, blockType); break;
             default:
                 if (blockType >= 10 && blockType < 20) {
                     CreateMovingObstacle(world, position, blockType);
@@ -1137,7 +1195,6 @@ class GameScene : public IScene {
                     CreateObjectB(world, position, blockType);
                 }
                 break;
-            case 54: CreateObjectC(world, position, blockType);break;
         }
     }
 
@@ -1150,6 +1207,7 @@ class GameScene : public IScene {
                            .With<Transform>(transform)
                            .With<Model>(cfg_FloorFBXPass)
                            .With<StageElementTag>()
+                           .With<StaticCollider>()
                            .Build();
 
         // ステージ切り替え時に破棄されるよう、ステージ所有リストへ登録
@@ -1157,20 +1215,24 @@ class GameScene : public IScene {
     }
 
     void CreateStart(World &world, const DirectX::XMFLOAT3 &position) {
-        DirectX::XMFLOAT3 diffPosition = {position.x, position.y - 0.5f, position.z};
-        Transform t{diffPosition, {0, 0, 0}, {1, 1, 1}};
+        if (world.IsAlive(startEntity_)) return;
+
+        // 2x2マスの中心に合わせる (左上マス中心から X+0.5, Z-0.5)
+        DirectX::XMFLOAT3 diffPosition = {position.x + 0.5f, position.y - 1.5f, position.z - 0.5f};
+
+        Transform t{diffPosition, {0, 0, 0}, {2.0f, 0.5f, 2.0f}};
         MeshRenderer r;
         r.meshType = MeshType::Cube;
-        r.color = DirectX::XMFLOAT3{cfg_StartR, cfg_StartG, cfg_StartB};
+        r.color = DirectX::XMFLOAT3{cfg_StartR.Get(), cfg_StartG.Get(), cfg_StartB.Get()};
 
         EmissiveMaterial emissive{
-            DirectX::XMFLOAT3{cfg_StartEmissiveR, cfg_StartEmissiveG, cfg_StartEmissiveB},
-            cfg_StartEmissiveIntensity};
-        EmissivePulse pulse{cfg_StartPulseMin, cfg_StartPulseMax, cfg_StartPulseSpeed};
+            DirectX::XMFLOAT3{cfg_StartEmissiveR.Get(), cfg_StartEmissiveG.Get(), cfg_StartEmissiveB.Get()},
+            cfg_StartEmissiveIntensity.Get()};
+        EmissivePulse pulse{cfg_StartPulseMin.Get(), cfg_StartPulseMax.Get(), cfg_StartPulseSpeed.Get()};
         PointLight light{
-            DirectX::XMFLOAT3{cfg_StartEmissiveR, cfg_StartEmissiveG, cfg_StartEmissiveB},
-            cfg_StartEmissiveIntensity,
-            cfg_StartLightRange};
+            DirectX::XMFLOAT3{cfg_StartEmissiveR.Get(), cfg_StartEmissiveG.Get(), cfg_StartEmissiveB.Get()},
+            cfg_StartEmissiveIntensity.Get(),
+            cfg_StartLightRange.Get()};
         ApplyDefaultPointLightParams(light);
 
         Entity e = world.Create()
@@ -1181,57 +1243,75 @@ class GameScene : public IScene {
                        .With<PointLight>(light)
                        .With<StartTag>()
                        .With<StageElementTag>()
-                       .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                       .With<CollisionBox>(DirectX::XMFLOAT3{2.0f, 4.0f, 2.0f})
+                       .With<StaticCollider>()
                        .Build();
 
         startEntity_ = e;
         stageOwnedEntities_.push_back(e);
     }
 
-    void CreateGoal(World &world, const DirectX::XMFLOAT3 &position, int currentstage) {
+    void CreateGoal(World &world,  const DirectX::XMFLOAT3 &position, int currentstage) {
+        if (world.IsAlive(goalEntity_)) return;
+
         int stageIndex = currentstage - 1;
-        if (stageIndex < 0)
-            stageIndex = 0;
+        if (stageIndex < 0) stageIndex = 0;
+
+        // 現在のルーム番号を取得（1-based -> 0-based）
+        int roomIndex = 0;
+        world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+            roomIndex = sp.currentRoom - 1;
+        });
+        if (roomIndex < 0) roomIndex = 0;
+
         float angle = 0.0f;
         world.ForEach<LoadGoalAngle>([&](Entity, LoadGoalAngle & data){
-            if (!data.goalAngle.empty() && data.goalAngle.size() > 0 &&
-                data.goalAngle[0].size() > static_cast<size_t>(stageIndex))
-            {
-                angle = static_cast<float>(data.goalAngle[0][stageIndex]);
+            if (stageIndex < static_cast<int>(data.goalAngle.size())) {
+                const auto& row = data.goalAngle[stageIndex];
+                if (roomIndex < static_cast<int>(row.size())) {
+                    angle = static_cast<float>(row[roomIndex]);
+                } else if (!row.empty()) {
+                    angle = static_cast<float>(row[0]);
+                }
+            } else if (!data.goalAngle.empty() && !data.goalAngle[0].empty()) {
+                angle = static_cast<float>(data.goalAngle[0][0]);
             }
         });
 
+        // 2x2マスの中心に合わせる (左上マス中心から X+0.5, Z-0.5)
+        DirectX::XMFLOAT3 diffPosition = {position.x + 0.5f, position.y - 1.5f, position.z - 0.5f};
 
-        DirectX::XMFLOAT3 diffPosition = {position.x, position.y - 0.5f, position.z};
-        Transform t{diffPosition, {0,angle, 0}, {1, 1, 1}};
+        Transform t{diffPosition, {0, angle, 0}, {2.0f, 0.5f, 2.0f}};
+
         MeshRenderer r;
         r.meshType = MeshType::Cube;
-        r.color = DirectX::XMFLOAT3{cfg_GoalR, cfg_GoalG, cfg_GoalB};
+        r.color = DirectX::XMFLOAT3{cfg_GoalR.Get(), cfg_GoalG.Get(), cfg_GoalB.Get()};
 
         EmissiveMaterial emissive{
-            DirectX::XMFLOAT3{cfg_GoalEmissiveR, cfg_GoalEmissiveG, cfg_GoalEmissiveB},
-            cfg_GoalEmissiveIntensity};
-        EmissivePulse pulse{cfg_GoalPulseMin, cfg_GoalPulseMax, cfg_GoalPulseSpeed};
+            DirectX::XMFLOAT3{cfg_GoalEmissiveR.Get(), cfg_GoalEmissiveG.Get(), cfg_GoalEmissiveB.Get()},
+            cfg_GoalEmissiveIntensity.Get()};
+        EmissivePulse pulse{cfg_GoalPulseMin.Get(), cfg_GoalPulseMax.Get(), cfg_GoalPulseSpeed.Get()};
         PointLight light{
-            DirectX::XMFLOAT3{cfg_GoalEmissiveR, cfg_GoalEmissiveG, cfg_GoalEmissiveB},
-            cfg_GoalEmissiveIntensity,
-            cfg_GoalLightRange};
+            DirectX::XMFLOAT3{cfg_GoalEmissiveR.Get(), cfg_GoalEmissiveG.Get(), cfg_GoalEmissiveB.Get()},
+            cfg_GoalEmissiveIntensity.Get(),
+            cfg_GoalLightRange.Get()};
         ApplyDefaultPointLightParams(light);
 
         Entity e = world.Create()
                        .With<Transform>(t)
                        .With<MeshRenderer>(r)
-                       .With<Model>(cfg_GoalFBXPass)
                        .With<EmissiveMaterial>(emissive)
                        .With<EmissivePulse>(pulse)
                        .With<PointLight>(light)
                        .With<GoalTag>()
                        .With<StageElementTag>()
-                       .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
+                       .With<CollisionBox>(DirectX::XMFLOAT3{2.0f, 4.0f, 2.0f})
+                       .With<StaticCollider>()
                        .Build();
 
         goalEntity_ = e;
         stageOwnedEntities_.push_back(e);
+        EffekseerManager::GetInstance().PlayEffect("Goal", diffPosition, true);
     }
 
     void CreateGoalDoor(World &world, const DirectX::XMFLOAT3 &position) {
@@ -1251,6 +1331,7 @@ class GameScene : public IScene {
                                     DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f},
                                     DirectX::XMFLOAT3{0.0f, WALL_COLLISION_CENTER_OFFSET, 0.0f})
                                 .With<WallCollisionHandler>()
+                                .With<StaticCollider>()
                                 .Build();
 
         stageOwnedEntities_.push_back(wallEntity);
@@ -1258,7 +1339,7 @@ class GameScene : public IScene {
 
     void CreateRightDownCorner(World &world, const DirectX::XMFLOAT3 &position) {
         DirectX::XMFLOAT3 diffPosition = {position.x, position.y - WALL_MESH_Y_OFFSET, position.z};
-        Transform transform{diffPosition, {0.0f, 0.0f, 180.0f}, {1.0f, cfg_WallSize, 1.0f}};
+        Transform transform{diffPosition, {0.0f, 270.0f, 0.0f}, {1.0f, cfg_WallSize, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::RightIsoTriPrism;
         renderer.color = DirectX::XMFLOAT3{cfg_WallR, cfg_WallG, cfg_WallB};
@@ -1271,8 +1352,10 @@ class GameScene : public IScene {
                                 .With<StageElementTag>()
                                 .With<CollisionRightIsoTriPrism>(
                                     DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f},
-                                    DirectX::XMFLOAT3{0.0f, WALL_COLLISION_CENTER_OFFSET, 0.0f})
+                                    DirectX::XMFLOAT3{0.0f, WALL_COLLISION_CENTER_OFFSET, 0.0f},
+                                    false)
                                 .With<WallCollisionHandler>()
+                                .With<StaticCollider>()
                                 .Build();
 
         stageOwnedEntities_.push_back(wallEntity);
@@ -1293,8 +1376,10 @@ class GameScene : public IScene {
                                 .With<StageElementTag>()
                                 .With<CollisionRightIsoTriPrism>(
                                     DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f},
-                                    DirectX::XMFLOAT3{0.0f, WALL_COLLISION_CENTER_OFFSET, 0.0f})
+                                    DirectX::XMFLOAT3{0.0f, WALL_COLLISION_CENTER_OFFSET, 0.0f},
+                                    false)
                                 .With<WallCollisionHandler>()
+                                .With<StaticCollider>()
                                 .Build();
 
         stageOwnedEntities_.push_back(wallEntity);
@@ -1315,8 +1400,10 @@ class GameScene : public IScene {
                                 .With<StageElementTag>()
                                 .With<CollisionRightIsoTriPrism>(
                                     DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f},
-                                    DirectX::XMFLOAT3{0.0f, WALL_COLLISION_CENTER_OFFSET, 0.0f})
+                                    DirectX::XMFLOAT3{0.0f, WALL_COLLISION_CENTER_OFFSET, 0.0f},
+                                    false)
                                 .With<WallCollisionHandler>()
+                                .With<StaticCollider>()
                                 .Build();
 
         stageOwnedEntities_.push_back(wallEntity);
@@ -1337,16 +1424,19 @@ class GameScene : public IScene {
                                 .With<StageElementTag>()
                                 .With<CollisionRightIsoTriPrism>(
                                     DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f},
-                                    DirectX::XMFLOAT3{0.0f, WALL_COLLISION_CENTER_OFFSET, 0.0f})
+                                    DirectX::XMFLOAT3{0.0f, WALL_COLLISION_CENTER_OFFSET, 0.0f},
+                                    true)
                                 .With<WallCollisionHandler>()
+                                .With<StaticCollider>()
                                 .Build();
 
         stageOwnedEntities_.push_back(wallEntity);
     }
 
     void CreateMovingObstacle(World &world, const DirectX::XMFLOAT3 &position, int blockType) {
+        DirectX::XMFLOAT3 diffPosition = {position.x, position.y + cfg_FloorYOffset + 1.0f, position.z};
         MovingObstacle obstacle;
-        obstacle.startPos = position;
+        obstacle.startPos = diffPosition;
         obstacle.baseScale = DirectX::XMFLOAT3{1.0f, 1.0f, 1.0f};
 
         auto resolvePatternIndex = [](int type) -> std::optional<int> {
@@ -1365,9 +1455,9 @@ class GameScene : public IScene {
                 const auto &p = data.patterns[*patternIndex];
                 obstacle.delta = DirectX::XMFLOAT3{p.dirX, 0.0f, -p.dirY}; // ステージ座標のYはワールドZと逆向き
                 obstacle.endPos = DirectX::XMFLOAT3{
-                    position.x + obstacle.delta.x,
-                    position.y + obstacle.delta.y,
-                    position.z + obstacle.delta.z};
+                    diffPosition.x + obstacle.delta.x,
+                    diffPosition.y + obstacle.delta.y,
+                    diffPosition.z + obstacle.delta.z};
                 obstacle.waitAtStart = p.waitAtStart;
                 obstacle.waitAtEnd = p.waitAtEnd;
                 obstacle.travelTime = p.travelTime;
@@ -1377,7 +1467,7 @@ class GameScene : public IScene {
         });
 
 
-        Transform transform{position, {0.0f, 0.0f, 0.0f}, obstacle.baseScale};
+        Transform transform{diffPosition, {0.0f, 0.0f, 0.0f}, obstacle.baseScale};
 
         Entity entity = world.Create()
                             .With<Transform>(transform)
@@ -1405,6 +1495,7 @@ class GameScene : public IScene {
                                      .With<WallTag>()
                                      .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                                      .With<FloorWallCollisionHandler>()
+                                     .With<StaticCollider>()
                                      .Build();
 
         stageOwnedEntities_.push_back(ObjectAEntity);
@@ -1423,6 +1514,7 @@ class GameScene : public IScene {
                                    .With<WallTag>()
                                    .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                                    .With<FloorWallCollisionHandler>()
+                                   .With<StaticCollider>()
                                    .Build();
 
         stageOwnedEntities_.push_back(ObjectAEntity);
@@ -1441,6 +1533,7 @@ class GameScene : public IScene {
                                    .With<WallTag>()
                                    .With<CollisionBox>(DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f})
                                    .With<FloorWallCollisionHandler>()
+                                   .With<StaticCollider>()
                                    .Build();
 
         stageOwnedEntities_.push_back(ObjectAEntity);
@@ -1459,6 +1552,7 @@ class GameScene : public IScene {
                                          DirectX::XMFLOAT3{1.0f, 2.0f, 1.0f},
                                          DirectX::XMFLOAT3{0.0f, WALL_COLLISION_CENTER_OFFSET, 0.0f})
                                      .With<FloorWallCollisionHandler>()
+                                     .With<StaticCollider>()
                                      .Build();
 
         stageOwnedEntities_.push_back(worldwallEntity);
@@ -1496,6 +1590,7 @@ class GameScene : public IScene {
         // プレイヤーへの影響角度はCSVそのまま（見た目補正は加えない）
         status.accelAngle = csvAngleDeg;
 
+
         Entity dashBoardEntity = world.Create()
                                      .With<Transform>(transform)
                                      .With<Model>(cfg_DashBoardFBXPass)
@@ -1504,6 +1599,7 @@ class GameScene : public IScene {
                                      .With<StageElementTag>()
                                      .With<DashBordCollisionHandler>()
                                      .With<DashBoardStatus>(status)
+                                     .With<StaticCollider>()
                                      .Build();
 
         stageOwnedEntities_.push_back(dashBoardEntity);
@@ -1888,7 +1984,8 @@ class GameScene : public IScene {
     }
 
     void SetStickZoomActive(bool active) {
-        stickZoomTarget_ = active ? std::max(0.0f, cfg_StickZoomAmount.Get()) : 0.0f;
+        // ズームインにするため負の値にする (FOVを狭める)
+        stickZoomTarget_ = active ? -std::abs(cfg_StickZoomAmount.Get()) : 0.0f;
     }
 
     float UpdateStickZoom(float dt) {
@@ -1968,6 +2065,7 @@ class GameScene : public IScene {
     float stickZoomCurrent_ = 0.0f;
 
     DirectX::XMFLOAT3 baseTarget_ = {0.0f, 0.0f, 0.0f};
+    float skyboxRotation_ = 0.0f;
 };
 
 // =========================================
@@ -1991,6 +2089,13 @@ inline void GameScene_OnTimeUp(World &w, Entity player) {
 
 inline void WallCollisionHandler::OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) {
     if (w.Has<PlayerTag>(other)) {
+         // ゴール演出中は壁判定を無効化
+        bool isGoalTransition = false;
+        w.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+            if (sp.goalTransitioning) isGoalTransition = true;
+        });
+        if (isGoalTransition) return;
+
         // 床としての接触（法線が上向き）ならダメージ処理を行わない
         if (info.normal.y > 0.5f) return;
 
@@ -2007,6 +2112,13 @@ inline void WallCollisionHandler::OnCollisionEnter(World &w, Entity self, Entity
 
 inline void FloorWallCollisionHandler::OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) {
     if (w.Has<PlayerTag>(other)) {
+         // ゴール演出中は壁判定を無効化
+        bool isGoalTransition = false;
+        w.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+            if (sp.goalTransitioning) isGoalTransition = true;
+        });
+        if (isGoalTransition) return;
+
         // 床としての接触なら無視
         if (info.normal.y > 0.5f) return;
 

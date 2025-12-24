@@ -3,17 +3,25 @@ name: Build and Compile Check
 on:
   pull_request:
     branches: [ master, main, develop ]
+    paths-ignore: # paths-ignore を追加
+      - '**.md'
+      - 'docs/**'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.gitignore'
   push:
     branches: [ master, main, develop ]
+    paths-ignore: # paths-ignore を追加
+      - '**.md'
+      - 'docs/**'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.gitignore'
 
 jobs:
-  build-windows:
+  # === PR用: Debugビルドのみ (動作確認・高速化) ===
+  check-pr:
+    if: github.event_name == 'pull_request'
     runs-on: windows-latest
-    
-    strategy:
-      matrix:
-        config: [Debug, Release]
-        platform: [x64]
+    timeout-minutes: 30 # タイムアウト設定を追加
     
     steps:
     - name: Checkout code
@@ -21,54 +29,71 @@ jobs:
     
     - name: Setup MSBuild
       uses: microsoft/setup-msbuild@v2
+
+    - name: Cache NuGet packages
+      uses: actions/cache@v4
+      with:
+        path: packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.config') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-
     
     - name: Restore NuGet packages
       run: nuget restore HEW_GAME.sln
     
-    - name: Build solution
-      run: msbuild HEW_GAME.sln /p:Configuration=${{ matrix.config }} /p:Platform=${{ matrix.platform }} /m
+    - name: Build solution (Debug)
+      run: msbuild HEW_GAME.sln /p:Configuration=Debug /p:Platform=x64 /m
 
-    - name: Check for build errors
-      if: failure()
-      run: |
-        echo "Build failed for config=${{ matrix.config }}, platform=${{ matrix.platform }}"
-        exit 1
+  # === Master Push用: Releaseビルド & 公開 (本番用) ===
+  build-release:
+    if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+    runs-on: windows-latest
+    timeout-minutes: 30 # タイムアウト設定を追加
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup MSBuild
+      uses: microsoft/setup-msbuild@v2
 
-    # ====== Release/master only: 成果物収集 ======
+    - name: Cache NuGet packages
+      uses: actions/cache@v4
+      with:
+        path: packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/packages.config') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-
+    
+    - name: Restore NuGet packages
+      run: nuget restore HEW_GAME.sln
+    
+    - name: Build solution (Release)
+      run: msbuild HEW_GAME.sln /p:Configuration=Release /p:Platform=x64 /m
 
-    - name: Collect build outputs (Release/master only)
-      if: github.ref == 'refs/heads/master' && matrix.config == 'Release'
+    - name: Collect build outputs
       shell: cmd
       run: |
         mkdir artifact
-
-        REM exe と Release の中身
         xcopy /E /I /Y ".\x64\Release\*" artifact\
+        del /S /Q artifact\*.pdb
+        del /S /Q artifact\*.lib
+        del /S /Q artifact\*.exp
+        del /S /Q artifact\*.iobj
+        del /S /Q artifact\*.ipdb
 
-    - name: Upload artifact (optional)
-      if: github.ref == 'refs/heads/master' && matrix.config == 'Release'
-      uses: actions/upload-artifact@v4
-      with:
-        name: HEW_GAME-${{ matrix.platform }}-${{ matrix.config }}
-        path: artifact/**
-        compression-level: 9
-
-    - name: Archive build for release
-      if: github.ref == 'refs/heads/master' && matrix.config == 'Release'
+    - name: Archive build
       run: |
         powershell Compress-Archive -Path artifact\* -DestinationPath HEW_GAME.zip -Force
 
-    # ====== 公開用 Repo (aptma-sHEWTeam/hew-game-release) に Release ======
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: HEW_GAME-x64-Release
+        path: artifact/**
+        compression-level: 0
 
-    - name: Install GitHub CLI
-      if: github.ref == 'refs/heads/master' && matrix.config == 'Release'
-      shell: powershell
-      run: |
-        choco install gh -y
-        gh --version
-
-    - name: Create release on public repo and upload asset
-      if: github.ref == 'refs/heads/master' && matrix.config == 'Release'
+    - name: Create release
       shell: bash
       env:
         GH_TOKEN: ${{ secrets.PUBLIC_RELEASE_PAT }}
@@ -77,26 +102,11 @@ jobs:
         TAG="v0.1.${{ github.run_number }}"
         TITLE="Auto build ${{ github.run_number }}"
 
-        # 既存の同タグリリースがあれば消す（エラー無視）
         gh release delete "$TAG" --repo "$TARGET_REPO" --yes 2>/dev/null || true
 
-        # Release 作成＋zip アップロード
         gh release create "$TAG" "HEW_GAME.zip" \
           --repo "$TARGET_REPO" \
           --title "$TITLE" \
           --notes "Automated build from private repo run #${{ github.run_number }}" \
           --prerelease
 
-  compile-check:
-    runs-on: windows-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Setup MSBuild
-      uses: microsoft/setup-msbuild@v2
-    
-    - name: Compile check (Debug/x64)
-      run: msbuild HEW_GAME.sln /p:Configuration=Debug /p:Platform=x64 /m /v:quiet
-      continue-on-error: false

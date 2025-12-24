@@ -27,7 +27,7 @@ inline ConfigVar<float> cfg_PlayerHeight{"Stage.Player.Appearance", "PlayerHeigh
 inline ConfigVar<float> cfg_FloorR{"Stage.Floor.Visual", "FloorColorR", 0.5f, "床の色 R"};
 inline ConfigVar<float> cfg_FloorG{"Stage.Floor.Visual", "FloorColorG", 0.5f, "床の色 G"};
 inline ConfigVar<float> cfg_FloorB{"Stage.Floor.Visual", "FloorColorB", 0.5f, "床の色 B"};
-inline ConfigVar<float> cfg_FloorYOffset{"Stage.Floor.Geometry", "FloorYOffset", -2.0f, "床メッシュのYオフセット"};
+inline ConfigVar<float> cfg_FloorYOffset{"Stage.Floor.Geometry", "FloorYOffset", -2.5f, "床メッシュのYオフセット"};
 inline ConfigVar<float> cfg_FloorThickness{"Stage.Floor.Geometry", "FloorThickness", 0.2f, "床の厚み"};
 
 // スタートマーカー見た目
@@ -36,9 +36,9 @@ inline ConfigVar<float> cfg_StartG{"Stage.Start.Visual", "StartColorG", 0.0f, "�
 inline ConfigVar<float> cfg_StartB{"Stage.Start.Visual", "StartColorB", 1.0f, "スタートマーカーの色 B"};
 
 // ゴールマーカー見た目
-inline ConfigVar<float> cfg_GoalR{"Stage.Goal.Visual", "GoalColorR", 1.0f, "ゴールマーカーの色 R"};
-inline ConfigVar<float> cfg_GoalG{"Stage.Goal.Visual", "GoalColorG", 1.0f, "ゴールマーカーの色 G"};
-inline ConfigVar<float> cfg_GoalB{"Stage.Goal.Visual", "GoalColorB", 0.0f, "ゴールマーカーの色 B"};
+inline ConfigVar<float> cfg_GoalR{"Stage.Goal.Visual", "GoalColorR", 1.000000f, "ゴールマーカーの色 R"};
+inline ConfigVar<float> cfg_GoalG{"Stage.Goal.Visual", "GoalColorG", 0.000000f, "ゴールマーカーの色 G"};
+inline ConfigVar<float> cfg_GoalB{"Stage.Goal.Visual", "GoalColorB", 0.000000f, "ゴールマーカーの色 B"};
 
 // 壁見た目
 inline ConfigVar<float> cfg_WallR{"Stage.Wall.Visual", "WallColorR", 1.0f, "壁の色 R"};
@@ -115,10 +115,10 @@ inline ConfigVar<float> cfg_StartPulseMax{"Stage.Start.Emissive", "StartPulseMax
 inline ConfigVar<float> cfg_StartPulseSpeed{"Stage.Start.Emissive", "StartPulseSpeed", 1.0f, "スタートパネル発光の速さ"};
 
 // ゴール演出用エミッシブ
-inline ConfigVar<float> cfg_GoalEmissiveR{"Stage.Goal.Emissive", "GoalEmissiveR", 1.0f, "ゴールオブジェクトのエミッシブ色 R"};
-inline ConfigVar<float> cfg_GoalEmissiveG{"Stage.Goal.Emissive", "GoalEmissiveG", 0.8f, "ゴールオブジェクトのエミッシブ色 G"};
-inline ConfigVar<float> cfg_GoalEmissiveB{"Stage.Goal.Emissive", "GoalEmissiveB", 0.0f, "ゴールオブジェクトのエミッシブ色 B"};
-inline ConfigVar<float> cfg_GoalEmissiveIntensity{"Stage.Goal.Emissive", "GoalEmissiveIntensity", 2.0f, "ゴールオブジェクトのエミッシブ強さ"};
+inline ConfigVar<float> cfg_GoalEmissiveR{"Stage.Goal.Emissive", "GoalEmissiveR", 1.000000f, "ゴールオブジェクトのエミッシブ色 R"};
+inline ConfigVar<float> cfg_GoalEmissiveG{"Stage.Goal.Emissive", "GoalEmissiveG", 0.000000f, "ゴールオブジェクトのエミッシブ色 G"};
+inline ConfigVar<float> cfg_GoalEmissiveB{"Stage.Goal.Emissive", "GoalEmissiveB", 0.000000f, "ゴールオブジェクトのエミッシブ色 B"};
+inline ConfigVar<float> cfg_GoalEmissiveIntensity{"Stage.Goal.Emissive", "GoalEmissiveIntensity", 1.000000f, "ゴールオブジェクトのエミッシブ強さ"};
 inline ConfigVar<float> cfg_GoalPulseMin{"Stage.Goal.Emissive", "GoalPulseMin", 4.0f, "ゴール発光の最小周期"};
 inline ConfigVar<float> cfg_GoalPulseMax{"Stage.Goal.Emissive", "GoalPulseMax", 10.0f, "ゴール発光の最大周期"};
 inline ConfigVar<float> cfg_GoalPulseSpeed{"Stage.Goal.Emissive", "GoalPulseSpeed", 1.0f, "ゴール発光の速さ"};
@@ -142,3 +142,5 @@ inline ConfigVar<std::string> cfg_WarpUpMP3Pass{"Stage.WarpUp.SE", "WarpUpMP3Pas
 inline ConfigVar<float> cfg_MasterVolume{"Stage.Master.Volume", "MasterVolume", 1.0f, "マスタの大きさ"};
 inline ConfigVar<float> cfg_BGMVolume{"Stage.BGM.Volume", "BGMVolume", 1.0f, "BGMの大きさ"};
 inline ConfigVar<float> cfg_SEVolume{"Stage.SE.Volume", "SEVolume", 1.0f, "SEの大きさ"};
+// プレイヤー移動設定
+inline static ConfigVar<float> cfg_AccelerateAccfication{"Player.Movement", "AccelerateAccfication", 1.5f, "加速版接触時の加速倍率"};

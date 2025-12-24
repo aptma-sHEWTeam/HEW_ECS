@@ -17,7 +17,7 @@
 #include <cstring>
 #include <cmath>
 
-static constexpr int MAX_POINT_LIGHTS = 8;
+static constexpr int MAX_POINT_LIGHTS = 64;
 
 struct PointLightGPU {
     DirectX::XMFLOAT3 position;
@@ -39,6 +39,8 @@ struct LightingBuffer {
     float dirLightEnabled;
     DirectX::XMFLOAT3 dirLightColor;
     float dirLightIntensity;
+    int shadowLightIndex;
+    DirectX::XMFLOAT3 paddingLight;
     PointLightGPU pointLights[MAX_POINT_LIGHTS];
 };
 
@@ -54,6 +56,14 @@ public:
         static RenderingSystem instance;
         return instance;
     }
+    
+    // Access methods for ShadowRenderSystem
+    int GetActiveLightCount() const { return lightingData_.activePointLights; }
+    int GetShadowLightIndex() const { return lightingData_.shadowLightIndex; }
+    PointLightGPU GetLightGPU(int index) const { 
+        if(index >=0 && index < MAX_POINT_LIGHTS) return lightingData_.pointLights[index];
+        return {};
+    }
 
     bool Initialize(ID3D11Device* device) {
         if (!device) return false;
@@ -64,6 +74,7 @@ public:
         lightingData_.dirLightEnabled = 0.0f;
         lightingData_.dirLightColor = {1.0f,1.0f,1.0f};
         lightingData_.dirLightIntensity = 1.0f;
+        lightingData_.shadowLightIndex = -1; // Default none
 
         D3D11_BUFFER_DESC lightDesc = {};
         lightDesc.ByteWidth = sizeof(LightingBuffer);
@@ -114,6 +125,7 @@ public:
 
         lightingData_.cameraPosition = cameraPos;
         lightingData_.activePointLights = 0;
+        lightingData_.shadowLightIndex = -1;
 
         // Directional light (take the first one)
         lightingData_.dirLightEnabled = 0.0f;
@@ -124,22 +136,52 @@ public:
             lightingData_.dirLightEnabled = 1.0f;
         });
 
-        world.ForEach<Transform, PointLight>([this](Entity, Transform& t, PointLight& pl) {
+        // Collect and sort Point Lights
+        struct LightCandidate {
+            Transform* t;
+            PointLight* pl;
+            float distSq;
+        };
+        std::vector<LightCandidate> candidates;
+        candidates.reserve(MAX_POINT_LIGHTS * 2);
+
+        world.ForEach<Transform, PointLight>([&](Entity, Transform& t, PointLight& pl) {
             if (!pl.enabled) return;
-            if (lightingData_.activePointLights >= MAX_POINT_LIGHTS) return;
-
-            int idx = lightingData_.activePointLights;
-            lightingData_.pointLights[idx].position = t.position;
-            lightingData_.pointLights[idx].range = pl.range;
-            lightingData_.pointLights[idx].color = pl.color;
-            lightingData_.pointLights[idx].intensity = pl.intensity;
-            lightingData_.pointLights[idx].constantAtt = pl.constantAttenuation;
-            lightingData_.pointLights[idx].linearAtt = pl.linearAttenuation;
-            lightingData_.pointLights[idx].quadraticAtt = pl.quadraticAttenuation;
-            lightingData_.pointLights[idx].enabled = 1.0f;
-
-            lightingData_.activePointLights++;
+            float dx = t.position.x - cameraPos.x;
+            float dy = t.position.y - cameraPos.y;
+            float dz = t.position.z - cameraPos.z;
+            float distSq = dx*dx + dy*dy + dz*dz;
+            candidates.push_back({ &t, &pl, distSq });
         });
+
+        // Sort by distance (ascending)
+        std::sort(candidates.begin(), candidates.end(), [](const LightCandidate& a, const LightCandidate& b) {
+            return a.distSq < b.distSq;
+        });
+
+        // Fill buffer with closest lights
+        int count = 0;
+        for (const auto& src : candidates) {
+            if (count >= MAX_POINT_LIGHTS) break;
+            
+            auto& dst = lightingData_.pointLights[count];
+            dst.position = src.t->position;
+            dst.range = src.pl->range;
+            dst.color = src.pl->color;
+            dst.intensity = src.pl->intensity;
+            dst.constantAtt = src.pl->constantAttenuation;
+            dst.linearAtt = src.pl->linearAttenuation;
+            dst.quadraticAtt = src.pl->quadraticAttenuation;
+            dst.enabled = 1.0f;
+
+            count++;
+        }
+        lightingData_.activePointLights = count;
+        
+        // Closest light casts shadow if exists
+        if (count > 0) {
+            lightingData_.shadowLightIndex = 0;
+        }
     }
 
     void UpdateEmissivePulse(World& world, float deltaTime) {

@@ -45,8 +45,9 @@ inline static ConfigVar<float> cfg_LimitX{"Player.Bounds", "LimitX", 15.0f, "プ
 inline static ConfigVar<float> cfg_LimitY{"Player.Bounds", "LimitY", 15.0f, "プレイヤー移動範囲のY方向上限"};
 inline static ConfigVar<float> cfg_AccelerateMagnification{"Player.Movement", "AccelerateMagnification", 1.5f, "チャージショット時の加速倍率"};
 
+
 namespace PlayerConstants {
-constexpr int ANGLE_HISTORY_SIZE = 30;
+constexpr int ANGLE_HISTORY_SIZE = 10;
 constexpr float EPSILON = 1e-5f;
 }
 
@@ -72,6 +73,7 @@ struct PlayerVelocity : Behaviour {
     bool isBoosting = false;
     bool isDecelerating = false;
     float DebugSpeed = 0.0f;
+    bool isRotate = false;    //プレイヤー回転
 
     DirectX::XMFLOAT2 velocity = {0.0f, 0.0f};
     DirectX::XMFLOAT2 boostDir = {0.0f, 0.0f};
@@ -135,9 +137,14 @@ struct PlayerVelocity : Behaviour {
         if (t->position.z < -limitY) t->position.z = -limitY;
         if (t->position.z > limitY)  t->position.z =  limitY;
         const float velLenSq = v->velocity.x * v->velocity.x + v->velocity.y * v->velocity.y;
-        if (velLenSq > PlayerConstants::EPSILON) {
-            const float rad = std::atan2f(v->velocity.y, v->velocity.x);
-            t->rotation.y = -rad * (90.0f / DirectX::XM_PI) * 2 + 90.0f;
+        
+
+        if (!v->isRotate)
+        {
+            if (velLenSq > PlayerConstants::EPSILON) {
+                const float rad = std::atan2f(v->velocity.y, v->velocity.x);
+                t->rotation.y = -rad * (90.0f / DirectX::XM_PI) * 2 + 90.0f;
+            }
         }
     }
 
@@ -146,7 +153,7 @@ struct PlayerVelocity : Behaviour {
 };
 
 // ===============================
-// PlayerMovement（重複宣言整理）
+// PlayerMovement
 // ===============================
 struct PlayerMovement : Behaviour {
     InputSystem *input_ = nullptr;
@@ -167,11 +174,11 @@ struct PlayerMovement : Behaviour {
     float angleHistory[PlayerConstants::ANGLE_HISTORY_SIZE] = {};
     int angleIndex = 0; bool angleFilled = false;
     float sumSin = 0.0f; float sumCos = 0.0f;
-    int frame = 0; bool historyLocked_ = false;
+    int frame = 0;
 
     void ResetAngleHistory() {
         for (int i = 0; i < PlayerConstants::ANGLE_HISTORY_SIZE; ++i) angleHistory[i] = 0.0f;
-        angleIndex = 0; angleFilled = false; sumSin = 0.0f; sumCos = 0.0f; historyLocked_ = false;
+        angleIndex = 0; angleFilled = false; sumSin = 0.0f; sumCos = 0.0f;
     }
 
     void OnUpdate(World &w, Entity self, float dt) override {
@@ -211,6 +218,38 @@ struct PlayerMovement : Behaviour {
         });
         if (startBlocked) { restoreCollisionRadius(); return; }
 
+        // ゴール演出中（GoalAttractor存在時）は入力を無効化し、速度を0にロック
+        if (w.Has<GoalAttractor>(self)) {
+            v->velocity = {0.0f, 0.0f};
+            v->isBoosting = false;
+            v->isDecelerating = false;
+            v->boostSpeed = 0.0f;
+            restoreCollisionRadius();
+            ResetAngleHistory();
+            isCharging_ = false;
+            wasCharging_ = false;
+            wasChargingPrev_ = false;
+            return;
+        }
+
+        // ゴール遷移中（スタート位置にスポーンするまで）も入力をブロック
+        bool isGoalTransitioning = false;
+        w.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+            if (sp.goalTransitioning) isGoalTransitioning = true;
+        });
+        if (isGoalTransitioning) {
+            v->velocity = {0.0f, 0.0f};
+            v->isBoosting = false;
+            v->isDecelerating = false;
+            v->boostSpeed = 0.0f;
+            restoreCollisionRadius();
+            ResetAngleHistory();
+            isCharging_ = false;
+            wasCharging_ = false;
+            wasChargingPrev_ = false;
+            return;
+        }
+
         v->speed = PlayerVelocity::cfg_Speed;
         minChargeSpeedFactor = cfg_MinChargeSpeed;
         chargeMaxTime = cfg_ChargeMaxTime;
@@ -243,22 +282,20 @@ struct PlayerMovement : Behaviour {
 
             if (effectiveCharging) {
                 if (v->isBoosting) { v->StopBoost(); }
-                if (collision_) {
-                    if (!hasCollisionBackup_) { collisionRadiusBackup_ = collision_->radius; hasCollisionBackup_ = true; }
-                    collision_->radius = collisionRadiusBackup_ * 0.01f;
-                }
                 isCharging_ = true;
                 v->isDecelerating = true; // チャージ中は減速
+                v->isRotate = true;
                 // チャージ最大時間でMinSpeedまで落とすための減速量を算出（毎秒）
                 v->SlowFactor = (std::max(0.0f, v->speed - v->MinSpeed)) / std::max(0.0001f, chargeMaxTime);
                 float charge = gamepad_->GetLeftStickChargeAmount(chargeMaxTime); (void)charge;
 
-                if (!historyLocked_ && mag > PlayerConstants::EPSILON) {
+                if (mag > PlayerConstants::EPSILON) {
                     float ang = std::atan2f(lastStickDir_.y, lastStickDir_.x);
+                    t->rotation.y = -ang * (180.0f / DirectX::XM_PI) + 90.0f;
                     if (angleFilled) { sumSin -= std::sinf(angleHistory[angleIndex]); sumCos -= std::cosf(angleHistory[angleIndex]); }
                     angleHistory[angleIndex] = ang; sumSin += std::sinf(ang); sumCos += std::cosf(ang);
                     angleIndex = (angleIndex + 1) % PlayerConstants::ANGLE_HISTORY_SIZE;
-                    if (angleIndex == 0) { angleFilled = true; historyLocked_ = true; }
+                    if (angleIndex == 0) { angleFilled = true; }
                 }
             }
 
@@ -275,6 +312,7 @@ struct PlayerMovement : Behaviour {
                         DirectX::XMFLOAT2 boostDir{dirX / dirLen, dirY / dirLen};
                         float maxBoost = v->speed * v->Acceleration;
                         v->StartBoost(boostDir, maxBoost);
+                        v->isRotate = false;
                         isCharging_ = false; v->isDecelerating = false;
                     }
                 }
@@ -288,6 +326,7 @@ struct PlayerMovement : Behaviour {
 
             if (!effectiveCharging && !chargingNowLocal) {
                 restoreCollisionRadius();
+                v->isRotate = false;
                 isCharging_ = false;
             }
 
@@ -348,64 +387,3 @@ struct PlayerGuide : Behaviour {
         }
     }
 };
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
