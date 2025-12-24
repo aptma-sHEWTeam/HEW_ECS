@@ -13,6 +13,7 @@
 #include "components/PlayerComponents.h"
 #include "components/StageComponents.h"
 #include "components/GameStats.h"
+#include "systems/SoundSystem.h"
 #include "graphics/Effect.h"
 #include <limits>
 
@@ -148,6 +149,7 @@ inline void CheckTimeLimit(World &w, Entity player, float timeLimitSeconds) {
             DEBUGLOG("Timeout");
             GameScene_OnTimeUp(w, player);
             stats.elapsedTime = timeLimitSeconds;
+
         }
     });
 }
@@ -281,6 +283,7 @@ REGISTER_COLLISION_HANDLER_TYPE(EnemyCollisionHandler)
  */
 struct WallCollisionHandler : ICollisionHandler {
     void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override;
+
 };
 REGISTER_COLLISION_HANDLER_TYPE(WallCollisionHandler)
 
