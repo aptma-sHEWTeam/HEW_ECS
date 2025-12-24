@@ -1,82 +1,89 @@
-#pragma once
+/*
+ * @
+ * 内部でCOMオブジェクトを利用するため、LoadTexture関数より後にInitSound関数呼び出すと
+ * エラーになる
+ */
+#ifndef __SOUNDSYSTEM_H__
+#define __SOUNDSYSTEM_H__
 
-#include <cstdint>
-#include <functional>
+#include <xaudio2.h>
+#include <vector>
+#include <map>
+#include <string>
 
-namespace GameSound {
+#pragma comment(lib, "xaudio2.lib")
 
-//＝＝＝＝＝この辺はコンフィグ＝＝＝＝＝＝＝
-// -------------------------
-// 論理 ID
-// -------------------------
-enum class BgmId : uint32_t {
-    None = 0,
-    MainTheme,
-    Calm,
-    Tense
+//インスタンス用アクセスマクロ
+#define SOUND_SYS SoundSystem::GetInstance()
+
+//----------
+// 構造体
+//----------
+struct SoundData {
+    WAVEFORMATEX format;  // WAVフォーマット
+    BYTE *pBuffer;        // サウンドデータ
+    DWORD bufSize;        // データサイズ
+    XAUDIO2_BUFFER sound; // サウンドバッファ
 };
-enum class SeId : uint32_t {
-    None = 0,
-    Cold,
-    Collide,
-    Death,
-    Drift,
-    Fire1,
-    Fire2,
-    Fire3,
-    Siren,
-    Start,
-    WarpDown,
-    WarpUp
+struct MP3FormatInfo {
+    DWORD offset;
+    DWORD dataSize;
+};
+struct MP3FrameInfo {
+    BYTE channel;
+    BYTE padding;
+    DWORD sampleRate;
+    DWORD bitRate;
+    DWORD frameSize;
 };
 
-// -------------------------
-// 設定
-// -------------------------
-struct Config {
-    bool enabled = true;         // マスタ ON/OFF
-    float masterVolume = 1.0f;   // 0..1（bgm/se に乗算）
-    float seVolume = 1.0f;       // 0..1
-    float bgmVolume = 1.0f;      // 0..1
-    bool visualFallback = false; // 視覚代替（デバッグ用）
+/**
+ * @brief サウンド管理システム(シングルトン)
+ */
+class SoundSystem {
+public:
+    //シングルトンインスタンスの取得
+    static SoundSystem& GetInstance() {
+      static SoundSystem instance;
+        return instance;
+  }
+    //----------
+    // プロトタイプ宣言
+    //----------
+    HRESULT Init(void);        //初期化
+    void Uninit(void);         //終了
+
+    // サウンドファイルの読み込み
+    XAUDIO2_BUFFER *LoadSound(const char *file, bool loop = false);
+
+    // サウンドの再生
+#undef PlaySound // winapiのPlaySoundを無効にする
+    IXAudio2SourceVoice *PlaySound(XAUDIO2_BUFFER *pSound);
+
+    //パスを指定してSEを再生
+    void PlaySE(const std::string& path);
+
+    //パスを指定してBGMを再生
+    void PlayBGM(const std::string &path);
+
+    //音量を更新
+    void UpdateVolume();
+
+  private:
+     //メンバ変数
+    IXAudio2 *m_pXAudio;
+    IXAudio2MasteringVoice *m_pMasterVoice;
+    std::map<std::string, SoundData> m_soundMap;
+    IXAudio2SourceVoice *m_pBgmVoice = nullptr;
+    std::string m_currentBgmPath;
+
+    SoundSystem() : m_pXAudio(nullptr), m_pMasterVoice(nullptr) {}
+    ~SoundSystem() { Uninit(); }
+    SoundSystem(const SoundSystem &) = delete;
+    SoundSystem &operator=(const SoundSystem &) = delete;
+
+    //内部ヘルパー
+    HRESULT LoadWav(const char *file, SoundData *pData);
+    HRESULT LoadMP3(const char *file, SoundData *pData);
 };
-//＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
-
-using VirtualBeepHandler = std::function<void(const wchar_t *text)>;
-
-// -------------------------
-// ライフサイクル
-// -------------------------
-bool Init();
-void Update(float dt = 0.0f);
-void Uninit();
-
-// -------------------------
-// 設定 / 有効無効
-// -------------------------
-
-//＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
-//コンフィグから取ったデータを基にする
-void SetConfig(const Config &cfg);
-Config GetConfig();
-//＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
-void SetEnabled(bool enabled);
-bool GetEnabled();
-
-void SetVirtualBeepHandler(VirtualBeepHandler cb);
-
-// -------------------------
-// 再生 API
-// -------------------------
-
-//この辺はBehaviorで作成
-bool PlayBGM(BgmId id, bool loop = true);
-void StopBGM();
-
-//＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
-//コンフィグのデータを変更
-void SetBGMVolume(float v);
-bool PlaySE(SeId id);
-//＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
-
-} // namespace GameSound
+#endif // __SOUNDSYSTEM_H__

@@ -259,6 +259,9 @@ class GameScene : public IScene {
        EffekseerManager::GetInstance().PlayEffect("WarpOut", 4.0f, 5.0f, 4.0f);
        EffekseerManager::GetInstance().PlayEffect("SpeedUp", -3.0f, 5.0f, 0.0f);
 
+       //サウンドの初期化
+       SOUND_SYS.Init();
+
         DEBUGLOG("GameWithUIScene の初期化が正常に完了しました");
     }
 
@@ -344,6 +347,10 @@ class GameScene : public IScene {
             CheckTimeLimit(world, playerEntity_, cfg_LimitTime);
         }
 
+        //サウンドの音量設定の更新
+        SOUND_SYS.UpdateVolume();
+
+
        EffekseerManager::GetInstance().Update();
     }
 
@@ -383,6 +390,7 @@ class GameScene : public IScene {
             }
         }
         stageOwnedEntities_.clear();
+
 
         // 念のため、ステージタグを持つものも一括で破棄
         std::vector<Entity> stageTagged;
@@ -1986,6 +1994,8 @@ inline void WallCollisionHandler::OnCollisionEnter(World &w, Entity self, Entity
         // 床としての接触（法線が上向き）ならダメージ処理を行わない
         if (info.normal.y > 0.5f) return;
 
+        SOUND_SYS.PlaySE(cfg_CollideMP3Pass.Get());
+
         DEBUGLOG("壁がプレイヤーと衝突 - カメラシェイク＋遅延リスポーン");
         if (g_GameScene) {
             g_GameScene->OnWallHit(other, w);
@@ -1999,6 +2009,8 @@ inline void FloorWallCollisionHandler::OnCollisionEnter(World &w, Entity self, E
     if (w.Has<PlayerTag>(other)) {
         // 床としての接触なら無視
         if (info.normal.y > 0.5f) return;
+
+        SOUND_SYS.PlaySE(cfg_CollideMP3Pass.Get());
 
         DEBUGLOG("ステージ壁がプレイヤーと衝突 - カメラシェイク＋遅延リスポーン");
         if (g_GameScene) {
