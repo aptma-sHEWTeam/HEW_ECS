@@ -1,0 +1,39 @@
+name: Notify Discord on Issue Assigned
+
+on:
+  issues:
+    types: [assigned]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post to Discord
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          REPO: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
+          ASSIGNEE: ${{ github.event.assignee.login }}
+          SENDER: ${{ github.actor }}
+        run: |
+          payload=$(jq -n \
+            --arg repo "$REPO" \
+            --arg num "$ISSUE_NUMBER" \
+            --arg title "$ISSUE_TITLE" \
+            --arg url "$ISSUE_URL" \
+            --arg assignee "$ASSIGNEE" \
+            --arg sender "$SENDER" \
+            '{
+              content:
+                ("📌 Issue がアサインされました\n\n"
+                + $repo + " #" + $num + " " + $title + "\n"
+                + "👤 担当: " + $assignee + "（by " + $sender + "）\n"
+                + "🔗 " + $url)
+            }')
+
+          curl -sS -X POST \
+            -H "Content-Type: application/json" \
+            -d "$payload" \
+            "$DISCORD_WEBHOOK"
