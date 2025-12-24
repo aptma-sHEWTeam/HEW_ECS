@@ -1237,10 +1237,6 @@ class GameScene : public IScene {
 
         Entity e = world.Create()
                        .With<Transform>(t)
-                       .With<MeshRenderer>(r)
-                       .With<EmissiveMaterial>(emissive)
-                       .With<EmissivePulse>(pulse)
-                       .With<PointLight>(light)
                        .With<StartTag>()
                        .With<StageElementTag>()
                        .With<CollisionBox>(DirectX::XMFLOAT3{2.0f, 4.0f, 2.0f})
