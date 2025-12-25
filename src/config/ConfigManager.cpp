@@ -16,7 +16,9 @@ ConfigManager& ConfigManager::Instance() {
 }
 
 void ConfigManager::Register(IConfigVar* var) {
-    m_Vars.push_back(var);
+    if (std::find(m_Vars.begin(), m_Vars.end(), var) == m_Vars.end()) {
+        m_Vars.push_back(var);
+    }
 }
 
 void ConfigManager::Initialize(const std::string& assetPath) {
@@ -98,14 +100,32 @@ void ConfigManager::LoadTOML() {
     fs::path preferred = fs::path(m_AssetPath) / "Settings" / "config.toml";
     auto resolved = FindConfigToml(preferred);
     if (!resolved) {
-        DEBUGLOG_WARNING("[ConfigManager] config.toml が見つかりませんでした。現在の作業ディレクトリ付近を探索しましたが失敗しました。");
-        // Mark dirty so caller can decide to save defaults. Do not early-save here to
-        // keep responsibilities of loading vs saving separate.
+        DEBUGLOG_WARNING("[ConfigManager] config.toml not found. Will attempt to create one.");
+        // Try to find "Assets" directory to ensure we save in the right place
+        // even if config.toml doesn't exist yet.
+        fs::path cur = fs::current_path();
+        bool foundAssets = false;
+        for (int i = 0; i < 5; ++i) {
+             if (fs::exists(cur / "Assets")) {
+                 m_AssetPath = (cur / "Assets").string();
+                 foundAssets = true;
+                 break;
+             }
+             if (!cur.has_parent_path()) break;
+             cur = cur.parent_path();
+        }
+
+        if (foundAssets) {
+             DEBUGLOG("[ConfigManager] Found Assets directory at: " + m_AssetPath);
+        } else {
+             DEBUGLOG_WARNING("[ConfigManager] Could not find Assets directory. Using default path: " + m_AssetPath);
+        }
+
         m_IsDirty = true;
         return;
     }
     fs::path tomlPath = *resolved;
-    // 見つけたパスに合わせて AssetPath を補正
+    // Fix AssetPath based on found toml
     m_AssetPath = tomlPath.parent_path().parent_path().string();
 
     std::ifstream file(tomlPath);
@@ -176,7 +196,19 @@ void ConfigManager::SaveTOML() {
 
     for (const auto& [sectionName, vars] : sections) {
         file << "[" << sectionName << "]\n";
+        
+        // Track written keys to prevent duplicates in file
+        std::vector<std::string> writtenKeys;
+
         for (auto* var : vars) {
+            std::string key = var->GetName();
+            
+            // Skip if we already wrote this key for this section
+            if (std::find(writtenKeys.begin(), writtenKeys.end(), key) != writtenKeys.end()) {
+                continue;
+            }
+            writtenKeys.push_back(key);
+
             // Emit comment just above the key if provided
             const std::string comment = var->GetComment();
             if (!comment.empty()) {
@@ -188,13 +220,15 @@ void ConfigManager::SaveTOML() {
             bool isBool = val == "true" || val == "false";
 
             if (!isNumber && !isBool) {
-                file << var->GetName() << " = \"" << val << "\"\n";
+                file << key << " = \"" << val << "\"\n";
             } else {
-                file << var->GetName() << " = " << val << "\n";
+                file << key << " = " << val << "\n";
             }
         }
         file << "\n";
     }
+
+    DEBUGLOG("[ConfigManager] Saved config to: " + tomlPath.string());
 
     file.close();
     m_LastWriteTime = fs::last_write_time(tomlPath);

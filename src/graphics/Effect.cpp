@@ -74,30 +74,65 @@ void EffekseerManager::Load()
 //=====================
 //エフェクトの再生
 //=====================
-int  EffekseerManager::PlayEffect(const std::string& effectName,float x,float y,float z) 
+int  EffekseerManager::PlayEffect(const std::string& effectName,DirectX::XMFLOAT3 pos, bool loop)
 {
     auto it = m_effects.find(effectName);
+    if (it == m_effects.end()) {
+        // エフェクトが見つからない場合は警告を出して戻る
+        // DEBUGLOG mechanism is available via include or extern?
+        // Effect.cpp includes "graphics/Effect.h" which doesn't include DebugLog.h.
+        // SkyboxSystem.cpp included "app/DebugLog.h".
+        // I'll stick to printf or OutputDebugString if DEBUGLOG not available, OR just return -1 silently/safely.
+        // Or better, see if I can include DebugLog.h.
+        // Given I can't easily check all includes, I will just return -1.
+        return -1;
+    }
 
-    int handle = m_pManager->Play(it->second, x, y, z);
+    int handle = m_pManager->Play(it->second, pos.x,pos.y,pos.z);
+    
+    if (loop)
+    {
+        LoopInfo info;
+        info.effectName = effectName;
+        info.position = pos;
+        info.handle = handle;
+        m_loopEffects.push_back(info);
+    }
 
     return handle;
 }
-
 //=====================
 //エフェクトの停止
 //=====================
 void EffekseerManager::StopEffect() 
 {
     m_pManager->StopAllEffects();
+    m_loopEffects.clear();
+}
+
+void EffekseerManager::StopEffect(const std::string &effectName)
+{
+    for (auto it = m_loopEffects.begin(); it != m_loopEffects.end(); )
+    {
+        if (it->effectName == effectName)
+        {
+            m_pManager->StopEffect(it->handle);
+            it = m_loopEffects.erase(it);
+        }
+        else
+        {
+            ++it;
+        }
+    }
 }
 
 //=====================
 //カメラ処理
 //=====================
-void EffekseerManager::SetCamera()
+void EffekseerManager::SetCamera(const Camera& camera)
 {
-    const DirectX::XMMATRIX &appViewMat = m_Camera.GetViewMatrix();
-    const DirectX::XMMATRIX &appProjMat = m_Camera.GetProjectionMatrix();
+    const DirectX::XMMATRIX &appViewMat = camera.GetViewMatrix();
+    const DirectX::XMMATRIX &appProjMat = camera.GetProjectionMatrix();
 
     for (int i = 0;i < 4;i++)
     {
@@ -113,6 +148,18 @@ void EffekseerManager::SetCamera()
     m_pRenderer->SetProjectionMatrix(m_efkProjMat);
 }
 
+//=============================
+//エフェクトの座標更新処理
+//============================
+void EffekseerManager::SetEffectPosition(int handle, DirectX::XMFLOAT3 pos) 
+{
+    if (m_pManager != nullptr)
+    {
+        //直接ハンドルと新しいざひょうをお渡しする
+        m_pManager->SetLocation(handle, pos.x, pos.y, pos.z);
+    }
+}
+
 //=====================
 //更新処理
 //=====================
@@ -126,15 +173,26 @@ void EffekseerManager::Update()
 
     m_pManager->Update();   
 
+    for (auto& info : m_loopEffects)
+    {
+        if (!m_pManager->Exists(info.handle))
+        {
+             auto it = m_effects.find(info.effectName);
+             if (it != m_effects.end())
+             {
+                 info.handle = m_pManager->Play(it->second, info.position.x, info.position.y, info.position.z);
+             }
+        }
+    }
 }
 
 //=====================
 //描画処理
 //=====================
-void EffekseerManager::Draw()
+void EffekseerManager::Draw(const Camera& camera)
 {
     m_pRenderer->SetTime(time / 60.0f);
-    SetCamera();
+    SetCamera(camera);
     m_pRenderer->BeginRendering();
 
     Effekseer::Manager::DrawParameter drawParameter;

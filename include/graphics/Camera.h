@@ -59,13 +59,13 @@ struct Camera {
     DirectX::XMMATRIX Proj;  ///< プロジェクション行列(透視方法)
 
     //View行列のゲッター
-    const DirectX::XMMATRIX& GetViewMatrix()
+    const DirectX::XMMATRIX& GetViewMatrix() const
     {
         return View;
     }
 
     //Projの行列のゲッター
-    const DirectX::XMMATRIX& GetProjectionMatrix()
+    const DirectX::XMMATRIX& GetProjectionMatrix() const
     {
         return Proj;
     }
