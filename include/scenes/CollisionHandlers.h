@@ -171,6 +171,7 @@ struct PlayerCollisionHandler : ICollisionHandler {
             // ゆっくり吸い込み: ゴール中心へイージングで寄せる
             auto *tPlayer = w.TryGet<Transform>(self);
             auto *tGoal = w.TryGet<Transform>(other);
+
             if (tPlayer && tGoal) {
                 const DirectX::XMFLOAT3 goalCenter = ResolvePlacementCenter(w, other, *tGoal);
                 // 速度をリセット
@@ -186,6 +187,7 @@ struct PlayerCollisionHandler : ICollisionHandler {
                 attract.target = goalCenter;
                 attract.duration = 0.15f; // よりゆっくり(秒)
                 w.Add<GoalAttractor>(self, attract);
+                SOUND_SYS.PlaySE(cfg_WarpUpMP3Pass.Get());
             }
         }
     }
@@ -201,6 +203,7 @@ struct EnemyCollisionHandler : ICollisionHandler {
         if (w.Has<PlayerTag>(other)) {
             DEBUGLOG("Enemy collided with player");
         }
+        SOUND_SYS.PlaySE(cfg_CollideMP3Pass);
     }
 };
 REGISTER_COLLISION_HANDLER_TYPE(EnemyCollisionHandler)
