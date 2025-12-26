@@ -237,6 +237,7 @@ struct PlayerCollisionHandler : ICollisionHandler {
                  EffekseerManager::GetInstance().PlayEffect("WarpIn",tGoal->position, false);
             }
 
+
             if (tPlayer && tGoal) {
                 const DirectX::XMFLOAT3 goalCenter = ResolvePlacementCenter(w, other, *tGoal);
 
@@ -258,6 +259,7 @@ struct PlayerCollisionHandler : ICollisionHandler {
                 attract.effectHandle = handle;
                 
                 w.Add<GoalAttractor>(self, attract);
+                SOUND_SYS.PlaySE(cfg_WarpUpMP3Pass.Get());
             }
         }
     }
@@ -273,6 +275,7 @@ struct EnemyCollisionHandler : ICollisionHandler {
         if (w.Has<PlayerTag>(other)) {
             DEBUGLOG("Enemy collided with player");
         }
+        SOUND_SYS.PlaySE(cfg_CollideMP3Pass);
     }
 };
 REGISTER_COLLISION_HANDLER_TYPE(EnemyCollisionHandler)
@@ -323,6 +326,8 @@ struct DashBordCollisionHandler : ICollisionHandler {
         v->velocity.y = boostDir.y * boostSpeed;
         v->isBoosting = true;
         v->isDecelerating = false;
+
+        SOUND_SYS.PlaySE(cfg_SpeedUpMP3Pass);
 
         DEBUGLOG("プレイヤーが加速板と接触 - 速度付与");
     }

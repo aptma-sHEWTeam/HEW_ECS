@@ -22,6 +22,7 @@
 // GameScene 定義への依存を避けるため、グローバル参照宣言のみを利用
 #include "scenes/CollisionHandlers.h"
 #include "components/StageComponents.h"
+#include "systems/SoundSystem.h"
 
 // 前方宣言と外部参照（インライン定義は CollisionHandlers.h 内）
 class GameScene; extern GameScene* g_GameScene; extern bool g_respawnPending;
@@ -297,6 +298,8 @@ struct PlayerMovement : Behaviour {
                     angleIndex = (angleIndex + 1) % PlayerConstants::ANGLE_HISTORY_SIZE;
                     if (angleIndex == 0) { angleFilled = true; }
                 }
+
+                SOUND_SYS.PlaySE(cfg_DriftMP3Pass);
             }
 
             bool releasedSys = gamepad_->IsLeftStickReleased();
