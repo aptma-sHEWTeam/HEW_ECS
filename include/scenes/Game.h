@@ -658,7 +658,6 @@ class GameScene : public IScene {
             }
         }
 
-        SOUND_SYS.PlaySE(cfg_DeathMP3Pass.Get());
 
         pendingRespawn_ = true;
         respawnPlayer_ = player;
@@ -839,7 +838,7 @@ class GameScene : public IScene {
                 stageAdvanceTimer_ = 0.0f;
                 pendingStageAdvance_.stageResetPending = false;
 
-               
+              
 
                 StartFadeOutNormal(world);
                 DEBUGLOG("同一ステージ内で次のルームへ進行(フェード演出開始): Stage" + std::to_string(sp.currentStage) + ", room" + std::to_string(pendingStageAdvance_.nextRoom));
@@ -874,6 +873,8 @@ class GameScene : public IScene {
                     pendingStageAdvance_.stageResetPending = true;
                     return;
                 }
+
+                SOUND_SYS.PlaySE(cfg_SpeedUpMP3Pass.Get());
 
                 Entity newStageEntity = world.Create().With<StageCreate>(pendingStageAdvance_.nextRoomPath).Build();
                 ownedEntities_.push_back(newStageEntity);

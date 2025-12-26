@@ -137,10 +137,11 @@ inline ConfigVar<std::string> cfg_Fire2MP3Pass{"Stage.Fire2.SE", "Fire2MP3Pass",
 inline ConfigVar<std::string> cfg_Fire3MP3Pass{"Stage.Fire3.SE", "Fire3MP3Pass","Assets/Sound/SE/fire3.mp3", "ジェットパック段階音３"};
 inline ConfigVar<std::string> cfg_SirenMP3Pass{"Stage.Siren.SE", "SirenMP3Pass","Assets/Sound/SE/siren.mp3", "警報音"};
 inline ConfigVar<std::string> cfg_StartMP3Pass{"Stage.Start.SE", "StartMP3Pass","Assets/Sound/SE/start.mp3", "スタート時の音"};
+inline ConfigVar<std::string> cfg_SpeedUpMP3Pass{"Stage.SpeedUp.SE", "SpeedUpMP3Pass","Assets/Sound/SE/speedup.mp3", "加速板の音"};
 inline ConfigVar<std::string> cfg_WarpDownMP3Pass{"Stage.WarpDown.SE", "WarpDownMP3Pass","Assets/Sound/SE/warpdown.mp3", "ワープから出る音"};
 inline ConfigVar<std::string> cfg_WarpUpMP3Pass{"Stage.WarpUp.SE", "WarpUpMP3Pass","Assets/Sound/SE/warpup.mp3", "ワープに入ったときの音"};
 inline ConfigVar<float> cfg_MasterVolume{"Stage.Master.Volume", "MasterVolume", 1.0f, "マスタの大きさ"};
 inline ConfigVar<float> cfg_BGMVolume{"Stage.BGM.Volume", "BGMVolume", 1.0f, "BGMの大きさ"};
-inline ConfigVar<float> cfg_SEVolume{"Stage.SE.Volume", "SEVolume", 1.0f, "SEの大きさ"};
+inline ConfigVar<float> cfg_SEVolume{"Stage.SE.Volume", "SEVolume", 0.6f, "SEの大きさ"};
 // プレイヤー移動設定
 inline static ConfigVar<float> cfg_AccelerateAccfication{"Player.Movement", "AccelerateAccfication", 1.5f, "加速版接触時の加速倍率"};

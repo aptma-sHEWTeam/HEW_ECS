@@ -237,8 +237,6 @@ struct PlayerCollisionHandler : ICollisionHandler {
                  EffekseerManager::GetInstance().PlayEffect("WarpIn",tGoal->position, false);
             }
 
-            auto *tPlayer = w.TryGet<Transform>(self);
-            auto *tGoal = w.TryGet<Transform>(other);
 
             if (tPlayer && tGoal) {
                 const DirectX::XMFLOAT3 goalCenter = ResolvePlacementCenter(w, other, *tGoal);
@@ -328,6 +326,8 @@ struct DashBordCollisionHandler : ICollisionHandler {
         v->velocity.y = boostDir.y * boostSpeed;
         v->isBoosting = true;
         v->isDecelerating = false;
+
+        SOUND_SYS.PlaySE(cfg_SpeedUpMP3Pass);
 
         DEBUGLOG("プレイヤーが加速板と接触 - 速度付与");
     }
