@@ -88,22 +88,22 @@ void StageSlectScene::CreateStageSelectUI(World &world) {
     ownedEntities_.push_back(crossTextEntity);
 
     //宇宙船の表示
-    UITransform selecttestImgTr;
-    selecttestImgTr.position = {350.0f, 50.0f};
-    selecttestImgTr.size = {600.0f, 600.0f};
-    selecttestImgTr.anchor = {0.0f, 0.0f};
-    selecttestImgTr.pivot = {0.0f, 0.0f};
+    /* UITransform selecttestImgTr;
+     selecttestImgTr.position = {350.0f, 50.0f};
+     selecttestImgTr.size = {600.0f, 600.0f};
+     selecttestImgTr.anchor = {0.0f, 0.0f};
+     selecttestImgTr.pivot = {0.0f, 0.0f};
 
-    UIImage selecttestImg{L"./Assets/Textures/StageUI/SelectTest.png"};
-    selecttestImg.opacity = 1.0f;
-    selecttestImg.keepAspect = true;
+     UIImage selecttestImg{L"./Assets/Textures/StageUI/Select1.png"};
+     selecttestImg.opacity = 1.0f;
+     selecttestImg.keepAspect = true;
 
-    Entity selecttestImageEntity = world.Create()
-                                       .With<UITransform>(selecttestImgTr)
-                                       .With<UIImage>(selecttestImg)
-                                       .Build();
+     Entity selecttestImageEntity = world.Create()
+                                        .With<UITransform>(selecttestImgTr)
+                                        .With<UIImage>(selecttestImg)
+                                        .Build();
 
-     ownedEntities_.push_back(selecttestImageEntity);
+     ownedEntities_.push_back(selecttestImageEntity);*/
 
      //〇×の表示
      UITransform circleImgTr;

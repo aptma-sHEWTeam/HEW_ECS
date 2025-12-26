@@ -354,6 +354,9 @@ struct App {
             if (auto* gs = dynamic_cast<GameScene*>(sceneManager_.GetCurrentScene())) {
                 camera_ = gs->GetCamera();
             }
+            if (auto *ss = dynamic_cast<StageSlectScene *>(sceneManager_.GetCurrentScene())) {
+                camera_ = ss->GetCameraSelect();
+            }
 
             renderer_.Render(world_, camera_);
             sceneManager_.Render(world_);
