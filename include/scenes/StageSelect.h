@@ -190,6 +190,12 @@ class StageSlectScene : public IScene {
                 world.DestroyEntityWithCause(e, World::Cause::SceneUnload);
             }
         }
+        for (const auto &e : objectOwnedEntities_) {
+            if (world.IsAlive(e)) {
+                world.DestroyEntityWithCause(e, World::Cause::SceneUnload);
+            }
+        }
+        objectOwnedEntities_.clear();
         ownedEntities_.clear();
         if (world.IsAlive(StageSelectEntity_)) {
             world.DestroyEntityWithCause(StageSelectEntity_, World::Cause::SceneUnload);
