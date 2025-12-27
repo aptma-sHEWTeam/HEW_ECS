@@ -65,26 +65,33 @@ void EffekseerManager::UnInit()
 //=====================
 void EffekseerManager::Load() 
 {
-    m_effects["Goal"]      = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/Goal/efe_goal.efkefc");
-    m_effects["SpeedUp"]   = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/SpeedUp/efe_speedup.efkefc");
-    m_effects["WarpIn"]    = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/Warp/warpin_effect.efkefc");
-    m_effects["WarpOut"]   = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/Warp/warpout_effect.efkefc");
+    m_effects["Goal"]           = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/Goal/efe_goal.efkefc");
+    m_effects["SpeedUp"]        = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/SpeedUp/efe_speedUp2.efkefc");
+    m_effects["WarpIn"]         = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/Warp/warpin_effect.efkefc");
+    m_effects["WarpOut"]        = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/Warp/warpout_effect.efkefc");
+    m_effects["FireFirst"]      = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/Fire/fire flare.efkefc");
+    m_effects["FireFirstToSec"] = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/Fire/fire middle.efkefc");
+    m_effects["FireThird"]      = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/Fire/flare 2.efkefc");
+    m_effects["FireSecToThird"] = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/Fire/firecore.efkefc");
 }
 
 //=====================
 //エフェクトの再生
 //=====================
-int  EffekseerManager::PlayEffect(const std::string& effectName,DirectX::XMFLOAT3 pos, bool loop)
+int  EffekseerManager::PlayEffect(const std::string& effectName,DirectX::XMFLOAT3 pos,DirectX::XMFLOAT3 scale, bool loop)
 {
     auto it = m_effects.find(effectName);
 
     int handle = m_pManager->Play(it->second, pos.x,pos.y,pos.z);
     
+    m_pManager->SetScale(handle, scale.x, scale.y, scale.z);
+
     if (loop)
     {
         LoopInfo info;
         info.effectName = effectName;
         info.position = pos;
+        info.scale = scale;
         info.handle = handle;
         m_loopEffects.push_back(info);
     }
@@ -115,6 +122,33 @@ void EffekseerManager::StopEffect(const std::string &effectName)
         }
     }
 }
+
+void EffekseerManager::StopEffectHandle(Effekseer::Handle handle)
+{
+    if (handle != -1)
+    {
+        m_pManager->StopEffect(handle);
+    }
+
+    for (auto it = m_loopEffects.begin(); it != m_loopEffects.end();)
+    {
+        if (it->handle == handle) {
+            m_pManager->StopEffect(it->handle);
+            it = m_loopEffects.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
+void EffekseerManager::SetEffectScale(int handle, DirectX::XMFLOAT3 scale)
+{
+    if (m_pManager != nullptr && m_pManager->Exists(handle))
+    {
+        m_pManager->SetScale(handle, scale.x, scale.y, scale.z);
+    }
+}
+
 
 //=====================
 //カメラ処理
@@ -150,6 +184,19 @@ void EffekseerManager::SetEffectPosition(int handle, DirectX::XMFLOAT3 pos)
     }
 }
 
+//=============================
+//エフェクトの向きの更新処理
+//============================
+void EffekseerManager::SetEffectRotation(Effekseer::Handle handle, DirectX::XMFLOAT3 rotation)
+{
+    //ラジアン返還
+    float radX = rotation.x * (DirectX::XM_PI / 180.0f);
+    float radY = rotation.y * (DirectX::XM_PI / 180.0f);
+    float radZ = rotation.z * (DirectX::XM_PI / 180.0f);
+
+    m_pManager->SetRotation(handle, radX, radY, radZ);
+}
+
 //=====================
 //更新処理
 //=====================
@@ -171,6 +218,8 @@ void EffekseerManager::Update()
              if (it != m_effects.end())
              {
                  info.handle = m_pManager->Play(it->second, info.position.x, info.position.y, info.position.z);
+                 m_pManager->SetScale(info.handle, info.scale.x, info.scale.y, info.scale.z);
+                 m_pManager->SetRotation(info.handle, info.rotation.x, info.rotation.y, info.rotation.z);
              }
         }
     }

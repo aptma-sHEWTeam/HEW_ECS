@@ -15,10 +15,11 @@
 #include "ecs/World.h"
 #include "components/Transform.h"
 #include "components/MeshRenderer.h"
-#include"components/GameStats.h"
+#include "components/GameStats.h"
 #include "input/InputSystem.h"
 #include "input/GamepadSystem.h"
 #include "components/Collision.h"
+#include "graphics/Effect.h"
 // GameScene 定義への依存を避けるため、グローバル参照宣言のみを利用
 #include "scenes/CollisionHandlers.h"
 #include "components/StageComponents.h"
@@ -58,6 +59,7 @@ struct PlayerStatus : Behaviour {
     };
     WallHitState wallHitState = WallHitState::Idle;
 };
+
 
 // ===============================
 // PlayerVelocity（重複宣言整理）
@@ -175,6 +177,53 @@ struct PlayerMovement : Behaviour {
     float sumSin = 0.0f; float sumCos = 0.0f;
     int frame = 0;
 
+    //エフェクトの状態管理
+    enum class EffectState 
+    {
+        Idle,
+        Charging,
+        Relesing
+    };
+    
+    //通常時のエフェクト状態
+    EffectState currentEffectState = EffectState::Idle;
+
+    Effekseer::Handle chargeEffectHandle = -1;
+    Effekseer::Handle releaseEffectHandle = -1;
+
+    void SwitchEffect(World& w, Entity self,EffectState newState)
+    {
+        auto *t = w.TryGet<Transform>(self);
+        
+        DirectX::XMFLOAT3 offsetPos = t->position;
+        offsetPos.z += -0.2f;
+        offsetPos.y += 0.5f;
+
+        if (chargeEffectHandle != -1) 
+        {
+            EffekseerManager::GetInstance().StopEffectHandle(chargeEffectHandle);
+            chargeEffectHandle = -1;
+        }
+        if (releaseEffectHandle != -1) {
+            EffekseerManager::GetInstance().StopEffectHandle(releaseEffectHandle);
+            releaseEffectHandle = -1;
+        }
+
+        currentEffectState = newState;
+        
+        switch (newState)
+        {
+            case EffectState::Idle:     //通常時はエフェクトなし
+                break;
+            case EffectState::Charging:
+                chargeEffectHandle = EffekseerManager::GetInstance().PlayEffect("FireFirst", offsetPos, {0.1f, 0.1f, 0.1f}, false);
+                break;
+            case EffectState::Relesing:
+                releaseEffectHandle = EffekseerManager::GetInstance().PlayEffect("FireFirstToSec", offsetPos, {0.1f, 0.1f, 0.1f}, false);
+                break;
+        }
+    }
+
     void ResetAngleHistory() {
         for (int i = 0; i < PlayerConstants::ANGLE_HISTORY_SIZE; ++i) angleHistory[i] = 0.0f;
         angleIndex = 0; angleFilled = false; sumSin = 0.0f; sumCos = 0.0f;
@@ -245,6 +294,7 @@ struct PlayerMovement : Behaviour {
             if (effectiveCharging && !wasChargingPrev_) ResetAngleHistory();
             if (effectiveCharging && !wasCharging_) {
                 GameScene_OnChargeStart(w);
+                SwitchEffect(w, self, EffectState::Charging);
             }
 
             if (effectiveCharging) {
@@ -268,8 +318,8 @@ struct PlayerMovement : Behaviour {
                     angleIndex = (angleIndex + 1) % PlayerConstants::ANGLE_HISTORY_SIZE;
                     if (angleIndex == 0) { angleFilled = true; }
                 }
+                
             }
-
             bool releasedSys = gamepad_->IsLeftStickReleased();
             bool releasedLocal = (wasCharging_ && !chargingNowLocal);
             if (releasedSys || releasedLocal) {
@@ -287,6 +337,7 @@ struct PlayerMovement : Behaviour {
                         isCharging_ = false; v->isDecelerating = false;
                     }
                 }
+                SwitchEffect(w, self, EffectState::Relesing);
                 GameScene_OnChargeRelease(w, chargeAmount);
                 restoreCollisionRadius();
                 ResetAngleHistory();
@@ -299,6 +350,20 @@ struct PlayerMovement : Behaviour {
                 restoreCollisionRadius();
                 v->isRotate = false;
                 isCharging_ = false;
+            }
+
+            if (chargeEffectHandle != -1)
+            {
+                DirectX::XMFLOAT3 pos = t->position;
+                pos.z += -0.2f;
+                pos.y += 0.5f;
+                EffekseerManager::GetInstance().SetEffectPosition(chargeEffectHandle, pos);
+            }
+            if (releaseEffectHandle != -1) {
+                DirectX::XMFLOAT3 pos = t->position;
+                pos.z += -0.2f;
+                pos.y += 0.5f;
+                EffekseerManager::GetInstance().SetEffectPosition(releaseEffectHandle, pos);
             }
 
             // 減速をまず反映してから移動

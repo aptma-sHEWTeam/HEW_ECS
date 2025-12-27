@@ -24,6 +24,8 @@ struct LoopInfo
 {
     std::string effectName;
     DirectX::XMFLOAT3 position;
+    DirectX::XMFLOAT3 scale;
+    DirectX::XMFLOAT3 rotation;
     int handle;
 };
 
@@ -42,13 +44,17 @@ class EffekseerManager
 
    void Load();				///<読み込み処理
 
-   int PlayEffect(const std::string &effectName, DirectX::XMFLOAT3 pos, bool loop = false); ///<エフェクト再生
+   int PlayEffect(const std::string &effectName, DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 scale, bool loop = false); ///<エフェクト再生
    void StopEffect();		///<エフェクト停止
    void StopEffect(const std::string &effectName); ///<指定した名前のエフェクトを停止
+   void StopEffectHandle(Effekseer::Handle handle);///<確保したハンドルをわたして停止
+
+   void SetEffectScale(int handle, DirectX::XMFLOAT3 scale);
 
    void SetCamera(const Camera& camera);		///<カメラ処理
 
    void SetEffectPosition(int handle, DirectX::XMFLOAT3 pos);
+   void SetEffectRotation(Effekseer::Handle handle, DirectX::XMFLOAT3 rotation);
 
    void Update();			///<更新処理
    void Draw(const Camera& camera);				///<描画処理

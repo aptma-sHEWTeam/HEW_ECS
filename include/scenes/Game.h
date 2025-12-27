@@ -102,6 +102,7 @@ class GameScene : public IScene {
             if (!toDestroy.empty()) {
                 world.DestroyAllEntitiesImmediate(World::Cause::SceneInit);
             }
+            
         }
 
         // ステージ進行情報が無ければ生成
@@ -251,7 +252,9 @@ class GameScene : public IScene {
         SetupStage(world, initialStage);
 
         EffekseerManager::GetInstance().Load();
-
+  
+       /* DirectX::XMFLOAT3 pos(0.0f, 10.0f, 0.0f);
+        EffekseerManager::GetInstance().PlayEffect("FireFirstToSec", pos, {0.1f, 0.1f,0.1f}, false);*/
         DEBUGLOG("GameWithUIScene の初期化が正常に完了しました");
     }
 
@@ -338,6 +341,7 @@ class GameScene : public IScene {
         }
 
        EffekseerManager::GetInstance().Update();
+
     }
 
     /**
@@ -1232,7 +1236,9 @@ class GameScene : public IScene {
 
         goalEntity_ = e;
         stageOwnedEntities_.push_back(e);
-        EffekseerManager::GetInstance().PlayEffect("Goal", diffPosition, true);
+        EffekseerManager::GetInstance().PlayEffect("Goal", diffPosition, {1.0f, 1.0f, 1.0f}, true);
+
+      
     }
 
     void CreateGoalDoor(World &world, const DirectX::XMFLOAT3 &position) {
@@ -1496,7 +1502,9 @@ class GameScene : public IScene {
 
         // プレイヤーへの影響角度はCSVそのまま（見た目補正は加えない）
         status.accelAngle = csvAngleDeg;
-       
+
+        //加速板のエフェクト常時出力
+        EffekseerManager::GetInstance().PlayEffect("SpeedUp", transform.position, {1.0f, 1.0f, 1.0f}, true);
 
         Entity dashBoardEntity = world.Create()
                                      .With<Transform>(transform)
