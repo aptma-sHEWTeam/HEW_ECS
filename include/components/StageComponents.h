@@ -23,6 +23,7 @@
 #include <DirectXMath.h> // GoalAttractor 用
 #include "components/Transform.h" // GoalAttractor 用
 #include "components/GameStats.h"
+#include "graphics/StageSave.h"
 
 using namespace std;
 
@@ -56,6 +57,7 @@ struct StageProgress : IComponent {
     int currentRoom = 1; // 現在のルーム番号（同一ステージ内の部屋）
     bool requestAdvance = false;
     bool goalTransitioning = false;
+    bool clearedThisStage = false;
 };
 
 /**
@@ -497,6 +499,16 @@ struct GoalAttractor : Behaviour {
 
         // 進行完了: 次のルームへ進めるリクエストを立てる
         if (tNorm >= 1.0f) {
+
+            w.ForEach<StageProgress>([](Entity, StageProgress &sp) {
+                if (sp.clearedThisStage)
+                    return;
+
+                sp.clearedThisStage = true;
+                StageSave::MarkStageCleared(sp.currentStage);
+            });
+
+
             // ゴールイン直後に制限時間をフルに戻して次ルームへ備える
             w.ForEach<GameStatus>([](Entity, GameStatus &stats) {
                 stats.elapsedTime = cfg_LimitTime;
