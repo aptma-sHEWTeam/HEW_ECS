@@ -52,7 +52,7 @@ class StageSlectScene : public IScene {
         if (!hasStageProgress) {
             world.Create().With<StageProgress>().Build();
         }
-        maxStage_ = GetAvailableStageCount();
+        //maxStage_ = GetAvailableStageCount();
         world.ForEach<StageProgress>([&](Entity, StageProgress &progress) {
             progress.selectStage = std::clamp(progress.selectStage, 1, maxStage_);
             progress.currentStage = std::clamp(progress.currentStage, 1, maxStage_);
@@ -74,6 +74,7 @@ class StageSlectScene : public IScene {
 
         float screenWidth = static_cast<float>(gfx->Width());
         float screenHeight = static_cast<float>(gfx->Height());
+       
 
         //カメラを初期化
         camera_ = Camera::LookAtLH(
@@ -108,15 +109,14 @@ class StageSlectScene : public IScene {
         // Create UI once
         CreateStageSelectUI(world);
 
-        CreateObject(world, {0.0f,0.0f,5.0f});
-        CreateObject(world, {0.0f, 0.0f,-5.0f});
-        CreateObject(world, {5.0f, 0.0f, 0.0f});
-        CreateObject(world, {-5.0f, 0.0f, 0.0f});
-        CreateObject(world, {3.0f, 0.0f, 3.0f});
-        CreateObject(world, {3.0f, 0.0f, -3.0f});
-        CreateObject(world, {-3.0f, 0.0f, 3.0f});
-        CreateObject(world, {-3.0f, 0.0f, -3.0f});
-        
+        CreateObject(world, {5.0f, 0.0f, 0.0f});   //右
+        CreateObject(world, {3.0f, 0.0f, 3.0f});   //右上
+        CreateObject(world, {0.0f,0.0f,5.0f});     //上
+        CreateObject(world, {-3.0f, 0.0f, 3.0f});  //左上
+        CreateObject(world, {-5.0f, 0.0f, 0.0f});  //左
+        CreateObject(world, {-3.0f, 0.0f, -3.0f}); //左下
+        CreateObject(world, {0.0f, 0.0f,-5.0f});   //下
+        CreateObject(world, {3.0f, 0.0f, -3.0f});  //右下
     }
 
     void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
@@ -146,23 +146,26 @@ class StageSlectScene : public IScene {
             }
         }
 
+        const int maxStage = maxStage_;
         world.ForEach<StageProgress>([&](Entity, StageProgress &stats) {
-            const int maxStage = maxStage_;
-
-            if (input.GetKeyDown(VK_RIGHT) && stats.selectStage < maxStage) {
+            if (input.GetKeyDown(VK_RIGHT) && stats.selectStage < maxStage_) {
                 stats.selectStage++;
+                targetAngle_ += DirectX::XM_2PI / maxStage_;
             }
             if (input.GetKeyDown(VK_LEFT) && stats.selectStage > 1) {
                 stats.selectStage--;
+                targetAngle_ -= DirectX::XM_2PI / maxStage_;
             }
 
             GamepadSystem *padsystem2 = ServiceLocator::TryGet<GamepadSystem>();
             if (padsystem2) {
                 if (padsystem2->GetAnyButtonDown({GamepadSystem::Button_DPad_Right, GamepadSystem::Button_B})) {
                     stats.selectStage++;
+                    targetAngle_ -= DirectX::XM_2PI / maxStage_;
                 }
                 if (padsystem2->GetAnyButtonDown({GamepadSystem::Button_DPad_Left, GamepadSystem::Button_X})) {
                     stats.selectStage--;
+                    targetAngle_ += DirectX::XM_2PI / maxStage_;
                 }
             }
 
@@ -175,6 +178,16 @@ class StageSlectScene : public IScene {
                 StageSelectText->text = ss.str();
             }
         });
+       
+        currentAngle_ += (targetAngle_ - currentAngle_) * deltaTime * rotateSpeed_;
+        world.ForEach<Transform, ObjectPos>([&](Entity, Transform &transform, ObjectPos &pos) {
+            float angle = currentAngle_;
+            float x = pos.basepos.x;
+            float z = pos.basepos.z;
+            transform.position.x = x * cosf(angle) - z * sinf(angle);
+            transform.position.z = x * sinf(angle) + z * cosf(angle);
+        });
+
     }
 
     void OnRender(World &world) override {
@@ -208,15 +221,21 @@ class StageSlectScene : public IScene {
      const Camera &GetCameraSelect() const {return camera_;}
 
   private:
+      struct ObjectPos {
+        DirectX::XMFLOAT3 basepos;
+     };
     void CreateObject(World &world, const DirectX::XMFLOAT3 &position) {
         Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
         MeshRenderer renderer;
         renderer.meshType = MeshType::Cube;
         renderer.color = {1.0f, 1.0f, 1.0f};
+        ObjectPos pos;
+        pos.basepos = position;
 
         Entity Object = world.Create()
                             .With<Transform>(transform)
                             .With<MeshRenderer>(renderer)
+                            .With<ObjectPos>(pos)
                             .Build();
 
         objectOwnedEntities_.push_back(Object);
@@ -236,11 +255,14 @@ class StageSlectScene : public IScene {
     float cameraFar_ = 1000.0f;
     DirectX::XMFLOAT3 baseUp_ = {0.0f, 1.0f, 0.0f};
     DirectX::XMFLOAT3 baseTarget_ = {0.0f, 0.0f, 0.0f};
-    DirectX::XMFLOAT3 cameraPosition_ = {6.0f, -2.5f, 0.0f};
+    DirectX::XMFLOAT3 cameraPosition_ = {6.0f, -1.5f, 0.0f};
     DirectX::XMFLOAT3 currentTarget_ = {0.0f, 0.0f, 0.0f};
+    float currentAngle_ = 0.0f;
+    float targetAngle_ = 0.0f;
+    float rotateSpeed_ = 6.0f; 
 
     std::vector<Entity> ownedEntities_{};
     std::vector<Entity> objectOwnedEntities_;
 
-    int maxStage_ = 1;
+    int maxStage_ = 8;
 };
