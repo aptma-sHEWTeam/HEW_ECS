@@ -359,6 +359,8 @@
     <ClInclude Include="libs\Effekseer\Effekseer.h" />
     <ClInclude Include="libs\Effekseer\Effekseer.Modules.h" />
     <ClInclude Include="libs\Effekseer\Effekseer.SIMD.h" />
+    <ClInclude Include="include\graphics\StageSave.h">
+      <Filter>Header Files\graphics</Filter>
     <ClInclude Include="include\systems\SoundSystem.h">
       <Filter>Header Files\systems</Filter>
     </ClInclude>

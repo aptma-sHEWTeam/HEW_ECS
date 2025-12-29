@@ -58,6 +58,8 @@
 #include "graphics/ModelLoader.h"
 #include "graphics/ModelLoader.h"
 #include "components/Animator.h"
+#include "graphics/StageSave.h"
+
 #include "graphics/SkyboxSystem.h"
 #include "graphics/OmniShadowMap.h"
 #include "systems/ShadowRenderSystem.h"
@@ -86,6 +88,13 @@ class GameScene : public IScene {
     void OnEnter(World &world) override {
         DEBUGLOG("<<<<< GameScene::OnEnter CALLED! >>>>>");
         DEBUGLOG("GameWithUIScene::OnEnter() 開始");
+
+         StageSave::Load();
+
+          world.ForEach<StageProgress>([](Entity, StageProgress &sp) {
+          sp.clearedThisStage = false;
+         });
+
 
         // このシーンインスタンスへのグローバルポインタを設定
         g_GameScene = this;
@@ -1314,6 +1323,7 @@ class GameScene : public IScene {
                        .With<GoalTag>()
                        .With<StageElementTag>()
                        .With<CollisionBox>(DirectX::XMFLOAT3{2.0f, 4.0f, 2.0f})
+                       .With<GoalCollisionHandler>()
                        .With<StaticCollider>()
                        .Build();
 
@@ -1321,6 +1331,20 @@ class GameScene : public IScene {
         stageOwnedEntities_.push_back(e);
         EffekseerManager::GetInstance().PlayEffect("Goal", diffPosition, true);
     }
+
+    struct GoalCollisionHandler {
+        void OnHit(World &world, Entity self, Entity other) {
+            if (!world.Has<PlayerTag>(other))
+                return;
+
+            world.ForEach<StageProgress>([](Entity, StageProgress &sp) {
+                if (sp.clearedThisStage)
+                    return;
+                sp.clearedThisStage = true;
+                StageSave::MarkStageCleared(sp.currentStage);
+            });
+        }
+    };
 
     void CreateGoalDoor(World &world, const DirectX::XMFLOAT3 &position) {
         DirectX::XMFLOAT3 a = {};
