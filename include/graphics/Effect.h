@@ -27,6 +27,8 @@ struct LoopInfo
     DirectX::XMFLOAT3 scale;
     DirectX::XMFLOAT3 rotation;
     int handle;
+    int currentHandle;
+    int originalHandle;
 };
 
 class EffekseerManager

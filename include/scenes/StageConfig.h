@@ -8,6 +8,7 @@
 #pragma once
 
 #include <string>
+#include <xaudio2.h>
 #include "config/ConfigVar.h"
 
 // =========================================
@@ -26,7 +27,7 @@ inline ConfigVar<float> cfg_PlayerHeight{"Stage.Player.Appearance", "PlayerHeigh
 inline ConfigVar<float> cfg_FloorR{"Stage.Floor.Visual", "FloorColorR", 0.5f, "床の色 R"};
 inline ConfigVar<float> cfg_FloorG{"Stage.Floor.Visual", "FloorColorG", 0.5f, "床の色 G"};
 inline ConfigVar<float> cfg_FloorB{"Stage.Floor.Visual", "FloorColorB", 0.5f, "床の色 B"};
-inline ConfigVar<float> cfg_FloorYOffset{"Stage.Floor.Geometry", "FloorYOffset", -2.0f, "床メッシュのYオフセット"};
+inline ConfigVar<float> cfg_FloorYOffset{"Stage.Floor.Geometry", "FloorYOffset", -2.5f, "床メッシュのYオフセット"};
 inline ConfigVar<float> cfg_FloorThickness{"Stage.Floor.Geometry", "FloorThickness", 0.2f, "床の厚み"};
 
 // スタートマーカー見た目
@@ -126,5 +127,21 @@ inline ConfigVar<float> cfg_GoalPulseSpeed{"Stage.Goal.Emissive", "GoalPulseSpee
 inline ConfigVar<float> cfg_StartLightRange{"Stage.Start.Light", "StartLightRange", 5.0f, "スタート地点のライト照射距離"};
 inline ConfigVar<float> cfg_GoalLightRange{"Stage.Goal.Light", "GoalLightRange", 8.0f, "ゴール地点のライト照射距離"};
 
+//サウンド設定
+inline ConfigVar<std::string> cfg_ColdMP3Pass{"Stage.Cold.SE", "ColdMP3Pass","Assets/Sound/SE/cold.mp3", "はじき時の風音"};
+inline ConfigVar<std::string> cfg_CollideMP3Pass{"Stage.Collide.SE", "CollideMP3Pass","Assets/Sound/SE/collide.mp3", "衝突時の音"};
+inline ConfigVar<std::string> cfg_DeathMP3Pass{"Stage.Death.SE", "DeathMP3Pass","Assets/Sound/SE/death.mp3", "死亡時の音"};
+inline ConfigVar<std::string> cfg_DriftMP3Pass{"Stage.Drift.SE", "DriftMP3Pass","Assets/Sound/SE/drift.mp3", "ドリフト音"};
+inline ConfigVar<std::string> cfg_Fire1MP3Pass{"Stage.Fire1.SE", "Fire1MP3Pass","Assets/Sound/SE/fire1.mp3", "ジェットパック段階音１"};
+inline ConfigVar<std::string> cfg_Fire2MP3Pass{"Stage.Fire2.SE", "Fire2MP3Pass","Assets/Sound/SE/fire2.mp3", "ジェットパック段階音２"};
+inline ConfigVar<std::string> cfg_Fire3MP3Pass{"Stage.Fire3.SE", "Fire3MP3Pass","Assets/Sound/SE/fire3.mp3", "ジェットパック段階音３"};
+inline ConfigVar<std::string> cfg_SirenMP3Pass{"Stage.Siren.SE", "SirenMP3Pass","Assets/Sound/SE/siren.mp3", "警報音"};
+inline ConfigVar<std::string> cfg_StartMP3Pass{"Stage.Start.SE", "StartMP3Pass","Assets/Sound/SE/start.mp3", "スタート時の音"};
+inline ConfigVar<std::string> cfg_SpeedUpMP3Pass{"Stage.SpeedUp.SE", "SpeedUpMP3Pass","Assets/Sound/SE/speedup.mp3", "加速板の音"};
+inline ConfigVar<std::string> cfg_WarpDownMP3Pass{"Stage.WarpDown.SE", "WarpDownMP3Pass","Assets/Sound/SE/warpdown.mp3", "ワープから出る音"};
+inline ConfigVar<std::string> cfg_WarpUpMP3Pass{"Stage.WarpUp.SE", "WarpUpMP3Pass","Assets/Sound/SE/warpup.mp3", "ワープに入ったときの音"};
+inline ConfigVar<float> cfg_MasterVolume{"Stage.Master.Volume", "MasterVolume", 1.0f, "マスタの大きさ"};
+inline ConfigVar<float> cfg_BGMVolume{"Stage.BGM.Volume", "BGMVolume", 1.0f, "BGMの大きさ"};
+inline ConfigVar<float> cfg_SEVolume{"Stage.SE.Volume", "SEVolume", 0.6f, "SEの大きさ"};
 // プレイヤー移動設定
 inline static ConfigVar<float> cfg_AccelerateAccfication{"Player.Movement", "AccelerateAccfication", 1.5f, "加速版接触時の加速倍率"};
