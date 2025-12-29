@@ -24,7 +24,8 @@ struct LoopInfo
 {
     std::string effectName;
     DirectX::XMFLOAT3 position;
-    int handle;
+    int currentHandle;
+    int originalHandle;
 };
 
 class EffekseerManager
@@ -47,6 +48,8 @@ class EffekseerManager
    void StopEffect(const std::string &effectName); ///<指定した名前のエフェクトを停止
 
    void SetCamera(const Camera& camera);		///<カメラ処理
+
+   void SetEffectPosition(int handle, DirectX::XMFLOAT3 pos);
 
    void Update();			///<更新処理
    void Draw(const Camera& camera);				///<描画処理

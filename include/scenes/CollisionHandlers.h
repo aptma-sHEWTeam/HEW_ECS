@@ -13,6 +13,7 @@
 #include "components/PlayerComponents.h"
 #include "components/StageComponents.h"
 #include "components/GameStats.h"
+#include "systems/SoundSystem.h"
 #include "graphics/Effect.h"
 #include <limits>
 
@@ -64,7 +65,7 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
             t->position = mo.startPos;
         }
     });
-    
+
     DirectX::XMFLOAT3 spawnMin{
         std::numeric_limits<float>::max(),
         std::numeric_limits<float>::max(),
@@ -100,6 +101,7 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
 
         if (auto *tPlayer = w.TryGet<Transform>(player)) {
             tPlayer->position = spawnPoint;
+            EffekseerManager::GetInstance().PlayEffect("WarpOut", tPlayer->position, false);
         }
 
         if (auto *vPlayer = w.TryGet<PlayerVelocity>(player)) {
@@ -124,6 +126,11 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
             stats.waitingForPlayerMove = true;
             stats.timerRunning = false;
         });
+
+        // ゴール遷移フラグをクリアして、プレイヤーが再び操作可能になるようにする
+        w.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+            sp.goalTransitioning = false;
+        });
     }
 }
 
@@ -136,12 +143,13 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
 inline void CheckTimeLimit(World &w, Entity player, float timeLimitSeconds) {
     // GameStatusコンポーネントを持つエンティティを検索
     w.ForEach<GameStatus>([&](Entity e, GameStatus &stats) {
-        
+
         // 経過時間が制限時間を超えたかチェック
         if (stats.elapsedTime <= 0) {
             DEBUGLOG("Timeout");
             GameScene_OnTimeUp(w, player);
             stats.elapsedTime = timeLimitSeconds;
+
         }
     });
 }
@@ -163,22 +171,79 @@ struct PlayerCollisionHandler : ICollisionHandler {
                 w.Has<GoalAttractor>(self)) {
                 return;
             }
+
+            // 壁越しゴール対策: プレイヤーとゴールの間に壁(WallTag)があるかレイキャストで簡易チェック
+            auto *tPlayer = w.TryGet<Transform>(self);
+            auto *tGoal = w.TryGet<Transform>(other);
+            if (tPlayer && tGoal) {
+                DirectX::XMFLOAT3 startPos = tPlayer->position;
+                DirectX::XMFLOAT3 endPos = ResolvePlacementCenter(w, other, *tGoal); // ゴール中心
+
+                DirectX::XMVECTOR vStart = DirectX::XMLoadFloat3(&startPos);
+                DirectX::XMVECTOR vEnd = DirectX::XMLoadFloat3(&endPos);
+                DirectX::XMVECTOR vDiff = DirectX::XMVectorSubtract(vEnd, vStart);
+                DirectX::XMVECTOR vDist = DirectX::XMVector3Length(vDiff);
+                float dist = DirectX::XMVectorGetX(vDist);
+
+                if (dist > 1e-4f) {
+                    DirectX::XMVECTOR vDir = DirectX::XMVectorScale(vDiff, 1.0f / dist);
+                    
+                    bool blocked = false;
+                    // 全てのWallTagを持つエンティティに対してレイキャスト
+                    // Note: World::ForEachは2コンポーネントまでしかサポートしていないため、Transformは内部で取得
+                    w.ForEach<WallTag, CollisionBox>([&](Entity e, WallTag&, CollisionBox& box) {
+                        if (blocked) return; // 既にブロックされていたらスキップ
+                        
+                        auto* tWallPtr = w.TryGet<Transform>(e);
+                        if (!tWallPtr) return;
+                        const Transform& tWall = *tWallPtr;
+
+                        // 壁のAABBを作成
+                        DirectX::XMFLOAT3 center = box.GetWorldCenter(tWall);
+                        DirectX::XMFLOAT3 scaledSize = box.GetScaledSize(tWall);
+                        DirectX::XMFLOAT3 extents = {scaledSize.x * 0.5f, scaledSize.y * 0.5f, scaledSize.z * 0.5f};
+                        
+                        DirectX::BoundingBox aabb(center, extents);
+                        float hitDist = 0.0f;
+                        // レイ判定 (origin, direction, dist)
+                        if (aabb.Intersects(vStart, vDir, hitDist)) {
+                             // プレイヤーより先、かつゴールより手前でヒットしたか
+                             // (近い壁ほどhitDistは小さい。0なら自分の中。)
+                             if (hitDist > 0.1f && hitDist < dist - 0.2f) { // マージンを考慮
+                                 blocked = true;
+                                 DEBUGLOG("Goal blocked by wall entity " + std::to_string(e.id));
+                             }
+                        }
+                    });
+
+                    if (blocked) {
+                        return; // 壁があるのでゴールしない
+                    }
+                }
+            }
+
             if (progress) progress->goalTransitioning = true;
             if (goalTag) goalTag->consumed = true;
             DEBUGLOG("Player reached goal");
-            
+
             //ゴールエフェクト停止
             EffekseerManager::GetInstance().StopEffect("Goal");
 
             // ゆっくり吸い込み: ゴール中心へイージングで寄せる
-            auto *tPlayer = w.TryGet<Transform>(self);
-            auto *tGoal = w.TryGet<Transform>(other);
-            
+            // tPlayer, tGoalは既に上で取得済み
+
             //エフェクト実装：ゴールとリンク
-            EffekseerManager::GetInstance().PlayEffect("WarpIn",tGoal->position, false);
-            
+            if (tGoal) {
+                 EffekseerManager::GetInstance().PlayEffect("WarpIn",tGoal->position, false);
+            }
+
+
             if (tPlayer && tGoal) {
                 const DirectX::XMFLOAT3 goalCenter = ResolvePlacementCenter(w, other, *tGoal);
+
+               int handle =  EffekseerManager::GetInstance().PlayEffect("WarpIn", tPlayer->position, false);
+            
+                
                 // 速度をリセット
                 if (auto *v = w.TryGet<PlayerVelocity>(self)) {
                     v->velocity = {0.0f, 0.0f};
@@ -191,8 +256,10 @@ struct PlayerCollisionHandler : ICollisionHandler {
                 GoalAttractor attract;
                 attract.target = goalCenter;
                 attract.duration = 0.15f; // よりゆっくり(秒)
+                attract.effectHandle = handle;
                 
                 w.Add<GoalAttractor>(self, attract);
+                SOUND_SYS.PlaySE(cfg_WarpUpMP3Pass.Get());
             }
         }
     }
@@ -208,6 +275,7 @@ struct EnemyCollisionHandler : ICollisionHandler {
         if (w.Has<PlayerTag>(other)) {
             DEBUGLOG("Enemy collided with player");
         }
+        SOUND_SYS.PlaySE(cfg_CollideMP3Pass);
     }
 };
 REGISTER_COLLISION_HANDLER_TYPE(EnemyCollisionHandler)
@@ -218,6 +286,7 @@ REGISTER_COLLISION_HANDLER_TYPE(EnemyCollisionHandler)
  */
 struct WallCollisionHandler : ICollisionHandler {
     void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override;
+
 };
 REGISTER_COLLISION_HANDLER_TYPE(WallCollisionHandler)
 
@@ -238,13 +307,17 @@ struct DashBordCollisionHandler : ICollisionHandler {
     void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override {
         auto *v = w.TryGet<PlayerVelocity>(other);              //速度コンポーネント取得
         auto *dash = w.TryGet<DashBoardStatus>(self);           //加速板のステータス取得
+        auto *tDashBord = w.TryGet<Transform>(other);
+        auto *tSelf = w.TryGet<Transform>(self);                
         if (!w.Has<PlayerTag>(other) || !v || !dash) {
             return;
         }
 
         const float angleRad = DirectX::XMConvertToRadians(dash->accelAngle);
         const DirectX::XMFLOAT2 boostDir{std::cosf(angleRad), std::sinf(angleRad)};
-        const float boostSpeed = v->speed * v->Acceleration;
+        const float boostSpeed = v->speed * v->Acceleration * cfg_AccelerateAccfication;
+
+         EffekseerManager::GetInstance().PlayEffect("SpeedUp", tSelf->position);
 
         // 現在の速度を無視して、指定角度・指定大きさで上書き
         v->boostDir = boostDir;
@@ -253,6 +326,8 @@ struct DashBordCollisionHandler : ICollisionHandler {
         v->velocity.y = boostDir.y * boostSpeed;
         v->isBoosting = true;
         v->isDecelerating = false;
+
+        SOUND_SYS.PlaySE(cfg_SpeedUpMP3Pass);
 
         DEBUGLOG("プレイヤーが加速板と接触 - 速度付与");
     }

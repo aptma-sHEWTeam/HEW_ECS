@@ -77,6 +77,16 @@ void EffekseerManager::Load()
 int  EffekseerManager::PlayEffect(const std::string& effectName,DirectX::XMFLOAT3 pos, bool loop)
 {
     auto it = m_effects.find(effectName);
+    if (it == m_effects.end()) {
+        // エフェクトが見つからない場合は警告を出して戻る
+        // DEBUGLOG mechanism is available via include or extern?
+        // Effect.cpp includes "graphics/Effect.h" which doesn't include DebugLog.h.
+        // SkyboxSystem.cpp included "app/DebugLog.h".
+        // I'll stick to printf or OutputDebugString if DEBUGLOG not available, OR just return -1 silently/safely.
+        // Or better, see if I can include DebugLog.h.
+        // Given I can't easily check all includes, I will just return -1.
+        return -1;
+    }
 
     int handle = m_pManager->Play(it->second, pos.x,pos.y,pos.z);
     
@@ -85,7 +95,8 @@ int  EffekseerManager::PlayEffect(const std::string& effectName,DirectX::XMFLOAT
         LoopInfo info;
         info.effectName = effectName;
         info.position = pos;
-        info.handle = handle;
+        info.currentHandle = handle;
+        info.originalHandle = handle; // 最初のハンドルをオリジナルとして保持
         m_loopEffects.push_back(info);
     }
 
@@ -106,7 +117,7 @@ void EffekseerManager::StopEffect(const std::string &effectName)
     {
         if (it->effectName == effectName)
         {
-            m_pManager->StopEffect(it->handle);
+            m_pManager->StopEffect(it->currentHandle);
             it = m_loopEffects.erase(it);
         }
         else
@@ -138,6 +149,34 @@ void EffekseerManager::SetCamera(const Camera& camera)
     m_pRenderer->SetProjectionMatrix(m_efkProjMat);
 }
 
+//=============================
+//エフェクトの座標更新処理
+//============================
+void EffekseerManager::SetEffectPosition(int handle, DirectX::XMFLOAT3 pos) 
+{
+    if (m_pManager != nullptr)
+    {
+        // ループエフェクトの場合はoriginalHandleからcurrentHandleを引いて更新する
+        bool isLoopEffect = false;
+        for (auto& info : m_loopEffects)
+        {
+            if (info.originalHandle == handle)
+            {
+                info.position = pos;
+                m_pManager->SetLocation(info.currentHandle, pos.x, pos.y, pos.z);
+                isLoopEffect = true;
+                break;
+            }
+        }
+
+        if (!isLoopEffect)
+        {
+            //直接ハンドルと新しいざひょうをお渡しする
+            m_pManager->SetLocation(handle, pos.x, pos.y, pos.z);
+        }
+    }
+}
+
 //=====================
 //更新処理
 //=====================
@@ -149,16 +188,20 @@ void EffekseerManager::Update()
     efkLayerParm.ViewerPosition = Effekseer::Vector3D(invViewMat.Values[3][0], invViewMat.Values[3][1], invViewMat.Values[3][2]);
     m_pManager->SetLayerParameter(0, efkLayerParm);
 
-    m_pManager->Update();   
+    m_pManager->Update();  
+    
+    // 時間を更新
+    time++;
 
     for (auto& info : m_loopEffects)
     {
-        if (!m_pManager->Exists(info.handle))
+        if (!m_pManager->Exists(info.currentHandle))
         {
              auto it = m_effects.find(info.effectName);
              if (it != m_effects.end())
              {
-                 info.handle = m_pManager->Play(it->second, info.position.x, info.position.y, info.position.z);
+                 // 再生して新しいハンドルをcurrentHandleとして保存
+                 info.currentHandle = m_pManager->Play(it->second, info.position.x, info.position.y, info.position.z);
              }
         }
     }

@@ -382,7 +382,112 @@ public:
         DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "TextureManager::Shutdown() 完了");
     }
 
+    /**
+     * @brief キューブマップを読み込み
+     * @param[in] filepaths 6つの画像ファイルパス (順序: +X, -X, +Y, -Y, +Z, -Z)
+     * @return TextureHandle テクスチャハンドル
+     */
+    TextureHandle LoadCubemap(const std::vector<std::string>& filepaths) {
+        if (filepaths.size() != 6) {
+            DEBUGLOG_ERROR("LoadCubemap: 6つのファイルパスが必要です");
+            return INVALID_TEXTURE;
+        }
+
+        std::vector<std::vector<uint8_t>> facePixels(6);
+        UINT width = 0, height = 0;
+
+        for (int i = 0; i < 6; ++i) {
+            UINT w, h;
+            if (!LoadImageBytes(filepaths[i].c_str(), facePixels[i], w, h)) {
+                DEBUGLOG_ERROR("LoadCubemap: 画像の読み込みに失敗 - " + filepaths[i]);
+                return INVALID_TEXTURE;
+            }
+            if (i == 0) {
+                width = w;
+                height = h;
+            } else {
+                if (w != width || h != height) {
+                    DEBUGLOG_ERROR("LoadCubemap: 画像サイズが一致しません - " + filepaths[i]);
+                    return INVALID_TEXTURE;
+                }
+            }
+        }
+
+        D3D11_TEXTURE2D_DESC texDesc = {};
+        texDesc.Width = width;
+        texDesc.Height = height;
+        texDesc.MipLevels = 1;
+        texDesc.ArraySize = 6;
+        texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
+        texDesc.SampleDesc.Count = 1;
+        texDesc.Usage = D3D11_USAGE_DEFAULT;
+        texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+        texDesc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE;
+
+        D3D11_SUBRESOURCE_DATA initData[6];
+        for (int i = 0; i < 6; ++i) {
+            initData[i].pSysMem = facePixels[i].data();
+            initData[i].SysMemPitch = width * 4;
+            initData[i].SysMemSlicePitch = 0;
+        }
+
+        Microsoft::WRL::ComPtr<ID3D11Texture2D> texture;
+        HRESULT hr = gfx_->Dev()->CreateTexture2D(&texDesc, initData, &texture);
+        if (FAILED(hr)) {
+            DEBUGLOG_ERROR("LoadCubemap: Texture2Dの作成に失敗");
+            return INVALID_TEXTURE;
+        }
+
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Format = texDesc.Format;
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
+        srvDesc.TextureCube.MipLevels = 1;
+        srvDesc.TextureCube.MostDetailedMip = 0;
+
+        Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv;
+        hr = gfx_->Dev()->CreateShaderResourceView(texture.Get(), &srvDesc, &srv);
+        if (FAILED(hr)) {
+            DEBUGLOG_ERROR("LoadCubemap: SRVの作成に失敗");
+            return INVALID_TEXTURE;
+        }
+
+        TextureHandle handle = nextHandle_++;
+        TextureData texData;
+        texData.texture = texture;
+        texData.srv = srv;
+        texData.width = width;
+        texData.height = height;
+        textures_[handle] = texData;
+
+        return handle;
+    }
+
 private:
+    bool LoadImageBytes(const char* filepath, std::vector<uint8_t>& outPixels, UINT& outWidth, UINT& outHeight) {
+        if (!wicFactory_) return false;
+
+        wchar_t wpath[MAX_PATH];
+        MultiByteToWideChar(CP_ACP, 0, filepath, -1, wpath, MAX_PATH);
+
+        Microsoft::WRL::ComPtr<IWICBitmapDecoder> decoder;
+        if (FAILED(wicFactory_->CreateDecoderFromFilename(wpath, nullptr, GENERIC_READ, WICDecodeMetadataCacheOnDemand, &decoder))) return false;
+
+        Microsoft::WRL::ComPtr<IWICBitmapFrameDecode> frame;
+        if (FAILED(decoder->GetFrame(0, &frame))) return false;
+
+        Microsoft::WRL::ComPtr<IWICFormatConverter> converter;
+        if (FAILED(wicFactory_->CreateFormatConverter(&converter))) return false;
+
+        if (FAILED(converter->Initialize(frame.Get(), GUID_WICPixelFormat32bppRGBA, WICBitmapDitherTypeNone, nullptr, 0.0, WICBitmapPaletteTypeCustom))) return false;
+
+        if (FAILED(converter->GetSize(&outWidth, &outHeight))) return false;
+
+        outPixels.resize(outWidth * outHeight * 4);
+        if (FAILED(converter->CopyPixels(nullptr, outWidth * 4, static_cast<UINT>(outPixels.size()), outPixels.data()))) return false;
+
+        return true;
+    }
+
     /**
      * @struct TextureData
      * @brief テクスチャの内部データ

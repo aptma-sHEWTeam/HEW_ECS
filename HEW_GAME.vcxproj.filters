@@ -129,8 +129,9 @@
     <ClCompile Include="src\graphics\Effect.cpp">
       <Filter>Source Files\graphics</Filter>
     </ClCompile>
-    <ClCompile Include="StageUI.cpp">
-      <Filter>Source Files\scenes</Filter>
+    <ClCompile Include="StageUI.cpp" />
+    <ClCompile Include="src\systems\SoundSystem.cpp">
+      <Filter>Source Files\systems</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -360,6 +361,8 @@
     <ClInclude Include="libs\Effekseer\Effekseer.SIMD.h" />
     <ClInclude Include="include\graphics\StageSave.h">
       <Filter>Header Files\graphics</Filter>
+    <ClInclude Include="include\systems\SoundSystem.h">
+      <Filter>Header Files\systems</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -113,7 +113,6 @@
       <AdditionalIncludeDirectories>$(ProjectDir)include;libs/Effekseer;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -172,7 +171,7 @@
       <AdditionalIncludeDirectories>$(ProjectDir)include;libs/Effekseer;$(ProjectDir)libs\assimp-6.0.2\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <AdditionalOptions>/utf-8 /bigobj %(AdditionalOptions)</AdditionalOptions>
       <Optimization>Disabled</Optimization>
-      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
     </ClCompile>
     <Link>
@@ -238,6 +237,8 @@
     <ClCompile Include="src\graphics\Effect.cpp" />
     <ClCompile Include="src\graphics\ImageSystem.cpp" />
     <ClCompile Include="src\graphics\ModelLoader.cpp" />
+    <ClCompile Include="src\systems\ShadowRenderSystem.cpp" />
+    <ClCompile Include="src\graphics\SkyboxSystem.cpp" />
     <ClCompile Include="src\graphics\TextSystem.cpp" />
     <ClCompile Include="src\input\GamepadSystem.cpp" />
     <ClCompile Include="src\main.cpp" />
@@ -246,6 +247,7 @@
     <ClCompile Include="src\systems\AnimationSystem.cpp" />
     <ClCompile Include="src\systems\EmissiveRenderSystem.cpp" />
     <ClCompile Include="src\systems\LightSystem.cpp" />
+    <ClCompile Include="src\systems\SoundSystem.cpp" />
     <ClCompile Include="src\systems\SpatialHashGrid.cpp" />
     <ClCompile Include="StageUI.cpp" />
   </ItemGroup>
@@ -254,6 +256,7 @@
     <ClInclude Include="include\systems\AnimationSystem.h" />
     <ClInclude Include="include\Effekseer\EffekseerRendererDX11.h" />
     <ClInclude Include="include\graphics\Effect.h" />
+    <ClInclude Include="include\systems\SoundSystem.h" />
     <ClInclude Include="libs\Effekseer\Effekseer.h" />
     <ClInclude Include="libs\Effekseer\Effekseer.Modules.h" />
     <ClInclude Include="libs\Effekseer\Effekseer.SIMD.h" />
@@ -301,6 +304,7 @@
     <ClInclude Include="include\graphics\MaterialConstantBuffer.h" />
     <ClInclude Include="include\graphics\ModelLoader.h" />
     <ClInclude Include="include\graphics\RenderSystem.h" />
+    <ClInclude Include="include\graphics\SkyboxSystem.h" />
     <ClInclude Include="include\graphics\TextSystem.h" />
     <ClInclude Include="include\graphics\TextureManager.h" />
     <ClInclude Include="include\graphics\VideoPlayer.h" />
@@ -324,7 +328,9 @@
     <ClInclude Include="include\systems\EmissiveRenderSystem.h" />
     <ClInclude Include="include\systems\LightSystem.h" />
     <ClInclude Include="include\systems\ModelLoadingSystem.h" />
+    <ClInclude Include="include\graphics\OmniShadowMap.h" />
     <ClInclude Include="include\systems\RenderingSystem.h" />
+    <ClInclude Include="include\systems\ShadowRenderSystem.h" />
     <ClInclude Include="include\systems\SpatialHashGrid.h" />
     <ClInclude Include="include\systems\TransformHierarchySystem.h" />
     <ClInclude Include="include\systems\UISystem.h" />
