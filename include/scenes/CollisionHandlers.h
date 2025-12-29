@@ -101,7 +101,7 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
 
         if (auto *tPlayer = w.TryGet<Transform>(player)) {
             tPlayer->position = spawnPoint;
-            EffekseerManager::GetInstance().PlayEffect("WarpOut", tPlayer->position, false);
+            EffekseerManager::GetInstance().PlayEffect("WarpOut", tPlayer->position, {1.0f, 1.0f, 1.0f}, false);
         }
 
         if (auto *vPlayer = w.TryGet<PlayerVelocity>(player)) {
@@ -228,6 +228,7 @@ struct PlayerCollisionHandler : ICollisionHandler {
 
             //ゴールエフェクト停止
             EffekseerManager::GetInstance().StopEffect("Goal");
+            EffekseerManager::GetInstance().StopEffect("SpeedUp");
 
             // ゆっくり吸い込み: ゴール中心へイージングで寄せる
             // tPlayer, tGoalは既に上で取得済み
@@ -241,7 +242,7 @@ struct PlayerCollisionHandler : ICollisionHandler {
             if (tPlayer && tGoal) {
                 const DirectX::XMFLOAT3 goalCenter = ResolvePlacementCenter(w, other, *tGoal);
 
-               int handle =  EffekseerManager::GetInstance().PlayEffect("WarpIn", tPlayer->position, false);
+               int handle = EffekseerManager::GetInstance().PlayEffect("WarpIn", tPlayer->position, {1.0f,1.0f,1.0f}, false);
             
                 
                 // 速度をリセット
@@ -317,7 +318,8 @@ struct DashBordCollisionHandler : ICollisionHandler {
         const DirectX::XMFLOAT2 boostDir{std::cosf(angleRad), std::sinf(angleRad)};
         const float boostSpeed = v->speed * v->Acceleration * cfg_AccelerateAccfication;
 
-         EffekseerManager::GetInstance().PlayEffect("SpeedUp", tSelf->position);
+        //加速板のエフェクト(プレイヤーが加速板に触れたらエフェクトが出る)
+        // EffekseerManager::GetInstance().PlayEffect("SpeedUp", tSelf->position);
 
         // 現在の速度を無視して、指定角度・指定大きさで上書き
         v->boostDir = boostDir;
