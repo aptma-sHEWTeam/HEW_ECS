@@ -1508,7 +1508,7 @@ class GameScene : public IScene {
         status.accelAngle = csvAngleDeg;
 
         //加速板のエフェクト常時出力
-        EffekseerManager::GetInstance().PlayEffect("SpeedUp", transform.position, {1.0f, 1.0f, 1.0f}, true);
+        EffekseerManager::GetInstance().PlayEffect("DashBoard", transform.position, {1.0f, 1.0f, 1.0f}, true);
 
         Entity dashBoardEntity = world.Create()
                                      .With<Transform>(transform)

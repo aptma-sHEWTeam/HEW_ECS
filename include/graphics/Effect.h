@@ -49,13 +49,11 @@ class EffekseerManager
    void StopEffect(const std::string &effectName); ///<指定した名前のエフェクトを停止
    void StopEffectHandle(Effekseer::Handle handle);///<確保したハンドルをわたして停止
 
-   void SetEffectScale(int handle, DirectX::XMFLOAT3 scale);
-
    void SetCamera(const Camera& camera);		///<カメラ処理
 
    void SetEffectPosition(int handle, DirectX::XMFLOAT3 pos);
    void SetEffectRotation(Effekseer::Handle handle, DirectX::XMFLOAT3 rotation);
-
+   void SetEffectScale(int handle, DirectX::XMFLOAT3 scale);
    void Update();			///<更新処理
    void Draw(const Camera& camera);				///<描画処理
    

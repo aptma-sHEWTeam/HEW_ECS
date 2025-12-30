@@ -189,38 +189,70 @@ struct PlayerMovement : Behaviour {
     //通常時のエフェクト状態
     EffectState currentEffectState = EffectState::Idle;
 
-    Effekseer::Handle chargeEffectHandle = -1;
-    Effekseer::Handle releaseEffectHandle = -1;
+    //エフェクト左右で出力するために配列で管理
+    Effekseer::Handle chargeEffectHandle[2]  = {-1, -1};
+    Effekseer::Handle releaseEffectHandle[2] = {-1, -1};
 
     void SwitchEffect(World& w, Entity self,EffectState newState)
     {
         auto *t = w.TryGet<Transform>(self);
-        
-        DirectX::XMFLOAT3 offsetPos = t->position;
-        offsetPos.z += -0.2f;
-        offsetPos.y += 0.5f;
 
-        if (chargeEffectHandle != -1) 
+        //角度をラジアンに変換
+        float rad = t->rotation.y * (DirectX::XM_PI / 180.0f);
+    
+        //方向ベクトルを割り出す計算
+        //前
+        float forwardX = -std::sinf(rad);
+        float forwardZ = -std::cosf(rad);
+        //横
+        float rightX = std::cosf(rad);
+        float rightZ = -std::sinf(rad);
+
+        //今あるエフェクトの全停止
+        for (int i = 0;i < 2; i++)
         {
-            EffekseerManager::GetInstance().StopEffectHandle(chargeEffectHandle);
-            chargeEffectHandle = -1;
-        }
-        if (releaseEffectHandle != -1) {
-            EffekseerManager::GetInstance().StopEffectHandle(releaseEffectHandle);
-            releaseEffectHandle = -1;
+            if (chargeEffectHandle[i] != -1) 
+            {
+                EffekseerManager::GetInstance().StopEffectHandle(chargeEffectHandle[i]);
+                chargeEffectHandle[i] = -1;
+            }
+            if (releaseEffectHandle[i] != -1) 
+            {
+                EffekseerManager::GetInstance().StopEffectHandle(releaseEffectHandle[i]);
+                releaseEffectHandle[i] = -1;
+            }
         }
 
         currentEffectState = newState;
+
+        //エフェクトの配置設定
+        static const float sides[] = {1.0f, -1.0f};
+        float sideOffset = 0.1f;    //左右幅
+        float backOffset = 0.1f;    //プレイヤーとの距離
         
+        //エフェクト2個同時出力の処理
+        auto playTwoEffect = [&](const char *effectName, Effekseer::Handle *handle) 
+        {
+            for (int i = 0; i < 2; i++)
+            {
+                DirectX::XMFLOAT3 Pos = t->position;
+
+                Pos.x += (forwardX * backOffset) + (rightX * sideOffset * sides[i]);
+                Pos.z += (forwardZ * backOffset) + (rightZ * sideOffset * sides[i]);
+                Pos.y += 0.5f;
+                handle[i] = EffekseerManager::GetInstance().PlayEffect(effectName, Pos, {0.1f, 0.1f, 0.1f}, false);
+            }
+        };
+       
         switch (newState)
         {
             case EffectState::Idle:     //通常時はエフェクトなし
                 break;
             case EffectState::Charging:
-                chargeEffectHandle = EffekseerManager::GetInstance().PlayEffect("FireFirst", offsetPos, {0.1f, 0.1f, 0.1f}, false);
+                playTwoEffect("FireFirst", chargeEffectHandle);
                 break;
             case EffectState::Relesing:
-                releaseEffectHandle = EffekseerManager::GetInstance().PlayEffect("FireFirstToSec", offsetPos, {0.1f, 0.1f, 0.1f}, false);
+                playTwoEffect("FireFirstToSec", releaseEffectHandle);
                 break;
         }
     }
@@ -353,19 +385,45 @@ struct PlayerMovement : Behaviour {
                 isCharging_ = false;
             }
 
-            if (chargeEffectHandle != -1)
+            //角度をラジアンに変換
+            float rad = t->rotation.y * (DirectX::XM_PI / 180.0f);
+            //方向ベクトルを割り出す計算
+            //前
+            float forwardX = -std::sinf(rad);
+            float forwardZ = -std::cosf(rad);
+            //横
+            float rightX = std::cosf(rad);
+            float rightZ = -std::sinf(rad);
+
+             //エフェクトの配置設定
+            static const float sides[] = {1.0f, -1.0f};
+            float sideOffset = 0.1f; //左右幅
+            float backOffset = 0.1f; //プレイヤーとの距離
+
+            //エフェクトの更新処理
+            auto updateHandle = [&](Effekseer::Handle *handle)
             {
-                DirectX::XMFLOAT3 pos = t->position;
-                pos.z += -0.2f;
-                pos.y += 0.5f;
-                EffekseerManager::GetInstance().SetEffectPosition(chargeEffectHandle, pos);
+                //今あるエフェクトの全停止
+                for (int i = 0; i < 2; i++)
+                {
+                    DirectX::XMFLOAT3 pos = t->position;
+                    pos.x += (forwardX * backOffset) + (rightX * sideOffset * sides[i]);
+                    pos.z += (forwardZ * backOffset) + (rightZ * sideOffset * sides[i]);
+                    pos.y += 0.5f;
+                    EffekseerManager::GetInstance().SetEffectPosition(handle[i], pos);
+                }
+                
+            };
+
+            if (currentEffectState == EffectState::Charging)
+            {
+                updateHandle(chargeEffectHandle);
             }
-            if (releaseEffectHandle != -1) {
-                DirectX::XMFLOAT3 pos = t->position;
-                pos.z += -0.2f;
-                pos.y += 0.5f;
-                EffekseerManager::GetInstance().SetEffectPosition(releaseEffectHandle, pos);
+            if (currentEffectState == EffectState::Relesing)
+            {
+                updateHandle(releaseEffectHandle);
             }
+
 
             // 減速をまず反映してから移動
             v->UpdateVelocity(inputDir, dt);

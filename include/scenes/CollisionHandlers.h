@@ -170,14 +170,15 @@ struct PlayerCollisionHandler : ICollisionHandler {
 
             //ゴールエフェクト停止
             EffekseerManager::GetInstance().StopEffect("Goal");
-            EffekseerManager::GetInstance().StopEffect("SpeedUp");
+            EffekseerManager::GetInstance().StopEffect("DashBoard");
+            EffekseerManager::GetInstance().StopEffect("FireFirstToSec");
 
             // ゆっくり吸い込み: ゴール中心へイージングで寄せる
             auto *tPlayer = w.TryGet<Transform>(self);
             auto *tGoal = w.TryGet<Transform>(other);
 
             //エフェクト実装：ゴールとリンク
-            EffekseerManager::GetInstance().PlayEffect("WarpIn",tGoal->position, false);
+            EffekseerManager::GetInstance().PlayEffect("WarpIn", tGoal->position, {0,0,0}, false);
 
             if (tPlayer && tGoal) {
                 const DirectX::XMFLOAT3 goalCenter = ResolvePlacementCenter(w, other, *tGoal);
@@ -256,7 +257,7 @@ struct DashBordCollisionHandler : ICollisionHandler {
         const float boostSpeed = v->speed * v->Acceleration * cfg_AccelerateAccfication;
 
         //加速板のエフェクト(プレイヤーが加速板に触れたらエフェクトが出る)
-        // EffekseerManager::GetInstance().PlayEffect("SpeedUp", tSelf->position);
+        // EffekseerManager::GetInstance().PlayEffect("WarpIn", tSelf->position,{});
 
         // 現在の速度を無視して、指定角度・指定大きさで上書き
         v->boostDir = boostDir;
