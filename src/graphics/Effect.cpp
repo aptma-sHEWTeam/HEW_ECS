@@ -65,10 +65,16 @@ void EffekseerManager::UnInit()
 //=====================
 void EffekseerManager::Load() 
 {
+    //--- ゴール関連 ---
     m_effects["Goal"]           = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/Goal/efe_goal.efkefc");
-    m_effects["SpeedUp"]        = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/SpeedUp/efe_speedUp2.efkefc");
-    m_effects["WarpIn"]         = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/Warp/warpin_effect.efkefc");
-    m_effects["WarpOut"]        = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/Warp/warpout_effect.efkefc");
+    m_effects["WarpIn"] = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/Warp/warpin_effect.efkefc");
+    m_effects["WarpOut"] = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/Warp/warpout_effect.efkefc");
+
+    //--- 加速板関連 ---
+    m_effects["DashBoard"]      = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/SpeedUp/efe_SpeedUp2.efkefc");
+    m_effects["SpeedUp"] = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/SpeedUp/efe_SpeedUp.efkefc");
+
+    //--- 炎関連 ---
     m_effects["FireFirst"]      = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/Fire/fire flare.efkefc");
     m_effects["FireFirstToSec"] = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/Fire/fire middle.efkefc");
     m_effects["FireThird"]      = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/Fire/flare 2.efkefc");
@@ -153,15 +159,6 @@ void EffekseerManager::StopEffectHandle(Effekseer::Handle handle)
     }
 }
 
-void EffekseerManager::SetEffectScale(int handle, DirectX::XMFLOAT3 scale)
-{
-    if (m_pManager != nullptr && m_pManager->Exists(handle))
-    {
-        m_pManager->SetScale(handle, scale.x, scale.y, scale.z);
-    }
-}
-
-
 //=====================
 //カメラ処理
 //=====================
@@ -223,6 +220,16 @@ void EffekseerManager::SetEffectRotation(Effekseer::Handle handle, DirectX::XMFL
     float radZ = rotation.z * (DirectX::XM_PI / 180.0f);
 
     m_pManager->SetRotation(handle, radX, radY, radZ);
+}
+
+//=============================
+//エフェクトの大きさ更新処理
+//============================
+void EffekseerManager::SetEffectScale(int handle, DirectX::XMFLOAT3 scale)
+{
+    if (m_pManager != nullptr && m_pManager->Exists(handle)) {
+        m_pManager->SetScale(handle, scale.x, scale.y, scale.z);
+    }
 }
 
 //=====================
