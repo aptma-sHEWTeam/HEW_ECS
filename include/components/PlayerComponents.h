@@ -23,6 +23,7 @@
 // GameScene 定義への依存を避けるため、グローバル参照宣言のみを利用
 #include "scenes/CollisionHandlers.h"
 #include "components/StageComponents.h"
+#include "systems/SoundSystem.h"
 
 // 前方宣言と外部参照（インライン定義は CollisionHandlers.h 内）
 class GameScene; extern GameScene* g_GameScene; extern bool g_respawnPending;
@@ -299,6 +300,38 @@ struct PlayerMovement : Behaviour {
         });
         if (startBlocked) { restoreCollisionRadius(); return; }
 
+        // ゴール演出中（GoalAttractor存在時）は入力を無効化し、速度を0にロック
+        if (w.Has<GoalAttractor>(self)) {
+            v->velocity = {0.0f, 0.0f};
+            v->isBoosting = false;
+            v->isDecelerating = false;
+            v->boostSpeed = 0.0f;
+            restoreCollisionRadius();
+            ResetAngleHistory();
+            isCharging_ = false;
+            wasCharging_ = false;
+            wasChargingPrev_ = false;
+            return;
+        }
+
+        // ゴール遷移中（スタート位置にスポーンするまで）も入力をブロック
+        bool isGoalTransitioning = false;
+        w.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+            if (sp.goalTransitioning) isGoalTransitioning = true;
+        });
+        if (isGoalTransitioning) {
+            v->velocity = {0.0f, 0.0f};
+            v->isBoosting = false;
+            v->isDecelerating = false;
+            v->boostSpeed = 0.0f;
+            restoreCollisionRadius();
+            ResetAngleHistory();
+            isCharging_ = false;
+            wasCharging_ = false;
+            wasChargingPrev_ = false;
+            return;
+        }
+
         v->speed = PlayerVelocity::cfg_Speed;
         minChargeSpeedFactor = cfg_MinChargeSpeed;
         chargeMaxTime = cfg_ChargeMaxTime;
@@ -332,10 +365,6 @@ struct PlayerMovement : Behaviour {
 
             if (effectiveCharging) {
                 if (v->isBoosting) { v->StopBoost(); }
-                if (collision_) {
-                    if (!hasCollisionBackup_) { collisionRadiusBackup_ = collision_->radius; hasCollisionBackup_ = true; }
-                    collision_->radius = collisionRadiusBackup_ * 0.01f;
-                }
                 isCharging_ = true;
                 v->isDecelerating = true; // チャージ中は減速
                 v->isRotate = true;
@@ -351,7 +380,8 @@ struct PlayerMovement : Behaviour {
                     angleIndex = (angleIndex + 1) % PlayerConstants::ANGLE_HISTORY_SIZE;
                     if (angleIndex == 0) { angleFilled = true; }
                 }
-                
+
+                SOUND_SYS.PlaySE(cfg_DriftMP3Pass);
             }
             bool releasedSys = gamepad_->IsLeftStickReleased();
             bool releasedLocal = (wasCharging_ && !chargingNowLocal);

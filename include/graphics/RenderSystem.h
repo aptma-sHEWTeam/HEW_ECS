@@ -185,6 +185,10 @@ struct RenderSystem {
             return false;
         }
 
+        if (!CreateDummyShadowMap(gfx)) {
+             DEBUGLOG_WARNING("[RenderSystem] ダミーシャドウマップの作成に失敗");
+        }
+
         initialized_ = true;
         stats_.Reset();
 
@@ -218,6 +222,11 @@ struct RenderSystem {
         RenderingSystem::GetInstance().UpdateLights(w, cam.position);
         RenderingSystem::GetInstance().BindLightBuffer(gfx.Ctx(), 1);
         RenderingSystem::GetInstance().BindMaterialBuffer(gfx.Ctx(), 2);
+
+        ID3D11ShaderResourceView* shadowSRV = shadowMapSRV_ ? shadowMapSRV_ : dummyShadowSRV_.Get();
+        if (shadowSRV) {
+            gfx.Ctx()->PSSetShaderResources(2, 1, &shadowSRV);
+        }
 
         // ModelComponentの描画
         RenderModelComponents(w, gfx, cam, texMgr);
@@ -280,16 +289,88 @@ struct RenderSystem {
         return initialized_;
     }
 
+    /**
+     * @brief ShadowRenderSystemなど、他のシステムからメッシュを描画するためのヘルパー
+     */
+    void DrawMesh(MeshType type) {
+        auto it = meshCache_.find(static_cast<int>(type));
+        if (it == meshCache_.end()) return;
+
+        auto& mesh = it->second;
+        auto& gfx = ServiceLocator::Get<GfxDevice>();
+        UINT stride = sizeof(Vertex);
+        UINT offset = 0;
+        gfx.Ctx()->IASetVertexBuffers(0, 1, mesh->vertexBuffer.GetAddressOf(), &stride, &offset);
+        gfx.Ctx()->IASetIndexBuffer(mesh->indexBuffer.Get(), DXGI_FORMAT_R32_UINT, 0);
+        gfx.Ctx()->DrawIndexed(mesh->indexCount, 0, 0);
+    }
+
+    void DrawModel(const ModelComponent& model) {
+        // ... (See previous notes)
+    }
+
+    void SetShadowMap(ID3D11ShaderResourceView* srv) {
+        shadowMapSRV_ = srv;
+    }
+
   private:
     /**
+     * @brief ダミーシャドウマップの作成（フォールバック用）
+     */
+    bool CreateDummyShadowMap(GfxDevice &gfx) {
+        float white = 1.0f; // Max distance
+        D3D11_SUBRESOURCE_DATA data[6];
+        for(int i=0; i<6; ++i) {
+            data[i].pSysMem = &white;
+            data[i].SysMemPitch = sizeof(float);
+            data[i].SysMemSlicePitch = 0;
+        }
+
+        D3D11_TEXTURE2D_DESC texDesc = {};
+        texDesc.Width = 1;
+        texDesc.Height = 1;
+        texDesc.MipLevels = 1;
+        texDesc.ArraySize = 6;
+        texDesc.Format = DXGI_FORMAT_R32_FLOAT;
+        texDesc.SampleDesc.Count = 1;
+        texDesc.Usage = D3D11_USAGE_IMMUTABLE;
+        texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+        texDesc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE;
+
+        HRESULT hr = gfx.Dev()->CreateTexture2D(&texDesc, data, dummyShadowTex_.GetAddressOf());
+        if (FAILED(hr)) {
+             DEBUGLOG_ERROR("Failed to create dummy shadow texture");
+             return false;
+        }
+
+        D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+        srvDesc.Format = texDesc.Format;
+        srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
+        srvDesc.TextureCube.MipLevels = 1;
+        srvDesc.TextureCube.MostDetailedMip = 0;
+
+        hr = gfx.Dev()->CreateShaderResourceView(dummyShadowTex_.Get(), &srvDesc, dummyShadowSRV_.GetAddressOf());
+        if (FAILED(hr)) {
+            DEBUGLOG_ERROR("Failed to create dummy shadow SRV");
+            return false;
+        }
+        return true;
+    }
+
+    ID3D11ShaderResourceView* shadowMapSRV_ = nullptr; // 追加
+    Microsoft::WRL::ComPtr<ID3D11Texture2D> dummyShadowTex_;
+    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> dummyShadowSRV_;
+
+    /**
      * @struct MeshData
-   * @brief メッシュデータ
+     * @brief メッシュデータ
      */
     struct MeshData {
         Microsoft::WRL::ComPtr<ID3D11Buffer> vertexBuffer;
         Microsoft::WRL::ComPtr<ID3D11Buffer> indexBuffer;
         UINT indexCount = 0;
     };
+
 
     /**
      * @struct Vertex
@@ -380,7 +461,7 @@ struct RenderSystem {
                 float weightSum = weights[0] + weights[1] + weights[2] + weights[3];
                 // gSkinDebug は定数バッファの値であり、シェーダー内で書き換え不可のため、代わりにローカル変数で保持
                 float dbgZeroWeight = (weightSum <= 0.001f) ? 1.0f : 0.0f;
-                
+
                 if (weightSum > 0.001f) {
                     float3 p = 0.0f;
                     float3 n = 0.0f;
@@ -440,7 +521,8 @@ struct RenderSystem {
                 float3 gEyePos; int gActivePointLights;
                 float3 gDirLightDir; float gDirLightEnabled;
                 float3 gDirLightColor; float gDirLightIntensity;
-                PointLightGPU gPointLights[8];
+                int gShadowLightIndex; float3 gPaddingLight;
+                PointLightGPU gPointLights[64];
             };
 
             cbuffer MaterialBuffer : register(b2) {
@@ -450,6 +532,7 @@ struct RenderSystem {
 
             Texture2D gTexture : register(t0);
             Texture2D gNormalMap : register(t1);
+            TextureCube gShadowMap : register(t2);
             SamplerState gSampler : register(s0);
 
             struct VSOut {
@@ -460,6 +543,23 @@ struct RenderSystem {
                 float3 bitan : BITANGENT;
                 float3 worldPos : WORLDPOS;
             };
+
+            float CalcShadow(float3 worldPos, float3 lightPos, float lightRange) {
+                float3 toPixel = worldPos - lightPos;
+                float distToPixel = length(toPixel);
+                float3 dir = toPixel / distToPixel;
+
+                // Sample shadow map (R32_FLOAT stores normDist = dist / range)
+                float storedNormDist = gShadowMap.Sample(gSampler, dir).r;
+                float storedDist = storedNormDist * lightRange;
+
+                // Bias to prevent acne
+                float bias = 0.05;
+                if (distToPixel - bias > storedDist) {
+                    return 0.0; // Shadowed
+                }
+                return 1.0; // Lit
+            }
 
             float3 ApplyPointLight(PointLightGPU L,
                                    float3 worldPos,
@@ -472,7 +572,8 @@ struct RenderSystem {
                                    float specEcc,
                                    float3 specColor,
                                    float3 reflectionColor,
-                                   float reflectance)
+                                   float reflectance,
+                                   float shadowFactor)
             {
                 if (L.enabled < 0.5)
                     return 0.0.xxx;
@@ -483,7 +584,11 @@ struct RenderSystem {
                 float3 lightDir = toLight / max(dist, 1e-4);
                 float NdotL = max(0.0, dot(normal, lightDir));
                 float att = 1.0 / max(L.constantAtt + L.linearAtt * dist + L.quadraticAtt * dist * dist, 1e-4);
-                float3 diffuse = baseColor * L.color * (NdotL * L.intensity * att);
+
+                // Shadow implementation
+                float vis = shadowFactor;
+
+                float3 diffuse = baseColor * L.color * (NdotL * L.intensity * att * vis);
                 if (specAtten <= 0.0001 || reflectance <= 0.0001)
                     return diffuse;
                 // Blinn-Phong specular
@@ -499,7 +604,7 @@ struct RenderSystem {
                 float3 F0 = specColor * reflectance;
                 float fresnel = pow(1.0 - max(0.0, dot(viewDir, halfDir)), 5.0);
                 float3 F = F0 + (1.0.xxx - F0) * fresnel;
-                float3 specular = F * (spec * L.color * L.intensity * att * specAtten) * reflectionColor;
+                float3 specular = F * (spec * L.color * L.intensity * att * specAtten * vis) * reflectionColor;
                 return diffuse + specular;
             }
 
@@ -564,7 +669,16 @@ struct RenderSystem {
 
                 [unroll]
                 for (int idx = 0; idx < gActivePointLights; ++idx) {
-                    colorAccum += ApplyPointLight(gPointLights[idx], i.worldPos, normal, viewDir, base.rgb, i.tan, i.bitan, gSpecularAttenuation, gSpecularEccentricity, gSpecularColor, gReflectionColor, gReflectance);
+                    float shadow = 1.0f;
+                    if (idx == gShadowLightIndex) {
+                        shadow = CalcShadow(i.worldPos, gPointLights[idx].position, gPointLights[idx].range);
+                    }
+                    // Prevent total blackness if shadow is 0 (which happens if texture is unbound/black)
+                    // This is a temporary safeguard. Real shadow maps might have 0.
+                    // But usually fully shadowed is 0.
+                    // If we want to debug, we can clamp shadow.
+                    // For now, trust the logic, but if I disable shadow index in C++, this code path won't run.
+                    colorAccum += ApplyPointLight(gPointLights[idx], i.worldPos, normal, viewDir, base.rgb, i.tan, i.bitan, gSpecularAttenuation, gSpecularEccentricity, gSpecularColor, gReflectionColor, gReflectance, shadow);
                 }
 
                 // emissive additive
@@ -1107,7 +1221,7 @@ struct RenderSystem {
                 for (size_t i = boneCount; i < 128; ++i) {
                     DirectX::XMStoreFloat4x4(&skCbuf.boneTransforms[i], DirectX::XMMatrixIdentity());
                 }
-                
+
                 gfx.Ctx()->UpdateSubresource(skinningCb_.Get(), 0, nullptr, &skCbuf, 0, 0);
                 gfx.Ctx()->VSSetConstantBuffers(1, 1, skinningCb_.GetAddressOf());
 

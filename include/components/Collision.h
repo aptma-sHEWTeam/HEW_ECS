@@ -87,6 +87,13 @@ struct CollisionCapsule;
 struct CollisionInfo;
 struct ICollisionHandler;
 
+/**
+ * @struct StaticCollider
+ * @brief 動かないオブジェクトであることを示すタグ
+ * @details このタグ同士の衝突判定はスキップされます
+ */
+struct StaticCollider : IComponent {};
+
 // ========================================================
 // 衝突形状の定義 (データコンポーネント)
 // ========================================================
@@ -556,16 +563,62 @@ struct CollisionDetectionSystem : Behaviour {
 
 #if ENABLE_DEBUG_VISUALS
                 if (debugDraw) {
-                    debugDraw->DrawBox(center, halfExtents, colorTri);
-                    float minX = center.x - halfExtents.x;
-                    float maxX = center.x + halfExtents.x;
-                    float minZ = center.z - halfExtents.z;
-                    float maxZ = center.z + halfExtents.z;
-                    float y = center.y;
+                    // 外接ボックス全体を水色で描画（当たり判定を持たない可能性がある領域）
+                    const DirectX::XMFLOAT3 colorCyan{0.0f, 0.8f, 1.0f};  // 水色
+                    debugDraw->DrawBox(center, halfExtents, colorCyan);
+                    
+                    // 回転を適用するためのクォータニオンを計算
+                    XMVECTOR rotQuat = XMQuaternionRotationRollPitchYaw(
+                        XMConvertToRadians(t.rotation.x),
+                        XMConvertToRadians(t.rotation.y),
+                        XMConvertToRadians(t.rotation.z));
+                    XMVECTOR centerVec = XMLoadFloat3(&center);
+                    
+                    // ローカル座標での半分サイズ
+                    float hx = halfExtents.x;
+                    float hy = halfExtents.y;
+                    float hz = halfExtents.z;
+                    
+                    // ヘルパーラムダ：ローカル座標をワールド座標に変換
+                    auto toWorld = [&](float lx, float ly, float lz) -> XMFLOAT3 {
+                        XMVECTOR local = XMVectorSet(lx, ly, lz, 0.0f);
+                        XMVECTOR rotated = XMVector3Rotate(local, rotQuat);
+                        XMVECTOR world = XMVectorAdd(rotated, centerVec);
+                        XMFLOAT3 result;
+                        XMStoreFloat3(&result, world);
+                        return result;
+                    };
+                    
+                    // 三角柱の実際の形状を黄色で描画
+                    // 三角柱は5面：底面三角形、上面三角形、3つの側面
                     if (tri.mainDiagonalXZ) {
-                        debugDraw->AddLine({minX, y, maxZ}, {maxX, y, minZ}, colorTri);
+                        // mainDiag=true: ローカル座標での残る頂点は (+hx,-hz), (-hx,+hz), (+hx,+hz)
+                        // 底面の三角形
+                        debugDraw->AddLine(toWorld(+hx, -hy, -hz), toWorld(-hx, -hy, +hz), colorTri);  // 斜め辺
+                        debugDraw->AddLine(toWorld(-hx, -hy, +hz), toWorld(+hx, -hy, +hz), colorTri);  // 直角辺1
+                        debugDraw->AddLine(toWorld(+hx, -hy, +hz), toWorld(+hx, -hy, -hz), colorTri);  // 直角辺2
+                        // 上面の三角形
+                        debugDraw->AddLine(toWorld(+hx, +hy, -hz), toWorld(-hx, +hy, +hz), colorTri);  // 斜め辺
+                        debugDraw->AddLine(toWorld(-hx, +hy, +hz), toWorld(+hx, +hy, +hz), colorTri);  // 直角辺1
+                        debugDraw->AddLine(toWorld(+hx, +hy, +hz), toWorld(+hx, +hy, -hz), colorTri);  // 直角辺2
+                        // 側面の垂直辺
+                        debugDraw->AddLine(toWorld(+hx, -hy, -hz), toWorld(+hx, +hy, -hz), colorTri);
+                        debugDraw->AddLine(toWorld(-hx, -hy, +hz), toWorld(-hx, +hy, +hz), colorTri);
+                        debugDraw->AddLine(toWorld(+hx, -hy, +hz), toWorld(+hx, +hy, +hz), colorTri);
                     } else {
-                        debugDraw->AddLine({minX, y, minZ}, {maxX, y, maxZ}, colorTri);
+                        // mainDiag=false: ローカル座標での残る頂点は (-hx,-hz), (+hx,-hz), (+hx,+hz)
+                        // 底面の三角形
+                        debugDraw->AddLine(toWorld(-hx, -hy, -hz), toWorld(+hx, -hy, +hz), colorTri);  // 斜め辺
+                        debugDraw->AddLine(toWorld(-hx, -hy, -hz), toWorld(+hx, -hy, -hz), colorTri);  // 直角辺1
+                        debugDraw->AddLine(toWorld(+hx, -hy, -hz), toWorld(+hx, -hy, +hz), colorTri);  // 直角辺2
+                        // 上面の三角形
+                        debugDraw->AddLine(toWorld(-hx, +hy, -hz), toWorld(+hx, +hy, +hz), colorTri);  // 斜め辺
+                        debugDraw->AddLine(toWorld(-hx, +hy, -hz), toWorld(+hx, +hy, -hz), colorTri);  // 直角辺1
+                        debugDraw->AddLine(toWorld(+hx, +hy, -hz), toWorld(+hx, +hy, +hz), colorTri);  // 直角辺2
+                        // 側面の垂直辺
+                        debugDraw->AddLine(toWorld(-hx, -hy, -hz), toWorld(-hx, +hy, -hz), colorTri);
+                        debugDraw->AddLine(toWorld(+hx, -hy, -hz), toWorld(+hx, +hy, -hz), colorTri);
+                        debugDraw->AddLine(toWorld(+hx, -hy, +hz), toWorld(+hx, +hy, +hz), colorTri);
                     }
                 }
 #endif
@@ -603,11 +656,12 @@ struct CollisionDetectionSystem : Behaviour {
 
                     if (!w.IsAlive(e_b) || e_a.id >= e_b.id) continue;
 
-    
+                    // 最適化: 両方が静的コライダーならスキップ
+                    if (w.Has<StaticCollider>(e_a) && w.Has<StaticCollider>(e_b)) {
+                        continue;
+                    }
 
                     uint64_t pairKey = MakePairKey(e_a, e_b);
-
-    
 
                     auto collision = CheckCollision(w, e_a, e_b);
 
@@ -1017,22 +1071,93 @@ struct CollisionDetectionSystem : Behaviour {
         XMFLOAT3 rel;
         XMStoreFloat3(&rel, relLocal);
 
-        // ローカルAABBへクランプ
-        XMFLOAT3 clamped{
-            std::clamp(rel.x, -triHalf.x, triHalf.x),
-            std::clamp(rel.y, -triHalf.y, triHalf.y),
-            std::clamp(rel.z, -triHalf.z, triHalf.z)};
-
-        // 三角平面 x+/-z>=0 へ投影
-        float planeVal = tri.mainDiagonalXZ ? (clamped.x + clamped.z) : (clamped.x - clamped.z);
-        if (planeVal < 0.0f) {
-            float invLen = 0.70710678f; // 1/sqrt(2)
-            float push = -planeVal;
-            float nx = tri.mainDiagonalXZ ? invLen : invLen;
-            float nz = tri.mainDiagonalXZ ? invLen : -invLen;
-            clamped.x += nx * push;
-            clamped.z += nz * push;
+        // 三角柱の形状をローカル座標で定義
+        // mainDiagonalXZ=true:  残る頂点 (+hx,-hz), (-hx,+hz), (+hx,+hz) - カット角(-hx,-hz)
+        // mainDiagonalXZ=false: 残る頂点 (-hx,-hz), (+hx,-hz), (+hx,+hz) - カット角(-hx,+hz)
+        
+        // 斜め平面の法線（ローカル座標、正規化済み）
+        float diagSign = tri.mainDiagonalXZ ? 1.0f : -1.0f;
+        float invSqrt2 = 0.70710678f;
+        XMFLOAT3 planeNormal{invSqrt2, 0.0f, diagSign * invSqrt2};
+        
+        // 球体の中心から斜め平面への符号付き距離
+        float planeDist = rel.x * planeNormal.x + rel.z * planeNormal.z;
+        
+        // 球体の中心が平面の外側（カット側）にある場合は早期リターン
+        if (planeDist < -radius) {
+            return std::nullopt;
         }
+
+        // Y軸方向のクランプ
+        float clampedY = std::clamp(rel.y, -triHalf.y, triHalf.y);
+        
+        // XZ平面で三角柱の断面（三角形）への最近傍点を計算
+        // 三角形の3頂点（XZ平面）
+        XMFLOAT2 v0, v1, v2;
+        if (tri.mainDiagonalXZ) {
+            // カット角(-hx,-hz), 残る頂点: (+hx,-hz), (-hx,+hz), (+hx,+hz)
+            v0 = {+triHalf.x, -triHalf.z};
+            v1 = {-triHalf.x, +triHalf.z};
+            v2 = {+triHalf.x, +triHalf.z};
+        } else {
+            // カット角(-hx,+hz), 残る頂点: (-hx,-hz), (+hx,-hz), (+hx,+hz)
+            v0 = {-triHalf.x, -triHalf.z};
+            v1 = {+triHalf.x, -triHalf.z};
+            v2 = {+triHalf.x, +triHalf.z};
+        }
+        
+        XMFLOAT2 p{rel.x, rel.z};
+        
+        // 三角形への最近傍点を計算（2D）
+        auto closestPointOnTriangle2D = [&](XMFLOAT2 point, XMFLOAT2 a, XMFLOAT2 b, XMFLOAT2 c) -> XMFLOAT2 {
+            // エッジベクトル
+            XMFLOAT2 ab{b.x - a.x, b.y - a.y};
+            XMFLOAT2 ac{c.x - a.x, c.y - a.y};
+            XMFLOAT2 ap{point.x - a.x, point.y - a.y};
+            
+            float d1 = ab.x * ap.x + ab.y * ap.y;
+            float d2 = ac.x * ap.x + ac.y * ap.y;
+            if (d1 <= 0.0f && d2 <= 0.0f) return a; // 頂点Aが最近傍
+            
+            XMFLOAT2 bp{point.x - b.x, point.y - b.y};
+            float d3 = ab.x * bp.x + ab.y * bp.y;
+            float d4 = ac.x * bp.x + ac.y * bp.y;
+            if (d3 >= 0.0f && d4 <= d3) return b; // 頂点Bが最近傍
+            
+            float vc = d1 * d4 - d3 * d2;
+            if (vc <= 0.0f && d1 >= 0.0f && d3 <= 0.0f) {
+                float v = d1 / (d1 - d3);
+                return {a.x + v * ab.x, a.y + v * ab.y}; // エッジAB上
+            }
+            
+            XMFLOAT2 cp{point.x - c.x, point.y - c.y};
+            float d5 = ab.x * cp.x + ab.y * cp.y;
+            float d6 = ac.x * cp.x + ac.y * cp.y;
+            if (d6 >= 0.0f && d5 <= d6) return c; // 頂点Cが最近傍
+            
+            float vb = d5 * d2 - d1 * d6;
+            if (vb <= 0.0f && d2 >= 0.0f && d6 <= 0.0f) {
+                float w = d2 / (d2 - d6);
+                return {a.x + w * ac.x, a.y + w * ac.y}; // エッジAC上
+            }
+            
+            float va = d3 * d6 - d5 * d4;
+            if (va <= 0.0f && (d4 - d3) >= 0.0f && (d5 - d6) >= 0.0f) {
+                float w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
+                return {b.x + w * (c.x - b.x), b.y + w * (c.y - b.y)}; // エッジBC上
+            }
+            
+            // 点は三角形の内部にある
+            float denom = 1.0f / (va + vb + vc);
+            float vw = vb * denom;
+            float ww = vc * denom;
+            return {a.x + ab.x * vw + ac.x * ww, a.y + ab.y * vw + ac.y * ww};
+        };
+        
+        XMFLOAT2 closestXZ = closestPointOnTriangle2D(p, v0, v1, v2);
+        
+        // 最近傍点（ローカル座標）
+        XMFLOAT3 clamped{closestXZ.x, clampedY, closestXZ.y};
 
         // ローカル最近傍点をワールドへ戻す
         XMVECTOR closestLocal = XMLoadFloat3(&clamped);
@@ -1040,6 +1165,17 @@ struct CollisionDetectionSystem : Behaviour {
 
         XMVECTOR diff = XMVectorSubtract(closestWorld, XMLoadFloat3(&sphereCenter));
         float distSq = XMVectorGetX(XMVector3LengthSq(diff));
+
+        #if defined(_DEBUG)
+        float planeDist2 = (rel.x + diagSign * rel.z) * invSqrt2;
+        if (std::abs(planeDist2) < 0.5f) {
+            std::string result = distSq <= radius * radius ? "HIT" : "MISS";
+            DEBUGLOG("[TriPrism2] Player(" + std::to_string(entitySphere.id) + ") vs Wall(" + std::to_string(entityTri.id) + 
+                     ") rel=(" + std::to_string(rel.x) + "," + std::to_string(rel.z) + 
+                     ") closest=(" + std::to_string(closestXZ.x) + "," + std::to_string(closestXZ.y) + 
+                     ") dist=" + std::to_string(std::sqrt(distSq)) + " -> " + result);
+        }
+        #endif
 
         if (distSq <= radius * radius) {
             CollisionInfo info;
@@ -1053,7 +1189,6 @@ struct CollisionDetectionSystem : Behaviour {
             if (dist > 1e-6f) {
                 XMVECTOR n = XMVector3Normalize(diff); // tri -> sphere
                 XMStoreFloat3(&info.normal, XMVectorNegate(n)); // sphere -> tri
-                XMVECTOR contact = XMVectorSubtract(XMLoadFloat3(&sphereCenter), XMVectorScale(info.normal.x == 0 && info.normal.y == 0 && info.normal.z == 0 ? XMVectorZero() : XMVectorSet(info.normal.x, info.normal.y, info.normal.z, 0.0f), radius));
                 XMStoreFloat3(&info.contactPoint, closestWorld);
             } else {
                 info.normal = tri.mainDiagonalXZ ? XMFLOAT3{-0.707f, 0.0f, -0.707f} : XMFLOAT3{-0.707f, 0.0f, 0.707f};
@@ -1065,6 +1200,7 @@ struct CollisionDetectionSystem : Behaviour {
 
         return std::nullopt;
     }
+
 
     static bool RefineTriPrism(const CollisionBox* box, const Transform* tBox, const CollisionRightIsoTriPrism* tri, const Transform* tTri, CollisionInfo &info, bool triIsB){
         if(!box||!tBox||!tri||!tTri) return false;
