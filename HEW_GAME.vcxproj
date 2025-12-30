@@ -264,6 +264,8 @@
     <ClInclude Include="SoundComponent.h" />
     <ClInclude Include="StageStatus.h" />
     <ClInclude Include="include\animation\Animation.h" />
+    <ClInclude Include="include\animation\AnimationConfig.h" />
+    <ClInclude Include="include\animation\AnimationTools.h" />
     <ClInclude Include="include\app\App.h" />
     <ClInclude Include="include\app\BuildConfig.h" />
     <ClInclude Include="include\app\DebugLog.h" />

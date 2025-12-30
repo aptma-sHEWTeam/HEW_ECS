@@ -241,7 +241,8 @@ struct PlayerMovement : Behaviour {
                 Pos.x += (forwardX * backOffset) + (rightX * sideOffset * sides[i]);
                 Pos.z += (forwardZ * backOffset) + (rightZ * sideOffset * sides[i]);
                 Pos.y += 0.5f;
-                handle[i] = EffekseerManager::GetInstance().PlayEffect(effectName, Pos, {0.1f, 0.1f, 0.1f}, false);
+                auto h = EffekseerManager::GetInstance().PlayEffectSafe(effectName, Pos, {0.1f, 0.1f, 0.1f}, false);
+                handle[i] = h.value_or(-1);
             }
         };
        

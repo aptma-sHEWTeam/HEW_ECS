@@ -99,6 +99,12 @@
     <ClCompile Include="src\graphics\ModelLoader.cpp">
       <Filter>Source Files\graphics</Filter>
     </ClCompile>
+    <ClCompile Include="src\systems\ShadowRenderSystem.cpp">
+      <Filter>Source Files\systems</Filter>
+    </ClCompile>
+    <ClCompile Include="src\graphics\SkyboxSystem.cpp">
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
     <ClCompile Include="src\graphics\TextSystem.cpp">
       <Filter>Source Files\graphics</Filter>
     </ClCompile>
@@ -129,7 +135,9 @@
     <ClCompile Include="src\graphics\Effect.cpp">
       <Filter>Source Files\graphics</Filter>
     </ClCompile>
-    <ClCompile Include="StageUI.cpp" />
+    <ClCompile Include="StageUI.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
     <ClCompile Include="src\systems\SoundSystem.cpp">
       <Filter>Source Files\systems</Filter>
     </ClCompile>
@@ -142,6 +150,12 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\animation\Animation.h">
+      <Filter>Header Files\animation</Filter>
+    </ClInclude>
+    <ClInclude Include="include\animation\AnimationConfig.h">
+      <Filter>Header Files\animation</Filter>
+    </ClInclude>
+    <ClInclude Include="include\animation\AnimationTools.h">
       <Filter>Header Files\animation</Filter>
     </ClInclude>
     <ClInclude Include="include\app\App.h">
@@ -258,10 +272,16 @@
     <ClInclude Include="include\graphics\MaterialConstantBuffer.h">
       <Filter>Header Files\graphics</Filter>
     </ClInclude>
+    <ClInclude Include="include\graphics\OmniShadowMap.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
     <ClInclude Include="include\graphics\ModelLoader.h">
       <Filter>Header Files\graphics</Filter>
     </ClInclude>
     <ClInclude Include="include\graphics\RenderSystem.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\graphics\SkyboxSystem.h">
       <Filter>Header Files\graphics</Filter>
     </ClInclude>
     <ClInclude Include="include\graphics\TextSystem.h">
@@ -336,6 +356,9 @@
     <ClInclude Include="include\systems\RenderingSystem.h">
       <Filter>Header Files\systems</Filter>
     </ClInclude>
+    <ClInclude Include="include\systems\ShadowRenderSystem.h">
+      <Filter>Header Files\systems</Filter>
+    </ClInclude>
     <ClInclude Include="include\systems\SpatialHashGrid.h">
       <Filter>Header Files\systems</Filter>
     </ClInclude>
@@ -348,19 +371,30 @@
     <ClInclude Include="include\util\Random.h">
       <Filter>Header Files\util</Filter>
     </ClInclude>
-    <ClInclude Include="SoundComponent.h" />
+    <ClInclude Include="SoundComponent.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="include\systems\AnimationSystem.h">
       <Filter>Header Files\systems</Filter>
     </ClInclude>
-    <ClInclude Include="include\Effekseer\EffekseerRendererDX11.h" />
+    <ClInclude Include="include\Effekseer\EffekseerRendererDX11.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="include\graphics\Effect.h">
       <Filter>Header Files\graphics</Filter>
     </ClInclude>
-    <ClInclude Include="libs\Effekseer\Effekseer.h" />
-    <ClInclude Include="libs\Effekseer\Effekseer.Modules.h" />
-    <ClInclude Include="libs\Effekseer\Effekseer.SIMD.h" />
+    <ClInclude Include="libs\Effekseer\Effekseer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\Effekseer\Effekseer.Modules.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\Effekseer\Effekseer.SIMD.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
     <ClInclude Include="include\graphics\StageSave.h">
       <Filter>Header Files\graphics</Filter>
+    </ClInclude>
     <ClInclude Include="include\systems\SoundSystem.h">
       <Filter>Header Files\systems</Filter>
     </ClInclude>

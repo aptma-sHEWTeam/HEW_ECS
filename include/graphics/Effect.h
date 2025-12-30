@@ -17,18 +17,17 @@
 #include "graphics/GfxDevice.h"
 #include "graphics/Camera.h"
 #include "DirectXMath.h"
-#include<map>
-#include<list>
+#include <list>
+#include <optional>
+#include <unordered_map>
 
 struct LoopInfo
 {
     std::string effectName;
-    DirectX::XMFLOAT3 position;
-    DirectX::XMFLOAT3 scale;
-    DirectX::XMFLOAT3 rotation;
-    int handle;
-    int currentHandle;
-    int originalHandle;
+    DirectX::XMFLOAT3 position{0,0,0};
+    DirectX::XMFLOAT3 scale{1,1,1};
+    DirectX::XMFLOAT3 rotation{0,0,0}; // degree
+    int handle = -1;
 };
 
 class EffekseerManager
@@ -44,9 +43,10 @@ class EffekseerManager
     void Init(GfxDevice device, Camera camera); ///<初期化処理
     void UnInit();			///<終了処理
 
-   void Load();				///<読み込み処理
+   void Load();				///<読み込み処理（定義済みエフェクトを一括ロード）
 
-   int PlayEffect(const std::string &effectName, DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 scale, bool loop = false); ///<エフェクト再生
+   int PlayEffect(const std::string &effectName, DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 scale, bool loop = false); ///<エフェクト再生（従来API）
+   std::optional<int> PlayEffectSafe(const std::string &effectName, DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 scale, bool loop = false); ///<見つからない場合はnulloptを返す
    void StopEffect();		///<エフェクト停止
    void StopEffect(const std::string &effectName); ///<指定した名前のエフェクトを停止
    void StopEffectHandle(Effekseer::Handle handle);///<確保したハンドルをわたして停止
@@ -76,9 +76,15 @@ class EffekseerManager
 
 	int32_t time = 0;
 
-	//エフェクトを名前で管理するためのマップ
-    std::map<std::string, Effekseer::EffectRef> m_effects;
-    std::map < int, std::string>m_playingEffects;
+    struct EffectDef {
+        std::string name;
+        std::string path;
+    };
+
+    // エフェクトを名前で管理するためのマップ
+    std::unordered_map<std::string, Effekseer::EffectRef> m_effects;
+    std::unordered_map<int, std::string> m_playingEffects;
+    std::vector<EffectDef> predefined_;
 
 	std::vector<int> m_playingHandles;
 

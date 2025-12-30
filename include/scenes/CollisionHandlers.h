@@ -15,6 +15,8 @@
 #include "components/GameStats.h"
 #include "systems/SoundSystem.h"
 #include "graphics/Effect.h"
+#include "animation/AnimationTools.h"
+#include "animation/AnimationConfig.h"
 #include <limits>
 
 // 前方宣言
@@ -101,8 +103,10 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
 
         if (auto *tPlayer = w.TryGet<Transform>(player)) {
             tPlayer->position = spawnPoint;
-            EffekseerManager::GetInstance().PlayEffect("WarpOut", tPlayer->position, {1.0f, 1.0f, 1.0f}, false);
+            EffekseerManager::GetInstance().PlayEffectSafe("WarpOut", tPlayer->position, {1.0f, 1.0f, 1.0f}, false);
         }
+        // リスポーン時にアニメーションを安全な姿勢（Idle）へ戻す
+        AnimationTools::Play(w, player, AnimationConfig::Clips::PlayerIdle, true);
 
         if (auto *vPlayer = w.TryGet<PlayerVelocity>(player)) {
             vPlayer->velocity = DirectX::XMFLOAT2{0.0f, 0.0f};
@@ -235,17 +239,16 @@ struct PlayerCollisionHandler : ICollisionHandler {
             // tPlayer, tGoalは既に上で取得済み
 
             //エフェクト実装：ゴールとリンク
-            EffekseerManager::GetInstance().PlayEffect("WarpIn", tGoal->position, {0,0,0}, false);
             if (tGoal) {
-                 EffekseerManager::GetInstance().PlayEffect("WarpIn",tGoal->position, false);
+                EffekseerManager::GetInstance().PlayEffectSafe("WarpIn", tGoal->position, {1.0f, 1.0f, 1.0f}, false);
             }
 
 
             if (tPlayer && tGoal) {
                 const DirectX::XMFLOAT3 goalCenter = ResolvePlacementCenter(w, other, *tGoal);
 
-               int handle = EffekseerManager::GetInstance().PlayEffect("WarpIn", tPlayer->position, {1.0f,1.0f,1.0f}, false);
-            
+               auto handleOpt = EffekseerManager::GetInstance().PlayEffectSafe("WarpIn", tPlayer->position, {1.0f,1.0f,1.0f}, false);
+               int handle = handleOpt.value_or(-1);
                 
                 // 速度をリセット
                 if (auto *v = w.TryGet<PlayerVelocity>(self)) {

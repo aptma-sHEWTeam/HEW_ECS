@@ -13,6 +13,7 @@
 #include<stdio.h>
 #include<string.h>
 #include<Windows.h>
+#include <algorithm>
 
 //=====================
 //初期化処理
@@ -65,20 +66,22 @@ void EffekseerManager::UnInit()
 //=====================
 void EffekseerManager::Load() 
 {
-    //--- ゴール関連 ---
-    m_effects["Goal"]           = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/Goal/efe_goal.efkefc");
-    m_effects["WarpIn"] = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/Warp/warpin_effect.efkefc");
-    m_effects["WarpOut"] = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/Warp/warpout_effect.efkefc");
+    predefined_ = {
+        {"Goal",           "Assets/Effect/Goal/efe_goal.efkefc"},
+        {"WarpIn",         "Assets/Effect/Warp/warpin_effect.efkefc"},
+        {"WarpOut",        "Assets/Effect/Warp/warpout_effect.efkefc"},
+        {"DashBoard",      "Assets/Effect/SpeedUp/efe_SpeedUp2.efkefc"},
+        {"SpeedUp",        "Assets/Effect/SpeedUp/efe_SpeedUp.efkefc"},
+        {"FireFirst",      "Assets/Effect/Fire/fire flare.efkefc"},
+        {"FireFirstToSec", "Assets/Effect/Fire/fire middle.efkefc"},
+        {"FireThird",      "Assets/Effect/Fire/flare 2.efkefc"},
+        {"FireSecToThird", "Assets/Effect/Fire/firecore.efkefc"},
+    };
 
-    //--- 加速板関連 ---
-    m_effects["DashBoard"]      = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/SpeedUp/efe_SpeedUp2.efkefc");
-    m_effects["SpeedUp"] = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/SpeedUp/efe_SpeedUp.efkefc");
-
-    //--- 炎関連 ---
-    m_effects["FireFirst"]      = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/Fire/fire flare.efkefc");
-    m_effects["FireFirstToSec"] = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/Fire/fire middle.efkefc");
-    m_effects["FireThird"]      = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/Fire/flare 2.efkefc");
-    m_effects["FireSecToThird"] = Effekseer::Effect::Create(m_pManager, u"Assets/Effect/Fire/firecore.efkefc");
+    for (const auto& def : predefined_) {
+        std::wstring wpath(def.path.begin(), def.path.end());
+        m_effects[def.name] = Effekseer::Effect::Create(m_pManager, reinterpret_cast<const char16_t*>(wpath.c_str()));
+    }
 }
 
 //=====================
@@ -88,13 +91,18 @@ int  EffekseerManager::PlayEffect(const std::string& effectName,DirectX::XMFLOAT
 {
     auto it = m_effects.find(effectName);
     if (it == m_effects.end()) {
-        // エフェクトが見つからない場合は警告を出して戻る
-        // DEBUGLOG mechanism is available via include or extern?
-        // Effect.cpp includes "graphics/Effect.h" which doesn't include DebugLog.h.
-        // SkyboxSystem.cpp included "app/DebugLog.h".
-        // I'll stick to printf or OutputDebugString if DEBUGLOG not available, OR just return -1 silently/safely.
-        // Or better, see if I can include DebugLog.h.
-        // Given I can't easily check all includes, I will just return -1.
+        // 定義済みリストにあればロードを試みる
+        auto defIt = std::find_if(predefined_.begin(), predefined_.end(), [&](const EffectDef& d){ return d.name == effectName; });
+        if (defIt != predefined_.end()) {
+            std::wstring wpath(defIt->path.begin(), defIt->path.end());
+            auto eff = Effekseer::Effect::Create(m_pManager, reinterpret_cast<const char16_t*>(wpath.c_str()));
+            if (eff != nullptr) {
+                 m_effects[effectName] = eff;
+                 it = m_effects.find(effectName);
+            }
+        }
+    }
+    if (it == m_effects.end()) {
         return -1;
     }
 
@@ -108,13 +116,19 @@ int  EffekseerManager::PlayEffect(const std::string& effectName,DirectX::XMFLOAT
         info.effectName = effectName;
         info.position = pos;
         info.scale = scale;
+        info.rotation = {0,0,0};
         info.handle = handle;
-        info.currentHandle = handle;
-        info.originalHandle = handle; // 最初のハンドルをオリジナルとして保持
         m_loopEffects.push_back(info);
     }
 
     return handle;
+}
+
+std::optional<int> EffekseerManager::PlayEffectSafe(const std::string &effectName, DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 scale, bool loop)
+{
+    int h = PlayEffect(effectName, pos, scale, loop);
+    if (h < 0) return std::nullopt;
+    return h;
 }
 //=====================
 //エフェクトの停止
@@ -131,7 +145,9 @@ void EffekseerManager::StopEffect(const std::string &effectName)
     {
         if (it->effectName == effectName)
         {
-            m_pManager->StopEffect(it->currentHandle);
+            if (it->handle != -1) {
+                m_pManager->StopEffect(it->handle);
+            }
             it = m_loopEffects.erase(it);
         }
         else
@@ -151,7 +167,9 @@ void EffekseerManager::StopEffectHandle(Effekseer::Handle handle)
     for (auto it = m_loopEffects.begin(); it != m_loopEffects.end();)
     {
         if (it->handle == handle) {
-            m_pManager->StopEffect(it->handle);
+            if (it->handle != -1) {
+                m_pManager->StopEffect(it->handle);
+            }
             it = m_loopEffects.erase(it);
         } else {
             ++it;
@@ -189,23 +207,17 @@ void EffekseerManager::SetEffectPosition(int handle, DirectX::XMFLOAT3 pos)
     if (m_pManager != nullptr)
     {
         // ループエフェクトの場合はoriginalHandleからcurrentHandleを引いて更新する
-        bool isLoopEffect = false;
         for (auto& info : m_loopEffects)
         {
-            if (info.originalHandle == handle)
+            if (info.handle == handle)
             {
                 info.position = pos;
-                m_pManager->SetLocation(info.currentHandle, pos.x, pos.y, pos.z);
-                isLoopEffect = true;
-                break;
+                m_pManager->SetLocation(info.handle, pos.x, pos.y, pos.z);
+                return;
             }
         }
-
-        if (!isLoopEffect)
-        {
-            //直接ハンドルと新しいざひょうをお渡しする
-            m_pManager->SetLocation(handle, pos.x, pos.y, pos.z);
-        }
+        //通常の一回再生
+        m_pManager->SetLocation(handle, pos.x, pos.y, pos.z);
     }
 }
 
@@ -220,6 +232,12 @@ void EffekseerManager::SetEffectRotation(Effekseer::Handle handle, DirectX::XMFL
     float radZ = rotation.z * (DirectX::XM_PI / 180.0f);
 
     m_pManager->SetRotation(handle, radX, radY, radZ);
+    for (auto& info : m_loopEffects) {
+        if (info.handle == handle) {
+            info.rotation = rotation;
+            break;
+        }
+    }
 }
 
 //=============================
@@ -229,6 +247,12 @@ void EffekseerManager::SetEffectScale(int handle, DirectX::XMFLOAT3 scale)
 {
     if (m_pManager != nullptr && m_pManager->Exists(handle)) {
         m_pManager->SetScale(handle, scale.x, scale.y, scale.z);
+        for (auto& info : m_loopEffects) {
+            if (info.handle == handle) {
+                info.scale = scale;
+                break;
+            }
+        }
     }
 }
 
@@ -244,22 +268,26 @@ void EffekseerManager::Update()
     m_pManager->SetLayerParameter(0, efkLayerParm);
 
     m_pManager->Update();  
-    
+
     // 時間を更新
     time++;
 
-    for (auto& info : m_loopEffects)
+    for (auto it = m_loopEffects.begin(); it != m_loopEffects.end(); )
     {
-        if (!m_pManager->Exists(info.currentHandle))
+        if (!m_pManager->Exists(it->handle))
         {
-             auto it = m_effects.find(info.effectName);
-             if (it != m_effects.end())
+             auto effIt = m_effects.find(it->effectName);
+             if (effIt != m_effects.end())
              {
-                 info.handle = m_pManager->Play(it->second, info.position.x, info.position.y, info.position.z);
-                 m_pManager->SetScale(info.handle, info.scale.x, info.scale.y, info.scale.z);
-                 m_pManager->SetRotation(info.handle, info.rotation.x, info.rotation.y, info.rotation.z);
+                it->handle = m_pManager->Play(effIt->second, it->position.x, it->position.y, it->position.z);
+                m_pManager->SetScale(it->handle, it->scale.x, it->scale.y, it->scale.z);
+                float radX = it->rotation.x * (DirectX::XM_PI / 180.0f);
+                float radY = it->rotation.y * (DirectX::XM_PI / 180.0f);
+                float radZ = it->rotation.z * (DirectX::XM_PI / 180.0f);
+                m_pManager->SetRotation(it->handle, radX, radY, radZ);
              }
         }
+        ++it;
     }
 }
 
