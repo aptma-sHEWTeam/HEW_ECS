@@ -1358,7 +1358,8 @@ class GameScene : public IScene {
             auto &efk = EffekseerManager::GetInstance();
             efk.SetEffectPosition(goalEffectHandle_, t->position);
             efk.SetEffectRotation(goalEffectHandle_, t->rotation);
-            efk.SetEffectScale(goalEffectHandle_, t->scale);
+            DirectX::XMFLOAT3 scaled = {t->scale.x * 0.5f, t->scale.y * 0.5f, t->scale.z * 0.5f};
+            efk.SetEffectScale(goalEffectHandle_, scaled);
         }
     }
 
