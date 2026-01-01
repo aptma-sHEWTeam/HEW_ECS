@@ -253,6 +253,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\graphics\StageSave.h" />
+    <ClInclude Include="include\scenes\WorldSelect.h" />
     <ClInclude Include="include\systems\AnimationSystem.h" />
     <ClInclude Include="include\Effekseer\EffekseerRendererDX11.h" />
     <ClInclude Include="include\graphics\Effect.h" />
