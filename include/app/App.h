@@ -60,6 +60,7 @@
 #include "scenes/SceneManager.h"
 #include "scenes/Game.h"
 #include "scenes/StageSelect.h"
+#include "scenes/WorldSelect.h"
 
 #include "graphics/Effect.h"
 
@@ -135,6 +136,15 @@ struct App {
         DEBUGLOG("SceneManager initialised with Game scene");
 
         DEBUGLOG("InitializeGame() complete");
+
+        auto worldselectScene = std::make_unique<WorldSelectScene>();
+        DEBUGLOG("WorldSelectScene instanse created");
+
+         sceneManager_.RegisterScene("WorldSelect", std::move(worldselectScene));
+        DEBUGLOG("WorldSelectScene registered to SceneManager");
+
+        sceneManager_.Init("WorldSelect", world_);
+        DEBUGLOG("SceneManager initialised with WorldSelectScene scene");
     }
 
     // ========================================================

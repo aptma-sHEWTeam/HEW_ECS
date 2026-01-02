@@ -1,5 +1,5 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <Filter Include=".github">
       <UniqueIdentifier>{34f9715f-923e-40e7-9d59-97f814f56102}</UniqueIdentifier>
@@ -400,76 +400,30 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include=".github\ISSUE_TEMPLATE\01_task.yml">
-      <Filter>.github\ISSUE_TEMPLATE</Filter>
-    </None>
-    <None Include=".github\ISSUE_TEMPLATE\02_bug.yml">
-      <Filter>.github\ISSUE_TEMPLATE</Filter>
-    </None>
-    <None Include=".github\ISSUE_TEMPLATE\config.yml">
-      <Filter>.github\ISSUE_TEMPLATE</Filter>
-    </None>
-    <None Include=".github\scripts\get_project_fields.ps1">
-      <Filter>.github\scripts</Filter>
-    </None>
-    <None Include=".github\scripts\get_project_fields.sh">
-      <Filter>.github\scripts</Filter>
-    </None>
-    <None Include=".github\workflows\add_to_project.yml">
-      <Filter>.github\workflows</Filter>
-    </None>
-    <None Include=".github\workflows\add_to_project_safe.yml.example">
-      <Filter>.github\workflows</Filter>
-    </None>
-    <None Include=".github\workflows\apply_labels_on_title.yml">
-      <Filter>.github\workflows</Filter>
-    </None>
-    <None Include=".github\workflows\auto_ready_on_start.yml">
-      <Filter>.github\workflows</Filter>
-    </None>
-    <None Include=".github\workflows\build.yml">
-      <Filter>.github\workflows</Filter>
-    </None>
-    <None Include=".github\workflows\close_to_done.yml">
-      <Filter>.github\workflows</Filter>
-    </None>
-    <None Include=".github\workflows\notify_inprogress_digest.yml">
-      <Filter>.github\workflows</Filter>
-    </None>
-    <None Include=".github\workflows\sync-main-to-teams.yml">
-      <Filter>.github\workflows</Filter>
-    </None>
-    <None Include="README.md" />
-    <None Include="docs\ChargeSystem_Guide.md">
-      <Filter>Docs</Filter>
-    </None>
-    <None Include="docs\ChargeSystem_QuickRef.md">
-      <Filter>Docs</Filter>
-    </None>
-    <None Include="docs\Collision_Event_System.md">
-      <Filter>Docs</Filter>
-    </None>
-    <None Include="docs\Collision_System_Guide.md">
-      <Filter>Docs</Filter>
-    </None>
-    <None Include="docs\DebugDraw_Improvements.md">
-      <Filter>Docs</Filter>
-    </None>
-    <None Include="docs\GamepadSystem_README.md">
-      <Filter>Docs</Filter>
-    </None>
-    <None Include="docs\RealtimeCharge_Guide.md">
-      <Filter>Docs</Filter>
-    </None>
-    <None Include="docs\RenderSystem_Improvements.md">
-      <Filter>Docs</Filter>
-    </None>
-    <None Include="docs\Transform_Hierarchy_Guide.md">
-      <Filter>Docs</Filter>
-    </None>
-    <None Include="docs\UI_System_Guide.md">
-      <Filter>Docs</Filter>
-    </None>
+    <None Include=".github\ISSUE_TEMPLATE\01_task.yml" />
+    <None Include=".github\ISSUE_TEMPLATE\02_bug.yml" />
+    <None Include=".github\ISSUE_TEMPLATE\config.yml" />
+    <None Include=".github\scripts\get_project_fields.ps1" />
+    <None Include=".github\scripts\get_project_fields.sh" />
+    <None Include=".github\workflows\add_to_project.yml" />
+    <None Include=".github\workflows\add_to_project_safe.yml.example" />
+    <None Include=".github\workflows\apply_labels_on_title.yml" />
+    <None Include=".github\workflows\auto_ready_on_start.yml" />
+    <None Include=".github\workflows\build.yml" />
+    <None Include=".github\workflows\close_to_done.yml" />
+    <None Include=".github\workflows\notify_inprogress_digest.yml" />
+    <None Include=".github\workflows\sync-main-to-teams.yml" />
     <None Include="Assets\Settings\config.toml" />
+    <None Include="docs\ChargeSystem_Guide.md" />
+    <None Include="docs\ChargeSystem_QuickRef.md" />
+    <None Include="docs\Collision_Event_System.md" />
+    <None Include="docs\Collision_System_Guide.md" />
+    <None Include="docs\DebugDraw_Improvements.md" />
+    <None Include="docs\GamepadSystem_README.md" />
+    <None Include="docs\RealtimeCharge_Guide.md" />
+    <None Include="docs\RenderSystem_Improvements.md" />
+    <None Include="docs\Transform_Hierarchy_Guide.md" />
+    <None Include="docs\UI_System_Guide.md" />
+    <None Include="README.md" />
   </ItemGroup>
 </Project>
