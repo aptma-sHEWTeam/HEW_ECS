@@ -240,7 +240,7 @@ struct PlayerCollisionHandler : ICollisionHandler {
 
             //エフェクト実装：ゴールとリンク
             if (tGoal) {
-                EffekseerManager::GetInstance().PlayEffectSafe("WarpIn", tGoal->position, {1.0f, 1.0f, 1.0f}, false);
+                EffekseerManager::GetInstance().PlayEffect("WarpIn", tGoal->position, {0, 0, 0}, false);
             }
 
 
