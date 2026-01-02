@@ -15,10 +15,11 @@
 #include "ecs/World.h"
 #include "components/Transform.h"
 #include "components/MeshRenderer.h"
-#include"components/GameStats.h"
+#include "components/GameStats.h"
 #include "input/InputSystem.h"
 #include "input/GamepadSystem.h"
 #include "components/Collision.h"
+#include "graphics/Effect.h"
 // GameScene 定義への依存を避けるため、グローバル参照宣言のみを利用
 #include "scenes/CollisionHandlers.h"
 #include "components/StageComponents.h"
@@ -60,6 +61,7 @@ struct PlayerStatus : Behaviour {
     };
     WallHitState wallHitState = WallHitState::Idle;
 };
+
 
 // ===============================
 // PlayerVelocity（重複宣言整理）
@@ -177,6 +179,86 @@ struct PlayerMovement : Behaviour {
     float sumSin = 0.0f; float sumCos = 0.0f;
     int frame = 0;
 
+    //エフェクトの状態管理
+    enum class EffectState 
+    {
+        Idle,
+        Charging,
+        Relesing
+    };
+    
+    //通常時のエフェクト状態
+    EffectState currentEffectState = EffectState::Idle;
+
+    //エフェクト左右で出力するために配列で管理
+    Effekseer::Handle chargeEffectHandle[2]  = {-1, -1};
+    Effekseer::Handle releaseEffectHandle[2] = {-1, -1};
+
+    void SwitchEffect(World& w, Entity self,EffectState newState)
+    {
+        auto *t = w.TryGet<Transform>(self);
+
+        //角度をラジアンに変換
+        float rad = t->rotation.y * (DirectX::XM_PI / 180.0f);
+    
+        //方向ベクトルを割り出す計算
+        //前
+        float forwardX = -std::sinf(rad);
+        float forwardZ = -std::cosf(rad);
+        //横
+        float rightX = std::cosf(rad);
+        float rightZ = -std::sinf(rad);
+
+        //今あるエフェクトの全停止
+        for (int i = 0;i < 2; i++)
+        {
+            if (chargeEffectHandle[i] != -1) 
+            {
+                EffekseerManager::GetInstance().StopEffectHandle(chargeEffectHandle[i]);
+                chargeEffectHandle[i] = -1;
+            }
+            if (releaseEffectHandle[i] != -1) 
+            {
+                EffekseerManager::GetInstance().StopEffectHandle(releaseEffectHandle[i]);
+                releaseEffectHandle[i] = -1;
+            }
+        }
+
+        currentEffectState = newState;
+
+        //エフェクトの配置設定
+        static const float sides[] = {1.0f, -1.0f};
+        float sideOffset = 0.1f;    //左右幅
+        float backOffset = 0.1f;    //プレイヤーとの距離
+        
+        //エフェクト2個同時出力の処理
+        auto playTwoEffect = [&](const char *effectName, Effekseer::Handle *handle) 
+        {
+            for (int i = 0; i < 2; i++)
+            {
+                DirectX::XMFLOAT3 Pos = t->position;
+
+                Pos.x += (forwardX * backOffset) + (rightX * sideOffset * sides[i]);
+                Pos.z += (forwardZ * backOffset) + (rightZ * sideOffset * sides[i]);
+                Pos.y += 0.5f;
+                auto h = EffekseerManager::GetInstance().PlayEffectSafe(effectName, Pos, {0.1f, 0.1f, 0.1f}, false);
+                handle[i] = h.value_or(-1);
+            }
+        };
+       
+        switch (newState)
+        {
+            case EffectState::Idle:     //通常時はエフェクトなし
+                break;
+            case EffectState::Charging:
+                playTwoEffect("FireFirst", chargeEffectHandle);
+                break;
+            case EffectState::Relesing:
+                playTwoEffect("FireFirstToSec", releaseEffectHandle);
+                break;
+        }
+    }
+
     void ResetAngleHistory() {
         for (int i = 0; i < PlayerConstants::ANGLE_HISTORY_SIZE; ++i) angleHistory[i] = 0.0f;
         angleIndex = 0; angleFilled = false; sumSin = 0.0f; sumCos = 0.0f;
@@ -279,6 +361,7 @@ struct PlayerMovement : Behaviour {
             if (effectiveCharging && !wasChargingPrev_) ResetAngleHistory();
             if (effectiveCharging && !wasCharging_) {
                 GameScene_OnChargeStart(w);
+                SwitchEffect(w, self, EffectState::Charging);
             }
 
             if (effectiveCharging) {
@@ -301,7 +384,6 @@ struct PlayerMovement : Behaviour {
 
                 SOUND_SYS.PlaySE(cfg_DriftMP3Pass);
             }
-
             bool releasedSys = gamepad_->IsLeftStickReleased();
             bool releasedLocal = (wasCharging_ && !chargingNowLocal);
             if (releasedSys || releasedLocal) {
@@ -319,6 +401,7 @@ struct PlayerMovement : Behaviour {
                         isCharging_ = false; v->isDecelerating = false;
                     }
                 }
+                SwitchEffect(w, self, EffectState::Relesing);
                 GameScene_OnChargeRelease(w, chargeAmount);
                 restoreCollisionRadius();
                 ResetAngleHistory();
@@ -332,6 +415,46 @@ struct PlayerMovement : Behaviour {
                 v->isRotate = false;
                 isCharging_ = false;
             }
+
+            //角度をラジアンに変換
+            float rad = t->rotation.y * (DirectX::XM_PI / 180.0f);
+            //方向ベクトルを割り出す計算
+            //前
+            float forwardX = -std::sinf(rad);
+            float forwardZ = -std::cosf(rad);
+            //横
+            float rightX = std::cosf(rad);
+            float rightZ = -std::sinf(rad);
+
+             //エフェクトの配置設定
+            static const float sides[] = {1.0f, -1.0f};
+            float sideOffset = 0.1f; //左右幅
+            float backOffset = 0.1f; //プレイヤーとの距離
+
+            //エフェクトの更新処理
+            auto updateHandle = [&](Effekseer::Handle *handle)
+            {
+                //今あるエフェクトの全停止
+                for (int i = 0; i < 2; i++)
+                {
+                    DirectX::XMFLOAT3 pos = t->position;
+                    pos.x += (forwardX * backOffset) + (rightX * sideOffset * sides[i]);
+                    pos.z += (forwardZ * backOffset) + (rightZ * sideOffset * sides[i]);
+                    pos.y += 0.5f;
+                    EffekseerManager::GetInstance().SetEffectPosition(handle[i], pos);
+                }
+                
+            };
+
+            if (currentEffectState == EffectState::Charging)
+            {
+                updateHandle(chargeEffectHandle);
+            }
+            if (currentEffectState == EffectState::Relesing)
+            {
+                updateHandle(releaseEffectHandle);
+            }
+
 
             // 減速をまず反映してから移動
             v->UpdateVelocity(inputDir, dt);

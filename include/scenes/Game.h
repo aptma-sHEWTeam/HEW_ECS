@@ -54,6 +54,8 @@
 #include "graphics/Camera.h"
 #include <comdef.h>
 #include "animation/Animation.h"
+#include "animation/AnimationTools.h"
+#include "animation/AnimationConfig.h"
 #include "config/ConfigVar.h"
 #include "graphics/ModelLoader.h"
 #include "graphics/ModelLoader.h"
@@ -104,6 +106,8 @@ class GameScene : public IScene {
         stageClearTimer_ = 0.0f;
         stageClearTextEntity_ = {};
         stageOwnedEntities_.clear();
+        goalEffectHandle_ = -1;
+        StopGoalEffect();
 
         // 入り直し時に残存ステージエンティティがあれば除去（原点残留や重複生成を防ぐ）
         {
@@ -116,6 +120,7 @@ class GameScene : public IScene {
             if (!toDestroy.empty()) {
                 world.DestroyAllEntitiesImmediate(World::Cause::SceneInit);
             }
+            
         }
 
         // ステージ進行情報が無ければ生成
@@ -355,6 +360,7 @@ class GameScene : public IScene {
         // ステージ進行リクエストの処理
         HandleStageAdvance(world);
         UpdateStageTransition(world, deltaTime * timeScale);
+        UpdateGoalEffectTransform(world);
 
         // 入力システムの参照を設定
         SetupInputReferences(world, input);
@@ -440,6 +446,7 @@ class GameScene : public IScene {
 
         g_GameScene = nullptr;
         RenderingSystem::GetInstance().Shutdown();
+        StopGoalEffect();
 
         // ステージ生成物を優先的に破棄（シーン間で漏れないようにする）
         for (const auto &entity : stageOwnedEntities_) {
@@ -551,6 +558,7 @@ class GameScene : public IScene {
         chargeOverlayTarget_ = ChargingFade;
         chargeOverlayVisible_ = true;
         SetStickZoomActive(true);
+        PlayPlayerAnimation(world, AnimationConfig::Clips::PlayerCharge, true);
 
         SOUND_SYS.PlaySE(cfg_DriftMP3Pass.Get());
     }
@@ -561,6 +569,7 @@ class GameScene : public IScene {
         chargeOverlayVisible_ = true;
         float impulse = std::clamp(chargeAmount01, 0.15f, 1.0f) * 0.12f;
         TriggerCameraShake(0.03f + impulse, 0.25f);
+        PlayPlayerAnimation(world, AnimationConfig::Clips::PlayerChargeOut, false);
 
         SOUND_SYS.PlaySE(cfg_Fire1MP3Pass.Get());
     }
@@ -644,6 +653,7 @@ class GameScene : public IScene {
 
         // 再生用フェードアニメーションを開始
         StartDeathFadeOut(world);
+        PlayPlayerAnimation(world, AnimationConfig::Clips::PlayerDeath, false);
 
         if (auto* playerStatus = world.TryGet<PlayerStatus>(playerEntity_)) {
             UpdateWallHitState(*playerStatus, PlayerStatus::WallHitState::Shaking, "WallHit");
@@ -681,6 +691,7 @@ class GameScene : public IScene {
         SetStickZoomActive(false);
 
         StartDeathFadeOut(world);
+        PlayPlayerAnimation(world, AnimationConfig::Clips::PlayerTimeup, false);
 
         if (auto *playerStatus = world.TryGet<PlayerStatus>(playerEntity_)) {
             UpdateWallHitState(*playerStatus, PlayerStatus::WallHitState::Shaking, "TimeUp");
@@ -733,6 +744,11 @@ class GameScene : public IScene {
     // 初期化ヘルパーメソッド
     // =========================================
 
+    bool PlayPlayerAnimation(World& world, const std::string& clipName, bool loop = false) {
+        if (!world.IsAlive(playerEntity_)) return false;
+        return AnimationTools::Play(world, playerEntity_, clipName, loop);
+    }
+
     void CreateTextFormats();
     void CreateUI(World &world, float screenWidth, float screenHeight);
 
@@ -740,14 +756,27 @@ class GameScene : public IScene {
         float s = cfg_PlayerScale;
         Transform transform{{0.0f, cfg_PlayerStartY, 0.0f}, {0.0f, 0.0f, 0.0f}, {s, s, s}};
 
-        // ユーザー指定のパスでモデルとアニメーションをロード
-        // "Assets/Models/Player/obj_player.fbx"
-        // "Assets/Models/Player/anm_fry.fbx"
-        std::string modelPath = "Assets/Models/Player/obj_player.fbx";
-        std::string animPath = "Assets/Models/Player/anm_fry.fbx";
+        // モデル＆アニメーションをConfig経由でロード
+        const std::string modelPath = AnimationConfig::Paths::PlayerModel;
+        std::vector<std::string> animPaths = {
+            AnimationConfig::Paths::PlayerAnimFry,
+            AnimationConfig::Paths::PlayerAnimCharge,
+            AnimationConfig::Paths::PlayerAnimChargeIn,
+            AnimationConfig::Paths::PlayerAnimChargeOut,
+            AnimationConfig::Paths::PlayerAnimDeath,
+            AnimationConfig::Paths::PlayerAnimTimeup,
+        };
+        std::vector<std::string> animAliases = {
+            AnimationConfig::Clips::PlayerIdle,
+            AnimationConfig::Clips::PlayerCharge,
+            AnimationConfig::Clips::PlayerChargeIn,
+            AnimationConfig::Clips::PlayerChargeOut,
+            AnimationConfig::Clips::PlayerDeath,
+            AnimationConfig::Clips::PlayerTimeup,
+        };
 
         std::vector<ModelPrefabNode> nodes = ModelLoader::LoadModel(modelPath);
-        std::vector<ModelComponent::AnimationClip> clips = ModelLoader::LoadAnimation(animPath);
+        auto clips = AnimationTools::LoadClipsFromFiles(animPaths, {AnimationConfig::Paths::PlayerAnimFallback}, animAliases);
 
         // メッシュノードを探す
         ModelPrefabNode* targetNode = nullptr;
@@ -768,20 +797,19 @@ class GameScene : public IScene {
         if (targetNode && targetNode->hasMesh) {
             world.Add<ModelComponent>(player, targetNode->component);
 
-             // Animator
+            // Animator
             if (targetNode->component.isSkinned) {
-                Animator animator;
-                for (const auto& clip : clips) {
-                    animator.AddAnimation(clip);
+                std::string defaultClip = AnimationConfig::Clips::PlayerDefault;
+                const bool defaultExists = std::any_of(clips.begin(), clips.end(), [&](const auto& c) { return c.name == defaultClip; });
+                if (!defaultExists && !clips.empty()) {
+                    defaultClip = clips.front().name;
                 }
-                // 最初のアニメーションを再生
-                if (!clips.empty()) {
-                    animator.Play(clips[0].name, true);
-                    DEBUGLOG("Playing animation: " + clips[0].name);
+                const bool hasClips = AnimationTools::InitAnimator(world, player, clips, defaultClip);
+                if (!hasClips) {
+                    DEBUGLOG_WARNING("No animation clips loaded for player.");
                 } else {
-                    DEBUGLOG_WARNING("No animation clips loaded.");
+                    DEBUGLOG("Playing animation: " + defaultClip);
                 }
-                world.Add<Animator>(player, animator);
             }
         } else {
              world.Add<Model>(player, modelPath);
@@ -911,43 +939,20 @@ class GameScene : public IScene {
 
     void StartSpriteFade(World &world, Entity target, int direction, bool forceOpaque) {
         if (!world.IsAlive(target)) return;
-        if (auto *anim = world.TryGet<SpriteSheetAnimation>(target)) {
-            anim->isLooping = false;
-            anim->StartAnimation(direction);
-            ApplyFadeFrame(world, target, *anim);
-            if (forceOpaque) {
-                if (auto *img = world.TryGet<UIImage>(target)) {
-                    img->opacity = 1.0f;
-                }
-            }
+        AnimationTools::PlaySpriteSheet(world, target, direction, /*loop*/false, /*reset*/true);
+        if (auto *img = world.TryGet<UIImage>(target)) {
+            img->opacity = 1.0f;
         }
-        // 対象が死亡フェード以外の場合、不要時は透明化
-        if (!forceOpaque) {
-            if (auto *img = world.TryGet<UIImage>(target)) {
-                img->opacity = 1.0f;
-            }
+        if (auto *anim = world.TryGet<SpriteSheetAnimation>(target)) {
+            anim->isFinished = false;
         }
     }
 
     float GetFadeDurationSeconds(World &world, Entity target) const {
         if (auto *anim = world.TryGet<SpriteSheetAnimation>(target)) {
-            const int count = std::max(anim->frameCount, 0);
-            return anim->frameTime * static_cast<float>(count);
+            return AnimationTools::DurationSeconds(*anim);
         }
         return 0.0f;
-    }
-
-    void ApplyFadeFrame(World &world, Entity target, SpriteSheetAnimation &anim) {
-        if (anim.uv.size() != static_cast<size_t>(anim.frameCount)) {
-            anim.UpdateUV();
-        }
-
-        if (auto *img = world.TryGet<UIImage>(target)) {
-            const int frameIndex = std::clamp(anim.currentFrame, 0, std::max(0, anim.frameCount - 1));
-            if (!anim.uv.empty()) {
-                img->uvRect = anim.uv[frameIndex];
-            }
-        }
     }
 
     void SetupInputReferences(World &world, InputSystem &input) {
@@ -1314,6 +1319,8 @@ class GameScene : public IScene {
             cfg_GoalLightRange.Get()};
         ApplyDefaultPointLightParams(light);
 
+        StopGoalEffect();
+
         Entity e = world.Create()
                        .With<Transform>(t)
                        .With<MeshRenderer>(r)
@@ -1329,7 +1336,31 @@ class GameScene : public IScene {
 
         goalEntity_ = e;
         stageOwnedEntities_.push_back(e);
-        EffekseerManager::GetInstance().PlayEffect("Goal", diffPosition, true);
+        auto goalHandle = EffekseerManager::GetInstance().PlayEffectSafe("Goal", diffPosition, {1.0f, 1.0f, 1.0f}, true);
+        goalEffectHandle_ = goalHandle.value_or(-1);
+
+      
+    }
+
+    void StopGoalEffect() {
+        auto &efk = EffekseerManager::GetInstance();
+        if (goalEffectHandle_ != -1) {
+            efk.StopEffectHandle(goalEffectHandle_);
+            goalEffectHandle_ = -1;
+        }
+        efk.StopEffect("Goal");
+    }
+
+    void UpdateGoalEffectTransform(World &world) {
+        if (goalEffectHandle_ == -1) return;
+        if (!world.IsAlive(goalEntity_)) return;
+        if (auto *t = world.TryGet<Transform>(goalEntity_)) {
+            auto &efk = EffekseerManager::GetInstance();
+            efk.SetEffectPosition(goalEffectHandle_, t->position);
+            efk.SetEffectRotation(goalEffectHandle_, t->rotation);
+            DirectX::XMFLOAT3 scaled = {t->scale.x * 0.5f, t->scale.y * 0.5f, t->scale.z * 0.5f};
+            efk.SetEffectScale(goalEffectHandle_, scaled);
+        }
     }
 
     struct GoalCollisionHandler {
@@ -1622,6 +1653,8 @@ class GameScene : public IScene {
         // プレイヤーへの影響角度はCSVそのまま（見た目補正は加えない）
         status.accelAngle = csvAngleDeg;
 
+        //加速板のエフェクト常時出力
+        EffekseerManager::GetInstance().PlayEffectSafe("DashBoard", transform.position, {1.0f, 1.0f, 1.0f}, true);
 
         Entity dashBoardEntity = world.Create()
                                      .With<Transform>(transform)
@@ -1663,6 +1696,7 @@ class GameScene : public IScene {
             }
         }
         stageOwnedEntities_.clear();
+        StopGoalEffect();
 
         // StageElementTag を使ってステージ固有エンティティを一網打尽にする（子孫も含む）
         std::vector<Entity> toDestroy;
@@ -1684,6 +1718,7 @@ class GameScene : public IScene {
 
         startEntity_ = {};
         goalEntity_ = {};
+        goalEffectHandle_ = -1;
 
         // 最新のStageCreateのみを利用し、それ以外は破棄して重複生成を防ぐ
         Entity activeStageCreate{};
@@ -2046,6 +2081,7 @@ class GameScene : public IScene {
     Entity wall_{};
     Entity worldwall_{};
     Entity goalEntity_{};
+    int goalEffectHandle_ = -1;
     Entity gimmickEntity_{};
     Entity fadeAnimationEntity_{};
     Entity deathFadeAnimationEntity_{};

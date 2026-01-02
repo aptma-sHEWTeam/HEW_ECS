@@ -404,6 +404,14 @@ ModelComponent ModelLoader::ProcessMesh(
         mc.isSkinned = true;
         mc.skeleton.bones.resize(mesh->mNumBones);
         mc.skeleton.boneTransforms.resize(mesh->mNumBones);
+        for (auto& m : mc.skeleton.boneTransforms) {
+            m = DirectX::XMFLOAT4X4{
+                1, 0, 0, 0,
+                0, 1, 0, 0,
+                0, 0, 1, 0,
+                0, 0, 0, 1
+            };
+        }
 
         // 事前に全ボーン名セットを構築
         std::unordered_set<std::string> allBoneNames;

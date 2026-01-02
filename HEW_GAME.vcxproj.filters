@@ -1,112 +1,403 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="src\app\ResourceManager.cpp" />
-    <ClCompile Include="src\components\Collision.cpp" />
-    <ClCompile Include="src\config\ConfigManager.cpp" />
-    <ClCompile Include="src\ecs\World.cpp" />
-    <ClCompile Include="src\graphics\Effect.cpp" />
-    <ClCompile Include="src\graphics\ImageSystem.cpp" />
-    <ClCompile Include="src\graphics\ModelLoader.cpp" />
-    <ClCompile Include="src\systems\ShadowRenderSystem.cpp" />
-    <ClCompile Include="src\graphics\SkyboxSystem.cpp" />
-    <ClCompile Include="src\graphics\TextSystem.cpp" />
-    <ClCompile Include="src\input\GamepadSystem.cpp" />
-    <ClCompile Include="src\main.cpp" />
-    <ClCompile Include="src\pch.cpp" />
-    <ClCompile Include="src\scenes\GameUI.cpp" />
-    <ClCompile Include="src\systems\AnimationSystem.cpp" />
-    <ClCompile Include="src\systems\EmissiveRenderSystem.cpp" />
-    <ClCompile Include="src\systems\LightSystem.cpp" />
-    <ClCompile Include="src\systems\SoundSystem.cpp" />
-    <ClCompile Include="src\systems\SpatialHashGrid.cpp" />
-    <ClCompile Include="StageUI.cpp" />
+    <Filter Include=".github">
+      <UniqueIdentifier>{34f9715f-923e-40e7-9d59-97f814f56102}</UniqueIdentifier>
+    </Filter>
+    <Filter Include=".github\ISSUE_TEMPLATE">
+      <UniqueIdentifier>{276a2d69-4e5d-474a-92f2-52990f8344dd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include=".github\scripts">
+      <UniqueIdentifier>{afe3be08-9306-4a4e-95cf-f19fe90c8733}</UniqueIdentifier>
+    </Filter>
+    <Filter Include=".github\workflows">
+      <UniqueIdentifier>{c178207f-b02d-4b74-a3d7-ea6970c08c33}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Docs">
+      <UniqueIdentifier>{656da903-e5c0-44df-8c2d-6bc61339405a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\animation">
+      <UniqueIdentifier>{12d4b8af-94ce-4f51-80f6-2053d2fd4ea7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\app">
+      <UniqueIdentifier>{b3bd14e7-8324-45d7-8472-db746e8b9de9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\components">
+      <UniqueIdentifier>{60e7dc88-078a-4b08-a319-57ba39ca66ab}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\config">
+      <UniqueIdentifier>{2786a016-bf81-47b0-a07a-0bfa94a62a3c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\ecs">
+      <UniqueIdentifier>{b71543f2-4d60-4b93-9aba-560818a5c20e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\graphics">
+      <UniqueIdentifier>{01947fec-bc03-4501-bfca-cbea5c349b8d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\input">
+      <UniqueIdentifier>{54880527-7f2d-4e5c-885a-5f3d6690fb1a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\samples">
+      <UniqueIdentifier>{b512eeb4-ad69-416b-90a8-c54c4ecca99f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\scenes">
+      <UniqueIdentifier>{6f6fe965-bbd1-4c04-86f1-06f6def6f2fd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\systems">
+      <UniqueIdentifier>{fbddfc70-3310-442e-aaf2-961c307b313e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\util">
+      <UniqueIdentifier>{33a14646-14ad-42f3-9fb2-86ee19f8f3bb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\app">
+      <UniqueIdentifier>{6f6952b2-0b2a-4bc7-8925-82d3bd5b215a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\components">
+      <UniqueIdentifier>{f8908e21-7791-44f6-8a61-81df25f37f5b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\config">
+      <UniqueIdentifier>{60f2ec53-288a-4cb3-8ce5-d783d0b1ce45}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\ecs">
+      <UniqueIdentifier>{e07d847b-baa2-437a-a51b-e09e56616f0a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\graphics">
+      <UniqueIdentifier>{605806f1-28fb-47b8-84cd-e90ff340a312}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\input">
+      <UniqueIdentifier>{b12a76e4-43f8-444e-8c66-b7e0d7a91dd3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\scenes">
+      <UniqueIdentifier>{9773ae32-288e-4bdb-b8f6-7e853749607f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\systems">
+      <UniqueIdentifier>{0f8c8194-9c91-4f60-9bfb-e03bf3043c35}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="include\graphics\StageSave.h" />
-    <ClInclude Include="include\systems\AnimationSystem.h" />
-    <ClInclude Include="include\Effekseer\EffekseerRendererDX11.h" />
-    <ClInclude Include="include\graphics\Effect.h" />
-    <ClInclude Include="include\systems\SoundSystem.h" />
-    <ClInclude Include="libs\Effekseer\Effekseer.h" />
-    <ClInclude Include="libs\Effekseer\Effekseer.Modules.h" />
-    <ClInclude Include="libs\Effekseer\Effekseer.SIMD.h" />
-    <ClInclude Include="RoomUIComponents.h" />
-    <ClInclude Include="SoundComponent.h" />
-    <ClInclude Include="StageStatus.h" />
-    <ClInclude Include="include\animation\Animation.h" />
-    <ClInclude Include="include\app\App.h" />
-    <ClInclude Include="include\app\BuildConfig.h" />
-    <ClInclude Include="include\app\DebugLog.h" />
-    <ClInclude Include="include\app\ResourceManager.h" />
-    <ClInclude Include="include\app\ServiceLocator.h" />
-    <ClInclude Include="include\components\CameraComponent.h" />
-    <ClInclude Include="include\components\Collision.h" />
-    <ClInclude Include="include\components\Component.h" />
-    <ClInclude Include="include\components\CountUIComponent.h" />
-    <ClInclude Include="include\components\EmissiveMaterial.h" />
-    <ClInclude Include="include\components\EmissivePulse.h" />
-    <ClInclude Include="include\components\GameComponents.h" />
-    <ClInclude Include="include\components\GameStats.h" />
-    <ClInclude Include="include\components\GameTags.h" />
-    <ClInclude Include="include\components\Light.h" />
-    <ClInclude Include="include\components\MeshRenderer.h" />
-    <ClInclude Include="include\components\Model.h" />
-    <ClInclude Include="include\components\ModelComponent.h" />
-    <ClInclude Include="include\components\ModelPrefab.h" />
-    <ClInclude Include="include\components\PlayerComponents.h" />
-    <ClInclude Include="include\components\PointLight.h" />
-    <ClInclude Include="include\components\Rotator.h" />
-    <ClInclude Include="include\components\SkyboxLight.h" />
-    <ClInclude Include="include\components\StageComponents.h" />
-    <ClInclude Include="include\components\Transform.h" />
-    <ClInclude Include="include\components\TransformHierarchy.h" />
-    <ClInclude Include="include\components\UIComponents.h" />
-    <ClInclude Include="include\components\UIImageComponents.h" />
-    <ClInclude Include="include\config\ConfigManager.h" />
-    <ClInclude Include="include\config\ConfigVar.h" />
-    <ClInclude Include="include\ecs\Entity.h" />
-    <ClInclude Include="include\ecs\World.h" />
-    <ClInclude Include="include\graphics\Camera.h" />
-    <ClInclude Include="include\graphics\DebugDraw.h" />
-    <ClInclude Include="include\graphics\GfxDevice.h" />
-    <ClInclude Include="include\graphics\ImageSystem.h" />
-    <ClInclude Include="include\graphics\LightConstantBuffer.h" />
-    <ClInclude Include="include\graphics\MaterialConstantBuffer.h" />
-    <ClInclude Include="include\graphics\ModelLoader.h" />
-    <ClInclude Include="include\graphics\RenderSystem.h" />
-    <ClInclude Include="include\graphics\SkyboxSystem.h" />
-    <ClInclude Include="include\graphics\TextSystem.h" />
-    <ClInclude Include="include\graphics\TextureManager.h" />
-    <ClInclude Include="include\graphics\VideoPlayer.h" />
-    <ClInclude Include="include\input\GamepadSystem.h" />
-    <ClInclude Include="include\input\InputSystem.h" />
-    <ClInclude Include="include\pch.h" />
-    <ClInclude Include="include\samples\CollisionEventSamples.h" />
-    <ClInclude Include="include\samples\CollisionSamples.h" />
-    <ClInclude Include="include\samples\ComponentSamples.h" />
-    <ClInclude Include="include\samples\GamepadSample.h" />
-    <ClInclude Include="include\samples\TransformHierarchySamples.h" />
-    <ClInclude Include="include\samples\WorldImprovementDemo.h" />
-    <ClInclude Include="include\scenes\CameraReaction.h" />
-    <ClInclude Include="include\scenes\CollisionHandlers.h" />
-    <ClInclude Include="include\scenes\Game.h" />
-    <ClInclude Include="include\scenes\SceneManager.h" />
-    <ClInclude Include="include\scenes\SenesUIController.h" />
-    <ClInclude Include="include\scenes\StageConfig.h" />
-    <ClInclude Include="include\scenes\StageSelect.h" />
-    <ClInclude Include="include\scenes\Tags.h" />
-    <ClInclude Include="include\systems\EmissiveRenderSystem.h" />
-    <ClInclude Include="include\systems\LightSystem.h" />
-    <ClInclude Include="include\systems\ModelLoadingSystem.h" />
-    <ClInclude Include="include\graphics\OmniShadowMap.h" />
-    <ClInclude Include="include\systems\RenderingSystem.h" />
-    <ClInclude Include="include\systems\ShadowRenderSystem.h" />
-    <ClInclude Include="include\systems\SpatialHashGrid.h" />
-    <ClInclude Include="include\systems\TransformHierarchySystem.h" />
-    <ClInclude Include="include\systems\UISystem.h" />
-    <ClInclude Include="include\util\Random.h" />
-    <ClInclude Include="include\scenes\WorldSelect.h" />
+    <ClCompile Include="src\app\ResourceManager.cpp">
+      <Filter>Source Files\app</Filter>
+    </ClCompile>
+    <ClCompile Include="src\components\Collision.cpp">
+      <Filter>Source Files\components</Filter>
+    </ClCompile>
+    <ClCompile Include="src\config\ConfigManager.cpp">
+      <Filter>Source Files\config</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ecs\World.cpp">
+      <Filter>Source Files\ecs</Filter>
+    </ClCompile>
+    <ClCompile Include="src\graphics\ImageSystem.cpp">
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="src\graphics\ModelLoader.cpp">
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="src\systems\ShadowRenderSystem.cpp">
+      <Filter>Source Files\systems</Filter>
+    </ClCompile>
+    <ClCompile Include="src\graphics\SkyboxSystem.cpp">
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="src\graphics\TextSystem.cpp">
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="src\input\GamepadSystem.cpp">
+      <Filter>Source Files\input</Filter>
+    </ClCompile>
+    <ClCompile Include="src\main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\pch.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\scenes\GameUI.cpp">
+      <Filter>Source Files\scenes</Filter>
+    </ClCompile>
+    <ClCompile Include="src\systems\EmissiveRenderSystem.cpp">
+      <Filter>Source Files\systems</Filter>
+    </ClCompile>
+    <ClCompile Include="src\systems\LightSystem.cpp">
+      <Filter>Source Files\systems</Filter>
+    </ClCompile>
+    <ClCompile Include="src\systems\SpatialHashGrid.cpp">
+      <Filter>Source Files\systems</Filter>
+    </ClCompile>
+    <ClCompile Include="src\systems\AnimationSystem.cpp">
+      <Filter>Source Files\systems</Filter>
+    </ClCompile>
+    <ClCompile Include="src\graphics\Effect.cpp">
+      <Filter>Source Files\graphics</Filter>
+    </ClCompile>
+    <ClCompile Include="StageUI.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\systems\SoundSystem.cpp">
+      <Filter>Source Files\systems</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="RoomUIComponents.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="StageStatus.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\animation\Animation.h">
+      <Filter>Header Files\animation</Filter>
+    </ClInclude>
+    <ClInclude Include="include\animation\AnimationConfig.h">
+      <Filter>Header Files\animation</Filter>
+    </ClInclude>
+    <ClInclude Include="include\animation\AnimationTools.h">
+      <Filter>Header Files\animation</Filter>
+    </ClInclude>
+    <ClInclude Include="include\app\App.h">
+      <Filter>Header Files\app</Filter>
+    </ClInclude>
+    <ClInclude Include="include\app\BuildConfig.h">
+      <Filter>Header Files\app</Filter>
+    </ClInclude>
+    <ClInclude Include="include\app\DebugLog.h">
+      <Filter>Header Files\app</Filter>
+    </ClInclude>
+    <ClInclude Include="include\app\ResourceManager.h">
+      <Filter>Header Files\app</Filter>
+    </ClInclude>
+    <ClInclude Include="include\app\ServiceLocator.h">
+      <Filter>Header Files\app</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\CameraComponent.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\Collision.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\Component.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\CountUIComponent.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\EmissiveMaterial.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\EmissivePulse.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\GameComponents.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\GameStats.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\GameTags.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\Light.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\MeshRenderer.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\Model.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\ModelComponent.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\ModelPrefab.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\PlayerComponents.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\PointLight.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\Rotator.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\SkyboxLight.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\StageComponents.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\Transform.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\TransformHierarchy.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\UIComponents.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\components\UIImageComponents.h">
+      <Filter>Header Files\components</Filter>
+    </ClInclude>
+    <ClInclude Include="include\config\ConfigManager.h">
+      <Filter>Header Files\config</Filter>
+    </ClInclude>
+    <ClInclude Include="include\config\ConfigVar.h">
+      <Filter>Header Files\config</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ecs\Entity.h">
+      <Filter>Header Files\ecs</Filter>
+    </ClInclude>
+    <ClInclude Include="include\ecs\World.h">
+      <Filter>Header Files\ecs</Filter>
+    </ClInclude>
+    <ClInclude Include="include\graphics\Camera.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\graphics\DebugDraw.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\graphics\GfxDevice.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\graphics\ImageSystem.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\graphics\LightConstantBuffer.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\graphics\MaterialConstantBuffer.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\graphics\OmniShadowMap.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\graphics\ModelLoader.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\graphics\RenderSystem.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\graphics\SkyboxSystem.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\graphics\TextSystem.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\graphics\TextureManager.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\graphics\VideoPlayer.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\input\GamepadSystem.h">
+      <Filter>Header Files\input</Filter>
+    </ClInclude>
+    <ClInclude Include="include\input\InputSystem.h">
+      <Filter>Header Files\input</Filter>
+    </ClInclude>
+    <ClInclude Include="include\pch.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\samples\CollisionEventSamples.h">
+      <Filter>Header Files\samples</Filter>
+    </ClInclude>
+    <ClInclude Include="include\samples\CollisionSamples.h">
+      <Filter>Header Files\samples</Filter>
+    </ClInclude>
+    <ClInclude Include="include\samples\ComponentSamples.h">
+      <Filter>Header Files\samples</Filter>
+    </ClInclude>
+    <ClInclude Include="include\samples\GamepadSample.h">
+      <Filter>Header Files\samples</Filter>
+    </ClInclude>
+    <ClInclude Include="include\samples\TransformHierarchySamples.h">
+      <Filter>Header Files\samples</Filter>
+    </ClInclude>
+    <ClInclude Include="include\samples\WorldImprovementDemo.h">
+      <Filter>Header Files\samples</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scenes\CameraReaction.h">
+      <Filter>Header Files\scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scenes\CollisionHandlers.h">
+      <Filter>Header Files\scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scenes\Game.h">
+      <Filter>Header Files\scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scenes\SceneManager.h">
+      <Filter>Header Files\scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scenes\SenesUIController.h">
+      <Filter>Header Files\scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scenes\StageConfig.h">
+      <Filter>Header Files\scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scenes\StageSelect.h">
+      <Filter>Header Files\scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scenes\Tags.h">
+      <Filter>Header Files\scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="include\systems\EmissiveRenderSystem.h">
+      <Filter>Header Files\systems</Filter>
+    </ClInclude>
+    <ClInclude Include="include\systems\LightSystem.h">
+      <Filter>Header Files\systems</Filter>
+    </ClInclude>
+    <ClInclude Include="include\systems\ModelLoadingSystem.h">
+      <Filter>Header Files\systems</Filter>
+    </ClInclude>
+    <ClInclude Include="include\systems\RenderingSystem.h">
+      <Filter>Header Files\systems</Filter>
+    </ClInclude>
+    <ClInclude Include="include\systems\ShadowRenderSystem.h">
+      <Filter>Header Files\systems</Filter>
+    </ClInclude>
+    <ClInclude Include="include\systems\SpatialHashGrid.h">
+      <Filter>Header Files\systems</Filter>
+    </ClInclude>
+    <ClInclude Include="include\systems\TransformHierarchySystem.h">
+      <Filter>Header Files\systems</Filter>
+    </ClInclude>
+    <ClInclude Include="include\systems\UISystem.h">
+      <Filter>Header Files\systems</Filter>
+    </ClInclude>
+    <ClInclude Include="include\util\Random.h">
+      <Filter>Header Files\util</Filter>
+    </ClInclude>
+    <ClInclude Include="SoundComponent.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\systems\AnimationSystem.h">
+      <Filter>Header Files\systems</Filter>
+    </ClInclude>
+    <ClInclude Include="include\Effekseer\EffekseerRendererDX11.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\graphics\Effect.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\Effekseer\Effekseer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\Effekseer\Effekseer.Modules.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="libs\Effekseer\Effekseer.SIMD.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\graphics\StageSave.h">
+      <Filter>Header Files\graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="include\systems\SoundSystem.h">
+      <Filter>Header Files\systems</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include=".github\ISSUE_TEMPLATE\01_task.yml" />
