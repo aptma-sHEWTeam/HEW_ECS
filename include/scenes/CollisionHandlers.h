@@ -179,6 +179,7 @@ struct PlayerCollisionHandler : ICollisionHandler {
             // 壁越しゴール対策: プレイヤーとゴールの間に壁(WallTag)があるかレイキャストで簡易チェック
             auto *tPlayer = w.TryGet<Transform>(self);
             auto *tGoal = w.TryGet<Transform>(other);
+            auto *tEffect = w.TryGet<PlayerMovement>(self);
             if (tPlayer && tGoal) {
                 DirectX::XMFLOAT3 startPos = tPlayer->position;
                 DirectX::XMFLOAT3 endPos = ResolvePlacementCenter(w, other, *tGoal); // ゴール中心
@@ -233,7 +234,9 @@ struct PlayerCollisionHandler : ICollisionHandler {
             //ゴールエフェクト停止
             EffekseerManager::GetInstance().StopEffect("Goal");
             EffekseerManager::GetInstance().StopEffect("DashBoard");
+            EffekseerManager::GetInstance().StopEffect("FireFirst");
             EffekseerManager::GetInstance().StopEffect("FireFirstToSec");
+
 
             // ゆっくり吸い込み: ゴール中心へイージングで寄せる
             // tPlayer, tGoalは既に上で取得済み
@@ -323,8 +326,10 @@ struct DashBordCollisionHandler : ICollisionHandler {
         const DirectX::XMFLOAT2 boostDir{std::cosf(angleRad), std::sinf(angleRad)};
         const float boostSpeed = v->speed * v->Acceleration * cfg_AccelerateAccfication;
 
+        DirectX::XMFLOAT3 effectPos = tSelf->position;
+        effectPos.y += 0.5f;
         //加速板のエフェクト(プレイヤーが加速板に触れたらエフェクトが出る)
-        // EffekseerManager::GetInstance().PlayEffect("WarpIn", tSelf->position,{});
+        EffekseerManager::GetInstance().PlayEffect("SpeedUp", effectPos, {1.0f,1.0f,1.0f},false);
 
         // 現在の速度を無視して、指定角度・指定大きさで上書き
         v->boostDir = boostDir;
