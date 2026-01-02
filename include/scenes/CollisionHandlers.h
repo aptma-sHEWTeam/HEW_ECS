@@ -235,9 +235,8 @@ struct PlayerCollisionHandler : ICollisionHandler {
             // tPlayer, tGoalは既に上で取得済み
 
             //エフェクト実装：ゴールとリンク
-            EffekseerManager::GetInstance().PlayEffect("WarpIn", tGoal->position, {0,0,0}, false);
             if (tGoal) {
-                 EffekseerManager::GetInstance().PlayEffect("WarpIn",tGoal->position, false);
+                EffekseerManager::GetInstance().PlayEffect("WarpIn", tGoal->position, {0, 0, 0}, false);
             }
 
 
