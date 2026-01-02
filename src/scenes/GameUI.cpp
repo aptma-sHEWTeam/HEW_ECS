@@ -10,6 +10,8 @@
 #include "components/UIImageComponents.h"
 #include "config/ConfigVar.h"
 #include "animation/Animation.h" // cfg_ChargingFade / SpriteSheetAnimation など
+#include "animation/AnimationTools.h"
+#include "animation/AnimationConfig.h"
 
 inline static ConfigVar<float> cfg_FadeFrameTime{"Fade.Out", "FadeFrameTime", 0.01f, "フェードアウト1フレームの時間（秒）"};
 
@@ -309,21 +311,18 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
    fade.opacity = 1.0f;
    fade.keepAspect = false;
 
-   SpriteSheetAnimation fadeOut;
-   fadeOut.frameCount = 18;
-   fadeOut.frameTime = fadeFrameTime;
-   fadeOut.columns = 18;
-   fadeOut.rows = 1;
-   // フェードは初期状態では再生しない（壁ヒット時に再生開始）
-   fadeOut.isLooping = false;
-   fadeOut.isPlaying = false;
+   SpriteSheetDesc fadeDesc = SpriteSheetDesc::Grid(
+       AnimationConfig::UI::FadeFrames,
+       AnimationConfig::UI::FadeCols,
+       fadeFrameTime,
+       /*loop*/false);
+   fadeDesc.playOnStart = false;
 
    Entity fadeOutAnimation = world.Create()
                                  .With<UITransform>(FadeAnimation)
                                  .With<UIImage>(fade)
-                                 .With<UVAnimation>()
-                                 .With<SpriteSheetAnimation>(fadeOut)
-                          .Build();
+                                 .Build();
+   AnimationTools::AddSpriteSheet(world, fadeOutAnimation, fadeDesc);
 
    ownedEntities_.push_back(fadeOutAnimation);
    fadeAnimationEntity_ = fadeOutAnimation;
@@ -335,20 +334,18 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
    deathFade.opacity = 1.0f;
    deathFade.keepAspect = false;
 
-   SpriteSheetAnimation deathFadeAnim;
-   deathFadeAnim.frameCount = 18;
-   deathFadeAnim.frameTime = 0.08f;
-   deathFadeAnim.columns = 18;
-   deathFadeAnim.rows = 1;
-   deathFadeAnim.isLooping = false;
-   deathFadeAnim.isPlaying = false;
+   SpriteSheetDesc deathFadeDesc = SpriteSheetDesc::Grid(
+       AnimationConfig::UI::DeathFadeFrames,
+       AnimationConfig::UI::DeathFadeCols,
+       AnimationConfig::UI::DeathFadeFrameTime,
+       /*loop*/false);
+   deathFadeDesc.playOnStart = false;
 
    Entity deathFadeAnimation = world.Create()
                                     .With<UITransform>(FadeAnimation)
                                     .With<UIImage>(deathFade)
-                                    .With<UVAnimation>()
-                                    .With<SpriteSheetAnimation>(deathFadeAnim)
                                     .Build();
+   AnimationTools::AddSpriteSheet(world, deathFadeAnimation, deathFadeDesc);
 
    ownedEntities_.push_back(deathFadeAnimation);
    deathFadeAnimationEntity_ = deathFadeAnimation;
@@ -358,19 +355,19 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
    chargeOverlay.opacity = 0.0f;
    chargeOverlay.keepAspect = false;
 
-   SpriteSheetAnimation chargeOverlayAnim;
-   chargeOverlayAnim.frameCount = 1;
-   chargeOverlayAnim.frameTime = 0.5f;
-   chargeOverlayAnim.columns = 1;
-   chargeOverlayAnim.rows = 1;
-   chargeOverlayAnim.isLooping = false;
-   chargeOverlayAnim.isPlaying = false;
+   SpriteSheetDesc chargeDesc;
+   chargeDesc.frameCount = 1;
+   chargeDesc.columns = 1;
+   chargeDesc.rows = 1;
+   chargeDesc.frameTime = 0.5f;
+   chargeDesc.loop = false;
+   chargeDesc.playOnStart = false;
 
    Entity chargeOverlayEntity = world.Create()
                                      .With<UITransform>(FadeAnimation)
                                      .With<UIImage>(chargeOverlay)
-                                     .With<SpriteSheetAnimation>(chargeOverlayAnim)
                                      .Build();
+   AnimationTools::AddSpriteSheet(world, chargeOverlayEntity, chargeDesc);
    ownedEntities_.push_back(chargeOverlayEntity);
    chargeOverlayEntity_ = chargeOverlayEntity;
 

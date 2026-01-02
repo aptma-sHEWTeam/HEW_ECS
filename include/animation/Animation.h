@@ -1,4 +1,5 @@
 ﻿#pragma once
+#include "components/UIImageComponents.h"
 #include "components/Component.h"
 #include "ecs/Entity.h"
 #include "ecs/World.h"

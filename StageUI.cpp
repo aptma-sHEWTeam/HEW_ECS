@@ -39,7 +39,7 @@ void StageSlectScene::CreateStageSelectUI(World &world) {
     CountTransform.anchor = {0.0f, 0.0f};
     CountTransform.pivot = {0.0f, 0.0f};
 
-    UIText CountText{L"Stage Select: Press Enter"};
+    UIText CountText{L""};
     CountText.color = {cfg_UICountR, cfg_UICountG, cfg_UICountB, 1.0f};
     CountText.formatId = "hud";
 
