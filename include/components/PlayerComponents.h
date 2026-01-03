@@ -299,7 +299,60 @@ struct PlayerMovement : Behaviour {
                 startBlocked = true;
             }
         });
-        if (startBlocked) { restoreCollisionRadius(); return; }
+        if (startBlocked) 
+        { 
+            if (gamepad_)
+            {
+                float gx = gamepad_->GetLeftStickX();
+                float gy = gamepad_->GetLeftStickY();
+                float mag = std::sqrt(gx * gx + gy * gy);
+                bool chargingNow = (mag > cfg_ReleaseThreshold);
+                bool chargingSys = gamepad_->IsLeftStickCharging();
+
+                DirectX::XMFLOAT3 startPos = t->position;
+                float shake = 0.0f;
+
+                if (chargingNow && chargingSys)
+                {
+                    if (currentEffectState != EffectState::Charging)
+                    {
+                        SwitchEffect(w, self, EffectState::Charging);
+                        startPos = t->position;
+                    }
+                    //プレイヤーの向き更新
+                    if (mag > PlayerConstants::EPSILON)
+                    {
+                        float ang = std::atan2f(-(gy/mag),-(gx/mag));
+                        t->rotation.y = -ang * (180.0f/DirectX::XM_PI)+90.0f;
+                    } 
+                    
+                    t->position.x = startPos.x;
+                    int flip = std::rand() % 2;
+                    
+                    if (flip == 0)
+                    {
+                        shake = -0.01f;
+                    } else {
+
+                        shake =  0.01f;
+                    }
+
+                    t->position.x += shake;
+                }
+                else
+                {
+                    if (currentEffectState != EffectState::Idle)
+                    {
+                        t->position.x = startPos.x;
+                        shake = 0.0f;
+
+                        SwitchEffect(w, self, EffectState::Idle);
+                    }
+                }
+
+            }
+            restoreCollisionRadius(); return; 
+        }
 
         // ゴール演出中（GoalAttractor存在時）は入力を無効化し、速度を0にロック
         if (w.Has<GoalAttractor>(self)) {
@@ -312,6 +365,7 @@ struct PlayerMovement : Behaviour {
             isCharging_ = false;
             wasCharging_ = false;
             wasChargingPrev_ = false;
+            EffectState currentEffectState = EffectState::Idle;
             return;
         }
 

@@ -1,6 +1,6 @@
 ﻿/**
  * @file StageSelect.h
- * @brief セレクトシーン
+ * @brief タイトルセレクトシーン
  * @author 立山悠朔
  * @date 2025
  * @version 1.0
@@ -52,7 +52,7 @@ class StageSlectScene : public IScene {
         if (!hasStageProgress) {
             world.Create().With<StageProgress>().Build();
         }
-        //maxStage_ = GetAvailableStageCount();
+        //maxStage_ = GetAvailableStageCount(); //今はオブジェクトを8個表示したいから消してるステージの読み込みをしっかり出来たら直す
         world.ForEach<StageProgress>([&](Entity, StageProgress &progress) {
             progress.selectStage = std::clamp(progress.selectStage, 1, maxStage_);
             progress.currentStage = std::clamp(progress.currentStage, 1, maxStage_);
@@ -127,8 +127,6 @@ class StageSlectScene : public IScene {
             }
         });
 
-        world.Tick(deltaTime);
-
         if (input.GetKeyDown(VK_RETURN)) {
             DEBUGLOG("Enter pressed!");
             if (auto *maneger = ServiceLocator::TryGet<SceneManager>()) {
@@ -151,7 +149,7 @@ class StageSlectScene : public IScene {
             if (input.GetKeyDown(VK_RIGHT) && stats.selectStage < maxStage_) {
                 stats.selectStage++;
                 targetAngle_ += DirectX::XM_2PI / maxStage_;
-            }
+            } 
             if (input.GetKeyDown(VK_LEFT) && stats.selectStage > 1) {
                 stats.selectStage--;
                 targetAngle_ -= DirectX::XM_2PI / maxStage_;
@@ -188,13 +186,17 @@ class StageSlectScene : public IScene {
             transform.position.z = x * sinf(angle) + z * cosf(angle);
         });
 
+        world.Tick(deltaTime);
+
     }
 
     void OnRender(World &world) override {
+        auto &renderer = ServiceLocator::Get<RenderSystem>(); 
         world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
             MeshRenderer renderer;
             sys.Render(world);
         });
+        renderer.Render(world, camera_);
     }
 
     void OnExit(World &world) override {
@@ -203,13 +205,13 @@ class StageSlectScene : public IScene {
                 world.DestroyEntityWithCause(e, World::Cause::SceneUnload);
             }
         }
+        ownedEntities_.clear();
         for (const auto &e : objectOwnedEntities_) {
             if (world.IsAlive(e)) {
                 world.DestroyEntityWithCause(e, World::Cause::SceneUnload);
             }
         }
         objectOwnedEntities_.clear();
-        ownedEntities_.clear();
         if (world.IsAlive(StageSelectEntity_)) {
             world.DestroyEntityWithCause(StageSelectEntity_, World::Cause::SceneUnload);
             StageSelectEntity_ = {};
