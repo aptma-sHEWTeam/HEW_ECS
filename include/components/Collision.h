@@ -69,6 +69,7 @@
 #include <algorithm>
 #include <typeindex>
 #include <cmath>
+#include <limits>
 #include <DirectXCollision.h> // For BoundingBox
 
 #include "systems/SpatialHashGrid.h" // Added for spatial hash grid
@@ -820,6 +821,10 @@ struct CollisionDetectionSystem : Behaviour {
             return std::nullopt;
         }
 
+#if defined(_DEBUG)
+        RunTriPrismSelfTest();
+#endif
+
         // Box vs Box
         if (auto *boxA = w.TryGet<CollisionBox>(a)) {
             if (auto *boxB = w.TryGet<CollisionBox>(b)) {
@@ -855,19 +860,17 @@ struct CollisionDetectionSystem : Behaviour {
             }
         }
 
-        // Box vs TriPrism (use AABB test then refine plane)
+        // Box vs TriPrism
         if (auto *boxA = w.TryGet<CollisionBox>(a)) {
             if (auto *triB = w.TryGet<CollisionRightIsoTriPrism>(b)) {
-                CollisionBox triBBox(triB->GetScaledSize(*transformB), triB->offset);
-                auto info = CheckAABB_AABB(*transformA, *boxA, *transformB, triBBox, a, b);
-                if (info) { info->isColliding = RefineTriPrism(boxA, transformA, triB, transformB, *info, true); if(info->isColliding) return info; }
+                auto info = CheckBox_TriPrism(*transformA, *boxA, *transformB, *triB, a, b);
+                if (info) return info;
             }
         }
         if (auto *triA = w.TryGet<CollisionRightIsoTriPrism>(a)) {
             if (auto *boxB = w.TryGet<CollisionBox>(b)) {
-                CollisionBox triABBox(triA->GetScaledSize(*transformA), triA->offset);
-                auto info = CheckAABB_AABB(*transformA, triABBox, *transformB, *boxB, a, b);
-                if (info) { info->isColliding = RefineTriPrism(boxB, transformB, triA, transformA, *info, false); if(info->isColliding) return info; }
+                auto info = CheckBox_TriPrism(*transformB, *boxB, *transformA, *triA, b, a);
+                if (info) return info;
             }
         }
 
@@ -881,13 +884,6 @@ struct CollisionDetectionSystem : Behaviour {
         if (auto *triA = w.TryGet<CollisionRightIsoTriPrism>(a)) {
             if (auto *sphereB = w.TryGet<CollisionSphere>(b)) {
                 auto info = CheckSphere_TriPrism(*transformB, *sphereB, *transformA, *triA, b, a);
-                if (info) {
-                    // 法線を反転してエンティティ順序に合わせる
-                    info->normal.x = -info->normal.x;
-                    info->normal.y = -info->normal.y;
-                    info->normal.z = -info->normal.z;
-                    std::swap(info->entityA, info->entityB);
-                }
                 if (info) return info;
             }
         }
@@ -1046,243 +1042,346 @@ struct CollisionDetectionSystem : Behaviour {
         return std::nullopt;
     }
 
+    struct TriPrismShape {
+        DirectX::XMFLOAT3 center;
+        DirectX::XMFLOAT3 half;
+        bool mainDiagonal;
+        DirectX::XMVECTOR rot;
+        DirectX::XMVECTOR invRot;
+        DirectX::XMFLOAT2 planeNormal; // XZ 平面での正規化済み法線
+        float planeOffset;             // n・p = offset が斜面
+    };
+
+    static TriPrismShape BuildTriPrismShape(const Transform &tTri, const CollisionRightIsoTriPrism &tri) {
+        using namespace DirectX;
+        TriPrismShape shape;
+        shape.center = tri.GetWorldCenter(tTri);
+        auto scaled = tri.GetScaledSize(tTri);
+        shape.half = {scaled.x * 0.5f, scaled.y * 0.5f, scaled.z * 0.5f};
+        shape.mainDiagonal = tri.mainDiagonalXZ;
+
+        // 斜め壁はYaw回転のみを想定（壁配置の使用実態に合わせる）
+        float yawRad = XMConvertToRadians(tTri.rotation.y);
+        shape.rot = XMQuaternionRotationRollPitchYaw(0.0f, yawRad, 0.0f);
+        shape.invRot = XMQuaternionConjugate(shape.rot);
+
+        float nX = shape.half.z;
+        float nZ = tri.mainDiagonalXZ ? shape.half.x : -shape.half.x;
+        float len = std::sqrt(std::max(nX * nX + nZ * nZ, 1e-6f));
+        shape.planeNormal = {nX / len, nZ / len};
+
+        DirectX::XMFLOAT2 cut = tri.mainDiagonalXZ ? DirectX::XMFLOAT2{-shape.half.x, -shape.half.z}
+                                                   : DirectX::XMFLOAT2{-shape.half.x, shape.half.z};
+        shape.planeOffset = shape.planeNormal.x * cut.x + shape.planeNormal.y * cut.y;
+        return shape;
+    }
+
+    static DirectX::XMFLOAT3 ToLocal(const TriPrismShape &shape, const DirectX::XMFLOAT3 &world) {
+        using namespace DirectX;
+        XMVECTOR rel = XMVectorSubtract(XMLoadFloat3(&world), XMLoadFloat3(&shape.center));
+        XMVECTOR local = XMVector3Rotate(rel, shape.invRot);
+        DirectX::XMFLOAT3 out;
+        XMStoreFloat3(&out, local);
+        return out;
+    }
+
+    static DirectX::XMVECTOR ToWorld(const TriPrismShape &shape, const DirectX::XMFLOAT3 &local) {
+        using namespace DirectX;
+        return XMVectorAdd(XMVector3Rotate(XMLoadFloat3(&local), shape.rot), XMLoadFloat3(&shape.center));
+    }
+
+    static float Dot2(const DirectX::XMFLOAT2 &a, const DirectX::XMFLOAT2 &b) {
+        return a.x * b.x + a.y * b.y;
+    }
+
+    static std::vector<DirectX::XMFLOAT2> ClipPolygonAgainstPlane(
+        const std::vector<DirectX::XMFLOAT2> &poly,
+        const DirectX::XMFLOAT2 &normal,
+        float offset) {
+        std::vector<DirectX::XMFLOAT2> result;
+        if (poly.empty()) return result;
+
+        auto lerp = [](const DirectX::XMFLOAT2 &a, const DirectX::XMFLOAT2 &b, float t) {
+            return DirectX::XMFLOAT2{a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t};
+        };
+
+        const float epsilon = 1e-6f;
+        for (size_t i = 0; i < poly.size(); ++i) {
+            const auto &s = poly[i];
+            const auto &e = poly[(i + 1) % poly.size()];
+            float ds = Dot2(s, normal) - offset;
+            float de = Dot2(e, normal) - offset;
+            bool sInside = ds >= -epsilon;
+            bool eInside = de >= -epsilon;
+
+            if (sInside && eInside) {
+                result.push_back(e);
+            } else if (sInside && !eInside) {
+                float denom = ds - de;
+                float t = std::abs(denom) < epsilon ? 0.0f : ds / denom;
+                result.push_back(lerp(s, e, t));
+            } else if (!sInside && eInside) {
+                float denom = ds - de;
+                float t = std::abs(denom) < epsilon ? 0.0f : ds / denom;
+                result.push_back(lerp(s, e, t));
+                result.push_back(e);
+            }
+        }
+        return result;
+    }
+
+    static DirectX::XMFLOAT2 ClosestPointOnSegment2D(
+        const DirectX::XMFLOAT2 &p,
+        const DirectX::XMFLOAT2 &a,
+        const DirectX::XMFLOAT2 &b) {
+        float vx = b.x - a.x;
+        float vy = b.y - a.y;
+        float lenSq = vx * vx + vy * vy;
+        if (lenSq <= 1e-8f) return a;
+        float t = ((p.x - a.x) * vx + (p.y - a.y) * vy) / lenSq;
+        t = std::clamp(t, 0.0f, 1.0f);
+        return {a.x + vx * t, a.y + vy * t};
+    }
+
+    static bool IsInsideConvexPolygon(
+        const std::vector<DirectX::XMFLOAT2> &poly,
+        const DirectX::XMFLOAT2 &p) {
+        if (poly.empty()) return false;
+        bool hasPos = false;
+        bool hasNeg = false;
+        for (size_t i = 0; i < poly.size(); ++i) {
+            const auto &a = poly[i];
+            const auto &b = poly[(i + 1) % poly.size()];
+            float cross = (b.x - a.x) * (p.y - a.y) - (b.y - a.y) * (p.x - a.x);
+            hasPos |= (cross > 0);
+            hasNeg |= (cross < 0);
+            if (hasPos && hasNeg) return false;
+        }
+        return true;
+    }
+
+    static DirectX::XMFLOAT2 ClosestPointOnPolygon(
+        const std::vector<DirectX::XMFLOAT2> &poly,
+        const DirectX::XMFLOAT2 &p) {
+        if (poly.empty()) return p;
+        if (IsInsideConvexPolygon(poly, p)) return p;
+
+        float best = std::numeric_limits<float>::max();
+        DirectX::XMFLOAT2 bestPt = poly.front();
+        for (size_t i = 0; i < poly.size(); ++i) {
+            const auto &a = poly[i];
+            const auto &b = poly[(i + 1) % poly.size()];
+            auto cand = ClosestPointOnSegment2D(p, a, b);
+            float dx = cand.x - p.x;
+            float dy = cand.y - p.y;
+            float d2 = dx * dx + dy * dy;
+            if (d2 < best) {
+                best = d2;
+                bestPt = cand;
+            }
+        }
+        return bestPt;
+    }
+
+    static std::vector<DirectX::XMFLOAT2> BuildTriPrismPolygon(
+        const TriPrismShape &shape,
+        const DirectX::XMFLOAT3 &expand) {
+        float hx = shape.half.x + expand.x;
+        float hz = shape.half.z + expand.z;
+        std::vector<DirectX::XMFLOAT2> poly = {
+            {-hx, -hz},
+            {hx, -hz},
+            {hx, hz},
+            {-hx, hz},
+        };
+
+        float planeInflate = shape.planeNormal.x * expand.x + shape.planeNormal.y * expand.z;
+        float effectiveOffset = shape.planeOffset - planeInflate;
+        return ClipPolygonAgainstPlane(poly, shape.planeNormal, effectiveOffset);
+    }
+
+    struct TriPrismQueryResult {
+        bool inside = false;
+        DirectX::XMFLOAT3 closestLocal{0, 0, 0}; // 最近傍点（ローカル）
+        DirectX::XMFLOAT3 normalLocal{0, 1, 0};  // point -> surface 方向
+        float minMargin = 0.0f;                  // 内部時の最短余裕距離
+        float distance = 0.0f;                   // 最近傍点までの距離
+    };
+
+    static TriPrismQueryResult QueryPointToTriPrism(
+        const TriPrismShape &shape,
+        const DirectX::XMFLOAT3 &pointLocal,
+        const DirectX::XMFLOAT3 &expand) {
+        using namespace DirectX;
+        TriPrismQueryResult result;
+
+        float hx = shape.half.x + expand.x;
+        float hy = shape.half.y + expand.y;
+        float hz = shape.half.z + expand.z;
+
+        float planeInflate = shape.planeNormal.x * expand.x + shape.planeNormal.y * expand.z;
+        float effectivePlaneOffset = shape.planeOffset - planeInflate;
+        float planeSigned = shape.planeNormal.x * pointLocal.x + shape.planeNormal.y * pointLocal.z - effectivePlaneOffset;
+
+        bool inside = std::abs(pointLocal.x) <= hx + 1e-6f &&
+                      std::abs(pointLocal.y) <= hy + 1e-6f &&
+                      std::abs(pointLocal.z) <= hz + 1e-6f &&
+                      planeSigned >= -1e-6f;
+        result.inside = inside;
+
+        auto polygon = BuildTriPrismPolygon(shape, expand);
+        XMFLOAT2 p2{pointLocal.x, pointLocal.z};
+        XMFLOAT2 closest2 = polygon.empty()
+                                ? XMFLOAT2{std::clamp(pointLocal.x, -hx, hx), std::clamp(pointLocal.z, -hz, hz)}
+                                : ClosestPointOnPolygon(polygon, p2);
+        float clampedY = std::clamp(pointLocal.y, -hy, hy);
+        result.closestLocal = {closest2.x, clampedY, closest2.y};
+
+        XMVECTOR vPoint = XMLoadFloat3(&pointLocal);
+        XMVECTOR vClosest = XMLoadFloat3(&result.closestLocal);
+        XMVECTOR diff = XMVectorSubtract(vClosest, vPoint);
+        result.distance = XMVectorGetX(XMVector3Length(diff));
+
+        if (inside) {
+            float marginXPos = hx - pointLocal.x;
+            float marginXNeg = hx + pointLocal.x;
+            float marginYPos = hy - pointLocal.y;
+            float marginYNeg = hy + pointLocal.y;
+            float marginZPos = hz - pointLocal.z;
+            float marginZNeg = hz + pointLocal.z;
+            float marginPlane = planeSigned;
+
+            result.minMargin = marginXPos;
+            result.normalLocal = {1.0f, 0.0f, 0.0f};
+
+            auto update = [&](float candidate, const XMFLOAT3 &n) {
+                if (candidate < result.minMargin) {
+                    result.minMargin = candidate;
+                    result.normalLocal = n;
+                }
+            };
+
+            update(marginXNeg, {-1.0f, 0.0f, 0.0f});
+            update(marginYPos, {0.0f, 1.0f, 0.0f});
+            update(marginYNeg, {0.0f, -1.0f, 0.0f});
+            update(marginZPos, {0.0f, 0.0f, 1.0f});
+            update(marginZNeg, {0.0f, 0.0f, -1.0f});
+            update(marginPlane, {-shape.planeNormal.x, 0.0f, -shape.planeNormal.y});
+
+            result.closestLocal = {
+                pointLocal.x + result.normalLocal.x * result.minMargin,
+                pointLocal.y + result.normalLocal.y * result.minMargin,
+                pointLocal.z + result.normalLocal.z * result.minMargin};
+            result.distance = 0.0f;
+        } else if (result.distance > 1e-6f) {
+            XMVECTOR n = XMVector3Normalize(diff);
+            XMStoreFloat3(&result.normalLocal, n);
+        } else {
+            result.normalLocal = {-shape.planeNormal.x, 0.0f, -shape.planeNormal.y};
+        }
+
+        return result;
+    }
+
     static std::optional<CollisionInfo> CheckSphere_TriPrism(
         const Transform &tSphere, const CollisionSphere &sphere,
         const Transform &tTri, const CollisionRightIsoTriPrism &tri,
         Entity entitySphere, Entity entityTri) {
         using namespace DirectX;
 
-        XMFLOAT3 sphereCenter = sphere.GetWorldCenter(tSphere);
         float radius = sphere.GetScaledRadius(tSphere);
+        XMFLOAT3 sphereCenter = sphere.GetWorldCenter(tSphere);
 
-        XMFLOAT3 triCenter = tri.GetWorldCenter(tTri);
-        XMFLOAT3 triSize = tri.GetScaledSize(tTri);
-        XMFLOAT3 triHalf{triSize.x * 0.5f, triSize.y * 0.5f, triSize.z * 0.5f};
+        TriPrismShape shape = BuildTriPrismShape(tTri, tri);
+        XMFLOAT3 centerLocal = ToLocal(shape, sphereCenter);
 
-        XMVECTOR rotQuat = XMQuaternionRotationRollPitchYaw(
-            XMConvertToRadians(tTri.rotation.x),
-            XMConvertToRadians(tTri.rotation.y),
-            XMConvertToRadians(tTri.rotation.z));
-        XMVECTOR invRot = XMQuaternionConjugate(rotQuat);
-
-        // ワールド -> 三角柱ローカル
-        XMVECTOR relWorld = XMVectorSubtract(XMLoadFloat3(&sphereCenter), XMLoadFloat3(&triCenter));
-        XMVECTOR relLocal = XMVector3Rotate(relWorld, invRot);
-        XMFLOAT3 rel;
-        XMStoreFloat3(&rel, relLocal);
-
-        // 三角柱の形状をローカル座標で定義
-        // mainDiagonalXZ=true:  残る頂点 (+hx,-hz), (-hx,+hz), (+hx,+hz) - カット角(-hx,-hz)
-        // mainDiagonalXZ=false: 残る頂点 (-hx,-hz), (+hx,-hz), (+hx,+hz) - カット角(-hx,+hz)
-        
-        // 斜め平面の法線（ローカル座標、正規化済み）
-        float diagSign = tri.mainDiagonalXZ ? 1.0f : -1.0f;
-        float invSqrt2 = 0.70710678f;
-        XMFLOAT3 planeNormal{invSqrt2, 0.0f, diagSign * invSqrt2};
-        
-        // 球体の中心から斜め平面への符号付き距離
-        float planeDist = rel.x * planeNormal.x + rel.z * planeNormal.z;
-        
-        // 球体の中心が平面の外側（カット側）にある場合は早期リターン
-        if (planeDist < -radius) {
+        auto query = QueryPointToTriPrism(shape, centerLocal, {0.0f, 0.0f, 0.0f});
+        if (!query.inside && query.distance > radius) {
             return std::nullopt;
         }
 
-        // Y軸方向のクランプ
-        float clampedY = std::clamp(rel.y, -triHalf.y, triHalf.y);
-        
-        // XZ平面で三角柱の断面（三角形）への最近傍点を計算
-        // 三角形の3頂点（XZ平面）
-        XMFLOAT2 v0, v1, v2;
-        if (tri.mainDiagonalXZ) {
-            // カット角(-hx,-hz), 残る頂点: (+hx,-hz), (-hx,+hz), (+hx,+hz)
-            v0 = {+triHalf.x, -triHalf.z};
-            v1 = {-triHalf.x, +triHalf.z};
-            v2 = {+triHalf.x, +triHalf.z};
-        } else {
-            // カット角(-hx,+hz), 残る頂点: (-hx,-hz), (+hx,-hz), (+hx,+hz)
-            v0 = {-triHalf.x, -triHalf.z};
-            v1 = {+triHalf.x, -triHalf.z};
-            v2 = {+triHalf.x, +triHalf.z};
-        }
-        
-        XMFLOAT2 p{rel.x, rel.z};
-        
-        // 三角形への最近傍点を計算（2D）
-        auto closestPointOnTriangle2D = [&](XMFLOAT2 point, XMFLOAT2 a, XMFLOAT2 b, XMFLOAT2 c) -> XMFLOAT2 {
-            // エッジベクトル
-            XMFLOAT2 ab{b.x - a.x, b.y - a.y};
-            XMFLOAT2 ac{c.x - a.x, c.y - a.y};
-            XMFLOAT2 ap{point.x - a.x, point.y - a.y};
-            
-            float d1 = ab.x * ap.x + ab.y * ap.y;
-            float d2 = ac.x * ap.x + ac.y * ap.y;
-            if (d1 <= 0.0f && d2 <= 0.0f) return a; // 頂点Aが最近傍
-            
-            XMFLOAT2 bp{point.x - b.x, point.y - b.y};
-            float d3 = ab.x * bp.x + ab.y * bp.y;
-            float d4 = ac.x * bp.x + ac.y * bp.y;
-            if (d3 >= 0.0f && d4 <= d3) return b; // 頂点Bが最近傍
-            
-            float vc = d1 * d4 - d3 * d2;
-            if (vc <= 0.0f && d1 >= 0.0f && d3 <= 0.0f) {
-                float v = d1 / (d1 - d3);
-                return {a.x + v * ab.x, a.y + v * ab.y}; // エッジAB上
-            }
-            
-            XMFLOAT2 cp{point.x - c.x, point.y - c.y};
-            float d5 = ab.x * cp.x + ab.y * cp.y;
-            float d6 = ac.x * cp.x + ac.y * cp.y;
-            if (d6 >= 0.0f && d5 <= d6) return c; // 頂点Cが最近傍
-            
-            float vb = d5 * d2 - d1 * d6;
-            if (vb <= 0.0f && d2 >= 0.0f && d6 <= 0.0f) {
-                float w = d2 / (d2 - d6);
-                return {a.x + w * ac.x, a.y + w * ac.y}; // エッジAC上
-            }
-            
-            float va = d3 * d6 - d5 * d4;
-            if (va <= 0.0f && (d4 - d3) >= 0.0f && (d5 - d6) >= 0.0f) {
-                float w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
-                return {b.x + w * (c.x - b.x), b.y + w * (c.y - b.y)}; // エッジBC上
-            }
-            
-            // 点は三角形の内部にある
-            float denom = 1.0f / (va + vb + vc);
-            float vw = vb * denom;
-            float ww = vc * denom;
-            return {a.x + ab.x * vw + ac.x * ww, a.y + ab.y * vw + ac.y * ww};
-        };
-        
-        XMFLOAT2 closestXZ = closestPointOnTriangle2D(p, v0, v1, v2);
-        
-        // 最近傍点（ローカル座標）
-        XMFLOAT3 clamped{closestXZ.x, clampedY, closestXZ.y};
+        CollisionInfo info;
+        info.entityA = entitySphere;
+        info.entityB = entityTri;
+        info.isColliding = true;
 
-        // ローカル最近傍点をワールドへ戻す
-        XMVECTOR closestLocal = XMLoadFloat3(&clamped);
-        XMVECTOR closestWorld = XMVectorAdd(XMVector3Rotate(closestLocal, rotQuat), XMLoadFloat3(&triCenter));
-
-        XMVECTOR diff = XMVectorSubtract(closestWorld, XMLoadFloat3(&sphereCenter));
-        float distSq = XMVectorGetX(XMVector3LengthSq(diff));
-
-        #if defined(_DEBUG)
-        float planeDist2 = (rel.x + diagSign * rel.z) * invSqrt2;
-        if (std::abs(planeDist2) < 0.5f) {
-            std::string result = distSq <= radius * radius ? "HIT" : "MISS";
-            DEBUGLOG("[TriPrism2] Player(" + std::to_string(entitySphere.id) + ") vs Wall(" + std::to_string(entityTri.id) + 
-                     ") rel=(" + std::to_string(rel.x) + "," + std::to_string(rel.z) + 
-                     ") closest=(" + std::to_string(closestXZ.x) + "," + std::to_string(closestXZ.y) + 
-                     ") dist=" + std::to_string(std::sqrt(distSq)) + " -> " + result);
-        }
-        #endif
-
-        if (distSq <= radius * radius) {
-            CollisionInfo info;
-            info.entityA = entitySphere;
-            info.entityB = entityTri;
-            info.isColliding = true;
-
-            float dist = std::sqrt(std::max(distSq, 0.0f));
-            info.penetrationDepth = radius - dist;
-
-            if (dist > 1e-6f) {
-                XMVECTOR n = XMVector3Normalize(diff); // tri -> sphere
-                XMStoreFloat3(&info.normal, XMVectorNegate(n)); // sphere -> tri
-                XMStoreFloat3(&info.contactPoint, closestWorld);
-            } else {
-                info.normal = tri.mainDiagonalXZ ? XMFLOAT3{-0.707f, 0.0f, -0.707f} : XMFLOAT3{-0.707f, 0.0f, 0.707f};
-                info.contactPoint = sphereCenter;
-            }
-
-            return info;
-        }
-
-        return std::nullopt;
-    }
-
-
-    static bool RefineTriPrism(const CollisionBox* box, const Transform* tBox, const CollisionRightIsoTriPrism* tri, const Transform* tTri, CollisionInfo &info, bool triIsB){
-        if(!box||!tBox||!tri||!tTri) return false;
-        using namespace DirectX;
-
-        XMFLOAT3 triCenter = tri->GetWorldCenter(*tTri);
-        XMFLOAT3 triSize = tri->GetScaledSize(*tTri);
-        XMFLOAT3 triHalf{triSize.x * 0.5f, triSize.y * 0.5f, triSize.z * 0.5f};
-        XMVECTOR rotQuat = DirectX::XMQuaternionRotationRollPitchYaw(
-            DirectX::XMConvertToRadians(tTri->rotation.x),
-            DirectX::XMConvertToRadians(tTri->rotation.y),
-            DirectX::XMConvertToRadians(tTri->rotation.z));
-
-        XMFLOAT3 boxCenter = box->GetWorldCenter(*tBox);
-        XMFLOAT3 boxSize = box->GetScaledSize(*tBox);
-        XMFLOAT3 boxHalf{boxSize.x * 0.5f, boxSize.y * 0.5f, boxSize.z * 0.5f};
-
-        // 三角柱ローカル空間での中心位置
-        XMFLOAT3 rel{
-            boxCenter.x - triCenter.x,
-            boxCenter.y - triCenter.y,
-            boxCenter.z - triCenter.z
-        };
-
-        XMVECTOR baseN = tri->mainDiagonalXZ
-            ? XMVectorSet(1.0f, 0.0f, 1.0f, 0.0f)
-            : XMVectorSet(1.0f, 0.0f, -1.0f, 0.0f);
-        XMVECTOR n = XMVector3Normalize(XMVector3Rotate(baseN, rotQuat));
-
-        // 平面法線方向への射影
-        XMFLOAT3 absN;
-        XMStoreFloat3(&absN, XMVectorAbs(n));
-
-        // 回転後の各軸を取得（Y軸回転対応）
-        XMVECTOR axisX = XMVector3Rotate(XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f), rotQuat);
-        XMVECTOR axisY = XMVector3Rotate(XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f), rotQuat);
-        XMVECTOR axisZ = XMVector3Rotate(XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), rotQuat);
-
-        float projCenter = XMVectorGetX(XMVector3Dot(XMLoadFloat3(&rel), n));
-        float boxExtent = absN.x * boxHalf.x + absN.y * boxHalf.y + absN.z * boxHalf.z;
-        float triExtent =
-            std::abs(XMVectorGetX(XMVector3Dot(axisX, n))) * triHalf.x +
-            std::abs(XMVectorGetX(XMVector3Dot(axisY, n))) * triHalf.y +
-            std::abs(XMVectorGetX(XMVector3Dot(axisZ, n))) * triHalf.z;
-
-        float minProjBox = projCenter - boxExtent;
-        float maxProjBox = projCenter + boxExtent;
-
-        // 箱が平面の反対側に完全にある、または三角柱の正面範囲を超える場合は非衝突
-        if (maxProjBox < 0.0f) {
-            return false;
-        }
-        if (minProjBox > triExtent) {
-            return false;
-        }
-
-        // 平面へのめり込み量を優先して法線を更新
-        float planePenetration = std::max(0.0f, -minProjBox);
-        float capPenetration = std::max(0.0f, maxProjBox - triExtent);
-        float penetration = planePenetration > 0.0f ? planePenetration : capPenetration;
-        if (penetration > 0.0f) {
-            info.penetrationDepth = std::max(info.penetrationDepth, penetration);
-        }
-
-        XMFLOAT3 worldNormal;
-        XMStoreFloat3(&worldNormal, n);
-        if (!triIsB) {
-            worldNormal.x = -worldNormal.x;
-            worldNormal.y = -worldNormal.y;
-            worldNormal.z = -worldNormal.z;
-        }
-        info.normal = worldNormal;
-
-        // 接触点は法線方向にクランプした最近傍点を使用
-        float clampedProj = std::clamp(projCenter, 0.0f, triExtent);
-        XMVECTOR relVec = XMLoadFloat3(&rel);
-        XMVECTOR correctedRel = XMVectorSubtract(relVec, XMVectorScale(n, projCenter - clampedProj));
-        XMVECTOR contactWorld = XMVectorAdd(correctedRel, XMLoadFloat3(&triCenter));
+        XMVECTOR normalWorld = XMVector3Rotate(XMLoadFloat3(&query.normalLocal), shape.rot);
+        XMStoreFloat3(&info.normal, normalWorld);
+        XMVECTOR contactWorld = ToWorld(shape, query.closestLocal);
         XMStoreFloat3(&info.contactPoint, contactWorld);
 
-        return true;
+        if (query.distance > 1e-6f) {
+            info.penetrationDepth = radius - query.distance;
+        } else {
+            info.penetrationDepth = std::max(radius - query.minMargin, 0.0f);
+        }
+
+        return info;
     }
+
+    static std::optional<CollisionInfo> CheckBox_TriPrism(
+        const Transform &tBox, const CollisionBox &box,
+        const Transform &tTri, const CollisionRightIsoTriPrism &tri,
+        Entity entityBox, Entity entityTri) {
+        using namespace DirectX;
+
+        XMFLOAT3 center = box.GetWorldCenter(tBox);
+        auto size = box.GetScaledSize(tBox);
+        XMFLOAT3 half{size.x * 0.5f, size.y * 0.5f, size.z * 0.5f};
+
+        TriPrismShape shape = BuildTriPrismShape(tTri, tri);
+        XMFLOAT3 centerLocal = ToLocal(shape, center);
+
+        auto query = QueryPointToTriPrism(shape, centerLocal, half);
+        if (!query.inside) {
+            return std::nullopt;
+        }
+
+        CollisionInfo info;
+        info.entityA = entityBox;
+        info.entityB = entityTri;
+        info.isColliding = true;
+        info.penetrationDepth = std::max(query.minMargin, 0.0f);
+
+        XMVECTOR normalWorld = XMVector3Rotate(XMLoadFloat3(&query.normalLocal), shape.rot);
+        XMStoreFloat3(&info.normal, normalWorld);
+
+        float correction =
+            std::abs(query.normalLocal.x) * half.x +
+            std::abs(query.normalLocal.y) * half.y +
+            std::abs(query.normalLocal.z) * half.z;
+        DirectX::XMFLOAT3 contactLocal{
+            query.closestLocal.x - query.normalLocal.x * correction,
+            query.closestLocal.y - query.normalLocal.y * correction,
+            query.closestLocal.z - query.normalLocal.z * correction};
+        XMVECTOR contactWorld = ToWorld(shape, contactLocal);
+        XMStoreFloat3(&info.contactPoint, contactWorld);
+
+        return info;
+    }
+
+#if defined(_DEBUG)
+    static void RunTriPrismSelfTest() {
+        static bool ran = false;
+        if (ran) return;
+        ran = true;
+
+        Transform triT;
+        triT.scale = {1.0f, 1.0f, 1.0f};
+        CollisionRightIsoTriPrism tri({2.0f, 2.0f, 2.0f});
+
+        Transform sphereT;
+        sphereT.position = {0.8f, 0.0f, 0.8f};
+        CollisionSphere sphere(0.3f);
+
+        auto hit = CheckSphere_TriPrism(sphereT, sphere, triT, tri, Entity{1, 0}, Entity{2, 0});
+        if (!hit || !hit->isColliding) {
+            DEBUGLOG("[CollisionSelfTest] Sphere vs TriPrism expected hit but missed");
+        } else if (hit->normal.y > 0.2f) {
+            DEBUGLOG("[CollisionSelfTest] Unexpected normal for TriPrism test (expected lateral push)");
+        }
+    }
+#endif
 };
 
 // ========================================================

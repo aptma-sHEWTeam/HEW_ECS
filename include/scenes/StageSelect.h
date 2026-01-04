@@ -74,8 +74,11 @@ class StageSlectScene : public IScene {
 
         float screenWidth = static_cast<float>(gfx->Width());
         float screenHeight = static_cast<float>(gfx->Height());
-       
 
+         world.ForEach<StageProgress>([&](Entity, StageProgress &stats) {
+            stats.selectStage = 0;
+        });
+       
         //カメラを初期化
         camera_ = Camera::LookAtLH(
             baseFovY_,
@@ -145,11 +148,18 @@ class StageSlectScene : public IScene {
         }
 
         const int maxStage = maxStage_;
+
         world.ForEach<StageProgress>([&](Entity, StageProgress &stats) {
-            if (input.GetKeyDown(VK_RIGHT) && stats.selectStage < maxStage_) {
-                stats.selectStage++;
-                targetAngle_ += DirectX::XM_2PI / maxStage_;
-            } 
+            if (input.GetKeyDown(VK_RIGHT)) {
+                if (stats.selectStage < maxStage_) {
+                    stats.selectStage++;
+                    targetAngle_ += DirectX::XM_2PI / maxStage_;
+                } else if (stats.selectStage == maxStage_) {
+                    if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
+                        manager->ChangeScene("WorldSelect", world);
+                    }
+                }
+            }
             if (input.GetKeyDown(VK_LEFT) && stats.selectStage > 1) {
                 stats.selectStage--;
                 targetAngle_ -= DirectX::XM_2PI / maxStage_;
@@ -158,12 +168,19 @@ class StageSlectScene : public IScene {
             GamepadSystem *padsystem2 = ServiceLocator::TryGet<GamepadSystem>();
             if (padsystem2) {
                 if (padsystem2->GetAnyButtonDown({GamepadSystem::Button_DPad_Right, GamepadSystem::Button_B})) {
-                    stats.selectStage++;
-                    targetAngle_ -= DirectX::XM_2PI / maxStage_;
+                    if (stats.selectStage < maxStage_) {
+                        stats.selectStage++;
+                        targetAngle_+= DirectX::XM_2PI / maxStage_;
+                    } else if (stats.selectStage == maxStage_) {
+                        if (auto *maneger = ServiceLocator::TryGet<SceneManager>()) {
+                            maneger->ChangeScene("WorldSelect", world);
+                        }
+                    }
+                    
                 }
                 if (padsystem2->GetAnyButtonDown({GamepadSystem::Button_DPad_Left, GamepadSystem::Button_X})) {
                     stats.selectStage--;
-                    targetAngle_ += DirectX::XM_2PI / maxStage_;
+                    targetAngle_ -= DirectX::XM_2PI / maxStage_;
                 }
             }
 
