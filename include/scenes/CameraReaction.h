@@ -50,4 +50,4 @@ inline ConfigVar<float> cfg_WallHitShakeIntensity{"Camera.Reaction.WallHit", "Wa
 /** @brief 壁衝突時のカメラシェイクの持続時間 */
 inline ConfigVar<float> cfg_WallHitShakeDuration{"Camera.Reaction.WallHit", "WallHitShakeDuration", 0.3f, "壁に衝突したときのカメラシェイク継続時間"};
 /** @brief 壁衝突後、プレイヤーがリスポーンするまでの遅延時間 */
-inline ConfigVar<float> cfg_WallHitRespawnDelay{"Camera.Reaction.WallHit", "WallHitRespawnDelay", 0.4f, "壁衝突後にプレイヤーをリスポーンさせるまでの遅延時間"};
+inline ConfigVar<float> cfg_WallHitRespawnDelay{"Camera.Reaction.WallHit", "WallHitRespawnDelay", 1.0f, "壁衝突後にプレイヤーをリスポーンさせるまでの遅延時間"};

@@ -330,7 +330,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
    // 死亡専用フェードアウト
    // 元の tex_fadekorigori.png (77760x4320) は巨大すぎてパフォーマンスに悪影響があるため、
    // tex_fade.png (通常のフェード用) で代用する。
-   UIImage deathFade{L"./Assets/Textures/Fade/tex_fade.png"};
+   UIImage deathFade{L"./Assets/Textures/Fade/tex_fadekorigori.png"};
    deathFade.opacity = 1.0f;
    deathFade.keepAspect = false;
 
