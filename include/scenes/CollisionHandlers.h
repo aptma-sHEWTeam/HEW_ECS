@@ -24,7 +24,7 @@ class GameScene;
 
 // GameSceneへのグローバルアクセス用ポインタ
 // 後方互換性のため維持
-inline GameScene* g_GameScene = nullptr;
+inline GameScene *g_GameScene = nullptr;
 // リスポーン待機状態のグローバルフラグ（GameSceneから更新）
 inline bool g_respawnPending = false;
 
@@ -45,6 +45,7 @@ inline DirectX::XMFLOAT3 ResolvePlacementCenter(World &w, Entity entity, const T
 void GameScene_OnChargeStart(World &w);
 void GameScene_OnChargeRelease(World &w, float chargeAmount01);
 void GameScene_OnTimeUp(World &w, Entity player);
+void GameScene_ResetChargeState();
 
 /**
  * @brief プレイヤーをスタート地点にリセット（速度も完全リセット）
@@ -131,7 +132,7 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
             stats.timerRunning = false;
         });
 
-        w.ForEach<StageProgress>([](Entity, StageProgress& sp) {
+        w.ForEach<StageProgress>([](Entity, StageProgress &sp) {
             sp.pressedSwitch = false;
             sp.goalUnlocked = !sp.hasSwitch;
         });
@@ -152,13 +153,11 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
 inline void CheckTimeLimit(World &w, Entity player, float timeLimitSeconds) {
     // GameStatusコンポーネントを持つエンティティを検索
     w.ForEach<GameStatus>([&](Entity e, GameStatus &stats) {
-
         // 経過時間が制限時間を超えたかチェック
         if (stats.elapsedTime <= 0) {
             DEBUGLOG("Timeout");
             GameScene_OnTimeUp(w, player);
             stats.elapsedTime = timeLimitSeconds;
-
         }
     });
 }
@@ -172,7 +171,8 @@ struct PlayerCollisionHandler : ICollisionHandler {
         if (w.Has<GoalTag>(other)) {
             StageProgress *progress = nullptr;
             w.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
-                if (!progress) progress = &sp;
+                if (!progress)
+                    progress = &sp;
             });
 
             if (progress && !progress->goalUnlocked) {
@@ -203,32 +203,34 @@ struct PlayerCollisionHandler : ICollisionHandler {
 
                 if (dist > 1e-4f) {
                     DirectX::XMVECTOR vDir = DirectX::XMVectorScale(vDiff, 1.0f / dist);
-                    
+
                     bool blocked = false;
                     // 全てのWallTagを持つエンティティに対してレイキャスト
                     // Note: World::ForEachは2コンポーネントまでしかサポートしていないため、Transformは内部で取得
-                    w.ForEach<WallTag, CollisionBox>([&](Entity e, WallTag&, CollisionBox& box) {
-                        if (blocked) return; // 既にブロックされていたらスキップ
-                        
-                        auto* tWallPtr = w.TryGet<Transform>(e);
-                        if (!tWallPtr) return;
-                        const Transform& tWall = *tWallPtr;
+                    w.ForEach<WallTag, CollisionBox>([&](Entity e, WallTag &, CollisionBox &box) {
+                        if (blocked)
+                            return; // 既にブロックされていたらスキップ
+
+                        auto *tWallPtr = w.TryGet<Transform>(e);
+                        if (!tWallPtr)
+                            return;
+                        const Transform &tWall = *tWallPtr;
 
                         // 壁のAABBを作成
                         DirectX::XMFLOAT3 center = box.GetWorldCenter(tWall);
                         DirectX::XMFLOAT3 scaledSize = box.GetScaledSize(tWall);
                         DirectX::XMFLOAT3 extents = {scaledSize.x * 0.5f, scaledSize.y * 0.5f, scaledSize.z * 0.5f};
-                        
+
                         DirectX::BoundingBox aabb(center, extents);
                         float hitDist = 0.0f;
                         // レイ判定 (origin, direction, dist)
                         if (aabb.Intersects(vStart, vDir, hitDist)) {
-                             // プレイヤーより先、かつゴールより手前でヒットしたか
-                             // (近い壁ほどhitDistは小さい。0なら自分の中。)
-                             if (hitDist > 0.1f && hitDist < dist - 0.2f) { // マージンを考慮
-                                 blocked = true;
-                                 DEBUGLOG("Goal blocked by wall entity " + std::to_string(e.id));
-                             }
+                            // プレイヤーより先、かつゴールより手前でヒットしたか
+                            // (近い壁ほどhitDistは小さい。0なら自分の中。)
+                            if (hitDist > 0.1f && hitDist < dist - 0.2f) { // マージンを考慮
+                                blocked = true;
+                                DEBUGLOG("Goal blocked by wall entity " + std::to_string(e.id));
+                            }
                         }
                     });
 
@@ -238,8 +240,11 @@ struct PlayerCollisionHandler : ICollisionHandler {
                 }
             }
 
-            if (progress) progress->goalTransitioning = true;
-            if (goalTag) goalTag->consumed = true;
+            if (progress)
+                progress->goalTransitioning = true;
+            if (goalTag)
+                goalTag->consumed = true;
+            GameScene_ResetChargeState(); // チャージ中のフェードとズームをリセット
             DEBUGLOG("Player reached goal");
 
             //ゴールエフェクト停止
@@ -260,13 +265,12 @@ struct PlayerCollisionHandler : ICollisionHandler {
                 EffekseerManager::GetInstance().PlayEffect("WarpIn", tGoal->position, {0, 0, 0}, false);
             }
 
-
             if (tPlayer && tGoal) {
                 const DirectX::XMFLOAT3 goalCenter = ResolvePlacementCenter(w, other, *tGoal);
 
-               auto handleOpt = EffekseerManager::GetInstance().PlayEffectSafe("WarpIn", tPlayer->position, {1.0f,1.0f,1.0f}, false);
-               int handle = handleOpt.value_or(-1);
-                
+                auto handleOpt = EffekseerManager::GetInstance().PlayEffectSafe("WarpIn", tPlayer->position, {1.0f, 1.0f, 1.0f}, false);
+                int handle = handleOpt.value_or(-1);
+
                 // 速度をリセット
                 if (auto *v = w.TryGet<PlayerVelocity>(self)) {
                     v->velocity = {0.0f, 0.0f};
@@ -280,7 +284,7 @@ struct PlayerCollisionHandler : ICollisionHandler {
                 attract.target = goalCenter;
                 attract.duration = 0.15f; // よりゆっくり(秒)
                 attract.effectHandle = handle;
-                
+
                 w.Add<GoalAttractor>(self, attract);
                 SOUND_SYS.PlaySE(cfg_WarpUpMP3Pass.Get());
             }
@@ -309,7 +313,6 @@ REGISTER_COLLISION_HANDLER_TYPE(EnemyCollisionHandler)
  */
 struct WallCollisionHandler : ICollisionHandler {
     void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override;
-
 };
 REGISTER_COLLISION_HANDLER_TYPE(WallCollisionHandler)
 
@@ -328,10 +331,10 @@ REGISTER_COLLISION_HANDLER_TYPE(FloorWallCollisionHandler)
  */
 struct DashBordCollisionHandler : ICollisionHandler {
     void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override {
-        auto *v = w.TryGet<PlayerVelocity>(other);              //速度コンポーネント取得
-        auto *dash = w.TryGet<DashBoardStatus>(self);           //加速板のステータス取得
+        auto *v = w.TryGet<PlayerVelocity>(other);    //速度コンポーネント取得
+        auto *dash = w.TryGet<DashBoardStatus>(self); //加速板のステータス取得
         auto *tDashBord = w.TryGet<Transform>(other);
-        auto *tSelf = w.TryGet<Transform>(self);                
+        auto *tSelf = w.TryGet<Transform>(self);
         if (!w.Has<PlayerTag>(other) || !v || !dash) {
             return;
         }
@@ -343,7 +346,7 @@ struct DashBordCollisionHandler : ICollisionHandler {
         DirectX::XMFLOAT3 effectPos = tSelf->position;
         effectPos.y += 0.2f;
         //加速板のエフェクト(プレイヤーが加速板に触れたらエフェクトが出る)
-        EffekseerManager::GetInstance().PlayEffect("SpeedUp", effectPos, {1.0f,1.0f,1.0f},false);
+        EffekseerManager::GetInstance().PlayEffect("SpeedUp", effectPos, {1.0f, 1.0f, 1.0f}, false);
 
         // 現在の速度を無視して、指定角度・指定大きさで上書き
         v->boostDir = boostDir;
@@ -361,7 +364,7 @@ struct DashBordCollisionHandler : ICollisionHandler {
 REGISTER_COLLISION_HANDLER_TYPE(DashBordCollisionHandler)
 
 struct SwitchCollisionHandler : ICollisionHandler {
-    void OnCollisionEnter(World& world, Entity self, Entity other, const CollisionInfo& info) override {
+    void OnCollisionEnter(World &world, Entity self, Entity other, const CollisionInfo &info) override {
         if (world.Has<PlayerTag>(other)) {
             world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
                 if (!sp.pressedSwitch) {

@@ -58,7 +58,6 @@
 #include "animation/AnimationConfig.h"
 #include "config/ConfigVar.h"
 #include "graphics/ModelLoader.h"
-#include "graphics/ModelLoader.h"
 #include "components/Animator.h"
 #include "graphics/StageSave.h"
 
@@ -72,6 +71,8 @@ inline static ConfigVar<float> cfg_GoalDistance{"Distance.Goal", "GoalDistance",
 inline static ConfigVar<float> cfg_SlowDirection{"Direction.Slow", "SlowDistance", 0.2f, "ゴール接近時に適用するタイムスケール"};
 inline static ConfigVar<float> cfg_StickZoomAmount{"Camera.Stick", "StickZoomAmount", 0.07f, "チャージ中のカメラズーム量"};
 inline static ConfigVar<float> cfg_StickZoomResponse{"Camera.Stick", "StickZoomResponse", 9.0f, "カメラズーム追従速度"};
+inline static ConfigVar<float> cfg_StickZoomTargetRatio{"Camera.Stick", "StickZoomTargetRatio", 0.3f, "プレイヤーへのカメラ寄り具合(0=寄らない,1=完全に寄る)"};
+inline static ConfigVar<float> cfg_StickZoomTargetSpeed{"Camera.Stick", "StickZoomTargetSpeed", 3.0f, "カメラターゲット補間速度"};
 // 追加: ステージクリア待機時間
 inline static ConfigVar<float> cfg_StageClearWait{"UI.StageClear", "WaitSeconds", 2.0f, "ステージクリア表示後にシーン遷移するまでの待機時間"};
 inline static ConfigVar<float> cfg_SkyboxSpeed{"Skybox", "Speed", 0.05f, "スカイボックスの回転速度(rad/sec)"};
@@ -386,12 +387,10 @@ class GameScene : public IScene {
 
         EffekseerManager::GetInstance().Update();
 
-       skyboxRotation_ += cfg_SkyboxSpeed.Get() * deltaTime;
+        skyboxRotation_ += cfg_SkyboxSpeed.Get() * deltaTime;
 
-
-       //ゴールの見た目変更
-       UpdateGoal(world);
-       
+        //ゴールの見た目変更
+        UpdateGoal(world);
 
         skyboxRotation_ += cfg_SkyboxSpeed.Get() * deltaTime;
     }
@@ -554,6 +553,19 @@ class GameScene : public IScene {
     }
 
     // チャージ開始/解放演出
+
+    /**
+     * @brief チャージ状態を即座にリセット（死亡・ゴール時用）
+     * @details 灰色フェード、カメラズーム、寄り率をすべてリセット
+     */
+    void ResetChargeState() {
+        SetStickZoomActive(false);
+        chargeOverlayCurrent_ = 0.0f;
+        chargeOverlayTarget_ = 0.0f;
+        chargeOverlayVisible_ = false;
+        stickZoomRatioCurrent_ = 0.0f;
+    }
+
     void OnChargeStart(World &world) {
         float ChargingFade = cfg_ChargingFade;
         chargeOverlayTarget_ = ChargingFade;
@@ -604,12 +616,11 @@ class GameScene : public IScene {
                 if (pressed) {
                     emissive->emissiveColor = {1.0f, 0.0f, 0.0f};
                 } else {
-                    emissive->emissiveColor = {0.0f,1.0f,1.0f};
+                    emissive->emissiveColor = {0.0f, 1.0f, 1.0f};
                 }
             }
         }
     }
-
 
     /** @brief カメラオブジェクトへのconst参照を取得 */
     const Camera &GetCamera() const {
@@ -675,7 +686,7 @@ class GameScene : public IScene {
     void OnWallHit(Entity player, World &world) {
         if (pendingRespawn_)
             return;
-        SetStickZoomActive(false);
+        ResetChargeState();
 
         // 再生用フェードアニメーションを開始
         StartDeathFadeOut(world);
@@ -713,7 +724,7 @@ class GameScene : public IScene {
     void OnTimeUp(Entity player, World &world) {
         if (pendingRespawn_)
             return;
-        SetStickZoomActive(false);
+        ResetChargeState();
 
         StartDeathFadeOut(world);
         PlayPlayerAnimation(world, AnimationConfig::Clips::PlayerTimeup, false);
@@ -1195,8 +1206,9 @@ class GameScene : public IScene {
                     CreatFloorWall(world, {worldX + tileSize, worldY, worldZ - tileSize});
 
                 if (blockType != 0) {
-                    if (blockType == 64 && !switchFound)  switchFound = true;
-                    CreateBlockByType(world, blockposition, blockType,stagenumber);
+                    if (blockType == 64 && !switchFound)
+                        switchFound = true;
+                    CreateBlockByType(world, blockposition, blockType, stagenumber);
                 }
             }
         }
@@ -1264,15 +1276,32 @@ class GameScene : public IScene {
 
     void CreateBlockByType(World &world, const DirectX::XMFLOAT3 &position, int blockType, int stagenumber) {
         switch (blockType) {
-            case 1: CreateStart(world, position); break;
-            case 2: CreateGoal(world, position, stagenumber); break;
-            case 3: CreateWall(world, position); break;
-            case 5: CreateRightDownCorner(world, position); break;
-            case 6: CreateLeftDownCorner(world, position); break;
-            case 7: CreateLeftUpCorner(world, position); break;
-            case 8: CreateRightUpCorner(world, position); break;
-            case 54: CreateObjectC(world, position, blockType); break;
-            case 64: CreateGoalSwitch(world, position,blockType);
+            case 1:
+                CreateStart(world, position);
+                break;
+            case 2:
+                CreateGoal(world, position, stagenumber);
+                break;
+            case 3:
+                CreateWall(world, position);
+                break;
+            case 5:
+                CreateRightDownCorner(world, position);
+                break;
+            case 6:
+                CreateLeftDownCorner(world, position);
+                break;
+            case 7:
+                CreateLeftUpCorner(world, position);
+                break;
+            case 8:
+                CreateRightUpCorner(world, position);
+                break;
+            case 54:
+                CreateObjectC(world, position, blockType);
+                break;
+            case 64:
+                CreateGoalSwitch(world, position, blockType);
             default:
                 if (blockType >= 10 && blockType < 20) {
                     CreateMovingObstacle(world, position, blockType);
@@ -1405,20 +1434,18 @@ class GameScene : public IScene {
         stageOwnedEntities_.push_back(e);
         auto goalHandle = EffekseerManager::GetInstance().PlayEffectSafe("Goal", diffPosition, {1.0f, 1.0f, 1.0f}, true);
         goalEffectHandle_ = goalHandle.value_or(-1);
-
-      
     }
 
-    void CreateGoalSwitch(World& world, const DirectX::XMFLOAT3& position, int currentstage) {
-        Transform t{{position.x,position.y -1.0f ,position.z}, {0, 0, 0}, {1.0f, 0.5f, 1.0f}};
+    void CreateGoalSwitch(World &world, const DirectX::XMFLOAT3 &position, int currentstage) {
+        Transform t{{position.x, position.y - 1.0f, position.z}, {0, 0, 0}, {1.0f, 0.5f, 1.0f}};
         MeshRenderer r;
         r.meshType = MeshType::Cube;
         r.color = {1.0f, 0.0f, 0.0f};
 
-         Entity e = world.Create()
+        Entity e = world.Create()
                        .With<Transform>(t)
                        .With<MeshRenderer>(r)
-                       .With<CollisionBox>(DirectX::XMFLOAT3{1.5f,2.0f,1.5f})
+                       .With<CollisionBox>(DirectX::XMFLOAT3{1.5f, 2.0f, 1.5f})
                        .With<SwitchCollisionHandler>()
                        .With<StaticCollider>()
                        .With<StageElementTag>()
@@ -2013,7 +2040,6 @@ class GameScene : public IScene {
             StartFadeInNormal(world);
             if (auto *playerStatus = world.TryGet<PlayerStatus>(playerEntity_)) {
                 UpdateWallHitState(*playerStatus, PlayerStatus::WallHitState::Idle, "RespawnComplete");
-                
             }
             pendingRespawn_ = false;
             g_respawnPending = false;
@@ -2026,7 +2052,7 @@ class GameScene : public IScene {
         }
     }
 
-    void UpdateCameraReaction(float dt, World & /*world*/) {
+    void UpdateCameraReaction(float dt, World &world) {
         DirectX::XMFLOAT3 posOffset{0.0f, 0.0f, 0.0f};
         DirectX::XMFLOAT3 targetOffset{0.0f, 0.0f, 0.0f};
         float fovDelta = 0.0f;
@@ -2040,8 +2066,37 @@ class GameScene : public IScene {
             UpdateZoom(dt, fovDelta);
         float stickZoomDelta = UpdateStickZoom(dt);
 
+        // スティックズーム時のターゲット補間（寄り率を補間して直線的に移動）
+        DirectX::XMFLOAT3 effectiveTarget = baseTarget_;
+        if (world.IsAlive(playerEntity_)) {
+            if (auto *pTransform = world.TryGet<Transform>(playerEntity_)) {
+                // 目標寄り率を計算（ズーム量 * TargetRatio）
+                float zoomRatio = std::abs(stickZoomCurrent_) / std::max(0.01f, std::abs(cfg_StickZoomAmount.Get()));
+                zoomRatio = std::clamp(zoomRatio, 0.0f, 1.0f);
+                float targetRatio = zoomRatio * cfg_StickZoomTargetRatio.Get();
+
+                // 寄り率をゆっくり補間（TargetSpeed で速度調整）
+                float lerpSpeed = cfg_StickZoomTargetSpeed.Get();
+                float lerpFactor = 1.0f - std::exp(-lerpSpeed * dt);
+                stickZoomRatioCurrent_ += (targetRatio - stickZoomRatioCurrent_) * lerpFactor;
+
+                // baseTarget_からプレイヤー方向に直線的に移動
+                float diffX = pTransform->position.x - baseTarget_.x;
+                float diffY = pTransform->position.y - baseTarget_.y;
+                float diffZ = pTransform->position.z - baseTarget_.z;
+
+                effectiveTarget.x = baseTarget_.x + diffX * stickZoomRatioCurrent_;
+                effectiveTarget.y = baseTarget_.y + diffY * stickZoomRatioCurrent_;
+                effectiveTarget.z = baseTarget_.z + diffZ * stickZoomRatioCurrent_;
+            }
+        } else {
+            // プレイヤーがいない場合は寄り率を0に戻す
+            float lerpFactor = 1.0f - std::exp(-cfg_StickZoomTargetSpeed.Get() * dt);
+            stickZoomRatioCurrent_ += (0.0f - stickZoomRatioCurrent_) * lerpFactor;
+        }
+
         camera_.position = {cameraPosition_.x + posOffset.x, cameraPosition_.y + posOffset.y, cameraPosition_.z + posOffset.z};
-        camera_.target = {baseTarget_.x + targetOffset.x, baseTarget_.y + targetOffset.y, baseTarget_.z + targetOffset.z};
+        camera_.target = {effectiveTarget.x + targetOffset.x, effectiveTarget.y + targetOffset.y, effectiveTarget.z + targetOffset.z};
         camera_.fovY = std::clamp(baseFovY_ + fovDelta + stickZoomDelta, DirectX::XM_PIDIV4 * 0.25f, DirectX::XM_PIDIV2 * 1.5f);
         camera_.up = upVec;
 
@@ -2249,6 +2304,7 @@ class GameScene : public IScene {
     bool deathFadeVisible_ = false;
     float stickZoomTarget_ = 0.0f;
     float stickZoomCurrent_ = 0.0f;
+    float stickZoomRatioCurrent_ = 0.0f; ///< スティックズーム時の現在の寄り率（0〜1）
 
     DirectX::XMFLOAT3 baseTarget_ = {0.0f, 0.0f, 0.0f};
     float skyboxRotation_ = 0.0f;
@@ -2275,6 +2331,11 @@ inline void GameScene_OnTimeUp(World &w, Entity player) {
     } else {
         SOUND_SYS.PlaySE(cfg_DeathMP3Pass);
         ResetPlayerToStart(w, player, true);
+    }
+}
+inline void GameScene_ResetChargeState() {
+    if (g_GameScene) {
+        g_GameScene->ResetChargeState();
     }
 }
 
