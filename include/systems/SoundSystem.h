@@ -1,7 +1,7 @@
-/*
+ï»¿/*
  * @
- * “à•”‚ÅCOMƒIƒuƒWƒFƒNƒg‚ğ—˜—p‚·‚é‚½‚ßALoadTextureŠÖ”‚æ‚èŒã‚ÉInitSoundŠÖ”ŒÄ‚Ño‚·‚Æ
- * ƒGƒ‰[‚É‚È‚é
+ * å†…éƒ¨ã§COMã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã‚’åˆ©ç”¨ã™ã‚‹ãŸã‚ã€LoadTextureé–¢æ•°ã‚ˆã‚Šå¾Œã«InitSoundé–¢æ•°å‘¼ã³å‡ºã™ã¨
+ * ã‚¨ãƒ©ãƒ¼ã«ãªã‚‹
  */
 #ifndef __SOUNDSYSTEM_H__
 #define __SOUNDSYSTEM_H__
@@ -13,17 +13,17 @@
 
 #pragma comment(lib, "xaudio2.lib")
 
-//ƒCƒ“ƒXƒ^ƒ“ƒX—pƒAƒNƒZƒXƒ}ƒNƒ
+//ã‚¤ãƒ³ã‚¹ã‚¿ãƒ³ã‚¹ç”¨ã‚¢ã‚¯ã‚»ã‚¹ãƒã‚¯ãƒ­
 #define SOUND_SYS SoundSystem::GetInstance()
 
 //----------
-// \‘¢‘Ì
+// æ§‹é€ ä½“
 //----------
 struct SoundData {
-    WAVEFORMATEX format;  // WAVƒtƒH[ƒ}ƒbƒg
-    BYTE *pBuffer;        // ƒTƒEƒ“ƒhƒf[ƒ^
-    DWORD bufSize;        // ƒf[ƒ^ƒTƒCƒY
-    XAUDIO2_BUFFER sound; // ƒTƒEƒ“ƒhƒoƒbƒtƒ@
+    WAVEFORMATEX format;  // WAVãƒ•ã‚©ãƒ¼ãƒãƒƒãƒˆ
+    BYTE *pBuffer;        // ã‚µã‚¦ãƒ³ãƒ‰ãƒ‡ãƒ¼ã‚¿
+    DWORD bufSize;        // ãƒ‡ãƒ¼ã‚¿ã‚µã‚¤ã‚º
+    XAUDIO2_BUFFER sound; // ã‚µã‚¦ãƒ³ãƒ‰ãƒãƒƒãƒ•ã‚¡
 };
 struct MP3FormatInfo {
     DWORD offset;
@@ -38,39 +38,39 @@ struct MP3FrameInfo {
 };
 
 /**
- * @brief ƒTƒEƒ“ƒhŠÇ—ƒVƒXƒeƒ€(ƒVƒ“ƒOƒ‹ƒgƒ“)
+ * @brief ã‚µã‚¦ãƒ³ãƒ‰ç®¡ç†ã‚·ã‚¹ãƒ†ãƒ (ã‚·ãƒ³ã‚°ãƒ«ãƒˆãƒ³)
  */
 class SoundSystem {
 public:
-    //ƒVƒ“ƒOƒ‹ƒgƒ“ƒCƒ“ƒXƒ^ƒ“ƒX‚Ìæ“¾
+    //ã‚·ãƒ³ã‚°ãƒ«ãƒˆãƒ³ã‚¤ãƒ³ã‚¹ã‚¿ãƒ³ã‚¹ã®å–å¾—
     static SoundSystem& GetInstance() {
       static SoundSystem instance;
         return instance;
   }
     //----------
-    // ƒvƒƒgƒ^ƒCƒvéŒ¾
+    // ãƒ—ãƒ­ãƒˆã‚¿ã‚¤ãƒ—å®£è¨€
     //----------
-    HRESULT Init(void);        //‰Šú‰»
-    void Uninit(void);         //I—¹
+    HRESULT Init(void);        //åˆæœŸåŒ–
+    void Uninit(void);         //çµ‚äº†
 
-    // ƒTƒEƒ“ƒhƒtƒ@ƒCƒ‹‚Ì“Ç‚İ‚İ
+    // ã‚µã‚¦ãƒ³ãƒ‰ãƒ•ã‚¡ã‚¤ãƒ«ã®èª­ã¿è¾¼ã¿
     XAUDIO2_BUFFER *LoadSound(const char *file, bool loop = false);
 
-    // ƒTƒEƒ“ƒh‚ÌÄ¶
-#undef PlaySound // winapi‚ÌPlaySound‚ğ–³Œø‚É‚·‚é
+    // ã‚µã‚¦ãƒ³ãƒ‰ã®å†ç”Ÿ
+#undef PlaySound // winapiã®PlaySoundã‚’ç„¡åŠ¹ã«ã™ã‚‹
     IXAudio2SourceVoice *PlaySound(XAUDIO2_BUFFER *pSound);
 
-    //ƒpƒX‚ğw’è‚µ‚ÄSE‚ğÄ¶
+    //ãƒ‘ã‚¹ã‚’æŒ‡å®šã—ã¦SEã‚’å†ç”Ÿ
     void PlaySE(const std::string& path);
 
-    //ƒpƒX‚ğw’è‚µ‚ÄBGM‚ğÄ¶
+    //ãƒ‘ã‚¹ã‚’æŒ‡å®šã—ã¦BGMã‚’å†ç”Ÿ
     void PlayBGM(const std::string &path);
 
-    //‰¹—Ê‚ğXV
+    //éŸ³é‡ã‚’æ›´æ–°
     void UpdateVolume();
 
   private:
-     //ƒƒ“ƒo•Ï”
+     //ãƒ¡ãƒ³ãƒå¤‰æ•°
     IXAudio2 *m_pXAudio;
     IXAudio2MasteringVoice *m_pMasterVoice;
     std::map<std::string, SoundData> m_soundMap;
@@ -82,7 +82,7 @@ public:
     SoundSystem(const SoundSystem &) = delete;
     SoundSystem &operator=(const SoundSystem &) = delete;
 
-    //“à•”ƒwƒ‹ƒp[
+    //å†…éƒ¨ãƒ˜ãƒ«ãƒ‘ãƒ¼
     HRESULT LoadWav(const char *file, SoundData *pData);
     HRESULT LoadMP3(const char *file, SoundData *pData);
 };

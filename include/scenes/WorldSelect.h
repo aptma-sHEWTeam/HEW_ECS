@@ -1,7 +1,7 @@
-/**
+ï»¿/**
  * @file StageSelect.h
- * @brief ƒ[ƒ‹ƒhƒZƒŒƒNƒgƒV[ƒ“
- * @author —§R—Iñ
+ * @brief ãƒ¯ãƒ¼ãƒ«ãƒ‰ã‚»ãƒ¬ã‚¯ãƒˆã‚·ãƒ¼ãƒ³
+ * @author ç«‹å±±æ‚ æœ”
  * @date 2025
  * @version 1.0
  */
@@ -25,7 +25,7 @@
 
 /**
  * @class WorldSlectScene
- * @brief 3DƒQ[ƒ€‚ÆUI‚ğ“‡‚µ‚½ƒV[ƒ“
+ * @brief 3Dã‚²ãƒ¼ãƒ ã¨UIã‚’çµ±åˆã—ãŸã‚·ãƒ¼ãƒ³
  */
 class WorldSelectScene : public IScene {
   public:
