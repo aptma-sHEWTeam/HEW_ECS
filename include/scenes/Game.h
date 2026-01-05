@@ -586,7 +586,7 @@ class GameScene : public IScene {
         auto *anim = world.TryGet<SpriteSheetAnimation>(deathFadeAnimationEntity_);
 
         if (deathFadeVisible_) {
-            if (img) img->opacity = 0.1f;
+            if (img) img->opacity = 1.0f;
             if (anim && anim->isFinished && !anim->isPlaying) {
                 deathFadeVisible_ = false;
                 if (img) img->opacity = 0.0f;
@@ -1946,8 +1946,10 @@ class GameScene : public IScene {
         if (respawnTimer_ <= 0.0f) {
             ResetPlayerToStart(world, respawnPlayer_, true);
             StartFadeInNormal(world);
+            deathFadeVisible_ = false;
             if (auto* playerStatus = world.TryGet<PlayerStatus>(playerEntity_)) {
                 UpdateWallHitState(*playerStatus, PlayerStatus::WallHitState::Idle, "RespawnComplete");
+                
             }
             pendingRespawn_ = false;
             g_respawnPending = false;

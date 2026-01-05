@@ -244,10 +244,13 @@ struct PlayerCollisionHandler : ICollisionHandler {
 
             //ゴールエフェクト停止
             EffekseerManager::GetInstance().StopEffect("Goal");
-            EffekseerManager::GetInstance().StopEffect("DashBoard");
-            EffekseerManager::GetInstance().StopEffect("FireFirst");
-            EffekseerManager::GetInstance().StopEffect("FireFirstToSec");
 
+            //加速板エフェクト停止
+            EffekseerManager::GetInstance().StopEffect("DashBoard");
+
+            //エフェクトをIdleに変更
+            auto *playerEffect = w.TryGet<PlayerMovement>(self);
+            playerEffect->SwitchEffect(w, self, PlayerMovement::EffectState::Idle);
 
             // ゆっくり吸い込み: ゴール中心へイージングで寄せる
             // tPlayer, tGoalは既に上で取得済み
@@ -338,7 +341,7 @@ struct DashBordCollisionHandler : ICollisionHandler {
         const float boostSpeed = v->speed * v->Acceleration * cfg_AccelerateAccfication;
 
         DirectX::XMFLOAT3 effectPos = tSelf->position;
-        effectPos.y += 0.5f;
+        effectPos.y += 0.2f;
         //加速板のエフェクト(プレイヤーが加速板に触れたらエフェクトが出る)
         EffekseerManager::GetInstance().PlayEffect("SpeedUp", effectPos, {1.0f,1.0f,1.0f},false);
 

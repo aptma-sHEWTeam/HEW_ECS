@@ -179,11 +179,14 @@ struct PlayerMovement : Behaviour {
     float sumSin = 0.0f; float sumCos = 0.0f;
     int frame = 0;
 
+    float chargeTimer = 0.0f;
+
     //エフェクトの状態管理
     enum class EffectState 
     {
         Idle,
         Charging,
+        MaxCharge,
         Relesing
     };
     
@@ -193,6 +196,7 @@ struct PlayerMovement : Behaviour {
     //エフェクト左右で出力するために配列で管理
     Effekseer::Handle chargeEffectHandle[2]  = {-1, -1};
     Effekseer::Handle releaseEffectHandle[2] = {-1, -1};
+    Effekseer::Handle maxChargeEffectHandle[2] = {-1, -1};
 
     void SwitchEffect(World& w, Entity self,EffectState newState)
     {
@@ -222,9 +226,18 @@ struct PlayerMovement : Behaviour {
                 EffekseerManager::GetInstance().StopEffectHandle(releaseEffectHandle[i]);
                 releaseEffectHandle[i] = -1;
             }
+            if (maxChargeEffectHandle[i] != -1)
+            {
+                EffekseerManager::GetInstance().StopEffectHandle(maxChargeEffectHandle[i]);
+                releaseEffectHandle[i] = -1;
+            }
         }
 
         currentEffectState = newState;
+        if (newState == EffectState::Idle) 
+        {
+            return;
+        }
 
         //エフェクトの配置設定
         static const float sides[] = {1.0f, -1.0f};
@@ -254,7 +267,10 @@ struct PlayerMovement : Behaviour {
                 playTwoEffect("FireFirst", chargeEffectHandle);
                 break;
             case EffectState::Relesing:
-                playTwoEffect("FireFirstToSec", releaseEffectHandle);
+                playTwoEffect("FireSecond", releaseEffectHandle);
+                break;
+            case EffectState::MaxCharge:
+                playTwoEffect("FireThird", maxChargeEffectHandle);
                 break;
         }
     }
@@ -319,6 +335,7 @@ struct PlayerMovement : Behaviour {
                         SwitchEffect(w, self, EffectState::Charging);
                         startPos = t->position;
                     }
+
                     //プレイヤーの向き更新
                     if (mag > PlayerConstants::EPSILON)
                     {
@@ -331,13 +348,13 @@ struct PlayerMovement : Behaviour {
                     
                     if (flip == 0)
                     {
-                        shake = -0.01f;
+                        shake = -0.01f; //左に
                     } else {
 
-                        shake =  0.01f;
+                        shake =  0.01f; //右に
                     }
 
-                    t->position.x += shake;
+                    t->position.x += shake; //実際に反映
                 }
                 else
                 {
@@ -414,6 +431,7 @@ struct PlayerMovement : Behaviour {
 
             if (effectiveCharging && !wasChargingPrev_) ResetAngleHistory();
             if (effectiveCharging && !wasCharging_) {
+                chargeTimer = 0.0f;
                 GameScene_OnChargeStart(w);
                 SwitchEffect(w, self, EffectState::Charging);
             }
@@ -426,6 +444,13 @@ struct PlayerMovement : Behaviour {
                 // チャージ最大時間でMinSpeedまで落とすための減速量を算出（毎秒）
                 v->SlowFactor = (std::max(0.0f, v->speed - v->MinSpeed)) / std::max(0.0001f, chargeMaxTime);
                 float charge = gamepad_->GetLeftStickChargeAmount(chargeMaxTime); (void)charge;
+
+                chargeTimer += dt;
+                //0.2秒異教チャージしている + Charging状態なら切り替える
+                if (chargeTimer >= 0.2f && currentEffectState == EffectState::Charging)
+                {
+                    SwitchEffect(w, self, EffectState::MaxCharge);
+                }
 
                 if (mag > PlayerConstants::EPSILON) {
                     float ang = std::atan2f(lastStickDir_.y, lastStickDir_.x);
@@ -455,6 +480,7 @@ struct PlayerMovement : Behaviour {
                         isCharging_ = false; v->isDecelerating = false;
                     }
                 }
+                chargeTimer = 0.0f;
                 SwitchEffect(w, self, EffectState::Relesing);
                 GameScene_OnChargeRelease(w, chargeAmount);
                 restoreCollisionRadius();
@@ -468,6 +494,7 @@ struct PlayerMovement : Behaviour {
                 restoreCollisionRadius();
                 v->isRotate = false;
                 isCharging_ = false;
+                chargeTimer = 0.0f;
             }
 
             //角度をラジアンに変換
@@ -486,7 +513,7 @@ struct PlayerMovement : Behaviour {
             float backOffset = 0.1f; //プレイヤーとの距離
 
             //エフェクトの更新処理
-            auto updateHandle = [&](Effekseer::Handle *handle)
+            auto updateHandle = [&](Effekseer::Handle *handle, bool effectRotation)
             {
                 //今あるエフェクトの全停止
                 for (int i = 0; i < 2; i++)
@@ -496,17 +523,31 @@ struct PlayerMovement : Behaviour {
                     pos.z += (forwardZ * backOffset) + (rightZ * sideOffset * sides[i]);
                     pos.y += 0.5f;
                     EffekseerManager::GetInstance().SetEffectPosition(handle[i], pos);
+
+                    if (effectRotation)
+                    {
+                        float baseRotY = t->rotation.y;
+                        float angleOffsetY = -30.0f * sides[i];
+                        float angleX = 20.0f;   
+
+                        DirectX::XMFLOAT3 rot = {angleX, baseRotY + angleOffsetY, 0.0f};
+                        EffekseerManager::GetInstance().SetEffectRotation(handle[i],rot);
+                    }
                 }
                 
             };
 
             if (currentEffectState == EffectState::Charging)
             {
-                updateHandle(chargeEffectHandle);
+                updateHandle(chargeEffectHandle,false);
+            }
+            if (currentEffectState == EffectState::MaxCharge)
+            {
+                updateHandle(maxChargeEffectHandle, false);
             }
             if (currentEffectState == EffectState::Relesing)
             {
-                updateHandle(releaseEffectHandle);
+                updateHandle(releaseEffectHandle,true);
             }
 
 
