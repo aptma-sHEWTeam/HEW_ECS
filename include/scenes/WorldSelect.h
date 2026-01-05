@@ -41,6 +41,16 @@ class WorldSelectScene : public IScene {
             }
         }
 
+          GamepadSystem *padsystem = ServiceLocator::TryGet<GamepadSystem>();
+        if (padsystem) {
+            if (padsystem->GetAnyButtonDown({GamepadSystem::Button_A, GamepadSystem::Button_Start, GamepadSystem::Button_X})) {
+                DEBUGLOG("Enter pressed!");
+                if (auto *maneger = ServiceLocator::TryGet<SceneManager>()) {
+                    maneger->ChangeScene("StageSelect", world);
+                }
+            }
+        }
+
         world.Tick(deltaTime);
       }
 

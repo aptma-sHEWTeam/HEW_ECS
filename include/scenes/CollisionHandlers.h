@@ -131,6 +131,11 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
             stats.timerRunning = false;
         });
 
+        w.ForEach<StageProgress>([](Entity, StageProgress& sp) {
+            sp.pressedSwitch = false;
+            sp.goalUnlocked = !sp.hasSwitch;
+        });
+
         // ゴール遷移フラグをクリアして、プレイヤーが再び操作可能になるようにする
         w.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
             sp.goalTransitioning = false;
@@ -169,6 +174,12 @@ struct PlayerCollisionHandler : ICollisionHandler {
             w.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
                 if (!progress) progress = &sp;
             });
+
+            if (progress && !progress->goalUnlocked) {
+                DEBUGLOG("スイッチは押されていない");
+                return;
+            }
+
             auto *goalTag = w.TryGet<GoalTag>(other);
             if ((progress && progress->goalTransitioning) ||
                 (goalTag && goalTag->consumed) ||
@@ -233,10 +244,13 @@ struct PlayerCollisionHandler : ICollisionHandler {
 
             //ゴールエフェクト停止
             EffekseerManager::GetInstance().StopEffect("Goal");
-            EffekseerManager::GetInstance().StopEffect("DashBoard");
-            EffekseerManager::GetInstance().StopEffect("FireFirst");
-            EffekseerManager::GetInstance().StopEffect("FireFirstToSec");
 
+            //加速板エフェクト停止
+            EffekseerManager::GetInstance().StopEffect("DashBoard");
+
+            //エフェクトをIdleに変更
+            auto *playerEffect = w.TryGet<PlayerMovement>(self);
+            playerEffect->SwitchEffect(w, self, PlayerMovement::EffectState::Idle);
 
             // ゆっくり吸い込み: ゴール中心へイージングで寄せる
             // tPlayer, tGoalは既に上で取得済み
@@ -327,7 +341,7 @@ struct DashBordCollisionHandler : ICollisionHandler {
         const float boostSpeed = v->speed * v->Acceleration * cfg_AccelerateAccfication;
 
         DirectX::XMFLOAT3 effectPos = tSelf->position;
-        effectPos.y += 0.5f;
+        effectPos.y += 0.2f;
         //加速板のエフェクト(プレイヤーが加速板に触れたらエフェクトが出る)
         EffekseerManager::GetInstance().PlayEffect("SpeedUp", effectPos, {1.0f,1.0f,1.0f},false);
 
@@ -345,3 +359,21 @@ struct DashBordCollisionHandler : ICollisionHandler {
     }
 };
 REGISTER_COLLISION_HANDLER_TYPE(DashBordCollisionHandler)
+
+struct SwitchCollisionHandler : ICollisionHandler {
+    void OnCollisionEnter(World& world, Entity self, Entity other, const CollisionInfo& info) override {
+        if (world.Has<PlayerTag>(other)) {
+            world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+                if (!sp.pressedSwitch) {
+                    sp.pressedSwitch = true;
+                    sp.goalUnlocked = true;
+                    DEBUGLOG("スイッチが押されました");
+                    //以下SEなど
+                    SOUND_SYS.PlaySE(cfg_CollideMP3Pass.Get());
+                }
+            });
+            //見た目変更系の処理
+        }
+    }
+};
+REGISTER_COLLISION_HANDLER_TYPE(SwitchCollisionHandler)
