@@ -393,6 +393,12 @@ class GameScene : public IScene {
        EffekseerManager::GetInstance().Update();
 
        skyboxRotation_ += cfg_SkyboxSpeed.Get() * deltaTime;
+
+
+       //ゴールの見た目変更
+       UpdateGoal(world);
+       
+
     }
 
     /**
@@ -589,6 +595,22 @@ class GameScene : public IScene {
             if (img) img->opacity = 0.0f;
         }
     }
+
+    void UpdateGoal(World &world) {
+        bool pressed = false;
+        world.ForEach<StageProgress>([&](Entity, StageProgress &sp) { pressed = sp.goalUnlocked; });
+
+        if (world.IsAlive(goalEntity_)) {
+            if (auto *emissive = world.TryGet<EmissiveMaterial>(goalEntity_)) {
+                if (pressed) {
+                    emissive->emissiveColor = {1.0f, 0.0f, 0.0f};
+                } else {
+                    emissive->emissiveColor = {0.0f,1.0f,1.0f};
+                }
+            }
+        }
+    }
+
 
     /** @brief カメラオブジェクトへのconst参照を取得 */
     const Camera& GetCamera() const { return camera_; }
@@ -1109,6 +1131,7 @@ class GameScene : public IScene {
 
     void CreateStageMap(World &world, const StageCreate &stagecreate, int stagenumber) {
         float tileSize = 1.0f;
+        bool switchFound = false;
 
         if (stagecreate.stageMap.empty() || stagecreate.stageMap[0].empty()) {
             return;
@@ -1146,10 +1169,16 @@ class GameScene : public IScene {
                 if (x == max_x_index && y == max_y_index) CreatFloorWall(world, {worldX + tileSize, worldY, worldZ - tileSize});
 
                 if (blockType != 0) {
+                    if (blockType == 64 && !switchFound)  switchFound = true;
                     CreateBlockByType(world, blockposition, blockType,stagenumber);
                 }
             }
         }
+
+        world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+            sp.hasSwitch = switchFound;
+            sp.goalUnlocked = !switchFound;
+        });
 
         BakeStageLights(world, stagecreate.stageMap, tileSize);
     }
@@ -1210,6 +1239,7 @@ class GameScene : public IScene {
             case 7: CreateLeftUpCorner(world, position); break;
             case 8: CreateRightUpCorner(world, position); break;
             case 54: CreateObjectC(world, position, blockType); break;
+            case 64: CreateGoalSwitch(world, position,blockType);
             default:
                 if (blockType >= 10 && blockType < 20) {
                     CreateMovingObstacle(world, position, blockType);
@@ -1340,6 +1370,25 @@ class GameScene : public IScene {
         goalEffectHandle_ = goalHandle.value_or(-1);
 
       
+    }
+
+    void CreateGoalSwitch(World& world, const DirectX::XMFLOAT3& position, int currentstage) {
+        Transform t{{position.x,position.y -1.0f ,position.z}, {0, 0, 0}, {1.0f, 0.5f, 1.0f}};
+        MeshRenderer r;
+        r.meshType = MeshType::Cube;
+        r.color = {1.0f, 0.0f, 0.0f};
+
+         Entity e = world.Create()
+                       .With<Transform>(t)
+                       .With<MeshRenderer>(r)
+                       .With<CollisionBox>(DirectX::XMFLOAT3{1.5f,2.0f,1.5f})
+                       .With<SwitchCollisionHandler>()
+                       .With<StaticCollider>()
+                       .With<StageElementTag>()
+                       .With<SwitchTag>()
+                       .Build();
+
+        stageOwnedEntities_.push_back(e);
     }
 
     void StopGoalEffect() {

@@ -59,6 +59,9 @@ struct StageProgress : IComponent {
     bool requestAdvance = false;
     bool goalTransitioning = false;
     bool clearedThisStage = false;
+    bool pressedSwitch = false;     //スイッチのON/OFF
+    bool goalUnlocked = false;      //ゴールのON/OFF
+    bool hasSwitch = false;         //ステージにスイッチがあるか
 };
 
 /**
