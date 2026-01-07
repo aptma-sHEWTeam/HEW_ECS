@@ -14,3 +14,4 @@ struct WallTag : IComponent {};			///< 壁タグ
 struct GimmickTag : IComponent {};		///< ギミックタグ
 struct FloorWallTag : IComponent {};	///< ステージ共通の壁タグ
 struct SwitchTag : IComponent {};		///< スイッチタグ
+struct WallLightTag : IComponent {};	///< ライトタグ
