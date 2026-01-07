@@ -584,6 +584,7 @@ class GameScene : public IScene {
         TriggerCameraShake(0.03f + impulse, 0.25f);
         PlayPlayerAnimation(world, AnimationConfig::Clips::PlayerChargeOut, false);
 
+        SOUND_SYS.StopSE(cfg_DriftMP3Pass.Get());
         SOUND_SYS.PlaySE(cfg_Fire1MP3Pass.Get());
     }
 
@@ -601,10 +602,12 @@ class GameScene : public IScene {
                 if (img)
                     img->opacity = 0.0f;
             }
+            SOUND_SYS.StopSE(cfg_DriftMP3Pass);
         } else {
             if (img)
                 img->opacity = 0.0f;
         }
+    
     }
 
     void UpdateGoal(World &world) {
@@ -1275,6 +1278,8 @@ class GameScene : public IScene {
     }
 
     void CreateBlockByType(World &world, const DirectX::XMFLOAT3 &position, int blockType, int stagenumber) {
+        float lightangle = 0;
+        DirectX::XMFLOAT3 lightpos = {0.0f,0.0f,0.0f};
         switch (blockType) {
             case 1:
                 CreateStart(world, position);
@@ -1299,6 +1304,18 @@ class GameScene : public IScene {
                 break;
             case 54:
                 CreateObjectC(world, position, blockType);
+                break;
+            case 60:
+                CreateWallLight(world,position,lightangle,lightpos);
+                break;
+            case 61:
+                CreateWallLight(world, position, lightangle, lightpos);
+                break;
+            case 62:
+                CreateWallLight(world, position, lightangle, lightpos);
+                break;
+            case 63:
+                CreateWallLight(world, position, lightangle, lightpos);
                 break;
             case 64:
                 CreateGoalSwitch(world, position, blockType);
@@ -1513,6 +1530,20 @@ class GameScene : public IScene {
                                 .Build();
 
         stageOwnedEntities_.push_back(wallEntity);
+    }
+
+    void CreateWallLight(World &world, const DirectX::XMFLOAT3 &position, float angle, DirectX::XMFLOAT3 subpos) {
+        DirectX::XMFLOAT3 diffPosition = {position.x + (subpos.x), position.y, position.z + (subpos.z)};
+        Transform transform{diffPosition, {0.0f, angle, 0.0f}, {1.0f, 1.0f, 1.0f}};
+
+        Entity walllightEntity = world.Create()
+                                .With<Transform>(transform)
+                                .With<Model>(cfg_WallLightFBXPass)
+                                .With<StageElementTag>()
+                                .With<WallLightTag>()
+                                .Build();
+
+        stageOwnedEntities_.push_back(walllightEntity);
     }
 
     void CreateRightDownCorner(World &world, const DirectX::XMFLOAT3 &position) {

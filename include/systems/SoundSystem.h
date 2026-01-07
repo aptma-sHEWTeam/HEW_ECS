@@ -66,6 +66,9 @@ public:
     //パスを指定してBGMを再生
     void PlayBGM(const std::string &path);
 
+    //SEの停止
+    void StopSE(const std::string &path);
+
     //音量を更新
     void UpdateVolume();
 
@@ -81,6 +84,9 @@ public:
     ~SoundSystem() { Uninit(); }
     SoundSystem(const SoundSystem &) = delete;
     SoundSystem &operator=(const SoundSystem &) = delete;
+
+    std::map<std::string, IXAudio2SourceVoice *> m_seVoices;
+   
 
     //内部ヘルパー
     HRESULT LoadWav(const char *file, SoundData *pData);
