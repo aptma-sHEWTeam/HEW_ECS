@@ -623,6 +623,7 @@ class GameScene : public IScene {
                 }
             }
         }
+        SOUND_SYS.StopSE(cfg_DriftMP3Pass);
     }
 
     /** @brief カメラオブジェクトへのconst参照を取得 */
@@ -747,6 +748,7 @@ class GameScene : public IScene {
         }
 
         SOUND_SYS.PlaySE(cfg_DeathMP3Pass.Get());
+        SOUND_SYS.StopSE(cfg_DriftMP3Pass.Get());
 
         pendingRespawn_ = true;
         respawnPlayer_ = player;
