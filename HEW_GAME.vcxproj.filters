@@ -338,7 +338,7 @@
     <ClInclude Include="include\scenes\StageConfig.h">
       <Filter>Header Files\scenes</Filter>
     </ClInclude>
-    <ClInclude Include="include\scenes\StageSelect.h">
+    <ClInclude Include="include\scenes\World1_StageSelect.h">
       <Filter>Header Files\scenes</Filter>
     </ClInclude>
     <ClInclude Include="include\scenes\Tags.h">
@@ -397,6 +397,9 @@
     </ClInclude>
     <ClInclude Include="include\systems\SoundSystem.h">
       <Filter>Header Files\systems</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scenes\World2_StageSelect.h">
+      <Filter>Header Files\scenes</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

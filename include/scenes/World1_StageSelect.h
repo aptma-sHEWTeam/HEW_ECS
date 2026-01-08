@@ -1,6 +1,6 @@
 ﻿/**
  * @file StageSelect.h
- * @brief タイトルセレクトシーン
+ * @brief ワールド1セレクトシーン
  * @author 立山悠朔
  * @date 2025
  * @version 1.0
@@ -25,10 +25,10 @@
 #include "app/ServiceLocator.h"
 
 /**
- * @class StageSlectScene
- * @brief 3DゲームとUIを統合したシーン
+ * @class World1_StageSelectScene
+ * @brief ワールドセレクト1のシーン
  */
-class StageSlectScene : public IScene {
+class World1_StageSlectScene : public IScene {
   public:
     // ステージセレクト画面のカウンタUI設定
     inline static ConfigVar<float> cfg_UICountPosX{"UI.StageSelect.Counter", "CountPosX", 1000.0f, "ステージセレクトカウンタのX座標"};
@@ -77,6 +77,7 @@ class StageSlectScene : public IScene {
 
          world.ForEach<StageProgress>([&](Entity, StageProgress &stats) {
             stats.selectStage = 0;
+            stats.worldCount = 1;
         });
        
         //カメラを初期化
@@ -156,7 +157,7 @@ class StageSlectScene : public IScene {
                     targetAngle_ += DirectX::XM_2PI / maxStage_;
                 } else if (stats.selectStage == maxStage_) {
                     if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
-                        manager->ChangeScene("WorldSelect", world);
+                        manager->ChangeScene("World2_StageSelect", world);
                     }
                 }
             }
@@ -173,7 +174,7 @@ class StageSlectScene : public IScene {
                         targetAngle_+= DirectX::XM_2PI / maxStage_;
                     } else if (stats.selectStage == maxStage_) {
                         if (auto *maneger = ServiceLocator::TryGet<SceneManager>()) {
-                            maneger->ChangeScene("WorldSelect", world);
+                            maneger->ChangeScene("World2_StageSelect", world);
                         }
                     }
                     
