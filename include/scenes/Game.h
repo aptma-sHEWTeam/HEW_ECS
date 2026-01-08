@@ -623,6 +623,7 @@ class GameScene : public IScene {
                 }
             }
         }
+        SOUND_SYS.StopSE(cfg_DriftMP3Pass);
     }
 
     /** @brief カメラオブジェクトへのconst参照を取得 */
@@ -747,6 +748,7 @@ class GameScene : public IScene {
         }
 
         SOUND_SYS.PlaySE(cfg_DeathMP3Pass.Get());
+        SOUND_SYS.StopSE(cfg_DriftMP3Pass.Get());
 
         pendingRespawn_ = true;
         respawnPlayer_ = player;
@@ -1279,7 +1281,7 @@ class GameScene : public IScene {
 
     void CreateBlockByType(World &world, const DirectX::XMFLOAT3 &position, int blockType, int stagenumber) {
         float lightangle = 0;
-        DirectX::XMFLOAT3 lightpos = {0.0f,0.0f,0.0f};
+        DirectX::XMFLOAT3 lightpos = {0.0f,-2.0f,0.0f};
         switch (blockType) {
             case 1:
                 CreateStart(world, position);
@@ -1305,16 +1307,23 @@ class GameScene : public IScene {
             case 54:
                 CreateObjectC(world, position, blockType);
                 break;
-            case 60:
-                CreateWallLight(world,position,lightangle,lightpos);
-                break;
-            case 61:
+            case 60://右向き
+                lightpos.x = 0.1f;
+                lightangle = 180.0f;
                 CreateWallLight(world, position, lightangle, lightpos);
                 break;
-            case 62:
+            case 61://上向き
+                lightpos.z = -0.1f;
+                lightangle = 270.0f;
                 CreateWallLight(world, position, lightangle, lightpos);
                 break;
-            case 63:
+            case 62://左向き
+                lightpos.x = -0.1f;
+                CreateWallLight(world, position, lightangle, lightpos);
+                break;
+            case 63://下向き
+                lightpos.z = 0.1f;
+                lightangle = 90.0f;
                 CreateWallLight(world, position, lightangle, lightpos);
                 break;
             case 64:
@@ -1533,13 +1542,21 @@ class GameScene : public IScene {
     }
 
     void CreateWallLight(World &world, const DirectX::XMFLOAT3 &position, float angle, DirectX::XMFLOAT3 subpos) {
-        DirectX::XMFLOAT3 diffPosition = {position.x + (subpos.x), position.y, position.z + (subpos.z)};
+        DirectX::XMFLOAT3 diffPosition = {position.x + (subpos.x), position.y + (subpos.y), position.z + (subpos.z)};
         Transform transform{diffPosition, {0.0f, angle, 0.0f}, {1.0f, 1.0f, 1.0f}};
+
+        PointLight wallLight;
+        wallLight.color = {0.0f,0.0f,1.0f};
+        ApplyDefaultPointLightParams(wallLight);
+        wallLight.range = 5.0f;
+        wallLight.intensity = 0.4f;
+        wallLight.constantAttenuation = 0.2f;
 
         Entity walllightEntity = world.Create()
                                 .With<Transform>(transform)
                                 .With<Model>(cfg_WallLightFBXPass)
                                 .With<StageElementTag>()
+                                .With<PointLight>(wallLight)
                                 .With<WallLightTag>()
                                 .Build();
 
