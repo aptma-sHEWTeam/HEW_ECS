@@ -1510,6 +1510,8 @@ class GameScene : public IScene {
                 return;
 
             world.ForEach<StageProgress>([](Entity, StageProgress &sp) {
+                
+
                 if (sp.clearedThisStage)
                     return;
                 sp.clearedThisStage = true;
@@ -1548,9 +1550,9 @@ class GameScene : public IScene {
         PointLight wallLight;
         wallLight.color = {0.0f,0.0f,1.0f};
         ApplyDefaultPointLightParams(wallLight);
-        wallLight.range = 5.0f;
-        wallLight.intensity = 0.4f;
-        wallLight.constantAttenuation = 0.2f;
+        wallLight.range = 0.1f;
+        wallLight.intensity = 0.2f;
+        wallLight.constantAttenuation = 0.1f;
 
         Entity walllightEntity = world.Create()
                                 .With<Transform>(transform)
