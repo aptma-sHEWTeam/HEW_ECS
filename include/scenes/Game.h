@@ -2516,6 +2516,10 @@ inline void WallCollisionHandler::OnCollisionEnter(World &w, Entity self, Entity
     if (w.Has<PlayerTag>(other)) {
         // ゴール演出中は壁判定を無効化
         bool isGoalTransition = false;
+
+        auto *tEffect = w.TryGet<PlayerMovement>(other);
+        tEffect->SwitchEffect(w,other, PlayerMovement::EffectState::Idle);
+
         w.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
             if (sp.goalTransitioning)
                 isGoalTransition = true;
