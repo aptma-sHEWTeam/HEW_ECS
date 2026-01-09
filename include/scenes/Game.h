@@ -76,6 +76,8 @@ inline static ConfigVar<float> cfg_StickZoomTargetSpeed{"Camera.Stick", "StickZo
 // 追加: ステージクリア待機時間
 inline static ConfigVar<float> cfg_StageClearWait{"UI.StageClear", "WaitSeconds", 2.0f, "ステージクリア表示後にシーン遷移するまでの待機時間"};
 inline static ConfigVar<float> cfg_SkyboxSpeed{"Skybox", "Speed", 0.05f, "スカイボックスの回転速度(rad/sec)"};
+//プレイヤーが壁に衝突/タイムアップした時のフェード表示の遅延時間
+inline static ConfigVar<float> cfg_DeathAnimationFadeTime{"DeathFadeAnimation", "Time", 1.0f, "壁に衝突/タイムアップ時のフェード表示遅延時間"};
 
 /**
  * @class GameScene
@@ -588,15 +590,26 @@ class GameScene : public IScene {
         SOUND_SYS.PlaySE(cfg_Fire1MP3Pass.Get());
     }
 
-    void UpdateDeathFade(World &world, float /*dt*/) {
+    void UpdateDeathFade(World &world, float dt/*dt*/) {
+        
+        if (isDeathFadePending_) {
+            deathFadeTimer_ -= dt;
+            if (deathFadeTimer_ <= 0.0f) {
+                StartDeathFadeOut(world);
+                isDeathFadePending_ = false;
+            }
+        }
+
         if (!world.IsAlive(deathFadeAnimationEntity_))
             return;
         auto *img = world.TryGet<UIImage>(deathFadeAnimationEntity_);
         auto *anim = world.TryGet<SpriteSheetAnimation>(deathFadeAnimationEntity_);
 
+        
+
         if (deathFadeVisible_) {
             if (img)
-                img->opacity = 0.1f;
+                img->opacity = 1.0f;
             if (anim && anim->isFinished && !anim->isPlaying) {
                 deathFadeVisible_ = false;
                 if (img)
@@ -692,8 +705,10 @@ class GameScene : public IScene {
             return;
         ResetChargeState();
 
-        // 再生用フェードアニメーションを開始
-        StartDeathFadeOut(world);
+         // 再生用フェードアニメーションを開始
+        deathFadeTimer_ = cfg_DeathAnimationFadeTime;
+        isDeathFadePending_ = true;
+
         PlayPlayerAnimation(world, AnimationConfig::Clips::PlayerDeath, false);
 
         if (auto *playerStatus = world.TryGet<PlayerStatus>(playerEntity_)) {
@@ -716,10 +731,10 @@ class GameScene : public IScene {
                 v->boostSpeed = 0.0f;
             }
         }
-
+       
         pendingRespawn_ = true;
         respawnPlayer_ = player;
-        respawnTimer_ = cfg_WallHitRespawnDelay.Get();
+        respawnTimer_ = cfg_WallHitRespawnDelay.Get() + deathFadeTimer_;
 
         DEBUGLOG("壁に衝突 - カメラシェイク開始、リスポーン待機中");
     }
@@ -730,7 +745,9 @@ class GameScene : public IScene {
             return;
         ResetChargeState();
 
-        StartDeathFadeOut(world);
+        deathFadeTimer_ = cfg_DeathAnimationFadeTime;
+        isDeathFadePending_ = true;
+
         PlayPlayerAnimation(world, AnimationConfig::Clips::PlayerTimeup, false);
 
         if (auto *playerStatus = world.TryGet<PlayerStatus>(playerEntity_)) {
@@ -752,7 +769,7 @@ class GameScene : public IScene {
 
         pendingRespawn_ = true;
         respawnPlayer_ = player;
-        respawnTimer_ = cfg_WallHitRespawnDelay.Get();
+        respawnTimer_ = cfg_WallHitRespawnDelay.Get() + deathFadeTimer_;
 
         DEBUGLOG("時間切れ - フェード演出開始、リスポーン待機中");
     }
@@ -2086,6 +2103,7 @@ class GameScene : public IScene {
         if (respawnTimer_ <= 0.0f) {
             ResetPlayerToStart(world, respawnPlayer_, true);
             StartFadeInNormal(world);
+            deathFadeVisible_ = false;
             if (auto *playerStatus = world.TryGet<PlayerStatus>(playerEntity_)) {
                 UpdateWallHitState(*playerStatus, PlayerStatus::WallHitState::Idle, "RespawnComplete");
             }
@@ -2306,6 +2324,9 @@ class GameScene : public IScene {
     Entity gimmickEntity_{};
     Entity fadeAnimationEntity_{};
     Entity deathFadeAnimationEntity_{};
+    float deathFadeTimer_ = 0.0f;
+
+    bool isDeathFadePending_ = false;
     Entity chargeOverlayEntity_{};
     // 追加: ステージクリア用テキストエンティティと状態
     Entity stageClearTextEntity_{};
