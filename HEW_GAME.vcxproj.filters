@@ -401,6 +401,12 @@
     <ClInclude Include="include\scenes\World2_StageSelect.h">
       <Filter>Header Files\scenes</Filter>
     </ClInclude>
+    <ClInclude Include="include\scenes\World3_StageSelect.h">
+      <Filter>Header Files\scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="include\scenes\World4_StageSelect.h">
+      <Filter>Header Files\scenes</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include=".github\ISSUE_TEMPLATE\01_task.yml" />
