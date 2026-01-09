@@ -335,13 +335,13 @@ struct PlayerMovement : Behaviour {
                 float shake = 0.0f;
                 if (chargingNow && chargingSys) {
                     chargeTimer += dt;
-                    if (chargeTimer >= 3.0f) {
+                    if (chargeTimer >= 0.6f) {
                         isMaxCharging = true;
                         if (currentEffectState != EffectState::MaxCharge) {
                             SwitchEffect(w, self, EffectState::MaxCharge);
                             
                         }
-                    } else if (chargeTimer >= 2.0f) {
+                    } else if (chargeTimer >= 0.2f) {
                         if (currentEffectState != EffectState::Relesing) {
                             SwitchEffect(w, self, EffectState::Relesing);
                         }
@@ -367,7 +367,7 @@ struct PlayerMovement : Behaviour {
                     t->position.x += shake; //実際に反映
                 } else
                 {
-                    if (chargeTimer > 0.0f)
+                    if (chargeTimer > 0.6f)
                     {
                         v->StartBoost(lastStickDir_, v->speed * v->Acceleration);
                        
