@@ -109,6 +109,8 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
         // リスポーン時にアニメーションを安全な姿勢（Idle）へ戻す
         AnimationTools::Play(w, player, AnimationConfig::Clips::PlayerIdle, true);
 
+        
+
         if (auto *vPlayer = w.TryGet<PlayerVelocity>(player)) {
             vPlayer->velocity = DirectX::XMFLOAT2{0.0f, 0.0f};
             vPlayer->isBoosting = false;
@@ -122,6 +124,7 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
             pmPlayer->wasCharging_ = false;
             pmPlayer->wasChargingPrev_ = false;
             pmPlayer->ResetAngleHistory();
+            pmPlayer->SwitchEffect(w, player, PlayerMovement::EffectState::Idle);
         }
 
         w.ForEach<GameStatus>([&](Entity, GameStatus &stats) {
