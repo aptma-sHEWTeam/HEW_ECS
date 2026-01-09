@@ -238,13 +238,13 @@ class GameScene : public IScene {
             status.currentStage = desiredStage;
             status.currentRoom = 1; // ステージ開始時は常にroom1から
 
-            auto stagePath = ResolveStageRoomCsvPath(desiredStage, status.currentRoom);
+            auto stagePath = ResolveStageRoomCsvPath(status.worldCount,desiredStage, status.currentRoom);
             if (!stagePath) {
                 DEBUGLOG_ERROR("[StageCreate] ステージ" + std::to_string(desiredStage) + " の room" + std::to_string(status.currentRoom) + ".csv が見つかりません。Stage1/room1へフォールバックします");
                 status.currentStage = 1;
-                status.selectStage = 1;
+                status.selectStage = 1;      
                 status.currentRoom = 1;
-                stagePath = ResolveStageRoomCsvPath(1, 1);
+                stagePath = ResolveStageRoomCsvPath(1, 1, 1);
             }
 
             if (stagePath) {
@@ -885,7 +885,7 @@ class GameScene : public IScene {
 
                 // 同一ステージ内で次のroomへ
                 const int nextRoomIndex = sp.currentRoom + 1;
-                auto nextRoomPath = ResolveStageRoomCsvPath(sp.currentStage, nextRoomIndex);
+                auto nextRoomPath = ResolveStageRoomCsvPath(sp.worldCount,sp.currentStage, nextRoomIndex);
                 if (!nextRoomPath) {
                     DEBUGLOG_WARNING("[StageCreate] Stage" + std::to_string(sp.currentStage) + "/room" + std::to_string(nextRoomIndex) + ".csv が見つかりません。ステージクリア扱いにします");
 

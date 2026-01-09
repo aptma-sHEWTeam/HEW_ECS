@@ -27,6 +27,7 @@ struct GameUIUpdater : Behaviour {
     Entity numEntity_;
     int cachedStage_ = -1;
     int cachedRoomCount_ = 1;
+    int cachedWorldCount = 1;
     Entity startplayer_;
     
 
@@ -42,8 +43,8 @@ struct GameUIUpdater : Behaviour {
                 stats.StartCountDown = std::max(0.0f, stats.StartCountDown - dt);
             }
 
-            if (!stats.StartChack && stats.StartCountDown <= 0.0f) {
-                stats.StartChack = true;
+            if (!stats.StartChack ) {
+               
                 stats.waitingForPlayerMove = true;
                 stats.timerRunning = false;
             }
@@ -105,7 +106,7 @@ struct GameUIUpdater : Behaviour {
 
         // ステージの更新
         w.ForEach<StageProgress>([&](Entity e, StageProgress &sp) {
-            RefreshRoomCount(sp.currentStage);
+            RefreshRoomCount(sp.worldCount,sp.currentStage);
 
             if (auto *stageText = w.TryGet<UIText>(stageTextEntity_[0])) {
                 std::wstringstream ss;
@@ -129,17 +130,19 @@ struct GameUIUpdater : Behaviour {
     }
 
   private:
-    static int CountRoomsInStage(int stage) {
+    static int CountRoomsInStage(int world,int stage) {
         int count = 0;
-        while (ResolveStageRoomCsvPath(stage, count + 1)) {
+        while (ResolveStageRoomCsvPath(world,stage, count + 1)) {
             ++count;
         }
         return std::max(count, 1);
     }
 
-    void RefreshRoomCount(int stage) {
+    void RefreshRoomCount(int world,int stage) {
         if (cachedStage_ == stage) return;
         cachedStage_ = stage;
-        cachedRoomCount_ = CountRoomsInStage(stage);
+        if (cachedWorldCount == world)
+        cachedWorldCount = world;
+        cachedRoomCount_ = CountRoomsInStage(world,stage);
     }
 };
