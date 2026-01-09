@@ -14,7 +14,7 @@ struct GameStatus : IComponent {
  int score =0;
  int enemiesDefeated =0;
  bool StartChack = false;     //スタートできるか判定
- float StartCountDown = 3.0f; //カウントダウン用
+ float StartCountDown =0.0f; //カウントダウン用
  float elapsedTime = cfg_LimitTime;
  bool isPaused = false;
  bool timerRunning = false;   //タイマー計測中か
