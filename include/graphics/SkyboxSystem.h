@@ -20,6 +20,7 @@ public:
 private:
     struct VSConstants {
         DirectX::XMMATRIX WVP;
+        DirectX::XMMATRIX WorldView;
     };
 
     bool CreateShaders(GfxDevice& gfx);

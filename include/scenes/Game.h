@@ -2066,33 +2066,42 @@ class GameScene : public IScene {
             UpdateZoom(dt, fovDelta);
         float stickZoomDelta = UpdateStickZoom(dt);
 
-        // スティックズーム時のターゲット補間（寄り率を補間して直線的に移動）
         DirectX::XMFLOAT3 effectiveTarget = baseTarget_;
         if (world.IsAlive(playerEntity_)) {
             if (auto *pTransform = world.TryGet<Transform>(playerEntity_)) {
-                // 目標寄り率を計算（ズーム量 * TargetRatio）
                 float zoomRatio = std::abs(stickZoomCurrent_) / std::max(0.01f, std::abs(cfg_StickZoomAmount.Get()));
                 zoomRatio = std::clamp(zoomRatio, 0.0f, 1.0f);
                 float targetRatio = zoomRatio * cfg_StickZoomTargetRatio.Get();
 
-                // 寄り率をゆっくり補間（TargetSpeed で速度調整）
-                float lerpSpeed = cfg_StickZoomTargetSpeed.Get();
-                float lerpFactor = 1.0f - std::exp(-lerpSpeed * dt);
-                stickZoomRatioCurrent_ += (targetRatio - stickZoomRatioCurrent_) * lerpFactor;
-
-                // baseTarget_からプレイヤー方向に直線的に移動
                 float diffX = pTransform->position.x - baseTarget_.x;
                 float diffY = pTransform->position.y - baseTarget_.y;
                 float diffZ = pTransform->position.z - baseTarget_.z;
+                float diffLen = std::sqrt(diffX * diffX + diffY * diffY + diffZ * diffZ);
+
+                if (diffLen > 1e-4f) {
+                    float maxRatioStep = (cfg_StickZoomTargetSpeed.Get() * dt) / diffLen;
+                    float ratioDelta = targetRatio - stickZoomRatioCurrent_;
+                    if (std::abs(ratioDelta) <= maxRatioStep) {
+                        stickZoomRatioCurrent_ = targetRatio;
+                    } else {
+                        stickZoomRatioCurrent_ += (ratioDelta > 0.0f ? maxRatioStep : -maxRatioStep);
+                    }
+                    stickZoomRatioCurrent_ = std::clamp(stickZoomRatioCurrent_, 0.0f, 1.0f);
+                } else {
+                    stickZoomRatioCurrent_ = targetRatio;
+                }
 
                 effectiveTarget.x = baseTarget_.x + diffX * stickZoomRatioCurrent_;
                 effectiveTarget.y = baseTarget_.y + diffY * stickZoomRatioCurrent_;
                 effectiveTarget.z = baseTarget_.z + diffZ * stickZoomRatioCurrent_;
             }
         } else {
-            // プレイヤーがいない場合は寄り率を0に戻す
-            float lerpFactor = 1.0f - std::exp(-cfg_StickZoomTargetSpeed.Get() * dt);
-            stickZoomRatioCurrent_ += (0.0f - stickZoomRatioCurrent_) * lerpFactor;
+            float maxRatioStep = cfg_StickZoomTargetSpeed.Get() * dt;
+            if (std::abs(stickZoomRatioCurrent_) <= maxRatioStep) {
+                stickZoomRatioCurrent_ = 0.0f;
+            } else {
+                stickZoomRatioCurrent_ += (stickZoomRatioCurrent_ > 0.0f ? -maxRatioStep : maxRatioStep);
+            }
         }
 
         camera_.position = {cameraPosition_.x + posOffset.x, cameraPosition_.y + posOffset.y, cameraPosition_.z + posOffset.z};
