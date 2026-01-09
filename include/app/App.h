@@ -59,8 +59,8 @@
 // ゲームシステム
 #include "scenes/SceneManager.h"
 #include "scenes/Game.h"
-#include "scenes/StageSelect.h"
-#include "scenes/WorldSelect.h"
+#include "scenes/World1_StageSelect.h"
+#include "scenes/World2_stageSelect.h"
 
 #include "graphics/Effect.h"
 
@@ -126,25 +126,26 @@ struct App {
         sceneManager_.RegisterScene("Game", std::move(gameScene));
         DEBUGLOG("GameScene registered to SceneManager");
 
-        auto stageslectScene = std::make_unique<StageSlectScene>();
+        auto world1_stageslectScene = std::make_unique<World1_StageSlectScene>();
         DEBUGLOG("StageSelectScene instance created");
 
-        sceneManager_.RegisterScene("StageSelect", std::move(stageslectScene));
-        DEBUGLOG("StageSelectScene registered to SceneManager");
+        sceneManager_.RegisterScene("World1_StageSelect", std::move(world1_stageslectScene));
+        DEBUGLOG("World1_StageSelect registered to SceneManager");
 
-        sceneManager_.Init("StageSelect", world_);
+        sceneManager_.Init("World1_StageSelect", world_);
         DEBUGLOG("SceneManager initialised with Game scene");
 
         DEBUGLOG("InitializeGame() complete");
 
-        auto worldselectScene = std::make_unique<WorldSelectScene>();
-        DEBUGLOG("WorldSelectScene instanse created");
 
-         sceneManager_.RegisterScene("WorldSelect", std::move(worldselectScene));
-        DEBUGLOG("WorldSelectScene registered to SceneManager");
+        auto world2_stageselectScene = std::make_unique<World2_StageSelectScene>();
+        DEBUGLOG("World2_StageSelect instanse created");
 
-        sceneManager_.Init("WorldSelect", world_);
-        DEBUGLOG("SceneManager initialised with WorldSelectScene scene");
+         sceneManager_.RegisterScene("World2_StageSelect", std::move(world2_stageselectScene));
+        DEBUGLOG("World2_StageSelect registered to SceneManager");
+
+        //sceneManager_.Init("World2_StageSelect", world_);
+        DEBUGLOG("SceneManager initialised with World2_StageSelect scene");
     }
 
     // ========================================================
@@ -367,7 +368,7 @@ struct App {
             if (auto* gs = dynamic_cast<GameScene*>(sceneManager_.GetCurrentScene())) {
                 camera_ = gs->GetCamera();
             }
-            if (auto *ss = dynamic_cast<StageSlectScene *>(sceneManager_.GetCurrentScene())) {
+            if (auto *ss = dynamic_cast<World1_StageSlectScene *>(sceneManager_.GetCurrentScene())) {
                 camera_ = ss->GetCameraSelect();
             }
 

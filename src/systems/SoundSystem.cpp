@@ -181,6 +181,20 @@ void SoundSystem::UpdateVolume() {
 }
 
 void SoundSystem::PlaySE(const std::string &path) {
+	//SE音声が存在するか確認
+	if (m_seVoices.count(path) && m_seVoices[path] != nullptr) {
+        XAUDIO2_VOICE_STATE state;
+        m_seVoices[path]->GetState(&state);
+
+		//バッファがまだ残っているなら処理を中断する
+        if (state.BuffersQueued > 0) {
+            return;
+		}
+
+		m_seVoices[path]->DestroyVoice();
+        m_seVoices[path] = nullptr;
+	}
+
     XAUDIO2_BUFFER *pBuffer = LoadSound(path.c_str(), false);
     if (!pBuffer) {
         return;
@@ -189,6 +203,7 @@ void SoundSystem::PlaySE(const std::string &path) {
     if (pVoice) {
 		//SEの音量調整
         pVoice->SetVolume(cfg_SEVolume.Get());
+        m_seVoices[path] = pVoice;
 	}
 
 }
@@ -215,6 +230,16 @@ void SoundSystem::PlayBGM(const std::string &path) {
 		}
 	}
 
+
+}
+
+//SEの停止
+void SoundSystem::StopSE(const std::string &path) {
+    if (m_seVoices.count(path) && m_seVoices[path] != nullptr) {
+        m_seVoices[path]->Stop();
+        m_seVoices[path]->DestroyVoice();
+        m_seVoices.erase(path);
+	}
 
 }
 
@@ -562,7 +587,7 @@ DWORD ReadMP3FrameHeader(HANDLE hFile, DWORD seek, MP3FrameInfo *pFrame)
 	// sample
 	// bitRate
 	// padding
-	pFrame->channel = channel == 0x11 ? 1 : 2;
+	pFrame->channel = (channel == 3) ? 1 : 2;
 	pFrame->sampleRate = sampleRate;
 	pFrame->bitRate = bitRate;
 	pFrame->padding = padding;

@@ -238,13 +238,13 @@ class GameScene : public IScene {
             status.currentStage = desiredStage;
             status.currentRoom = 1; // ステージ開始時は常にroom1から
 
-            auto stagePath = ResolveStageRoomCsvPath(desiredStage, status.currentRoom);
+            auto stagePath = ResolveStageRoomCsvPath(status.worldCount,desiredStage, status.currentRoom);
             if (!stagePath) {
                 DEBUGLOG_ERROR("[StageCreate] ステージ" + std::to_string(desiredStage) + " の room" + std::to_string(status.currentRoom) + ".csv が見つかりません。Stage1/room1へフォールバックします");
                 status.currentStage = 1;
-                status.selectStage = 1;
+                status.selectStage = 1;      
                 status.currentRoom = 1;
-                stagePath = ResolveStageRoomCsvPath(1, 1);
+                stagePath = ResolveStageRoomCsvPath(1, 1, 1);
             }
 
             if (stagePath) {
@@ -584,6 +584,7 @@ class GameScene : public IScene {
         TriggerCameraShake(0.03f + impulse, 0.25f);
         PlayPlayerAnimation(world, AnimationConfig::Clips::PlayerChargeOut, false);
 
+        SOUND_SYS.StopSE(cfg_DriftMP3Pass.Get());
         SOUND_SYS.PlaySE(cfg_Fire1MP3Pass.Get());
     }
 
@@ -601,10 +602,12 @@ class GameScene : public IScene {
                 if (img)
                     img->opacity = 0.0f;
             }
+            SOUND_SYS.StopSE(cfg_DriftMP3Pass);
         } else {
             if (img)
                 img->opacity = 0.0f;
         }
+    
     }
 
     void UpdateGoal(World &world) {
@@ -620,6 +623,7 @@ class GameScene : public IScene {
                 }
             }
         }
+        SOUND_SYS.StopSE(cfg_DriftMP3Pass);
     }
 
     /** @brief カメラオブジェクトへのconst参照を取得 */
@@ -744,6 +748,7 @@ class GameScene : public IScene {
         }
 
         SOUND_SYS.PlaySE(cfg_DeathMP3Pass.Get());
+        SOUND_SYS.StopSE(cfg_DriftMP3Pass.Get());
 
         pendingRespawn_ = true;
         respawnPlayer_ = player;
@@ -880,7 +885,7 @@ class GameScene : public IScene {
 
                 // 同一ステージ内で次のroomへ
                 const int nextRoomIndex = sp.currentRoom + 1;
-                auto nextRoomPath = ResolveStageRoomCsvPath(sp.currentStage, nextRoomIndex);
+                auto nextRoomPath = ResolveStageRoomCsvPath(sp.worldCount,sp.currentStage, nextRoomIndex);
                 if (!nextRoomPath) {
                     DEBUGLOG_WARNING("[StageCreate] Stage" + std::to_string(sp.currentStage) + "/room" + std::to_string(nextRoomIndex) + ".csv が見つかりません。ステージクリア扱いにします");
 
@@ -1275,6 +1280,8 @@ class GameScene : public IScene {
     }
 
     void CreateBlockByType(World &world, const DirectX::XMFLOAT3 &position, int blockType, int stagenumber) {
+        float lightangle = 0;
+        DirectX::XMFLOAT3 lightpos = {0.0f,-2.0f,0.0f};
         switch (blockType) {
             case 1:
                 CreateStart(world, position);
@@ -1299,6 +1306,25 @@ class GameScene : public IScene {
                 break;
             case 54:
                 CreateObjectC(world, position, blockType);
+                break;
+            case 60://右向き
+                lightpos.x = 0.1f;
+                lightangle = 180.0f;
+                CreateWallLight(world, position, lightangle, lightpos);
+                break;
+            case 61://上向き
+                lightpos.z = -0.1f;
+                lightangle = 270.0f;
+                CreateWallLight(world, position, lightangle, lightpos);
+                break;
+            case 62://左向き
+                lightpos.x = -0.1f;
+                CreateWallLight(world, position, lightangle, lightpos);
+                break;
+            case 63://下向き
+                lightpos.z = 0.1f;
+                lightangle = 90.0f;
+                CreateWallLight(world, position, lightangle, lightpos);
                 break;
             case 64:
                 CreateGoalSwitch(world, position, blockType);
@@ -1513,6 +1539,28 @@ class GameScene : public IScene {
                                 .Build();
 
         stageOwnedEntities_.push_back(wallEntity);
+    }
+
+    void CreateWallLight(World &world, const DirectX::XMFLOAT3 &position, float angle, DirectX::XMFLOAT3 subpos) {
+        DirectX::XMFLOAT3 diffPosition = {position.x + (subpos.x), position.y + (subpos.y), position.z + (subpos.z)};
+        Transform transform{diffPosition, {0.0f, angle, 0.0f}, {1.0f, 1.0f, 1.0f}};
+
+        PointLight wallLight;
+        wallLight.color = {0.0f,0.0f,1.0f};
+        ApplyDefaultPointLightParams(wallLight);
+        wallLight.range = 5.0f;
+        wallLight.intensity = 0.4f;
+        wallLight.constantAttenuation = 0.2f;
+
+        Entity walllightEntity = world.Create()
+                                .With<Transform>(transform)
+                                .With<Model>(cfg_WallLightFBXPass)
+                                .With<StageElementTag>()
+                                .With<PointLight>(wallLight)
+                                .With<WallLightTag>()
+                                .Build();
+
+        stageOwnedEntities_.push_back(walllightEntity);
     }
 
     void CreateRightDownCorner(World &world, const DirectX::XMFLOAT3 &position) {

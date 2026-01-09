@@ -86,6 +86,7 @@ inline ConfigVar<std::string> cfg_DashBoardFBXPass{"Stage.DashBoard.Asset", "Das
 inline ConfigVar<std::string> cfg_AObstacleFBXPass{"Stage.PC.Asset","AObstacle","Assets/Models/StageObj/PC/PC.fbx", "PC 障害物 FBX パス"};
 inline ConfigVar<std::string> cfg_BObstacleFBXPass{"Stage.GasPipe.Asset", "BObstacleFBXPass", "Assets/Models/StageObj/GasPipe/obj_obstacleB.fbx", "ガスパイプ障害物 FBX パス"};
 inline ConfigVar<std::string> cfg_CObstacleFBXPass{"Stage.Cube.Asset", "CObstacleFBXPass", "Assets/Models/StageObj/Cub/Cube.fbx", "キューブ障害物 FBX パス"};
+inline ConfigVar<std::string> cfg_WallLightFBXPass{"Stage.Light.Asset", "WallLightFBXPass", "Assets/Models/StageObj/Light/obj_light.fbx", "蛍光灯 FBX パス"};
 
 
 // UI設定（ゲーム中 HUD）

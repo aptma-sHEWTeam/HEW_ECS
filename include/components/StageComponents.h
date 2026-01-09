@@ -53,6 +53,7 @@ struct StageElementTag : IComponent {};
  * @brief ステージ番号と進行フラグを管理
  */
 struct StageProgress : IComponent {
+    int worldCount = 1;
     int currentStage = 1;
     int selectStage = 1;
     int currentRoom = 1; // 現在のルーム番号（同一ステージ内の部屋）
@@ -134,11 +135,11 @@ inline std::optional<std::string> ResolveStageCsvPath(int stage) {
  * @brief ステージ番号とルーム番号からCSVパスを解決する
  * @details 指定されたステージとルームに対応する CSV ファイルのパスを返す
  */
-inline std::optional<std::string> ResolveStageRoomCsvPath(int stage, int room) {
+inline std::optional<std::string> ResolveStageRoomCsvPath(int world,int stage, int room) {
     namespace fs = std::filesystem;
     std::error_code ec;
 
-    const std::string pathStr = "Assets/StageData/StageCollision/Stage" + std::to_string(stage) + "/room" + std::to_string(room) + ".csv";
+    const std::string pathStr = "Assets/StageData/World" + std::to_string(world) + "/StageCollision/Stage" + std::to_string(stage) + "/room" + std::to_string(room) + ".csv";
     const fs::path path{pathStr};
     if (fs::exists(path, ec) && !ec) {
         return pathStr;
