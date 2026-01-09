@@ -43,8 +43,8 @@ struct GameUIUpdater : Behaviour {
                 stats.StartCountDown = std::max(0.0f, stats.StartCountDown - dt);
             }
 
-            if (!stats.StartChack && stats.StartCountDown <= 0.0f) {
-                stats.StartChack = true;
+            if (!stats.StartChack ) {
+               
                 stats.waitingForPlayerMove = true;
                 stats.timerRunning = false;
             }
