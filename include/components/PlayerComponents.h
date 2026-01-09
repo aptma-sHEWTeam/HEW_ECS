@@ -180,6 +180,8 @@ struct PlayerMovement : Behaviour {
     int frame = 0;
 
     float chargeTimer = 0.0f;
+    bool isStart = false;
+    bool isMaxCharging = false;
 
     //エフェクトの状態管理
     enum class EffectState 
@@ -287,6 +289,7 @@ struct PlayerMovement : Behaviour {
         if (!t || !v || (!input_ && !gamepad_)) return;
         if (!collision_) collision_ = w.TryGet<CollisionSphere>(self);
 
+       
         auto restoreCollisionRadius = [&]() {
             if (collision_ && hasCollisionBackup_) {
                 collision_->radius = collisionRadiusBackup_;
@@ -312,65 +315,89 @@ struct PlayerMovement : Behaviour {
                 isCharging_ = false;
                 wasCharging_ = false;
                 wasChargingPrev_ = false;
-                startBlocked = true;
+                
             }
         });
-        if (startBlocked) 
-        { 
-            if (gamepad_)
-            {
+
+        if (!isStart)
+        {
+            startBlocked = true;
+        }
+        if (startBlocked)
+         {
+            if (gamepad_) {
                 float gx = gamepad_->GetLeftStickX();
                 float gy = gamepad_->GetLeftStickY();
                 float mag = std::sqrt(gx * gx + gy * gy);
                 bool chargingNow = (mag > cfg_ReleaseThreshold);
                 bool chargingSys = gamepad_->IsLeftStickCharging();
-
                 DirectX::XMFLOAT3 startPos = t->position;
                 float shake = 0.0f;
-
-                if (chargingNow && chargingSys)
-                {
-                    if (currentEffectState != EffectState::Charging)
-                    {
-                        SwitchEffect(w, self, EffectState::Charging);
-                        startPos = t->position;
+                if (chargingNow && chargingSys) {
+                    chargeTimer += dt;
+                    if (chargeTimer >= 3.0f) {
+                        isMaxCharging = true;
+                        if (currentEffectState != EffectState::MaxCharge) {
+                            SwitchEffect(w, self, EffectState::MaxCharge);
+                            
+                        }
+                    } else if (chargeTimer >= 2.0f) {
+                        if (currentEffectState != EffectState::Relesing) {
+                            SwitchEffect(w, self, EffectState::Relesing);
+                        }
+                    } else {
+                        if (currentEffectState != EffectState::Charging) {
+                            SwitchEffect(w, self, EffectState::Charging);
+                        }
                     }
-
                     //プレイヤーの向き更新
-                    if (mag > PlayerConstants::EPSILON)
-                    {
-                        float ang = std::atan2f(-(gy/mag),-(gx/mag));
-                        t->rotation.y = -ang * (180.0f/DirectX::XM_PI)+90.0f;
-                    } 
-                    
+                    if (mag > PlayerConstants::EPSILON) {
+                        float ang = std::atan2f(-(gy / mag), -(gx / mag));
+                        t->rotation.y = -ang * (180.0f / DirectX::XM_PI) + 90.0f;
+                        lastStickDir_ = {-(gx / mag),
+                                         -(gy / mag)};
+                    }
                     t->position.x = startPos.x;
                     int flip = std::rand() % 2;
-                    
-                    if (flip == 0)
-                    {
+                    if (flip == 0) {
                         shake = -0.01f; //左に
                     } else {
-
-                        shake =  0.01f; //右に
+                        shake = 0.01f; //右に
                     }
-
                     t->position.x += shake; //実際に反映
-                }
-                else
+                } else
                 {
-                    if (currentEffectState != EffectState::Idle)
+                    if (chargeTimer > 0.0f)
                     {
+                        v->StartBoost(lastStickDir_, v->speed * v->Acceleration);
+                       
+                        v->isRotate = false;
+                        isCharging_ = false;
+                        v->isDecelerating = false;
+                        chargeTimer = 0.0f;
+                        SwitchEffect(w, self, EffectState::Relesing);
+                        restoreCollisionRadius();
+                        isStart = true;
+                        w.ForEach<GameStatus>([&](Entity e, GameStatus &status) {
+                            status.StartChack = true;
+                        });
+                      return;
+                    } else if (currentEffectState != EffectState::Idle && currentEffectState != EffectState::MaxCharge) 
+                    {
+                        SwitchEffect(w, self, EffectState::Idle);
                         t->position.x = startPos.x;
                         shake = 0.0f;
-
-                        SwitchEffect(w, self, EffectState::Idle);
+                        chargeTimer = 0.0f;
                     }
                 }
-
             }
-            restoreCollisionRadius(); return; 
+            restoreCollisionRadius();
+            if (!isStart)
+            {
+                return;
+            }
         }
-
+       
         // ゴール演出中（GoalAttractor存在時）は入力を無効化し、速度を0にロック
         if (w.Has<GoalAttractor>(self)) {
             v->velocity = {0.0f, 0.0f};
@@ -433,11 +460,11 @@ struct PlayerMovement : Behaviour {
             if (effectiveCharging && !wasCharging_) {
                 chargeTimer = 0.0f;
                 GameScene_OnChargeStart(w);
-                SwitchEffect(w, self, EffectState::Charging);
             }
 
             if (effectiveCharging) {
                 if (v->isBoosting) { v->StopBoost(); }
+               
                 isCharging_ = true;
                 v->isDecelerating = true; // チャージ中は減速
                 v->isRotate = true;
@@ -446,11 +473,22 @@ struct PlayerMovement : Behaviour {
                 float charge = gamepad_->GetLeftStickChargeAmount(chargeMaxTime); (void)charge;
 
                 chargeTimer += dt;
-                //0.2秒異教チャージしている + Charging状態なら切り替える
-                if (chargeTimer >= 0.2f && currentEffectState == EffectState::Charging)
+                //0.2秒異教チャージしているならMaxChageに切り替え
+                if (chargeTimer >= 0.2f)
                 {
-                    SwitchEffect(w, self, EffectState::MaxCharge);
+                    if (currentEffectState != EffectState::MaxCharge)
+                    {
+                        SwitchEffect(w, self, EffectState::MaxCharge);
+                    }
                 }
+                else
+                {
+                    if (currentEffectState != EffectState::Charging)
+                    {
+                        SwitchEffect(w, self, EffectState::Charging);
+                    }
+                }
+                
 
                 if (mag > PlayerConstants::EPSILON) {
                     float ang = std::atan2f(lastStickDir_.y, lastStickDir_.x);
@@ -527,8 +565,8 @@ struct PlayerMovement : Behaviour {
                     if (effectRotation)
                     {
                         float baseRotY = t->rotation.y;
-                        float angleOffsetY = -30.0f * sides[i];
-                        float angleX = 20.0f;   
+                        float angleOffsetY = -30.0f * sides[i]; //ハの字に
+                        float angleX = 20.0f;                   //傾ける角度
 
                         DirectX::XMFLOAT3 rot = {angleX, baseRotY + angleOffsetY, 0.0f};
                         EffekseerManager::GetInstance().SetEffectRotation(handle[i],rot);
