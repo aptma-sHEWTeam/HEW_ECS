@@ -40,7 +40,11 @@ struct Animator : Behaviour {
     void Play(const std::string& name, bool loop = true) {
         for (size_t i = 0; i < animations.size(); ++i) {
             if (animations[i].name == name) {
-                currentAnimationIndex = (int)i;
+                const bool sameClip = currentAnimationIndex == static_cast<int>(i);
+                if (sameClip && isLooping == loop && !isFinished) {
+                    return;
+                }
+                currentAnimationIndex = static_cast<int>(i);
                 currentTime = 0.0f;
                 isLooping = loop;
                 isFinished = false;
