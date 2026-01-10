@@ -202,6 +202,22 @@ class GameScene : public IScene {
             return;
         }
 
+        // 画像描画システムの初期化
+        try {
+            if (!imageSystem_.Init(*gfx)) {
+                DEBUGLOG_ERROR("ImageSystem の初期化に失敗しました");
+                return;
+            }
+        } catch (const _com_error &ex) {
+            std::wostringstream woss;
+            const wchar_t *wmsg = ex.ErrorMessage() ? ex.ErrorMessage() : L"unknown";
+            woss << L"ImageSystem init _com_error hr=0x" << std::hex << ex.Error() << L" msg=" << wmsg;
+            std::wstring w = woss.str();
+            std::string n(w.begin(), w.end());
+            DEBUGLOG_ERROR(n);
+            return;
+        }
+
         // UI用のテキストフォーマットを作成
         CreateTextFormats();
 
@@ -269,26 +285,6 @@ class GameScene : public IScene {
         CreateUI(world, screenWidth, screenHeight);
 
         SetupStage(world, initialStage);
-
-        EffekseerManager::GetInstance().Load();
-
-        // 追加機能の初期化
-        if (!skybox_.Initialize(*gfx)) {
-            DEBUGLOG("[ERROR] SkyboxSystem::Initialize() 失敗");
-        } else {
-            // Skyboxロード (アセットパスは適宜調整)
-            // "Assets/Textures/Skybox/Sky.jpg" 等が存在するか確認が必要
-            // ここではデフォルトのスカイボックスをロードしようとするが、キューブマップ用の6枚画像が必要
-            // Skyboxロード
-            auto &texMgr = ServiceLocator::Get<TextureManager>();
-            // SkyboxSystemをEquirectangular(2D)対応に変更したため、LoadFromFileで読み込む
-            auto handle = texMgr.LoadFromFile("Assets/Textures/Skybox/Skybox.png");
-            if (handle != TextureManager::INVALID_TEXTURE) {
-                skybox_.SetTexture(handle);
-            } else {
-                DEBUGLOG_WARNING("Failed to load Assets/Textures/Skybox/Skybox.png. Background will be clear color.");
-            }
-        }
 
         // シャドウマップ初期化
         if (!shadowMap_.Init(gfx->Dev(), 1024)) {
@@ -2216,7 +2212,7 @@ class GameScene : public IScene {
             UpdateZoom(dt, fovDelta);
         float stickZoomDelta = UpdateStickZoom(dt);
 
-        // スティックズーム時のターゲット補間（ズーム応答と同じレートで滑らかに寄せる）
+        // スティックズーム時のターゲット補間（ズーム追応と同じレートで滑らかに寄せる）
         DirectX::XMFLOAT3 effectiveTarget = baseTarget_;
         // 計算のための現在の補間注視点を保持する（worldが生きている間は更新）
         if (world.IsAlive(playerEntity_)) {
@@ -2312,23 +2308,22 @@ class GameScene : public IScene {
         float sz = (std::sin(shakeElapsed_ * freqZ) * (1.0f - randomness) + randZ) * currentIntensity;
 
         // 平行移動ではなく微小回転で画面を揺らす
-        DirectX::XMFLOAT3 baseForward{
-            baseTarget_.x - cameraPosition_.x,
-            baseTarget_.y - cameraPosition_.y,
-            baseTarget_.z - cameraPosition_.z};
-        float forwardLen = std::sqrt(baseForward.x * baseForward.x + baseForward.y * baseForward.y + baseForward.z * baseForward.z);
-        if (forwardLen < 1e-4f)
-            return;
+        // ベースのforwardを cameraPosition -> baseTarget の方向で計算（正規化）
+        DirectX::XMVECTOR camPosV = DirectX::XMLoadFloat3(&cameraPosition_);
+        DirectX::XMVECTOR tgtV = DirectX::XMLoadFloat3(&baseTarget_);
+        DirectX::XMVECTOR forwardVec = DirectX::XMVectorSubtract(tgtV, camPosV);
+        float fwdLenSq = DirectX::XMVectorGetX(DirectX::XMVector3LengthSq(forwardVec));
+        DirectX::XMFLOAT3 baseForward{};
+        if (fwdLenSq > 1e-6f) {
+            forwardVec = DirectX::XMVector3Normalize(forwardVec);
+            DirectX::XMStoreFloat3(&baseForward, forwardVec);
+        } else {
+            baseForward = {0.0f, 0.0f, 1.0f};
+            forwardVec = DirectX::XMLoadFloat3(&baseForward);
+            forwardVec = DirectX::XMVector3Normalize(forwardVec);
+        }
 
-        const float angleScale = 0.25f; // 揺れ量を角度に変換
-        float pitch = sy * angleScale;
-        float yaw = sx * angleScale;
-        float roll = sz * angleScale * 0.5f;
-
-        DirectX::XMVECTOR forwardVec = DirectX::XMLoadFloat3(&baseForward);
-        forwardVec = DirectX::XMVector3Normalize(forwardVec);
-
-        DirectX::XMMATRIX rot = DirectX::XMMatrixRotationRollPitchYaw(pitch, yaw, roll);
+        DirectX::XMMATRIX rot = DirectX::XMMatrixRotationRollPitchYaw(sy * 0.1f, sx * 0.1f, sz * 0.05f);
         DirectX::XMVECTOR rotatedForward = DirectX::XMVector3TransformNormal(forwardVec, rot);
         DirectX::XMVECTOR rotatedUp = DirectX::XMVector3TransformNormal(DirectX::XMLoadFloat3(&baseUp_), rot);
 
@@ -2337,9 +2332,9 @@ class GameScene : public IScene {
         DirectX::XMStoreFloat3(&newForward, rotatedForward);
         DirectX::XMStoreFloat3(&newUp, rotatedUp);
 
-        targetOffset = {newForward.x * forwardLen - baseForward.x,
-                        newForward.y * forwardLen - baseForward.y,
-                        newForward.z * forwardLen - baseForward.z};
+        targetOffset = {newForward.x * 0.1f - baseForward.x,
+                        newForward.y * 0.1f - baseForward.y,
+                        newForward.z * 0.1f - baseForward.z};
         upVec = newUp;
         // 位置は固定し、違和感の少ない視線揺らぎのみ適用
         posOffset = {0.0f, 0.0f, 0.0f};
