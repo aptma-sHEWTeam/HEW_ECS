@@ -59,8 +59,8 @@ struct UIRenderSystem {
             });
         });
 
-        imageSystem_->EndDraw();
         textSystem_->EndDraw();
+        imageSystem_->EndDraw();
     }
 
     void SetTextSystem(TextSystem *ts) { textSystem_ = ts; }

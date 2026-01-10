@@ -234,6 +234,7 @@ struct App {
 
         // エフェクシアの初期化
         EffekseerManager::GetInstance().Init(gfx_, camera_);
+        EffekseerManager::GetInstance().Load();
 
         // ゲームシーンの初期化
         InitializeGame();
