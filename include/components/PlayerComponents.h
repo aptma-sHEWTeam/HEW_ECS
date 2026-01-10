@@ -370,11 +370,22 @@ struct PlayerMovement : Behaviour {
                          lastStickDir_ = {-(gx / mag),
                                           -(gy / mag)};
                      }
+                     t->position.x = startPos.x;
+                     int flip = std::rand() % 2;
+                     if (flip == 0) {
+                         shake = -0.01f; //左に
+                     } else {
+                         shake = 0.01f; //右に
+                     }
+                     t->position.x += shake; //実際に反映
+                } else
                 {
                     if (chargeTimer > 0.6f)
                     {
                         float chargeAmount = std::clamp(chargeTimer / 0.6f, 0.0f, 1.0f);
                         v->StartBoost(lastStickDir_, v->speed * v->Acceleration);
+                        // ブースト直後は入力をブロックする
+                        postBoostInputBlockTimer_ = cfg_PostBoostInputBlock.Get();
                        
                         v->isRotate = false;
                         isCharging_ = false;
@@ -449,7 +460,8 @@ struct PlayerMovement : Behaviour {
         v->MinSpeed = v->speed * minChargeSpeedFactor;
 
         DirectX::XMFLOAT2 inputDir = {0.0f, 0.0f};
-        if (input_) {
+        // キーボード入力はブロック中は無視する
+        if (input_ && postBoostInputBlockTimer_ <= 0.0f) {
             if (input_->GetKey('W') || input_->GetKey(VK_UP))    inputDir.y += 1.0f;
             if (input_->GetKey('S') || input_->GetKey(VK_DOWN))  inputDir.y -= 1.0f;
             if (input_->GetKey('A') || input_->GetKey(VK_LEFT))  inputDir.x -= 1.0f;
@@ -457,6 +469,13 @@ struct PlayerMovement : Behaviour {
         }
 
         if (gamepad_ && playerStatus->wallHitState == PlayerStatus::WallHitState::Idle) {
+            // ブロック中はスティック入力を読み取らず、移動のみ許可して早期リターン
+            if (postBoostInputBlockTimer_ > 0.0f) {
+                v->UpdateVelocity({0.0f, 0.0f}, dt);
+                v->UpdatePosition(w, self, dt);
+                return;
+            }
+
             float gx = gamepad_->GetLeftStickX();
             float gy = gamepad_->GetLeftStickY();
             float mag = std::sqrt(gx * gx + gy * gy);
@@ -526,6 +545,8 @@ struct PlayerMovement : Behaviour {
                         DirectX::XMFLOAT2 boostDir{dirX / dirLen, dirY / dirLen};
                         float maxBoost = v->speed * v->Acceleration;
                         v->StartBoost(boostDir, maxBoost);
+                        // ブースト直後は入力をブロックする
+                        postBoostInputBlockTimer_ = cfg_PostBoostInputBlock.Get();
                         v->isRotate = false;
                         isCharging_ = false; v->isDecelerating = false;
                     }
