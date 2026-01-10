@@ -18,6 +18,7 @@
 #include <filesystem>
 #include <algorithm>
 #include <vector>
+#include <cassert>
 
 // 追加: IScene 定義を利用するためにシーンマネージャのヘッダーをインクルード
 #include "scenes/SceneManager.h"
@@ -70,12 +71,14 @@
 inline static ConfigVar<float> cfg_GoalDistance{"Distance.Goal", "GoalDistance", 2.0f, "ゴール接近スロー演出を開始する距離"};
 inline static ConfigVar<float> cfg_SlowDirection{"Direction.Slow", "SlowDistance", 0.2f, "ゴール接近時に適用するタイムスケール"};
 inline static ConfigVar<float> cfg_StickZoomAmount{"Camera.Stick", "StickZoomAmount", 0.07f, "チャージ中のカメラズーム量"};
-inline static ConfigVar<float> cfg_StickZoomResponse{"Camera.Stick", "StickZoomResponse", 9.0f, "カメラズーム追従速度"};
+inline static ConfigVar<float> cfg_StickZoomResponse{"Camera.Stick", "StickZoomResponse", 3.0f, "カメラズーム追従速度"};
 inline static ConfigVar<float> cfg_StickZoomTargetRatio{"Camera.Stick", "StickZoomTargetRatio", 0.3f, "プレイヤーへのカメラ寄り具合(0=寄らない,1=完全に寄る)"};
-inline static ConfigVar<float> cfg_StickZoomTargetSpeed{"Camera.Stick", "StickZoomTargetSpeed", 3.0f, "カメラターゲット補間速度"};
+inline static ConfigVar<float> cfg_StickZoomTargetSpeed{"Camera.Stick", "StickZoomTargetSpeed", 2.0f, "カメラターゲット補間速度"};
 // 追加: ステージクリア待機時間
 inline static ConfigVar<float> cfg_StageClearWait{"UI.StageClear", "WaitSeconds", 2.0f, "ステージクリア表示後にシーン遷移するまでの待機時間"};
 inline static ConfigVar<float> cfg_SkyboxSpeed{"Skybox", "Speed", 0.05f, "スカイボックスの回転速度(rad/sec)"};
+//プレイヤーが壁に衝突/タイムアップした時のフェード表示の遅延時間
+inline static ConfigVar<float> cfg_DeathAnimationFadeTime{"DeathFadeAnimation", "Time", 1.0f, "壁に衝突/タイムアップ時のフェード表示遅延時間"};
 
 /**
  * @class GameScene
@@ -199,6 +202,22 @@ class GameScene : public IScene {
             return;
         }
 
+        // 画像描画システムの初期化
+        try {
+            if (!imageSystem_.Init(*gfx)) {
+                DEBUGLOG_ERROR("ImageSystem の初期化に失敗しました");
+                return;
+            }
+        } catch (const _com_error &ex) {
+            std::wostringstream woss;
+            const wchar_t *wmsg = ex.ErrorMessage() ? ex.ErrorMessage() : L"unknown";
+            woss << L"ImageSystem init _com_error hr=0x" << std::hex << ex.Error() << L" msg=" << wmsg;
+            std::wstring w = woss.str();
+            std::string n(w.begin(), w.end());
+            DEBUGLOG_ERROR(n);
+            return;
+        }
+
         // UI用のテキストフォーマットを作成
         CreateTextFormats();
 
@@ -215,6 +234,8 @@ class GameScene : public IScene {
             cameraPosition_,
             baseTarget_,
             baseUp_);
+        // 初期の補間ターゲットを基準注視点に合わせる
+        currentTarget_ = baseTarget_;
 
         // 衝突検出システムをエンティティとして生成
         Entity collisionSystem = world.Create().With<CollisionDetectionSystem>(cfg_CollisionCellSize.Get()).Build();
@@ -264,26 +285,6 @@ class GameScene : public IScene {
         CreateUI(world, screenWidth, screenHeight);
 
         SetupStage(world, initialStage);
-
-        EffekseerManager::GetInstance().Load();
-
-        // 追加機能の初期化
-        if (!skybox_.Initialize(*gfx)) {
-            DEBUGLOG("[ERROR] SkyboxSystem::Initialize() 失敗");
-        } else {
-            // Skyboxロード (アセットパスは適宜調整)
-            // "Assets/Textures/Skybox/Sky.jpg" 等が存在するか確認が必要
-            // ここではデフォルトのスカイボックスをロードしようとするが、キューブマップ用の6枚画像が必要
-            // Skyboxロード
-            auto &texMgr = ServiceLocator::Get<TextureManager>();
-            // SkyboxSystemをEquirectangular(2D)対応に変更したため、LoadFromFileで読み込む
-            auto handle = texMgr.LoadFromFile("Assets/Textures/Skybox/Skybox.png");
-            if (handle != TextureManager::INVALID_TEXTURE) {
-                skybox_.SetTexture(handle);
-            } else {
-                DEBUGLOG_WARNING("Failed to load Assets/Textures/Skybox/Skybox.png. Background will be clear color.");
-            }
-        }
 
         // シャドウマップ初期化
         if (!shadowMap_.Init(gfx->Dev(), 1024)) {
@@ -397,7 +398,7 @@ class GameScene : public IScene {
 
     /**
      * @brief 毎フレーム呼び出される描画処理
-     * @param world ECSワールドへの参照
+     * @param world ECSワ عالمへの参照
      */
     void OnRender(World &world) override {
         auto *gfx = ServiceLocator::TryGet<GfxDevice>();
@@ -588,15 +589,26 @@ class GameScene : public IScene {
         SOUND_SYS.PlaySE(cfg_Fire1MP3Pass.Get());
     }
 
-    void UpdateDeathFade(World &world, float /*dt*/) {
+    void UpdateDeathFade(World &world, float dt/*dt*/) {
+        
+        if (isDeathFadePending_) {
+            deathFadeTimer_ -= dt;
+            if (deathFadeTimer_ <= 0.0f) {
+                StartDeathFadeOut(world);
+                isDeathFadePending_ = false;
+            }
+        }
+
         if (!world.IsAlive(deathFadeAnimationEntity_))
             return;
         auto *img = world.TryGet<UIImage>(deathFadeAnimationEntity_);
         auto *anim = world.TryGet<SpriteSheetAnimation>(deathFadeAnimationEntity_);
 
+        
+
         if (deathFadeVisible_) {
             if (img)
-                img->opacity = 0.1f;
+                img->opacity = 1.0f;
             if (anim && anim->isFinished && !anim->isPlaying) {
                 deathFadeVisible_ = false;
                 if (img)
@@ -692,8 +704,10 @@ class GameScene : public IScene {
             return;
         ResetChargeState();
 
-        // 再生用フェードアニメーションを開始
-        StartDeathFadeOut(world);
+         // 再生用フェードアニメーションを開始
+        deathFadeTimer_ = cfg_DeathAnimationFadeTime;
+        isDeathFadePending_ = true;
+
         PlayPlayerAnimation(world, AnimationConfig::Clips::PlayerDeath, false);
 
         if (auto *playerStatus = world.TryGet<PlayerStatus>(playerEntity_)) {
@@ -716,10 +730,10 @@ class GameScene : public IScene {
                 v->boostSpeed = 0.0f;
             }
         }
-
+       
         pendingRespawn_ = true;
         respawnPlayer_ = player;
-        respawnTimer_ = cfg_WallHitRespawnDelay.Get();
+        respawnTimer_ = cfg_WallHitRespawnDelay.Get() + deathFadeTimer_;
 
         DEBUGLOG("壁に衝突 - カメラシェイク開始、リスポーン待機中");
     }
@@ -730,7 +744,9 @@ class GameScene : public IScene {
             return;
         ResetChargeState();
 
-        StartDeathFadeOut(world);
+        deathFadeTimer_ = cfg_DeathAnimationFadeTime;
+        isDeathFadePending_ = true;
+
         PlayPlayerAnimation(world, AnimationConfig::Clips::PlayerTimeup, false);
 
         if (auto *playerStatus = world.TryGet<PlayerStatus>(playerEntity_)) {
@@ -752,7 +768,7 @@ class GameScene : public IScene {
 
         pendingRespawn_ = true;
         respawnPlayer_ = player;
-        respawnTimer_ = cfg_WallHitRespawnDelay.Get();
+        respawnTimer_ = cfg_WallHitRespawnDelay.Get() + deathFadeTimer_;
 
         DEBUGLOG("時間切れ - フェード演出開始、リスポーン待機中");
     }
@@ -2088,6 +2104,7 @@ class GameScene : public IScene {
         if (respawnTimer_ <= 0.0f) {
             ResetPlayerToStart(world, respawnPlayer_, true);
             StartFadeInNormal(world);
+            deathFadeVisible_ = false;
             if (auto *playerStatus = world.TryGet<PlayerStatus>(playerEntity_)) {
                 UpdateWallHitState(*playerStatus, PlayerStatus::WallHitState::Idle, "RespawnComplete");
             }
@@ -2102,7 +2119,88 @@ class GameScene : public IScene {
         }
     }
 
+    static DirectX::XMFLOAT3 SmoothStickTarget(
+        const DirectX::XMFLOAT3 &current,
+        const DirectX::XMFLOAT3 &desired,
+        float dt,
+        float response,
+        float maxSpeed,
+        float snapDistance = 1e-3f) {
+        const float safeDt = std::max(0.0f, dt);
+        const float safeResponse = std::max(0.0f, response);
+        const float safeSpeed = std::max(0.0f, maxSpeed);
+        const float lerpFactor = 1.0f - std::exp(-safeResponse * safeDt);
+
+        DirectX::XMFLOAT3 delta{
+            desired.x - current.x,
+            desired.y - current.y,
+            desired.z - current.z};
+        DirectX::XMFLOAT3 step{
+            delta.x * lerpFactor,
+            delta.y * lerpFactor,
+            delta.z * lerpFactor};
+
+        const float stepLen = std::sqrt(step.x * step.x + step.y * step.y + step.z * step.z);
+        const float maxStep = safeSpeed * safeDt;
+        if (stepLen > maxStep && stepLen > 1e-6f && maxStep > 0.0f) {
+            const float scale = maxStep / stepLen;
+            step.x *= scale;
+            step.y *= scale;
+            step.z *= scale;
+        }
+
+        DirectX::XMFLOAT3 next{
+            current.x + step.x,
+            current.y + step.y,
+            current.z + step.z};
+
+        const float remainingX = desired.x - next.x;
+        const float remainingY = desired.y - next.y;
+        const float remainingZ = desired.z - next.z;
+        const float remainingLen = std::sqrt(remainingX * remainingX + remainingY * remainingY + remainingZ * remainingZ);
+        if (remainingLen <= snapDistance)
+            return desired;
+
+        return next;
+    }
+
+#if defined(_DEBUG)
+    void RunStickZoomSmoothingTests() {
+        {
+            const DirectX::XMFLOAT3 current{0.0f, 0.0f, 0.0f};
+            const DirectX::XMFLOAT3 desired{10.0f, 0.0f, 0.0f};
+            const DirectX::XMFLOAT3 next = SmoothStickTarget(current, desired, 1.0f, 3.0f, 1.0f);
+            const float stepLen = std::sqrt(
+                (next.x - current.x) * (next.x - current.x) +
+                (next.y - current.y) * (next.y - current.y) +
+                (next.z - current.z) * (next.z - current.z));
+            assert(stepLen <= 1.0f + 1e-4f);
+        }
+        {
+            const DirectX::XMFLOAT3 current{0.0f, 0.0f, 0.0f};
+            const DirectX::XMFLOAT3 desired{1.0f, 1.0f, 0.0f};
+            const DirectX::XMFLOAT3 next = SmoothStickTarget(current, desired, 0.25f, 3.0f, 10.0f);
+            assert(next.x > 0.0f && next.y > 0.0f);
+            assert(next.x < desired.x && next.y < desired.y);
+        }
+        {
+            const DirectX::XMFLOAT3 current{0.5f, -0.5f, 0.0f};
+            const DirectX::XMFLOAT3 desired{0.5f, -0.5f, 0.0f};
+            const DirectX::XMFLOAT3 next = SmoothStickTarget(current, desired, 0.16f, 3.0f, 2.0f);
+            assert(std::abs(next.x - current.x) < 1e-6f);
+            assert(std::abs(next.y - current.y) < 1e-6f);
+        }
+    }
+#endif
+
     void UpdateCameraReaction(float dt, World &world) {
+#if defined(_DEBUG)
+        static bool stickZoomTestsExecuted = false;
+        if (!stickZoomTestsExecuted) {
+            RunStickZoomSmoothingTests();
+            stickZoomTestsExecuted = true;
+        }
+#endif
         DirectX::XMFLOAT3 posOffset{0.0f, 0.0f, 0.0f};
         DirectX::XMFLOAT3 targetOffset{0.0f, 0.0f, 0.0f};
         float fovDelta = 0.0f;
@@ -2116,8 +2214,9 @@ class GameScene : public IScene {
             UpdateZoom(dt, fovDelta);
         float stickZoomDelta = UpdateStickZoom(dt);
 
-        // スティックズーム時のターゲット補間（寄り率を補間して直線的に移動）
+        // スティックズーム時のターゲット補間（ズーム追応と同じレートで滑らかに寄せる）
         DirectX::XMFLOAT3 effectiveTarget = baseTarget_;
+        // 計算のための現在の補間注視点を保持する（worldが生きている間は更新）
         if (world.IsAlive(playerEntity_)) {
             if (auto *pTransform = world.TryGet<Transform>(playerEntity_)) {
                 // 目標寄り率を計算（ズーム量 * TargetRatio）
@@ -2125,25 +2224,41 @@ class GameScene : public IScene {
                 zoomRatio = std::clamp(zoomRatio, 0.0f, 1.0f);
                 float targetRatio = zoomRatio * cfg_StickZoomTargetRatio.Get();
 
-                // 寄り率をゆっくり補間（TargetSpeed で速度調整）
-                float lerpSpeed = cfg_StickZoomTargetSpeed.Get();
-                float lerpFactor = 1.0f - std::exp(-lerpSpeed * dt);
-                stickZoomRatioCurrent_ += (targetRatio - stickZoomRatioCurrent_) * lerpFactor;
+                DirectX::XMFLOAT3 desiredTarget{
+                    baseTarget_.x + (pTransform->position.x - baseTarget_.x) * targetRatio,
+                    baseTarget_.y + (pTransform->position.y - baseTarget_.y) * targetRatio,
+                    baseTarget_.z + (pTransform->position.z - baseTarget_.z) * targetRatio};
 
-                // baseTarget_からプレイヤー方向に直線的に移動
-                float diffX = pTransform->position.x - baseTarget_.x;
-                float diffY = pTransform->position.y - baseTarget_.y;
-                float diffZ = pTransform->position.z - baseTarget_.z;
-
-                effectiveTarget.x = baseTarget_.x + diffX * stickZoomRatioCurrent_;
-                effectiveTarget.y = baseTarget_.y + diffY * stickZoomRatioCurrent_;
-                effectiveTarget.z = baseTarget_.z + diffZ * stickZoomRatioCurrent_;
+                const float response = cfg_StickZoomResponse.Get();
+                const float moveSpeed = cfg_StickZoomTargetSpeed.Get(); // world units per second cap
+                currentTarget_ = SmoothStickTarget(currentTarget_, desiredTarget, dt, response, moveSpeed, 1e-3f);
+            } else {
+                // プレイヤーがいない場合は基準注視点へ戻す
+                DirectX::XMFLOAT3 desiredTarget = baseTarget_;
+                const float response = cfg_StickZoomResponse.Get();
+                const float moveSpeed = cfg_StickZoomTargetSpeed.Get();
+                DirectX::XMFLOAT3 blendedTarget = desiredTarget;
+                blendedTarget.y = currentTarget_.y + (desiredTarget.y - currentTarget_.y) * currentVerticalBlend_;
+                currentTarget_ = SmoothStickTarget(currentTarget_, blendedTarget, dt, response, moveSpeed, 1e-3f);
+                float verticalBlendSpeed = std::max(0.5f, cfg_StickZoomTargetSpeed.Get());
+                currentVerticalBlend_ += verticalBlendSpeed * dt;
+                if (currentVerticalBlend_ > 1.0f) currentVerticalBlend_ = 1.0f;
             }
         } else {
-            // プレイヤーがいない場合は寄り率を0に戻す
-            float lerpFactor = 1.0f - std::exp(-cfg_StickZoomTargetSpeed.Get() * dt);
-            stickZoomRatioCurrent_ += (0.0f - stickZoomRatioCurrent_) * lerpFactor;
+            // プレイヤーがいない場合は基準注視点へ戻す
+            DirectX::XMFLOAT3 desiredTarget = baseTarget_;
+            const float response = cfg_StickZoomResponse.Get();
+            const float moveSpeed = cfg_StickZoomTargetSpeed.Get();
+            DirectX::XMFLOAT3 blendedTarget = desiredTarget;
+            blendedTarget.y = currentTarget_.y + (desiredTarget.y - currentTarget_.y) * currentVerticalBlend_;
+            currentTarget_ = SmoothStickTarget(currentTarget_, blendedTarget, dt, response, moveSpeed, 1e-3f);
+            float verticalBlendSpeed = std::max(0.5f, cfg_StickZoomTargetSpeed.Get());
+            currentVerticalBlend_ += verticalBlendSpeed * dt;
+            if (currentVerticalBlend_ > 1.0f) currentVerticalBlend_ = 1.0f;
         }
+
+        // Use the smoothed currentTarget_ as the effective target to apply
+        effectiveTarget = currentTarget_;
 
         camera_.position = {cameraPosition_.x + posOffset.x, cameraPosition_.y + posOffset.y, cameraPosition_.z + posOffset.z};
         camera_.target = {effectiveTarget.x + targetOffset.x, effectiveTarget.y + targetOffset.y, effectiveTarget.z + targetOffset.z};
@@ -2195,23 +2310,22 @@ class GameScene : public IScene {
         float sz = (std::sin(shakeElapsed_ * freqZ) * (1.0f - randomness) + randZ) * currentIntensity;
 
         // 平行移動ではなく微小回転で画面を揺らす
-        DirectX::XMFLOAT3 baseForward{
-            baseTarget_.x - cameraPosition_.x,
-            baseTarget_.y - cameraPosition_.y,
-            baseTarget_.z - cameraPosition_.z};
-        float forwardLen = std::sqrt(baseForward.x * baseForward.x + baseForward.y * baseForward.y + baseForward.z * baseForward.z);
-        if (forwardLen < 1e-4f)
-            return;
+        // ベースのforwardを cameraPosition -> baseTarget の方向で計算（正規化）
+        DirectX::XMVECTOR camPosV = DirectX::XMLoadFloat3(&cameraPosition_);
+        DirectX::XMVECTOR tgtV = DirectX::XMLoadFloat3(&baseTarget_);
+        DirectX::XMVECTOR forwardVec = DirectX::XMVectorSubtract(tgtV, camPosV);
+        float fwdLenSq = DirectX::XMVectorGetX(DirectX::XMVector3LengthSq(forwardVec));
+        DirectX::XMFLOAT3 baseForward{};
+        if (fwdLenSq > 1e-6f) {
+            forwardVec = DirectX::XMVector3Normalize(forwardVec);
+            DirectX::XMStoreFloat3(&baseForward, forwardVec);
+        } else {
+            baseForward = {0.0f, 0.0f, 1.0f};
+            forwardVec = DirectX::XMLoadFloat3(&baseForward);
+            forwardVec = DirectX::XMVector3Normalize(forwardVec);
+        }
 
-        const float angleScale = 0.25f; // 揺れ量を角度に変換
-        float pitch = sy * angleScale;
-        float yaw = sx * angleScale;
-        float roll = sz * angleScale * 0.5f;
-
-        DirectX::XMVECTOR forwardVec = DirectX::XMLoadFloat3(&baseForward);
-        forwardVec = DirectX::XMVector3Normalize(forwardVec);
-
-        DirectX::XMMATRIX rot = DirectX::XMMatrixRotationRollPitchYaw(pitch, yaw, roll);
+        DirectX::XMMATRIX rot = DirectX::XMMatrixRotationRollPitchYaw(sy * 0.1f, sx * 0.1f, sz * 0.05f);
         DirectX::XMVECTOR rotatedForward = DirectX::XMVector3TransformNormal(forwardVec, rot);
         DirectX::XMVECTOR rotatedUp = DirectX::XMVector3TransformNormal(DirectX::XMLoadFloat3(&baseUp_), rot);
 
@@ -2220,9 +2334,9 @@ class GameScene : public IScene {
         DirectX::XMStoreFloat3(&newForward, rotatedForward);
         DirectX::XMStoreFloat3(&newUp, rotatedUp);
 
-        targetOffset = {newForward.x * forwardLen - baseForward.x,
-                        newForward.y * forwardLen - baseForward.y,
-                        newForward.z * forwardLen - baseForward.z};
+        targetOffset = {newForward.x * 0.1f - baseForward.x,
+                        newForward.y * 0.1f - baseForward.y,
+                        newForward.z * 0.1f - baseForward.z};
         upVec = newUp;
         // 位置は固定し、違和感の少ない視線揺らぎのみ適用
         posOffset = {0.0f, 0.0f, 0.0f};
@@ -2308,6 +2422,9 @@ class GameScene : public IScene {
     Entity gimmickEntity_{};
     Entity fadeAnimationEntity_{};
     Entity deathFadeAnimationEntity_{};
+    float deathFadeTimer_ = 0.0f;
+
+    bool isDeathFadePending_ = false;
     Entity chargeOverlayEntity_{};
     // 追加: ステージクリア用テキストエンティティと状態
     Entity stageClearTextEntity_{};
@@ -2316,6 +2433,8 @@ class GameScene : public IScene {
 
     DirectX::XMFLOAT3 cameraPosition_ = {0.0f, 30.0f, -7.0f};
     DirectX::XMFLOAT3 currentTarget_ = {0.0f, 0.0f, 0.0f};
+    DirectX::XMFLOAT3 lastDesiredTarget_ = {0.0f, 0.0f, 0.0f};
+    float currentVerticalBlend_ = 1.0f; // 0..1, controls how much of Y delta is applied (starts full)
     Camera camera_{};
     float baseFovY_ = DirectX::XM_PIDIV4;
     float cameraNear_ = 0.1f;
@@ -2360,6 +2479,7 @@ class GameScene : public IScene {
     float skyboxRotation_ = 0.0f;
 };
 
+
 // =========================================
 // 衝突ハンドラーの実装（GameScene定義後）
 // =========================================
@@ -2393,6 +2513,10 @@ inline void WallCollisionHandler::OnCollisionEnter(World &w, Entity self, Entity
     if (w.Has<PlayerTag>(other)) {
         // ゴール演出中は壁判定を無効化
         bool isGoalTransition = false;
+
+        auto *tEffect = w.TryGet<PlayerMovement>(other);
+        tEffect->SwitchEffect(w,other, PlayerMovement::EffectState::Idle);
+
         w.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
             if (sp.goalTransitioning)
                 isGoalTransition = true;

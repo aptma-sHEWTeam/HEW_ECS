@@ -2,6 +2,7 @@
 #include "components/Animator.h"
 #include "components/ModelComponent.h"
 #include "app/DebugLog.h"
+#include <limits>
 
 using namespace DirectX;
 
@@ -176,21 +177,26 @@ void AnimationSystem::Update(World& world, float dt) {
         if (anim.currentAnimationIndex < 0 || anim.currentAnimationIndex >= (int)anim.animations.size()) return;
 
         auto& clip = anim.animations[anim.currentAnimationIndex];
+        const float ticksPerSecond = std::max(clip.ticksPerSecond, 1.0f);
+        const float duration = std::max(clip.duration, 1e-4f);
         
         // 累積時間（秒）を更新
         anim.currentTime += dt * anim.speed;
         
         // サンプリング時刻（ticks）を計算
-        float sampleTicks = anim.currentTime * clip.ticksPerSecond;
+        float sampleTicks = anim.currentTime * ticksPerSecond;
+        if (!std::isfinite(sampleTicks)) {
+            sampleTicks = 0.0f;
+        }
         
         // ループ処理
-        if (sampleTicks >= clip.duration) {
+        if (sampleTicks >= duration) {
             if (anim.isLooping) {
-                sampleTicks = fmodf(sampleTicks, clip.duration);
-                anim.currentTime = sampleTicks / std::max(clip.ticksPerSecond, 1.0f);
+                sampleTicks = fmodf(sampleTicks, duration);
+                anim.currentTime = sampleTicks / ticksPerSecond;
             } else {
-                sampleTicks = clip.duration;
-                anim.currentTime = sampleTicks / std::max(clip.ticksPerSecond, 1.0f);
+                sampleTicks = duration;
+                anim.currentTime = sampleTicks / ticksPerSecond;
                 anim.isFinished = true;
             }
         }

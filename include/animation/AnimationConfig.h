@@ -30,10 +30,10 @@ struct UI {
     // スプライトシートの基本設定例
     inline static const int FadeFrames = 18;
     inline static const int FadeCols = 18;
-    inline static const float FadeFrameTime = 0.08f;
+    inline static const float FadeFrameTime = 0.3f;
     inline static const int DeathFadeFrames = 18;
     inline static const int DeathFadeCols = 18;
-    inline static const float DeathFadeFrameTime = 0.08f;
+    inline static const float DeathFadeFrameTime = 0.06f;
 };
 
 } // namespace AnimationConfig

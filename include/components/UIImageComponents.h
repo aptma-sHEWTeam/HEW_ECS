@@ -20,6 +20,9 @@ struct UIImage : IComponent {
     // 追加: TextureManagerハンドルでの描画に対応（filePathより優先）
     TextureManager::TextureHandle textureHandle = TextureManager::INVALID_TEXTURE;
 
+    // 追加: フェード等のオーバーレイ画像を上層に描画するためのフラグ
+    bool overlay = false;
+
     UIImage() = default;
     explicit UIImage(const std::wstring &path) : filePath(path) {}
 };

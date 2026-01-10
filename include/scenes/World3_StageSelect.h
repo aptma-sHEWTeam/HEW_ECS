@@ -1,7 +1,7 @@
-ï»¿/**
+/**
  * @file StageSelect.h
- * @brief ãƒ¯ãƒ¼ãƒ«ãƒ‰2ã‚»ãƒ¬ã‚¯ãƒˆã‚·ãƒ¼ãƒ³
- * @author ç«‹å±±æ‚ æœ”
+ * @brief ƒ[ƒ‹ƒh3ƒZƒŒƒNƒgƒV[ƒ“
+ * @author —§R—Iñ
  * @date 2025
  * @version 1.0
  */
@@ -24,15 +24,14 @@
 #include "systems/UISystem.h"
 #include "app/ServiceLocator.h"
 
-
 /**
- * @class World2_StageSelectScene
- * @brief ãƒ¯ãƒ¼ãƒ«ãƒ‰ã‚»ãƒ¬ã‚¯ãƒˆ2ã®ã‚·ãƒ¼ãƒ³
+ * @class World3_StageSelectScene
+ * @brief ƒ[ƒ‹ƒhƒZƒŒƒNƒg2‚ÌƒV[ƒ“
  */
-class World2_StageSelectScene : public IScene {
+class World3_StageSelectScene : public IScene {
   public:
     void OnEnter(World &world) override {
-        // æ—¢å­˜å®Ÿè£…ãã®ã¾ã¾
+        // Šù‘¶À‘•‚»‚Ì‚Ü‚Ü
         bool hasGameStatus = false;
         world.ForEach<GameStatus>([&](Entity, GameStatus &) { hasGameStatus = true; });
         if (!hasGameStatus) {
@@ -69,7 +68,7 @@ class World2_StageSelectScene : public IScene {
 
         world.ForEach<StageProgress>([&](Entity, StageProgress &stats) {
             stats.selectStage = 0;
-            stats.worldCount = 2;
+            stats.worldCount = 3;
         });
 
         // UICanvas & Systems
@@ -95,7 +94,7 @@ class World2_StageSelectScene : public IScene {
     }
 
     void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
-        // æ—¢å­˜å®Ÿè£…ãã®ã¾ã¾ï¼ˆå‰ã¨åŒã˜å†…å®¹ï¼‰
+        // Šù‘¶À‘•‚»‚Ì‚Ü‚Üi‘O‚Æ“¯‚¶“à—ej
         world.ForEach<UIInteractionSystem>([&](Entity, UIInteractionSystem &sys) {
             if (!sys.input_) {
                 sys.input_ = &input;
@@ -120,13 +119,13 @@ class World2_StageSelectScene : public IScene {
 
         const int maxStage = maxStage_;
 
-         world.ForEach<StageProgress>([&](Entity, StageProgress &stats) {
+        world.ForEach<StageProgress>([&](Entity, StageProgress &stats) {
             if (input.GetKeyDown(VK_RIGHT)) {
                 if (stats.selectStage < maxStage_) {
                     stats.selectStage++;
                 } else if (stats.selectStage == maxStage_) {
                     if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
-                        manager->ChangeScene("World3_StageSelect", world);
+                        manager->ChangeScene("World4_StageSelect", world);
                     }
                 }
             }
@@ -135,7 +134,7 @@ class World2_StageSelectScene : public IScene {
                     stats.selectStage--;
                 } else {
                     if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
-                        manager->ChangeScene("World1_StageSelect", world);
+                        manager->ChangeScene("World2_StageSelect", world);
                     }
                 }
             }
@@ -147,7 +146,7 @@ class World2_StageSelectScene : public IScene {
                         stats.selectStage++;
                     } else if (stats.selectStage == maxStage_) {
                         if (auto *maneger = ServiceLocator::TryGet<SceneManager>()) {
-                            maneger->ChangeScene("World3_StageSelect", world);
+                            maneger->ChangeScene("World4_StageSelect", world);
                         }
                     }
                 }
@@ -156,7 +155,7 @@ class World2_StageSelectScene : public IScene {
                         stats.selectStage--;
                     } else {
                         if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
-                            manager->ChangeScene("World1_StageSelect", world);
+                            manager->ChangeScene("World2_StageSelect", world);
                         }
                     }
                 }
@@ -170,47 +169,46 @@ class World2_StageSelectScene : public IScene {
                     StageSelectText->text = ss.str();
                 }
             }
-         });
+        });
 
-            world.Tick(deltaTime);
-      }
-    
+        world.Tick(deltaTime);
+    }
 
-      void OnRender(World &world) {
-            world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
-                MeshRenderer renderer;
-                sys.Render(world);
-            });
-      }
+     void OnRender(World &world) {
+        world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
+            MeshRenderer renderer;
+            sys.Render(world);
+        });
+    }
 
-      void OnExit(World &world) override{
-            for (const auto &e : ownedEntities_) {
-                if (world.IsAlive(e)) {
-                    world.DestroyEntityWithCause(e, World::Cause::SceneUnload);
-                }
+      void OnExit(World &world) override {
+        for (const auto &e : ownedEntities_) {
+            if (world.IsAlive(e)) {
+                world.DestroyEntityWithCause(e, World::Cause::SceneUnload);
             }
-            ownedEntities_.clear();
+        }
+        ownedEntities_.clear();
 
-            if (world.IsAlive(StageSelectEntity_)) {
-                world.DestroyEntityWithCause(StageSelectEntity_, World::Cause::SceneUnload);
-                StageSelectEntity_ = {};
-            }
-            textSystem_.Shutdown();
-            imageSystem_.Shutdown();
-      }
-  
+        if (world.IsAlive(StageSelectEntity_)) {
+            world.DestroyEntityWithCause(StageSelectEntity_, World::Cause::SceneUnload);
+            StageSelectEntity_ = {};
+        }
+        textSystem_.Shutdown();
+        imageSystem_.Shutdown();
+    }
+
+
   private:
-     void CreateTextNormalFormats();
-     void CreateTextStageNoFormats();
-     void CreateStageSelectUI(World &world);
+    void CreateTextNormalFormats();
+    void CreateTextStageNoFormats();
+    void CreateStageSelectUI(World &world);
 
-     Entity StageSelectEntity_{};
+    Entity StageSelectEntity_{};
 
-     TextSystem textSystem_{};
-     ImageSystem imageSystem_{};
+    TextSystem textSystem_{};
+    ImageSystem imageSystem_{};
 
-     std::vector<Entity> ownedEntities_{};
+    std::vector<Entity> ownedEntities_{};
 
-     int maxStage_ = 4;
-    };
-
+    int maxStage_ = 8;
+};

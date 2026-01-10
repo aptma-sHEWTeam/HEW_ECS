@@ -61,6 +61,8 @@
 #include "scenes/Game.h"
 #include "scenes/World1_StageSelect.h"
 #include "scenes/World2_stageSelect.h"
+#include "scenes/World3_StageSelect.h"
+#include "scenes/World4_StageSelect.h"
 
 #include "graphics/Effect.h"
 
@@ -141,11 +143,20 @@ struct App {
         auto world2_stageselectScene = std::make_unique<World2_StageSelectScene>();
         DEBUGLOG("World2_StageSelect instanse created");
 
-         sceneManager_.RegisterScene("World2_StageSelect", std::move(world2_stageselectScene));
+        sceneManager_.RegisterScene("World2_StageSelect", std::move(world2_stageselectScene));
         DEBUGLOG("World2_StageSelect registered to SceneManager");
 
-        //sceneManager_.Init("World2_StageSelect", world_);
-        DEBUGLOG("SceneManager initialised with World2_StageSelect scene");
+        auto world3_stageselectScene = std::make_unique<World3_StageSelectScene>();
+        DEBUGLOG("World3_StageSelect instanse created");
+
+        sceneManager_.RegisterScene("World3_StageSelect", std::move(world3_stageselectScene));
+        DEBUGLOG("World3_StageSelect registered to SceneManager");
+
+        auto world4_stageselectScene = std::make_unique<World4_StageSelectScene>();
+        DEBUGLOG("World4_StageSelect instanse created");
+
+        sceneManager_.RegisterScene("World4_StageSelect", std::move(world4_stageselectScene));
+        DEBUGLOG("World4_StageSelect registered to SceneManager");
     }
 
     // ========================================================
@@ -223,6 +234,7 @@ struct App {
 
         // エフェクシアの初期化
         EffekseerManager::GetInstance().Init(gfx_, camera_);
+        EffekseerManager::GetInstance().Load();
 
         // ゲームシーンの初期化
         InitializeGame();

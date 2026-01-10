@@ -79,9 +79,11 @@ void SkyboxSystem::Render(GfxDevice& gfx, const Camera& camera, float rotationY)
     DirectX::XMMATRIX world = DirectX::XMMatrixRotationY(rotationY);
     DirectX::XMMATRIX wvp = world * view * proj;
     wvp = DirectX::XMMatrixTranspose(wvp);
+    DirectX::XMMATRIX worldView = DirectX::XMMatrixTranspose(world * view);
 
     VSConstants cb;
     DirectX::XMStoreFloat4x4(reinterpret_cast<DirectX::XMFLOAT4X4*>(&cb.WVP.r[0]), wvp);
+    DirectX::XMStoreFloat4x4(reinterpret_cast<DirectX::XMFLOAT4X4*>(&cb.WorldView.r[0]), worldView);
     context->UpdateSubresource(constantBuffer_.Get(), 0, nullptr, &cb, 0, 0);
 
     // Set States
@@ -119,6 +121,7 @@ bool SkyboxSystem::CreateShaders(GfxDevice& gfx) {
     const char* vsCode = R"(
         cbuffer SkyboxConstant : register(b0) {
             float4x4 WVP;
+            float4x4 WorldView;
         };
         struct VSIn { float3 pos : POSITION; };
         struct VSOut { float4 pos : SV_POSITION; float3 tex : TEXCOORD; };
@@ -126,7 +129,7 @@ bool SkyboxSystem::CreateShaders(GfxDevice& gfx) {
             VSOut output;
             float4 pos = mul(float4(input.pos, 1.0f), WVP);
             output.pos = pos.xyww; // Force Z to be on far plane
-            output.tex = input.pos;
+            output.tex = mul(float4(input.pos, 0.0f), WorldView).xyz;
             return output;
         }
     )";
