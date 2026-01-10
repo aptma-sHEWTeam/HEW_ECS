@@ -398,7 +398,7 @@ class GameScene : public IScene {
 
     /**
      * @brief 毎フレーム呼び出される描画処理
-     * @param world ECSワールドへの参照
+     * @param world ECSワ عالمへの参照
      */
     void OnRender(World &world) override {
         auto *gfx = ServiceLocator::TryGet<GfxDevice>();

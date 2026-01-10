@@ -37,12 +37,17 @@ struct UIRenderSystem {
         w.ForEach<UICanvas>([&](Entity, UICanvas &canvas) {
             if (!canvas.enabled) return;
 
-            // Panels
+            // Panels (background blocks) - draw first
             w.ForEach<UITransform, UIPanel>([&](Entity, UITransform &t, UIPanel &p) {
                 if (p.visible) DrawPanel(t, p);
             });
 
-            // Buttons + text
+            // Images first pass: non-overlay
+            w.ForEach<UITransform, UIImage>([&](Entity, UITransform &t, UIImage &img) {
+                if (!img.overlay) DrawImage(t, img);
+            });
+
+            // Buttons + text (draw after images so text appears on top)
             w.ForEach<UITransform, UIButton>([&](Entity e, UITransform &t, UIButton &b) {
                 DrawButton(t, b);
                 if (auto *txt = w.TryGet<UIText>(e)) DrawButtonText(t, *txt);
@@ -53,14 +58,14 @@ struct UIRenderSystem {
                 if (!w.Has<UIButton>(e)) DrawText(t, txt);
             });
 
-            // Images (handle優先, それ以外はfilePath)
+            // Images second pass (overlay) - draw last so overlays like fade sit on top of everything
             w.ForEach<UITransform, UIImage>([&](Entity, UITransform &t, UIImage &img) {
-                DrawImage(t, img);
+                if (img.overlay) DrawImage(t, img);
             });
         });
 
-        textSystem_->EndDraw();
         imageSystem_->EndDraw();
+        textSystem_->EndDraw();
     }
 
     void SetTextSystem(TextSystem *ts) { textSystem_ = ts; }
@@ -136,7 +141,7 @@ struct UIInteractionSystem : Behaviour {
         bool leftHeld = input_->GetMouseButton(InputSystem::Left);
         w.ForEach<UITransform, UIButton>([&](Entity e, UITransform &t, UIButton &b) {
             if (!b.enabled) { b.state = UIButton::State::Disabled; return; }
-            bool hover = t.Contains(mx, my, screenWidth_, screenHeight_);
+            boolean hover = t.Contains(mx, my, screenWidth_, screenHeight_);
             if (hover) {
                 if (leftHeld) b.state = UIButton::State::Pressed; else { b.state = UIButton::State::Hovered; if (leftClick && b.onClick) b.onClick(); }
             } else b.state = UIButton::State::Normal;
