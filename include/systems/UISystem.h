@@ -31,41 +31,41 @@ struct UIRenderSystem {
         if (!textSystem_ || !textSystem_->IsInitialized()) return;
         if (!imageSystem_ || !imageSystem_->IsInitialized()) return;
 
-        textSystem_->BeginDraw();
-        imageSystem_->BeginDraw();
-
-        w.ForEach<UICanvas>([&](Entity, UICanvas &canvas) {
-            if (!canvas.enabled) return;
-
-            // Panels (background blocks) - draw first
-            w.ForEach<UITransform, UIPanel>([&](Entity, UITransform &t, UIPanel &p) {
-                if (p.visible) DrawPanel(t, p);
+        auto drawImages = [&](bool overlayFlag) {
+            imageSystem_->BeginDraw();
+            w.ForEach<UICanvas>([&](Entity, UICanvas &canvas) {
+                if (!canvas.enabled) return;
+                w.ForEach<UITransform, UIImage>([&](Entity, UITransform &t, UIImage &img) {
+                    if (img.overlay == overlayFlag) DrawImage(t, img);
+                });
             });
+            imageSystem_->EndDraw();
+        };
 
-            // Images first pass: non-overlay
-            w.ForEach<UITransform, UIImage>([&](Entity, UITransform &t, UIImage &img) {
-                if (!img.overlay) DrawImage(t, img);
+        auto drawTextPass = [&]() {
+            textSystem_->BeginDraw();
+            w.ForEach<UICanvas>([&](Entity, UICanvas &canvas) {
+                if (!canvas.enabled) return;
+
+                w.ForEach<UITransform, UIPanel>([&](Entity, UITransform &t, UIPanel &p) {
+                    if (p.visible) DrawPanel(t, p);
+                });
+
+                w.ForEach<UITransform, UIButton>([&](Entity e, UITransform &t, UIButton &b) {
+                    DrawButton(t, b);
+                    if (auto *txt = w.TryGet<UIText>(e)) DrawButtonText(t, *txt);
+                });
+
+                w.ForEach<UITransform, UIText>([&](Entity e, UITransform &t, UIText &txt) {
+                    if (!w.Has<UIButton>(e)) DrawText(t, txt);
+                });
             });
+            textSystem_->EndDraw();
+        };
 
-            // Buttons + text (draw after images so text appears on top)
-            w.ForEach<UITransform, UIButton>([&](Entity e, UITransform &t, UIButton &b) {
-                DrawButton(t, b);
-                if (auto *txt = w.TryGet<UIText>(e)) DrawButtonText(t, *txt);
-            });
-
-            // Text only
-            w.ForEach<UITransform, UIText>([&](Entity e, UITransform &t, UIText &txt) {
-                if (!w.Has<UIButton>(e)) DrawText(t, txt);
-            });
-
-            // Images second pass (overlay) - draw last so overlays like fade sit on top of everything
-            w.ForEach<UITransform, UIImage>([&](Entity, UITransform &t, UIImage &img) {
-                if (img.overlay) DrawImage(t, img);
-            });
-        });
-
-        imageSystem_->EndDraw();
-        textSystem_->EndDraw();
+        drawImages(false);
+        drawTextPass();
+        drawImages(true);
     }
 
     void SetTextSystem(TextSystem *ts) { textSystem_ = ts; }
@@ -92,9 +92,8 @@ struct UIRenderSystem {
     }
     void DrawImage(const UITransform &transform, const UIImage &img) {
         DirectX::XMFLOAT2 pos = transform.GetScreenPosition(screenWidth_, screenHeight_);
-        const auto &uv = img.uvRect; // {x,y,w,h} normalized
+        const auto &uv = img.uvRect;
         if (img.textureHandle != TextureManager::INVALID_TEXTURE) {
-            // ハンドル描画: ピクセル単位のsrcを計算
             auto &texMgr = ServiceLocator::Get<TextureManager>();
             uint32_t tw=0, th=0;
             D2D1_RECT_F *srcPtr = nullptr;
@@ -109,7 +108,6 @@ struct UIRenderSystem {
             }
             imageSystem_->Draw(img.textureHandle, pos.x, pos.y, transform.size.x, transform.size.y, img.opacity, img.keepAspect, srcPtr);
         } else {
-            // ファイルパス描画: 正規化UVをParamsに渡す (ImageSystem側でピクセル変換)
             ImageSystem::Params p; 
             p.filePath = img.filePath; 
             p.x = pos.x; p.y = pos.y; 
