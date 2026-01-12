@@ -111,6 +111,8 @@ public:
         }
 
         gfx_ = &gfx;
+        frameTimer_ = 0.0;
+        frameIntervalSec_ = 0.0;
         
         // ワイド文字列に変換
         wchar_t wpath[MAX_PATH];
@@ -150,7 +152,7 @@ public:
         hr = reader_->SetCurrentMediaType((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, nullptr, mediaType.Get());
         if (FAILED(hr)) return false;
 
-        // 動画サイズを取得して保存
+        // 動画サイズとフレームレートを取得
         Microsoft::WRL::ComPtr<IMFMediaType> currentType;
         hr = reader_->GetCurrentMediaType((DWORD)MF_SOURCE_READER_FIRST_VIDEO_STREAM, &currentType);
         if (FAILED(hr)) return false;
@@ -161,6 +163,14 @@ public:
 
         width_ = w;
         height_ = h;
+
+        UINT32 fpsNum = 0;
+        UINT32 fpsDen = 0;
+        if (SUCCEEDED(MFGetAttributeRatio(currentType.Get(), MF_MT_FRAME_RATE, &fpsNum, &fpsDen)) && fpsNum != 0) {
+            frameIntervalSec_ = static_cast<double>(fpsDen) / static_cast<double>(fpsNum);
+        } else {
+            frameIntervalSec_ = 1.0 / 30.0;
+        }
 
         // 動画テクスチャを作成
         if (!createVideoTexture()) return false;
@@ -182,7 +192,12 @@ public:
     bool Update(float dt) {
         if (!isOpen_ || !isPlaying_) return false;
 
-        currentTime_ += dt;
+        frameTimer_ += dt;
+        const double interval = (frameIntervalSec_ > 0.0) ? frameIntervalSec_ : (1.0 / 30.0);
+        if (frameTimer_ + 1e-4 < interval) {
+            return true;
+        }
+        frameTimer_ -= interval;
 
         // フレームを読み込み
         DWORD streamFlags = 0;
@@ -276,8 +291,6 @@ public:
         }
         return true;
     }
-
-
 
     /**
      * @brief 再生開始
@@ -384,6 +397,8 @@ private:
     bool loop_ = false;         ///< ループ再生するか
     float currentTime_ = 0.0f;  ///< 現在の再生時間
     bool mfInitialized_ = false; ///< Media Foundationを初期化済みかどうか
+    double frameIntervalSec_ = 0.0;
+    double frameTimer_ = 0.0;
 };
 
 // ========================================================
