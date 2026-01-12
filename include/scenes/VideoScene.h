@@ -15,12 +15,17 @@
 #include "app/DebugLog.h"
 #include "input/GamepadSystem.h"
 #include "config/ConfigVar.h"
+#include "components/UIComponents.h"
+#include "graphics/TextSystem.h"
+#include "graphics/ImageSystem.h"
+#include "systems/UISystem.h"
 
 #include <d3d11.h>
 #include <wrl/client.h>
 #include <string>
 
 inline static ConfigVar<std::string> cfg_VideoPath{"Video.Clear", "FilePath", "Assets/Textures/Still/gameclear.mov", "ゲームクリア時のパス"};
+inline static ConfigVar<std::string> cfg_VideoLoopPath{"Video.Clear", "LoopFilePath", "Assets/Textures/Still/gameclear_loop.mov", "ゲームクリア後ループ再生のパス"};
 inline static ConfigVar<std::string> cfg_VideoNextScene{"Video.Clear", "NextScene", "World1_StageSelect", "動画再生後の遷移先シーン"};
 inline static ConfigVar<bool> cfg_VideoSkipEnabled{"Video.Clear", "SkipEnabled", true, "動画スキップを許可するか"};
 
@@ -36,6 +41,7 @@ public:
     void SetVideoPath(const std::string& path) { videoPath_ = path; }
     void SetNextScene(const std::string& sceneName) { nextSceneName_ = sceneName; }
     void SetSkipEnabled(bool enabled) { skipEnabled_ = enabled; }
+    void SetLoopVideoPath(const std::string& path) { loopVideoPath_ = path; }
 
     void OnEnter(World& world) override {
         DEBUGLOG("VideoScene::OnEnter() 開始");
@@ -76,9 +82,20 @@ public:
             return;
         }
 
+        if (loopVideoPath_.empty()) {
+            loopVideoPath_ = cfg_VideoLoopPath.Get();
+        }
+
+        if (!textSystem_.Init(*gfx) || !imageSystem_.Init(*gfx)) {
+            DEBUGLOG_ERROR("VideoScene: Text/ImageSystem の初期化に失敗しました");
+        } else {
+            CreateUI(world, screenWidth_, screenHeight_);
+        }
+
         player_.SetLoop(false);
         player_.Play();
         isPlaying_ = true;
+        loopPlaying_ = false;
 
         DEBUGLOG("VideoScene: 動画再生開始 - " + videoPath_);
     }
@@ -89,10 +106,13 @@ public:
             return;
         }
 
-        if (skipEnabled_ && CheckSkipInput(input)) {
-            DEBUGLOG("VideoScene: スキップが要求されました");
-            player_.Stop();
-            isPlaying_ = false;
+        world.ForEach<UIInteractionSystem>([&](Entity, UIInteractionSystem &sys) {
+            if (!sys.input_) sys.input_ = &input;
+        });
+
+        if (skipEnabled_ && CheckExitInput(input)) {
+            TransitionToNextScene(world);
+            return;
         }
 
         if (isPlaying_) {
@@ -103,17 +123,27 @@ public:
         }
 
         if (!isPlaying_) {
-            TransitionToNextScene(world);
+            if (!loopPlaying_ && !loopVideoPath_.empty()) {
+                StartLoopVideo();
+                return;
+            }
+            if (!loopPlaying_) {
+                TransitionToNextScene(world);
+            }
         }
     }
 
     void OnRender(World& world) override {
-        if (!gfx_ || !isPlaying_) return;
+        if (gfx_ && (isPlaying_ || loopPlaying_)) {
+            ID3D11ShaderResourceView* srv = player_.GetSRV();
+            if (srv) {
+                RenderVideoFrame(srv);
+            }
+        }
 
-        ID3D11ShaderResourceView* srv = player_.GetSRV();
-        if (!srv) return;
-
-        RenderVideoFrame(srv);
+        world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
+            sys.Render(world);
+        });
     }
 
     void OnExit(World& world) override {
@@ -121,15 +151,96 @@ public:
 
         player_.Stop();
         ShutdownRendering();
+        ShutdownUI(world);
+        textSystem_.Shutdown();
+        imageSystem_.Shutdown();
 
         videoPath_.clear();
+        loopVideoPath_.clear();
         nextSceneName_.clear();
         isPlaying_ = false;
         shouldExit_ = false;
+        loopPlaying_ = false;
     }
 
 private:
-    bool CheckSkipInput(InputSystem& input) {
+    void StartLoopVideo() {
+        if (!gfx_) return;
+        if (loopVideoPath_.empty()) return;
+        player_.Stop();
+        if (!player_.Open(*gfx_, loopVideoPath_.c_str())) {
+            shouldExit_ = true;
+            return;
+        }
+        player_.SetLoop(true);
+        player_.Play();
+        isPlaying_ = true;
+        loopPlaying_ = true;
+        DEBUGLOG("VideoScene: ループ再生開始 - " + loopVideoPath_);
+    }
+
+    void CreateUI(World& world, float screenW, float screenH) {
+        Entity canvas = world.Create().With<UICanvas>().Build();
+        uiOwnedEntities_.push_back(canvas);
+
+        Entity uiRenderSystem = world.Create().With<UIRenderSystem>().Build();
+        if (auto* renderSys = world.TryGet<UIRenderSystem>(uiRenderSystem)) {
+            renderSys->SetTextSystem(&textSystem_);
+            renderSys->SetImageSystem(&imageSystem_);
+            renderSys->SetScreenSize(screenW, screenH);
+        }
+        uiOwnedEntities_.push_back(uiRenderSystem);
+
+        Entity uiInteractionSystem = world.Create().With<UIInteractionSystem>().Build();
+        if (auto* interaction = world.TryGet<UIInteractionSystem>(uiInteractionSystem)) {
+            interaction->SetScreenSize(screenW, screenH);
+            interaction->input_ = nullptr;
+        }
+        uiOwnedEntities_.push_back(uiInteractionSystem);
+
+        TextSystem::TextFormat hud;
+        hud.fontSize = 60.0f;
+        hud.fontFamily = L"メイリオ";
+        hud.alignment = DWRITE_TEXT_ALIGNMENT_LEADING;
+        textSystem_.CreateTextFormat("hud", hud);
+
+        UITransform crossTextTr;
+        crossTextTr.position = {120.0f, 650.0f};
+        crossTextTr.size = {300.0f, 50.0f};
+        crossTextTr.anchor = {0.0f, 0.0f};
+        crossTextTr.pivot = {0.0f, 0.0f};
+
+        UIText crossText{L"title"};
+        crossText.color = {1.0f, 1.0f, 1.0f, 1.0f};
+        crossText.formatId = "hud";
+
+        Entity crossTextEntity = world.Create().With<UITransform>(crossTextTr).With<UIText>(crossText).Build();
+        uiOwnedEntities_.push_back(crossTextEntity);
+
+        UITransform crossImgTr;
+        crossImgTr.position = {-50.0f, 590.0f};
+        crossImgTr.size = {200.0f, 200.0f};
+        crossImgTr.anchor = {0.0f, 0.0f};
+        crossImgTr.pivot = {0.0f, 0.0f};
+
+        UIImage crossImg{L"./Assets/Textures/StageUI/batu.png"};
+        crossImg.opacity = 1.0f;
+        crossImg.keepAspect = true;
+
+        Entity crossImageEntity = world.Create().With<UITransform>(crossImgTr).With<UIImage>(crossImg).Build();
+        uiOwnedEntities_.push_back(crossImageEntity);
+    }
+
+    void ShutdownUI(World& world) {
+        for (const auto &e : uiOwnedEntities_) {
+            if (world.IsAlive(e)) {
+                world.DestroyEntityWithCause(e, World::Cause::SceneUnload);
+            }
+        }
+        uiOwnedEntities_.clear();
+    }
+
+    bool CheckExitInput(InputSystem& input) {
         if (input.GetKeyDown(VK_RETURN) || input.GetKeyDown(VK_SPACE) || input.GetKeyDown(VK_ESCAPE)) {
             return true;
         }
@@ -145,14 +256,6 @@ private:
             }
         }
         return false;
-    }
-
-    void TransitionToNextScene(World& world) {
-        if (auto* mgr = ServiceLocator::TryGet<SceneManager>()) {
-            std::string target = nextSceneName_.empty() ? cfg_VideoNextScene.Get() : nextSceneName_;
-            DEBUGLOG("VideoScene: シーン遷移 -> " + target);
-            mgr->ChangeScene(target.c_str(), world);
-        }
     }
 
     bool InitializeRendering() {
@@ -290,7 +393,16 @@ private:
         ctx->PSSetShaderResources(0, 1, &nullSRV);
     }
 
+    void TransitionToNextScene(World& world) {
+        if (auto* mgr = ServiceLocator::TryGet<SceneManager>()) {
+            std::string target = nextSceneName_.empty() ? cfg_VideoNextScene.Get() : nextSceneName_;
+            DEBUGLOG("VideoScene: シーン遷移 -> " + target);
+            mgr->ChangeScene(target.c_str(), world);
+        }
+    }
+
     GfxDevice* gfx_ = nullptr;
+
     VideoPlayer player_;
 
     std::string videoPath_;
@@ -302,10 +414,17 @@ private:
 
     bool isPlaying_ = false;
     bool shouldExit_ = false;
+    bool loopPlaying_ = false;
 
     Microsoft::WRL::ComPtr<ID3D11VertexShader> vertexShader_;
     Microsoft::WRL::ComPtr<ID3D11PixelShader> pixelShader_;
     Microsoft::WRL::ComPtr<ID3D11InputLayout> inputLayout_;
     Microsoft::WRL::ComPtr<ID3D11Buffer> vertexBuffer_;
     Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerState_;
+
+    TextSystem textSystem_;
+    ImageSystem imageSystem_;
+    std::vector<Entity> uiOwnedEntities_;
+
+    std::string loopVideoPath_;
 };
