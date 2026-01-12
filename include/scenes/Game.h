@@ -568,9 +568,8 @@ class GameScene : public IScene {
     }
 
     void OnChargeStart(World &world) {
-        float ChargingFade = cfg_ChargingFade;
-        chargeOverlayTarget_ = ChargingFade;
-        chargeOverlayVisible_ = true;
+        // Disabled gray fade overlay on charge start
+        // (previously set chargeOverlayTarget_ and chargeOverlayVisible_)
         SetStickZoomActive(true);
         PlayPlayerAnimation(world, AnimationConfig::Clips::PlayerCharge, true);
 
@@ -578,9 +577,8 @@ class GameScene : public IScene {
     }
     void OnChargeRelease(World &world, float chargeAmount01) {
         SetStickZoomActive(false);
-        chargeOverlayCurrent_ = std::max(chargeOverlayCurrent_, 0.55f);
-        chargeOverlayTarget_ = 0.0f;
-        chargeOverlayVisible_ = true;
+        // Disabled gray fade overlay on charge release
+        // (previously adjusted chargeOverlayCurrent_/Target_/Visible here)
         float impulse = std::clamp(chargeAmount01, 0.15f, 1.0f) * 0.12f;
         TriggerCameraShake(0.03f + impulse, 0.25f);
         PlayPlayerAnimation(world, AnimationConfig::Clips::PlayerChargeOut, false);
