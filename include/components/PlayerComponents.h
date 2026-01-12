@@ -181,8 +181,11 @@ struct PlayerMovement : Behaviour {
     int frame = 0;
 
     float chargeTimer = 0.0f;
+    float releaseTimer = 0.0f;
     bool isStart = false;
     bool isMaxCharging = false;
+
+    bool isReleaseEffect = false;
 
     //エフェクトの状態管理
     enum class EffectState 
@@ -487,6 +490,8 @@ struct PlayerMovement : Behaviour {
             bool effectiveCharging = chargingSys && chargingNowLocal;
             frame++;
 
+            
+
             if (effectiveCharging && !wasChargingPrev_) ResetAngleHistory();
             if (effectiveCharging && !wasCharging_) {
                 chargeTimer = 0.0f;
@@ -504,23 +509,12 @@ struct PlayerMovement : Behaviour {
                 float charge = gamepad_->GetLeftStickChargeAmount(chargeMaxTime); (void)charge;
 
                 chargeTimer += dt;
-                //0.2秒異教チャージしているならMaxChageに切り替え
-                if (chargeTimer >= 0.2f)
+                
+                if (currentEffectState != EffectState::Charging)
                 {
-                    if (currentEffectState != EffectState::MaxCharge)
-                    {
-                        SwitchEffect(w, self, EffectState::MaxCharge);
-                    }
-                }
-                else
-                {
-                    if (currentEffectState != EffectState::Charging)
-                    {
-                        SwitchEffect(w, self, EffectState::Charging);
-                    }
+                    SwitchEffect(w, self, EffectState::Charging);
                 }
                 
-
                 if (mag > PlayerConstants::EPSILON) {
                     float ang = std::atan2f(lastStickDir_.y, lastStickDir_.x);
                     t->rotation.y = -ang * (180.0f / DirectX::XM_PI) + 90.0f;
@@ -537,6 +531,10 @@ struct PlayerMovement : Behaviour {
             if (releasedSys || releasedLocal) {
                 float chargeAmount = gamepad_->GetLeftStickChargeAmount(chargeMaxTime);
                 int count = angleFilled ? PlayerConstants::ANGLE_HISTORY_SIZE : angleIndex;
+                
+                releaseTimer = 0.0f;
+                releaseTimer += dt;
+
                 if (count > 0) {
                     float avgRad = std::atan2f(sumSin / count, sumCos / count);
                     float dirX = std::cosf(avgRad); float dirY = std::sinf(avgRad);
@@ -545,6 +543,7 @@ struct PlayerMovement : Behaviour {
                         DirectX::XMFLOAT2 boostDir{dirX / dirLen, dirY / dirLen};
                         float maxBoost = v->speed * v->Acceleration;
                         v->StartBoost(boostDir, maxBoost);
+
                         // ブースト直後は入力をブロックする
                         postBoostInputBlockTimer_ = cfg_PostBoostInputBlock.Get();
                         v->isRotate = false;
@@ -552,7 +551,19 @@ struct PlayerMovement : Behaviour {
                     }
                 }
                 chargeTimer = 0.0f;
-                SwitchEffect(w, self, EffectState::Relesing);
+
+                if (currentEffectState != EffectState::MaxCharge) 
+                {
+                   SwitchEffect(w, self, EffectState::MaxCharge);
+                }
+
+                //0.1秒以上でリリースエフェクトに切り替え
+                if (releaseTimer > 0.1f && currentEffectState == EffectState::MaxCharge) {
+                    if (currentEffectState != EffectState::Relesing) {
+                        SwitchEffect(w, self, EffectState::Relesing);
+                    }
+                }
+            
                 GameScene_OnChargeRelease(w, chargeAmount);
                 restoreCollisionRadius();
                 ResetAngleHistory();
@@ -610,11 +621,11 @@ struct PlayerMovement : Behaviour {
 
             if (currentEffectState == EffectState::Charging)
             {
-                updateHandle(chargeEffectHandle,false);
+                updateHandle(chargeEffectHandle,true);
             }
             if (currentEffectState == EffectState::MaxCharge)
             {
-                updateHandle(maxChargeEffectHandle, false);
+                updateHandle(maxChargeEffectHandle,true);
             }
             if (currentEffectState == EffectState::Relesing)
             {
