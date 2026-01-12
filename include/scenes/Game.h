@@ -904,6 +904,7 @@ class GameScene : public IScene {
                     DEBUGLOG_WARNING("[StageCreate] Stage" + std::to_string(sp.currentStage) + "/room" + std::to_string(nextRoomIndex) + ".csv が見つかりません。ステージクリア扱いにします");
 
                     // ステージクリア演出: テキスト表示して一定時間後にステージセレクトへ
+                    SOUND_SYS.PlayBGM(cfg_ClearMP3Pass);
                     stageClearActive_ = true;
                     stageClearTimer_ = 0.0f;
 
@@ -1322,23 +1323,27 @@ class GameScene : public IScene {
                 CreateObjectC(world, position, blockType);
                 break;
             case 60://右向き
-                lightpos.x = 0.1f;
-                lightangle = 180.0f;
+                lightpos.x += 0.15f;                
                 CreateWallLight(world, position, lightangle, lightpos);
+                CreateWall(world, position);
                 break;
             case 61://上向き
-                lightpos.z = -0.1f;
+                lightpos.z += 0.15f;
                 lightangle = 270.0f;
                 CreateWallLight(world, position, lightangle, lightpos);
+                CreateWall(world, position);
                 break;
             case 62://左向き
-                lightpos.x = -0.1f;
+                lightpos.x += -0.15f;
+                lightangle = 180.0f;
                 CreateWallLight(world, position, lightangle, lightpos);
+                CreateWall(world, position);
                 break;
             case 63://下向き
-                lightpos.z = 0.1f;
+                lightpos.z += -0.15f;
                 lightangle = 90.0f;
                 CreateWallLight(world, position, lightangle, lightpos);
+                CreateWall(world, position);
                 break;
             case 64:
                 CreateGoalSwitch(world, position, blockType);
