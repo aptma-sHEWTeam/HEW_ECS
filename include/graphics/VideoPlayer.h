@@ -1,5 +1,4 @@
-﻿﻿#pragma once
-#include "graphics/GfxDevice.h"
+﻿#include "graphics/GfxDevice.h"
 #include "components/Component.h"
 #include "ecs/Entity.h"
 #include "ecs/World.h"

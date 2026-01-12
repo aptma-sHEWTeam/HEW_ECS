@@ -63,6 +63,7 @@
 #include "scenes/World2_stageSelect.h"
 #include "scenes/World3_StageSelect.h"
 #include "scenes/World4_StageSelect.h"
+#include "scenes/VideoScene.h"
 
 #include "graphics/Effect.h"
 
@@ -157,6 +158,15 @@ struct App {
 
         sceneManager_.RegisterScene("World4_StageSelect", std::move(world4_stageselectScene));
         DEBUGLOG("World4_StageSelect registered to SceneManager");
+
+        auto clearVideoScene = std::make_unique<VideoScene>();
+        clearVideoScene->SetVideoPath("Assets/Textures/Still/gameclear.mov");
+        clearVideoScene->SetNextScene("World1_StageSelect");
+        clearVideoScene->SetSkipEnabled(true);
+        DEBUGLOG("ClearVideo scene instance created");
+
+        sceneManager_.RegisterScene("ClearVideo", std::move(clearVideoScene));
+        DEBUGLOG("ClearVideo registered to SceneManager");
     }
 
     // ========================================================
