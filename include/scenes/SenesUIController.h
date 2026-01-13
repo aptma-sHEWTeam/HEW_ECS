@@ -72,7 +72,7 @@ struct GameUIUpdater : Behaviour {
                 float seconds = stats.StartCountDown;
                 if (seconds < 0)
                     seconds = 0;
-                ss << L"ready" << ceil(seconds);
+                ss << L"Charge!";
                 starttimeText->text = ss.str();
 
                 if (stats.StartChack == true) {

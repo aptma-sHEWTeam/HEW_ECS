@@ -310,6 +310,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
    UIImage fade{L"./Assets/Textures/Fade/tex_fade.png"};
    fade.opacity = 1.0f;
    fade.keepAspect = false;
+   fade.overlay = true;
 
    SpriteSheetDesc fadeDesc = SpriteSheetDesc::Grid(
        AnimationConfig::UI::FadeFrames,
@@ -333,6 +334,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
    UIImage deathFade{L"./Assets/Textures/Fade/tex_fadekorigori.png"};
    deathFade.opacity = 1.0f;
    deathFade.keepAspect = false;
+   deathFade.overlay = true;
 
    SpriteSheetDesc deathFadeDesc = SpriteSheetDesc::Grid(
        AnimationConfig::UI::DeathFadeFrames,
@@ -354,6 +356,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
    UIImage chargeOverlay{L"./Assets/Textures/Fade/tex_fade_Charging.png"};
    chargeOverlay.opacity = 0.0f;
    chargeOverlay.keepAspect = false;
+   chargeOverlay.overlay = true;
 
    SpriteSheetDesc chargeDesc;
    chargeDesc.frameCount = 1;
