@@ -1,7 +1,7 @@
-/**
+ï»¿/**
  * @file VideoScene.h
- * @brief “®‰æÄ¶ƒV[ƒ“
- * @author R“à—z
+ * @brief å‹•ç”»å†ç”Ÿã‚·ãƒ¼ãƒ³
+ * @author å±±å†…é™½
  * @date 2025
  * @version 1.0
  */
@@ -24,14 +24,14 @@
 #include <wrl/client.h>
 #include <string>
 
-inline static ConfigVar<std::string> cfg_VideoPath{"Video.Clear", "FilePath", "Assets/Textures/Still/gameclear.mov", "ƒQ[ƒ€ƒNƒŠƒA‚ÌƒpƒX"};
-inline static ConfigVar<std::string> cfg_VideoLoopPath{"Video.Clear", "LoopFilePath", "Assets/Textures/Still/gameclear_loop.mov", "ƒQ[ƒ€ƒNƒŠƒAŒãƒ‹[ƒvÄ¶‚ÌƒpƒX"};
-inline static ConfigVar<std::string> cfg_VideoNextScene{"Video.Clear", "NextScene", "World1_StageSelect", "“®‰æÄ¶Œã‚Ì‘JˆÚæƒV[ƒ“"};
-inline static ConfigVar<bool> cfg_VideoSkipEnabled{"Video.Clear", "SkipEnabled", true, "“®‰æƒXƒLƒbƒv‚ğ‹–‰Â‚·‚é‚©"};
+inline static ConfigVar<std::string> cfg_VideoPath{"Video.Clear", "FilePath", "Assets/Textures/Still/gameclear.mov", "ã‚²ãƒ¼ãƒ ã‚¯ãƒªã‚¢æ™‚ã®ãƒ‘ã‚¹"};
+inline static ConfigVar<std::string> cfg_VideoLoopPath{"Video.Clear", "LoopFilePath", "Assets/Textures/Still/gameclear_loop.mov", "ã‚²ãƒ¼ãƒ ã‚¯ãƒªã‚¢å¾Œãƒ«ãƒ¼ãƒ—å†ç”Ÿã®ãƒ‘ã‚¹"};
+inline static ConfigVar<std::string> cfg_VideoNextScene{"Video.Clear", "NextScene", "World1_StageSelect", "å‹•ç”»å†ç”Ÿå¾Œã®é·ç§»å…ˆã‚·ãƒ¼ãƒ³"};
+inline static ConfigVar<bool> cfg_VideoSkipEnabled{"Video.Clear", "SkipEnabled", true, "å‹•ç”»ã‚¹ã‚­ãƒƒãƒ—ã‚’è¨±å¯ã™ã‚‹ã‹"};
 
 /**
  * @class VideoScene
- * @brief ”Ä—p“®‰æÄ¶ƒV[ƒ“
+ * @brief æ±ç”¨å‹•ç”»å†ç”Ÿã‚·ãƒ¼ãƒ³
  */
 class VideoScene : public IScene {
 public:
@@ -44,11 +44,11 @@ public:
     void SetLoopVideoPath(const std::string& path) { loopVideoPath_ = path; }
 
     void OnEnter(World& world) override {
-        DEBUGLOG("VideoScene::OnEnter() ŠJn");
+        DEBUGLOG("VideoScene::OnEnter() start");
 
         auto* gfx = ServiceLocator::TryGet<GfxDevice>();
         if (!gfx) {
-            DEBUGLOG_ERROR("VideoScene: GfxDevice ‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñ");
+            DEBUGLOG_ERROR("VideoScene: GfxDevice not found");
             shouldExit_ = true;
             return;
         }
@@ -65,19 +65,19 @@ public:
         }
 
         if (!player_.Init()) {
-            DEBUGLOG_ERROR("VideoScene: VideoPlayer ‰Šú‰»¸”s");
+            DEBUGLOG_ERROR("VideoScene: VideoPlayer init failed");
             shouldExit_ = true;
             return;
         }
 
         if (!player_.Open(*gfx, videoPath_.c_str())) {
-            DEBUGLOG_ERROR("VideoScene: “®‰æƒtƒ@ƒCƒ‹‚ğŠJ‚¯‚Ü‚¹‚ñ: " + videoPath_);
+            DEBUGLOG_ERROR(std::string("VideoScene: Failed to open video: ") + videoPath_);
             shouldExit_ = true;
             return;
         }
 
         if (!InitializeRendering()) {
-            DEBUGLOG_ERROR("VideoScene: •`‰æƒŠƒ\[ƒX‚Ì‰Šú‰»‚É¸”s");
+            DEBUGLOG_ERROR("VideoScene: Failed to initialize rendering resources");
             shouldExit_ = true;
             return;
         }
@@ -87,7 +87,7 @@ public:
         }
 
         if (!textSystem_.Init(*gfx) || !imageSystem_.Init(*gfx)) {
-            DEBUGLOG_ERROR("VideoScene: Text/ImageSystem ‚Ì‰Šú‰»‚É¸”s‚µ‚Ü‚µ‚½");
+            DEBUGLOG_ERROR("VideoScene: Text/ImageSystem init failed");
         } else {
             CreateUI(world, screenWidth_, screenHeight_);
         }
@@ -97,7 +97,7 @@ public:
         isPlaying_ = true;
         loopPlaying_ = false;
 
-        DEBUGLOG("VideoScene: “®‰æÄ¶ŠJn - " + videoPath_);
+        DEBUGLOG(std::string("VideoScene: Video playback started - ") + videoPath_);
     }
 
     void OnUpdate(World& world, InputSystem& input, float deltaTime) override {
@@ -118,7 +118,7 @@ public:
         if (isPlaying_) {
             if (!player_.Update(deltaTime)) {
                 isPlaying_ = false;
-                DEBUGLOG("VideoScene: “®‰æÄ¶Š®—¹");
+                DEBUGLOG("VideoScene: Video playback finished");
             }
         }
 
@@ -176,7 +176,7 @@ private:
         player_.Play();
         isPlaying_ = true;
         loopPlaying_ = true;
-        DEBUGLOG("VideoScene: ƒ‹[ƒvÄ¶ŠJn - " + loopVideoPath_);
+        DEBUGLOG(std::string("VideoScene: Loop playback started - ") + loopVideoPath_);
     }
 
     void CreateUI(World& world, float screenW, float screenH) {
@@ -200,7 +200,7 @@ private:
 
         TextSystem::TextFormat hud;
         hud.fontSize = 60.0f;
-        hud.fontFamily = L"ƒƒCƒŠƒI";
+        hud.fontFamily = L"ãƒ¡ã‚¤ãƒªã‚ª";
         hud.alignment = DWRITE_TEXT_ALIGNMENT_LEADING;
         textSystem_.CreateTextFormat("hud", hud);
 
@@ -295,14 +295,14 @@ private:
         HRESULT hr = D3DCompile(vsCode, strlen(vsCode), nullptr, nullptr, nullptr,
             "main", "vs_5_0", 0, 0, &vsBlob, &errorBlob);
         if (FAILED(hr)) {
-            DEBUGLOG_ERROR("VideoScene: ’¸“_ƒVƒF[ƒ_[ƒRƒ“ƒpƒCƒ‹¸”s");
+            DEBUGLOG_ERROR("VideoScene: Vertex shader compile failed");
             return false;
         }
 
         hr = D3DCompile(psCode, strlen(psCode), nullptr, nullptr, nullptr,
             "main", "ps_5_0", 0, 0, &psBlob, &errorBlob);
         if (FAILED(hr)) {
-            DEBUGLOG_ERROR("VideoScene: ƒsƒNƒZƒ‹ƒVƒF[ƒ_[ƒRƒ“ƒpƒCƒ‹¸”s");
+            DEBUGLOG_ERROR("VideoScene: Pixel shader compile failed");
             return false;
         }
 
@@ -396,7 +396,7 @@ private:
     void TransitionToNextScene(World& world) {
         if (auto* mgr = ServiceLocator::TryGet<SceneManager>()) {
             std::string target = nextSceneName_.empty() ? cfg_VideoNextScene.Get() : nextSceneName_;
-            DEBUGLOG("VideoScene: ƒV[ƒ“‘JˆÚ -> " + target);
+            DEBUGLOG(std::string("VideoScene: ChangeScene -> ") + target);
             mgr->ChangeScene(target.c_str(), world);
         }
     }
