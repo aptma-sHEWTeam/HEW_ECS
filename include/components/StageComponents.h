@@ -233,13 +233,15 @@ struct TimeLoad : IComponent{
     /**
      * @brief　コンストラクタ
      */
-    TimeLoad() {
-        m_file.open("Assets/StageData/StageTime/stage1.csv");
-        if (!m_file.is_open())
-            cerr << "Error: Could not open Assets/StageData/StageTime/stage1.csv" << endl;
-        else {
-            loadStageTime();        
-        }
+    TimeLoad(World & world) {
+        world.ForEach<StageProgress>([&](Entity, StageProgress &status) {
+            m_file.open("Assets/StageData/World" + std::to_string(status.worldCount) + "StageTime/stage" + std::to_string(status.selectStage) + ".csv");
+            if (!m_file.is_open())
+                cerr << "Error: Could not open Assets/StageData/StageTime/stage1.csv" << endl;
+            else {
+                loadStageTime();
+            }
+        });
     }
 
 
@@ -287,13 +289,15 @@ struct LoadMove : IComponent {
      /**
      * @brief　コンストラクタ
      */
-    LoadMove() {
-        m_file.open("Assets/StageData/UniqueObj/Move/DebugStage1/room1.csv");
-        if (!m_file.is_open())
-            cerr << "Error: Could not open Assets/StageData/UniqueObj/Move/DebugStage1/room1.csv" << endl;
-        else {
-            loadBlockMove();
-        }
+    LoadMove(World & world) {
+        world.ForEach<StageProgress>([&](Entity, StageProgress &status) {
+            m_file.open("Assets/StageData/World" + std::to_string(status.worldCount) + "UniqueObj/Move/Stage" + std::to_string(status.selectStage) + "/Room" + std::to_string(status.currentRoom) + ".csv");
+            if (!m_file.is_open())
+                cerr << "Error: Could not open Assets/StageData/UniqueObj/Move/DebugStage1/room1.csv" << endl;
+            else {
+                loadBlockMove();
+            }
+        });
     }
 
     void loadBlockMove() {
