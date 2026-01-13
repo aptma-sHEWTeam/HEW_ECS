@@ -223,7 +223,7 @@ private:
         crossImgTr.anchor = {0.0f, 0.0f};
         crossImgTr.pivot = {0.0f, 0.0f};
 
-        UIImage crossImg{L"./Assets/Textures/StageUI/batu.png"};
+        UIImage crossImg{L"./Assets/Textures/StageUI/maru.png"};
         crossImg.opacity = 1.0f;
         crossImg.keepAspect = true;
 
