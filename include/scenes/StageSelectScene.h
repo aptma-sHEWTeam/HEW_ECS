@@ -265,10 +265,36 @@ class StageSelectScene : public IScene {
 
     void OnRender(World &world) override {
         auto &renderer = ServiceLocator::Get<RenderSystem>();
+
+        // トランジション中のオフセット値を取得
+        float transitionOffset = 0.0f;
+        if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
+            if (manager->IsTransitioning()) {
+                transitionOffset = manager->GetTransitionOffset();
+            }
+        }
+
+        // トランジション中はカメラをオフセットしてスライド演出
+        Camera renderCamera = camera_;
+        if (transitionOffset != 0.0f) {
+            // 画面幅に相当する距離でオフセット（カメラ距離に応じて調整）
+            float slideDistance = transitionOffset * 15.0f; // カメラからの距離に応じた係数
+            renderCamera.position.z += slideDistance;
+            renderCamera.target.z += slideDistance;
+            renderCamera.Update();
+        }
+
+        // UI描画時にもオフセットを適用
+        auto *gfx = ServiceLocator::TryGet<GfxDevice>();
+        float screenWidth = gfx ? static_cast<float>(gfx->Width()) : 1280.0f;
+        float uiOffsetX = -transitionOffset * screenWidth;
+
         world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
+            sys.SetRenderOffset(uiOffsetX);
             sys.Render(world);
+            sys.SetRenderOffset(0.0f); // Reset after rendering
         });
-        renderer.Render(world, camera_);
+        renderer.Render(world, renderCamera);
     }
 
     void OnExit(World &world) override {
@@ -382,7 +408,8 @@ class StageSelectScene : public IScene {
             if (worldNumber_ >= 4) {
                 // 現状維持（何もしないorループ）
             } else {
-                manager->ChangeScene(nextScene.c_str(), world);
+                // 次のワールドへ: 右方向にスライド（進む）
+                manager->ChangeSceneWithTransition(nextScene.c_str(), world, TransitionDirection::Right);
             }
         }
     }
@@ -394,7 +421,8 @@ class StageSelectScene : public IScene {
         if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
             stats.IsWorldBack = true;
             std::string prevScene = "World" + std::to_string(worldNumber_ - 1) + "_StageSelect";
-            manager->ChangeScene(prevScene.c_str(), world);
+            // 前のワールドへ: 左方向にスライド（戻る）
+            manager->ChangeSceneWithTransition(prevScene.c_str(), world, TransitionDirection::Left);
         }
     }
 
