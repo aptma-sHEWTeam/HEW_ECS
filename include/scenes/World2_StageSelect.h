@@ -68,8 +68,13 @@ class World2_StageSelectScene : public IScene {
         float screenHeight = static_cast<float>(gfx->Height());
 
         world.ForEach<StageProgress>([&](Entity, StageProgress &stats) {
-            stats.selectStage = 0;
             stats.worldCount = 2;
+            if (stats.IsWorldBack) {
+                stats.selectStage = maxStage_;
+                stats.IsWorldBack = false;
+            } else {
+                stats.selectStage = 1;
+            }
         });
 
          camera_ = Camera::LookAtLH(
@@ -151,6 +156,7 @@ class World2_StageSelectScene : public IScene {
                     targetAngle_ += DirectX::XM_2PI / maxStage_;
                 } else {
                     if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
+                        stats.IsWorldBack = true;
                         manager->ChangeScene("World1_StageSelect", world);
                     }
                 }
@@ -174,6 +180,7 @@ class World2_StageSelectScene : public IScene {
                         targetAngle_ += DirectX::XM_2PI / maxStage_;
                     } else {
                         if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
+                            stats.IsWorldBack = true;
                             manager->ChangeScene("World1_StageSelect", world);
                         }
                     }

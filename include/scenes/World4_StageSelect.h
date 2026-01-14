@@ -148,6 +148,7 @@ class World4_StageSelectScene : public IScene {
                     targetAngle_ += DirectX::XM_2PI / maxStage_;
                 } else {
                     if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
+                        stats.IsWorldBack = true;
                         manager->ChangeScene("World3_StageSelect", world);
                     }
                 }
@@ -167,6 +168,7 @@ class World4_StageSelectScene : public IScene {
                         targetAngle_ += DirectX::XM_2PI / maxStage_;
                     } else {
                         if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
+                            stats.IsWorldBack = true;
                             manager->ChangeScene("World3_StageSelect", world);
                         }
                     }

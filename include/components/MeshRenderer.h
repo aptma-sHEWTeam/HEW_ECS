@@ -39,13 +39,13 @@
  * @author 山内陽
  */
 enum class MeshType {
-    Cube = 0,      ///< 立方体(デフォルト)
-    Sphere,        ///< 球体
-    Cylinder,      ///< 円柱
-    Cone,          ///< 円錐
-    Plane,         ///< 平面
-    Capsule,        ///< カプセル
-    RightIsoTriPrism ///< 立方体を斜めに2等分した直角二等辺三角柱
+    Cube = 0,         ///< 立方体(デフォルト)
+    Sphere,           ///< 球体
+    Cylinder,         ///< 円柱
+    Cone,             ///< 円錐
+    Plane,            ///< 平面
+    Capsule,          ///< カプセル
+    RightIsoTriPrism///< 立方体を斜めに2等分した直角二等辺三角柱
 };
 
 /**
