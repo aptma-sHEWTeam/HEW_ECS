@@ -896,7 +896,7 @@ class GameScene : public IScene {
     // =========================================
     // 更新ヘルパーメソッド
     // =========================================
-
+     
     void HandleStageAdvance(World &world) {
         world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
             if (sp.requestAdvance) {
