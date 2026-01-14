@@ -59,6 +59,7 @@ void TitleScene::CreateTitleSelectUI(World &world) {
                                    .Build();
 
     ownedEntities_.push_back(titleLogoImageEntity);
+   
 
     //スタート
     UITransform startImgTr;
