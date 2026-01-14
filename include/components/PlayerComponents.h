@@ -524,7 +524,7 @@ struct PlayerMovement : Behaviour {
                     if (angleIndex == 0) { angleFilled = true; }
                 }
 
-                SOUND_SYS.PlaySE(cfg_DriftMP3Pass);
+                //SOUND_SYS.PlaySE(cfg_DriftMP3Pass);
             }
             bool releasedSys = gamepad_->IsLeftStickReleased();
             bool releasedLocal = (wasCharging_ && !chargingNowLocal);
@@ -534,6 +534,8 @@ struct PlayerMovement : Behaviour {
                 
                 releaseTimer = 0.0f;
                 releaseTimer += dt;
+
+                SOUND_SYS.StopSE(cfg_DriftMP3Pass);
 
                 if (count > 0) {
                     float avgRad = std::atan2f(sumSin / count, sumCos / count);

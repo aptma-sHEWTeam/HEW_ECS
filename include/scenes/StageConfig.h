@@ -142,6 +142,7 @@ inline ConfigVar<std::string> cfg_SpeedUpMP3Pass{"Stage.SpeedUp.SE", "SpeedUpMP3
 inline ConfigVar<std::string> cfg_WarpDownMP3Pass{"Stage.WarpDown.SE", "WarpDownMP3Pass","Assets/Sound/SE/warpdown.mp3", "ワープから出る音"};
 inline ConfigVar<std::string> cfg_WarpUpMP3Pass{"Stage.WarpUp.SE", "WarpUpMP3Pass","Assets/Sound/SE/warpup.mp3", "ワープに入ったときの音"};
 inline ConfigVar<std::string> cfg_ClearMP3Pass{"Stage.Clear.BGM", "ClearMP3Pass","Assets/Sound/BGM/clear.mp3", "クリア時のBGM"};
+inline ConfigVar<std::string> cfg_SelectMP3Pass{"Stage.Select.BGM", "SelectMP3Pass","Assets/Sound/DemoBGM/Demo_Title&StageSelect_20260106.mp3", "セレクト画面のBGM"};
 inline ConfigVar<float> cfg_MasterVolume{"Stage.Master.Volume", "MasterVolume", 1.0f, "マスタの大きさ"};
 inline ConfigVar<float> cfg_BGMVolume{"Stage.BGM.Volume", "BGMVolume", 1.0f, "BGMの大きさ"};
 inline ConfigVar<float> cfg_SEVolume{"Stage.SE.Volume", "SEVolume", 0.6f, "SEの大きさ"};

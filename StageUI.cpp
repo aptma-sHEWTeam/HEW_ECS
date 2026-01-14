@@ -107,24 +107,6 @@ void World1_StageSlectScene::CreateStageSelectUI(World &world) {
 
     ownedEntities_.push_back(crossTextEntity);
 
-    //宇宙船の表示
-    /* UITransform selecttestImgTr;
-     selecttestImgTr.position = {350.0f, 50.0f};
-     selecttestImgTr.size = {600.0f, 600.0f};
-     selecttestImgTr.anchor = {0.0f, 0.0f};
-     selecttestImgTr.pivot = {0.0f, 0.0f};
-
-     UIImage selecttestImg{L"./Assets/Textures/StageUI/Select1.png"};
-     selecttestImg.opacity = 1.0f;
-     selecttestImg.keepAspect = true;
-
-     Entity selecttestImageEntity = world.Create()
-                                        .With<UITransform>(selecttestImgTr)
-                                        .With<UIImage>(selecttestImg)
-                                        .Build();
-
-     ownedEntities_.push_back(selecttestImageEntity);*/
-
      //〇×の表示
      UITransform circleImgTr;
      circleImgTr.position = {-50.0f, 540.0f};
@@ -181,8 +163,8 @@ void World2_StageSelectScene::CreateStageSelectUI(World &world) {
 
     //StageNo
     UITransform CountTransform;
-    CountTransform.position = {cfg_UICountPosX, cfg_UICountPosY};
-    CountTransform.size = {cfg_UICountW, cfg_UICountH};
+    CountTransform.position = {1000.0f,500.0f};
+    CountTransform.size = {200.0f, 40.0f};
     CountTransform.anchor = {0.0f, 0.0f};
     CountTransform.pivot = {0.0f, 0.0f};
 
@@ -273,8 +255,8 @@ void World3_StageSelectScene::CreateStageSelectUI(World &world) {
 
     //StageNo
     UITransform CountTransform;
-    CountTransform.position = {cfg_UICountPosX, cfg_UICountPosY};
-    CountTransform.size = {cfg_UICountW, cfg_UICountH};
+    CountTransform.position = {1000.0f, 500.0f};
+    CountTransform.size = {200.0f, 40.0f};
     CountTransform.anchor = {0.0f, 0.0f};
     CountTransform.pivot = {0.0f, 0.0f};
 
@@ -365,8 +347,8 @@ void World4_StageSelectScene::CreateStageSelectUI(World &world) {
 
     //StageNo
     UITransform CountTransform;
-    CountTransform.position = {cfg_UICountPosX, cfg_UICountPosY};
-    CountTransform.size = {cfg_UICountW, cfg_UICountH};
+    CountTransform.position = {1000.0f, 500.0f};
+    CountTransform.size = {200.0f, 40.0f};
     CountTransform.anchor = {0.0f, 0.0f};
     CountTransform.pivot = {0.0f, 0.0f};
 

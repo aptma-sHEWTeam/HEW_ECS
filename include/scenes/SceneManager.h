@@ -7,6 +7,7 @@
 #include "app/DebugLog.h"
 #include "ecs/World.h"
 #include "input/InputSystem.h"
+#include "systems/SoundSystem.h"
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -71,7 +72,7 @@ public:
         }
 
         currentScene_->OnUpdate(world, input, deltaTime);
-
+        
         if (currentScene_->ShouldChangeScene()) {
             ChangeScene(currentScene_->GetNextScene(), world);
         }
@@ -142,6 +143,8 @@ public:
             currentScene_ = nullptr;
         }
 
+
+        SOUND_SYS.StopBGM();
         scenes_.clear();
         isShutdown_ = true;
     }

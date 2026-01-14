@@ -141,6 +141,7 @@
     <ClCompile Include="src\systems\SoundSystem.cpp">
       <Filter>Source Files\systems</Filter>
     </ClCompile>
+    <ClCompile Include="TitleUI.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="RoomUIComponents.h">
@@ -408,6 +409,10 @@
       <Filter>Header Files\scenes</Filter>
     </ClInclude>
     <ClInclude Include="include\scenes\VideoScene.h">
+      <Filter>Header Files\scenes</Filter>
+    </ClInclude>
+    <ClInclude Include="Title.h" />
+    <ClInclude Include="include\scenes\Title.h">
       <Filter>Header Files\scenes</Filter>
     </ClInclude>
   </ItemGroup>
