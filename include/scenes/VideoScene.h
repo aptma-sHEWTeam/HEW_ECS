@@ -155,6 +155,8 @@ public:
         textSystem_.Shutdown();
         imageSystem_.Shutdown();
 
+        SOUND_SYS.StopBGM();
+
         videoPath_.clear();
         loopVideoPath_.clear();
         nextSceneName_.clear();

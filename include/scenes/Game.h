@@ -583,7 +583,6 @@ class GameScene : public IScene {
         TriggerCameraShake(0.03f + impulse, 0.25f);
         PlayPlayerAnimation(world, AnimationConfig::Clips::PlayerChargeOut, false);
 
-        SOUND_SYS.StopSE(cfg_DriftMP3Pass.Get());
         SOUND_SYS.PlaySE(cfg_Fire1MP3Pass.Get());
     }
 
@@ -599,6 +598,7 @@ class GameScene : public IScene {
 
         if (!world.IsAlive(deathFadeAnimationEntity_))
             return;
+
         auto *img = world.TryGet<UIImage>(deathFadeAnimationEntity_);
         auto *anim = world.TryGet<SpriteSheetAnimation>(deathFadeAnimationEntity_);
 
@@ -633,7 +633,7 @@ class GameScene : public IScene {
                 }
             }
         }
-        SOUND_SYS.StopSE(cfg_DriftMP3Pass);
+        
     }
 
     /** @brief カメラオブジェクトへのconst参照を取得 */
@@ -1038,13 +1038,19 @@ class GameScene : public IScene {
 
     std::optional<std::string> ResolveSpeedUpCsvPath(const std::string &stageCollisionCsvPath) {
         namespace fs = std::filesystem;
+        StageProgress sp;
         fs::path collisionPath(stageCollisionCsvPath);
+        
+        fs::path worldcount = ("World");
+        worldcount += (std::to_string(sp.worldCount));
+
+
         const fs::path stageDir = collisionPath.parent_path().filename();
         if (stageDir.empty()) {
             return std::nullopt;
         }
 
-        fs::path speedUpPath = fs::path("Assets/StageData/UniqueObj/SpeedUp") / stageDir / collisionPath.filename();
+        fs::path speedUpPath = fs::path("Assets/StageData") / worldcount / ("UniqueObj/SpeedUp") / stageDir / collisionPath.filename();
         std::error_code ec;
         if (!fs::exists(speedUpPath, ec) || ec) {
             return std::nullopt;
@@ -1055,13 +1061,18 @@ class GameScene : public IScene {
 
     std::optional<std::string> ResolveMovingObstacleCsvPath(const std::string &stageCollisionCsvPath) {
         namespace fs = std::filesystem;
+        StageProgress sp;
         fs::path collisionPath(stageCollisionCsvPath);
+
+           fs::path worldcount = ("World");
+        worldcount += (std::to_string(sp.worldCount));
+
         const fs::path stageDir = collisionPath.parent_path().filename();
         if (stageDir.empty()) {
             return std::nullopt;
         }
 
-        fs::path movePath = fs::path("Assets/StageData/UniqueObj/Move") / stageDir / collisionPath.filename();
+        fs::path movePath = fs::path("Assets/StageData")/ worldcount /("/UniqueObj/Move") / stageDir / collisionPath.filename();
         std::error_code ec;
         if (!fs::exists(movePath, ec) || ec) {
             return std::nullopt;
@@ -2503,6 +2514,7 @@ inline void GameScene_OnTimeUp(World &w, Entity player) {
         g_GameScene->OnTimeUp(player, w);
     } else {
         SOUND_SYS.PlaySE(cfg_DeathMP3Pass);
+        SOUND_SYS.StopSE(cfg_DriftMP3Pass);
         ResetPlayerToStart(w, player, true);
     }
 }
