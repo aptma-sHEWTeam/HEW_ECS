@@ -195,6 +195,8 @@ class World2_StageSelectScene : public IScene {
                     StageSelectText->text = ss.str();
                 }
             }
+
+            //SOUND_SYS.PlayBGM(cfg_SelectMP3Pass);
          });
 
          currentAngle_ += (targetAngle_ - currentAngle_) * deltaTime * rotateSpeed_;
@@ -226,6 +228,8 @@ class World2_StageSelectScene : public IScene {
                 }
             }
             ownedEntities_.clear();
+
+            SOUND_SYS.StopBGM();
 
             if (world.IsAlive(StageSelectEntity_)) {
                 world.DestroyEntityWithCause(StageSelectEntity_, World::Cause::SceneUnload);

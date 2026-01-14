@@ -69,6 +69,9 @@ public:
     //SEの停止
     void StopSE(const std::string &path);
 
+    //BGM停止
+    void StopBGM();
+
     //音量を更新
     void UpdateVolume();
 
