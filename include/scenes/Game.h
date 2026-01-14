@@ -285,6 +285,7 @@ class GameScene : public IScene {
         CreateUI(world, screenWidth, screenHeight);
 
         SetupStage(world, initialStage);
+        StartFadeInNormal(world);
 
         // シャドウマップ初期化
         if (!shadowMap_.Init(gfx->Dev(), 1024)) {
@@ -320,6 +321,8 @@ class GameScene : public IScene {
                 deltaTime = 0.0f;
             }
         });
+
+
 
         // ステージクリア待機中の処理
         if (stageClearActive_) {
@@ -437,6 +440,10 @@ class GameScene : public IScene {
         world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
             sys.Render(world);
         });
+        
+          
+  
+      
     }
 
     /**
@@ -602,8 +609,6 @@ class GameScene : public IScene {
         auto *img = world.TryGet<UIImage>(deathFadeAnimationEntity_);
         auto *anim = world.TryGet<SpriteSheetAnimation>(deathFadeAnimationEntity_);
 
-        
-
         if (deathFadeVisible_) {
             if (img)
                 img->opacity = 1.0f;
@@ -617,8 +622,8 @@ class GameScene : public IScene {
             if (img)
                 img->opacity = 0.0f;
         }
-    
     }
+   
 
     void UpdateGoal(World &world) {
         bool pressed = false;
@@ -891,7 +896,7 @@ class GameScene : public IScene {
     // =========================================
     // 更新ヘルパーメソッド
     // =========================================
-
+     
     void HandleStageAdvance(World &world) {
         world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
             if (sp.requestAdvance) {
@@ -2437,8 +2442,10 @@ class GameScene : public IScene {
     Entity fadeAnimationEntity_{};
     Entity deathFadeAnimationEntity_{};
     float deathFadeTimer_ = 0.0f;
+    float startFadeTimer_ = 0.0f;
 
     bool isDeathFadePending_ = false;
+    bool isStartFadePending_ = true;
     Entity chargeOverlayEntity_{};
     // 追加: ステージクリア用テキストエンティティと状態
     Entity stageClearTextEntity_{};
@@ -2485,6 +2492,7 @@ class GameScene : public IScene {
     float chargeOverlayTarget_ = 0.0f;
     bool chargeOverlayVisible_ = false;
     bool deathFadeVisible_ = false;
+    bool startFadeVisible_ = false;
     float stickZoomTarget_ = 0.0f;
     float stickZoomCurrent_ = 0.0f;
     float stickZoomRatioCurrent_ = 0.0f; ///< スティックズーム時の現在の寄り率（0〜1）
