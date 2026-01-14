@@ -276,12 +276,14 @@ class StageSelectScene : public IScene {
 
         // トランジション中はカメラをオフセットしてスライド演出
         Camera renderCamera = camera_;
-        if (transitionOffset != 0.0f) {
-            // 画面幅に相当する距離でオフセット（カメラ距離に応じて調整）
-            float slideDistance = transitionOffset * 15.0f; // カメラからの距離に応じた係数
-            renderCamera.position.z += slideDistance;
-            renderCamera.target.z += slideDistance;
-            renderCamera.Update();
+        if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
+            if (manager->IsTransitioning()) {
+                // 画面幅に相当する距離でオフセット（カメラ距離に応じて調整）
+                float slideDistance = transitionOffset * 15.0f; // カメラからの距離に応じた係数
+                renderCamera.position.z += slideDistance;
+                renderCamera.target.z += slideDistance;
+                renderCamera.Update();
+            }
         }
 
         // UI描画時にもオフセットを適用

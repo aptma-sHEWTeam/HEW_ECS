@@ -217,6 +217,13 @@ class SceneManager {
     }
 
     /**
+     * @brief Get the current transition progress (0.0 to 1.0).
+     */
+    float GetTransitionProgress() const {
+        return transitionProgress_;
+    }
+
+    /**
      * @brief Accessor for the currently active scene.
      */
     IScene *GetCurrentScene() const {
@@ -258,6 +265,13 @@ class SceneManager {
      * @brief Update transition animation state.
      */
     void UpdateTransition(World &world, float deltaTime) {
+        // シーン切り替え直後はロード時間による長いdeltaTimeが発生する可能性があるため、
+        // 1フレームだけアニメーション進行をスキップする
+        if (justSwitchedScene_) {
+            justSwitchedScene_ = false;
+            return;
+        }
+
         transitionProgress_ += deltaTime / TRANSITION_DURATION;
 
         if (transitionProgress_ >= 1.0f) {
@@ -270,6 +284,9 @@ class SceneManager {
                 // Start slide in phase
                 transitionPhase_ = TransitionPhase::SlideIn;
                 transitionProgress_ = 0.0f;
+
+                // 次のフレームのdeltaTime（ロード時間含む）を無視するためにフラグを立てる
+                justSwitchedScene_ = true;
             } else {
                 // Slide in complete, transition finished
                 transitionPhase_ = TransitionPhase::None;
@@ -338,4 +355,5 @@ class SceneManager {
     TransitionDirection transitionDirection_ = TransitionDirection::None;
     float transitionProgress_ = 0.0f;
     std::string pendingSceneName_;
+    bool justSwitchedScene_ = false;
 };
