@@ -208,6 +208,8 @@ class World1_StageSlectScene : public IScene {
             transform.position.z = x * sinf(angle) + z * cosf(angle);
         });
 
+
+
         world.Tick(deltaTime);
 
     }
@@ -238,8 +240,12 @@ class World1_StageSlectScene : public IScene {
             world.DestroyEntityWithCause(StageSelectEntity_, World::Cause::SceneUnload);
             StageSelectEntity_ = {};
         }
+
+        SOUND_SYS.StopBGM();
         textSystem_.Shutdown();
         imageSystem_.Shutdown();
+
+     
     }
 
      const Camera &GetCameraSelect() const {return camera_;}
