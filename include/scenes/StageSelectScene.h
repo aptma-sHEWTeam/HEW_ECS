@@ -378,8 +378,7 @@ class StageSelectScene : public IScene {
     void GoToNextWorld(World &world) {
         if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
             std::string nextScene = "World" + std::to_string(worldNumber_ + 1) + "_StageSelect";
-            // ワールド4の次はどうするか不明だが、現状ループは実装されていない模様。
-            // 必要なら World4 -> World1 のロジックを追加
+
             if (worldNumber_ >= 4) {
                 // 現状維持（何もしないorループ）
             } else {

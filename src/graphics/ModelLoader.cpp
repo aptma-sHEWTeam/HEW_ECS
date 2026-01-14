@@ -26,7 +26,7 @@ struct SimpleVertex {
 };
 
 namespace {
-DirectX::XMFLOAT3 QuaternionToEulerDeg(const DirectX::XMVECTOR& q) {
+DirectX::XMFLOAT3 QuaternionToEulerDeg(const DirectX::XMVECTOR &q) {
     using namespace DirectX;
     XMFLOAT4 qf;
     XMStoreFloat4(&qf, q);
@@ -42,17 +42,17 @@ DirectX::XMFLOAT3 QuaternionToEulerDeg(const DirectX::XMVECTOR& q) {
     float cosy_cosp = 1.0f - 2.0f * (qf.y * qf.y + qf.z * qf.z);
     float yaw = atan2f(siny_cosp, cosy_cosp);
 
-    XMFLOAT3 eulerRad{ pitch, yaw, roll };
+    XMFLOAT3 eulerRad{pitch, yaw, roll};
     return XMFLOAT3{
         XMConvertToDegrees(eulerRad.x),
         XMConvertToDegrees(eulerRad.y),
-        XMConvertToDegrees(eulerRad.z) };
+        XMConvertToDegrees(eulerRad.z)};
 }
 
 // Assimp のテクスチャパスを正規化して実際のファイルパスに解決する
-static std::string ResolveTexturePath(const std::string& rawPath, const std::string& directory)
-{
-    if (rawPath.empty()) return {};
+static std::string ResolveTexturePath(const std::string &rawPath, const std::string &directory) {
+    if (rawPath.empty())
+        return {};
 
     std::string path = rawPath;
 
@@ -60,8 +60,10 @@ static std::string ResolveTexturePath(const std::string& rawPath, const std::str
     std::replace(path.begin(), path.end(), '\\', '/');
 
     // パス前後の空白を削る
-    while (!path.empty() && std::isspace(static_cast<unsigned char>(path.front()))) path.erase(path.begin());
-    while (!path.empty() && std::isspace(static_cast<unsigned char>(path.back()))) path.pop_back();
+    while (!path.empty() && std::isspace(static_cast<unsigned char>(path.front())))
+        path.erase(path.begin());
+    while (!path.empty() && std::isspace(static_cast<unsigned char>(path.back())))
+        path.pop_back();
 
     // 絶対パス or ドライブレター付きならそのまま
     if (path.size() > 1 && path[1] == ':') {
@@ -84,10 +86,11 @@ static std::string ResolveTexturePath(const std::string& rawPath, const std::str
     }
 
     // モデルディレクトリ直下の Texture, Textures, textures などもよくある
-    static const char* kTexDirs[] = { "", "Texture", "Textures", "texture", "textures", "Tex", "tex" };
-    for (const char* sub : kTexDirs) {
+    static const char *kTexDirs[] = {"", "Texture", "Textures", "texture", "textures", "Tex", "tex"};
+    for (const char *sub : kTexDirs) {
         std::filesystem::path candidate = dir;
-        if (sub && *sub) candidate /= sub;
+        if (sub && *sub)
+            candidate /= sub;
         candidate /= rel.filename();
         if (std::filesystem::exists(candidate)) {
             return std::filesystem::canonical(candidate).string();
@@ -98,7 +101,7 @@ static std::string ResolveTexturePath(const std::string& rawPath, const std::str
 }
 
 // FBXインポートで付与される "$AssimpFbx$_Translation" などのノード名を元のボーン名に戻す
-static std::string SanitizeFbxChannelName(const std::string& rawName) {
+static std::string SanitizeFbxChannelName(const std::string &rawName) {
     std::string name = rawName;
     const std::string marker = "_$AssimpFbx$_";
     size_t pos = name.find(marker);
@@ -108,9 +111,9 @@ static std::string SanitizeFbxChannelName(const std::string& rawName) {
     return name;
 }
 
-static ModelComponent::Keyframe& FindOrCreateKeyframe(std::vector<ModelComponent::Keyframe>& frames, float time) {
+static ModelComponent::Keyframe &FindOrCreateKeyframe(std::vector<ModelComponent::Keyframe> &frames, float time) {
     constexpr float EPS = 1e-4f;
-    for (auto& f : frames) {
+    for (auto &f : frames) {
         if (std::fabs(f.time - time) < EPS) {
             return f;
         }
@@ -126,7 +129,7 @@ static ModelComponent::Keyframe& FindOrCreateKeyframe(std::vector<ModelComponent
     return frames.back();
 }
 
-static std::string ToString(const aiMatrix4x4& m) {
+static std::string ToString(const aiMatrix4x4 &m) {
     std::ostringstream oss;
     oss << "[" << m.a1 << "," << m.a2 << "," << m.a3 << "," << m.a4
         << " | " << m.b1 << "," << m.b2 << "," << m.b3 << "," << m.b4
@@ -135,7 +138,7 @@ static std::string ToString(const aiMatrix4x4& m) {
     return oss.str();
 }
 
-static std::string ToString(const DirectX::XMFLOAT4X4& m) {
+static std::string ToString(const DirectX::XMFLOAT4X4 &m) {
     std::ostringstream oss;
     oss << "[" << m._11 << "," << m._12 << "," << m._13 << "," << m._14
         << " | " << m._21 << "," << m._22 << "," << m._23 << "," << m._24
@@ -146,10 +149,11 @@ static std::string ToString(const DirectX::XMFLOAT4X4& m) {
 } // namespace
 
 // ノードツリーから「ボーン名 -> 親ボーン名」を収集（サフィックス除去後）
-static void CollectBoneParents(const aiNode* node,
-                               const std::unordered_set<std::string>& boneNames,
-                               std::unordered_map<std::string, std::string>& outParent) {
-    if (!node) return;
+static void CollectBoneParents(const aiNode *node,
+                               const std::unordered_set<std::string> &boneNames,
+                               std::unordered_map<std::string, std::string> &outParent) {
+    if (!node)
+        return;
     std::string name = SanitizeFbxChannelName(node->mName.C_Str());
     std::string parentName;
     if (node->mParent) {
@@ -168,8 +172,9 @@ static void CollectBoneParents(const aiNode* node,
 }
 
 // ノード名を収集してインデックス化（メッシュが無いFBXでも名前解決するため）
-static void CollectNodeNames(const aiNode* node, std::map<std::string, int>& outIndexByName) {
-    if (!node) return;
+static void CollectNodeNames(const aiNode *node, std::map<std::string, int> &outIndexByName) {
+    if (!node)
+        return;
     std::string name = SanitizeFbxChannelName(node->mName.C_Str());
     if (!name.empty() && outIndexByName.find(name) == outIndexByName.end()) {
         outIndexByName[name] = static_cast<int>(outIndexByName.size());
@@ -179,9 +184,8 @@ static void CollectNodeNames(const aiNode* node, std::map<std::string, int>& out
     }
 }
 
-std::vector<ModelPrefabNode> ModelLoader::LoadModel(const std::string& filePath)
-{
-    auto& gfx = ServiceLocator::Get<GfxDevice>();
+std::vector<ModelPrefabNode> ModelLoader::LoadModel(const std::string &filePath) {
+    auto &gfx = ServiceLocator::Get<GfxDevice>();
     std::vector<ModelPrefabNode> nodes;
     Assimp::Importer importer;
 
@@ -191,9 +195,9 @@ std::vector<ModelPrefabNode> ModelLoader::LoadModel(const std::string& filePath)
     // aiProcess_GenNormals: 法線がなければ生成
     // aiProcess_PopulateArmatureData: ボーン構造を正規化し、ノードグラフとの整合性を高める
     // aiProcess_MakeLeftHanded | aiProcess_FlipWindingOrder: DirectX用左手系変換（左右反転の解消）
-    const aiScene* scene = importer.ReadFile(filePath,
-        aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenNormals | aiProcess_CalcTangentSpace |
-        aiProcess_PopulateArmatureData | aiProcess_MakeLeftHanded | aiProcess_FlipWindingOrder);
+    const aiScene *scene = importer.ReadFile(filePath,
+                                             aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenNormals | aiProcess_CalcTangentSpace |
+                                                 aiProcess_PopulateArmatureData | aiProcess_MakeLeftHanded | aiProcess_FlipWindingOrder);
 
     // エラーチェック
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
@@ -227,94 +231,150 @@ std::vector<ModelPrefabNode> ModelLoader::LoadModel(const std::string& filePath)
 }
 
 void ModelLoader::ProcessNode(
-    const aiNode* node,
-    const DirectX::XMMATRIX& parentTransform,
+    const aiNode *node,
+    const DirectX::XMMATRIX &parentTransform,
     int parentIndex,
-    const aiScene* scene,
-    const std::string& directory,
-    const std::string& modelFilePath,
-    std::vector<ModelPrefabNode>& outNodes,
-    GfxDevice& gfx) {
+    const aiScene *scene,
+    const std::string &directory,
+    const std::string &modelFilePath,
+    std::vector<ModelPrefabNode> &outNodes,
+    GfxDevice &gfx) {
 
-    // ノードのローカルTRSを分解
-    aiVector3D scaling;
-    aiQuaternion rotation;
-    aiVector3D translation;
-    node->mTransformation.Decompose(scaling, rotation, translation);
+    // ノードのローカル変換行列を取得
+    // Assimpの aiMatrix4x4 は OpenGL形式（列優先）で格納されている
+    // DirectXは行優先のため、転置して使用する必要がある
+    // aiMatrix4x4: a1,a2,a3,a4=第1列, b1,b2,b3,b4=第2列, c1,c2,c3,c4=第3列, d1,d2,d3,d4=第4列
+    const aiMatrix4x4 &m = node->mTransformation;
+    DirectX::XMMATRIX localTransform(
+        m.a1, m.b1, m.c1, m.d1, // 第1行 (元の第1列)
+        m.a2, m.b2, m.c2, m.d2, // 第2行 (元の第2列)
+        m.a3, m.b3, m.c3, m.d3, // 第3行 (元の第3列)
+        m.a4, m.b4, m.c4, m.d4  // 第4行 (元の第4列)
+    );
 
     // 現在のノードのグローバル変換行列を計算
-    DirectX::XMVECTOR s = DirectX::XMVectorSet(scaling.x, scaling.y, scaling.z, 0.f);
-    DirectX::XMVECTOR r = DirectX::XMVectorSet(rotation.x, rotation.y, rotation.z, rotation.w);
-    DirectX::XMVECTOR t = DirectX::XMVectorSet(translation.x, translation.y, translation.z, 1.f);
-    DirectX::XMMATRIX localTransform = DirectX::XMMatrixAffineTransformation(s, DirectX::XMVectorZero(), r, t);
+    // DirectXは行ベクトル * 行列の順なので、local * parent
     DirectX::XMMATRIX currentGlobal = localTransform * parentTransform;
 
-    ModelPrefabNode baseNode;
-    baseNode.translation = { translation.x, translation.y, translation.z };
-    baseNode.rotationDeg = QuaternionToEulerDeg(r);
-    baseNode.scale = { scaling.x, scaling.y, scaling.z };
-    baseNode.parentIndex = parentIndex;
-
-    // このノードが保持するメッシュ（複数ある場合は1つ目をこのノードに、2つ目以降は子ノードとして複製）
+    // デバッグログ
     if (node->mNumMeshes > 0) {
-        aiMesh* mesh = scene->mMeshes[node->mMeshes[0]];
+        std::string nodeName = node->mName.C_Str();
+        DirectX::XMFLOAT4X4 dbgGlobal;
+        DirectX::XMStoreFloat4x4(&dbgGlobal, currentGlobal);
+        DEBUGLOG("[FBX_MESH] Node='" + nodeName + "' GlobalPos=(" +
+                 std::to_string(dbgGlobal._41) + ", " +
+                 std::to_string(dbgGlobal._42) + ", " +
+                 std::to_string(dbgGlobal._43) + ")");
+    }
+
+    // メッシュを持つノードのみ出力
+    if (node->mNumMeshes > 0) {
+        ModelPrefabNode baseNode;
+        // 頂点に変換を焼き込んだので、TransformはIdentity
+        baseNode.translation = {0.0f, 0.0f, 0.0f};
+        baseNode.rotationDeg = {0.0f, 0.0f, 0.0f};
+        baseNode.scale = {1.0f, 1.0f, 1.0f};
+        baseNode.parentIndex = -1; // ModelLoadingSystemでルートエンティティの子として設定される
+
+        // 最初のメッシュを処理
+        aiMesh *mesh = scene->mMeshes[node->mMeshes[0]];
         baseNode.component = ProcessMesh(mesh, currentGlobal, scene, directory, modelFilePath, gfx);
         baseNode.hasMesh = baseNode.component.indexCount > 0;
+
+        if (baseNode.hasMesh) {
+            outNodes.push_back(baseNode);
+        }
+
+        // 追加のメッシュを持つ場合は同じグローバル変換で個別ノードとして生成
+        for (unsigned int i = 1; i < node->mNumMeshes; ++i) {
+            ModelPrefabNode extra = baseNode;
+            extra.parentIndex = -1;
+            aiMesh *extraMesh = scene->mMeshes[node->mMeshes[i]];
+            extra.component = ProcessMesh(extraMesh, currentGlobal, scene, directory, modelFilePath, gfx);
+            extra.hasMesh = extra.component.indexCount > 0;
+            if (extra.hasMesh) {
+                outNodes.push_back(extra);
+            }
+        }
     }
 
-    int currentIndex = static_cast<int>(outNodes.size());
-    outNodes.push_back(baseNode);
-
-    // 追加のメッシュを持つ場合は同一TRSの子ノードとして生成
-    for (unsigned int i = 1; i < node->mNumMeshes; ++i) {
-        ModelPrefabNode extra = baseNode;
-        extra.parentIndex = currentIndex;
-        aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
-        extra.component = ProcessMesh(mesh, currentGlobal, scene, directory, modelFilePath, gfx);
-        extra.hasMesh = extra.component.indexCount > 0;
-        outNodes.push_back(extra);
-    }
-
-    // 子ノードを再帰処理
+    // 子ノードを再帰処理（グローバル変換を渡す、parentIndexは使わない）
     for (unsigned int i = 0; i < node->mNumChildren; ++i) {
-        ProcessNode(node->mChildren[i], currentGlobal, currentIndex, scene, directory, modelFilePath, outNodes, gfx);
+        ProcessNode(node->mChildren[i], currentGlobal, -1, scene, directory, modelFilePath, outNodes, gfx);
     }
 }
 
 ModelComponent ModelLoader::ProcessMesh(
-    aiMesh* mesh,
-    const DirectX::XMMATRIX& nodeGlobalTransform,
-    const aiScene* scene,
-    const std::string& directory,
-    const std::string& modelFilePath,
-    GfxDevice& gfx) {
+    aiMesh *mesh,
+    const DirectX::XMMATRIX &nodeGlobalTransform,
+    const aiScene *scene,
+    const std::string &directory,
+    const std::string &modelFilePath,
+    GfxDevice &gfx) {
     std::vector<SimpleVertex> vertices;
     std::vector<unsigned short> indices;
+
+    // スキニングモデルかどうかを判定
+    bool isSkinned = mesh->HasBones();
+
+    // 回転・スケール部分のみの行列（位置変換なし、法線変換用）
+    DirectX::XMMATRIX normalMatrix = nodeGlobalTransform;
+    normalMatrix.r[3] = DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);
 
     // 頂点データを処理
     for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
         SimpleVertex vertex;
-        vertex.Position = { mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z };
+
+        // 位置座標
+        DirectX::XMVECTOR pos = DirectX::XMVectorSet(
+            mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z, 1.0f);
+
+        // スキニングモデルでない場合のみグローバル変換を適用（頂点に焼き込み）
+        if (!isSkinned) {
+            pos = DirectX::XMVector3Transform(pos, nodeGlobalTransform);
+        }
+        DirectX::XMStoreFloat3(&vertex.Position, pos);
 
         // テクスチャ座標が存在する場合
         if (mesh->mTextureCoords[0]) {
-            vertex.TexCoord = { mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y };
+            vertex.TexCoord = {mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y};
         } else {
-            vertex.TexCoord = { 0.0f, 0.0f };
+            vertex.TexCoord = {0.0f, 0.0f};
         }
 
+        // 法線
         if (mesh->mNormals) {
-            vertex.Normal = { mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z };
+            DirectX::XMVECTOR normal = DirectX::XMVectorSet(
+                mesh->mNormals[i].x, mesh->mNormals[i].y, mesh->mNormals[i].z, 0.0f);
+            if (!isSkinned) {
+                normal = DirectX::XMVector3TransformNormal(normal, normalMatrix);
+                normal = DirectX::XMVector3Normalize(normal);
+            }
+            DirectX::XMStoreFloat3(&vertex.Normal, normal);
         } else {
-            vertex.Normal = { 0.0f, 1.0f, 0.0f }; // Default normal if not present
+            vertex.Normal = {0.0f, 1.0f, 0.0f};
         }
 
+        // タンジェント
         if (mesh->mTangents) {
-            vertex.Tangent = { mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z };
+            DirectX::XMVECTOR tangent = DirectX::XMVectorSet(
+                mesh->mTangents[i].x, mesh->mTangents[i].y, mesh->mTangents[i].z, 0.0f);
+            if (!isSkinned) {
+                tangent = DirectX::XMVector3TransformNormal(tangent, normalMatrix);
+                tangent = DirectX::XMVector3Normalize(tangent);
+            }
+            DirectX::XMStoreFloat3(&vertex.Tangent, tangent);
         }
 
+        // バイタンジェント
         if (mesh->mBitangents) {
-            vertex.Bitangent = { mesh->mBitangents[i].x, mesh->mBitangents[i].y, mesh->mBitangents[i].z };
+            DirectX::XMVECTOR bitangent = DirectX::XMVectorSet(
+                mesh->mBitangents[i].x, mesh->mBitangents[i].y, mesh->mBitangents[i].z, 0.0f);
+            if (!isSkinned) {
+                bitangent = DirectX::XMVector3TransformNormal(bitangent, normalMatrix);
+                bitangent = DirectX::XMVector3Normalize(bitangent);
+            }
+            DirectX::XMStoreFloat3(&vertex.Bitangent, bitangent);
         }
         vertices.push_back(vertex);
     }
@@ -336,7 +396,7 @@ ModelComponent ModelLoader::ProcessMesh(
 
     // マテリアルを処理
     if (mesh->mMaterialIndex >= 0) {
-        aiMaterial* material = scene->mMaterials[mesh->mMaterialIndex];
+        aiMaterial *material = scene->mMaterials[mesh->mMaterialIndex];
         // 現時点ではDiffuseテクスチャのみをロード
         mc.texture = LoadMaterialTextures(material, aiTextureType_DIFFUSE, directory, modelFilePath);
         mc.normalTexture = LoadMaterialTextures(material, aiTextureType_NORMALS, directory, modelFilePath);
@@ -353,7 +413,7 @@ ModelComponent ModelLoader::ProcessMesh(
         // スペキュラー/反射系パラメータを可能な限り読み取る
         aiColor3D specColor(0.f, 0.f, 0.f);
         if (AI_SUCCESS == material->Get(AI_MATKEY_COLOR_SPECULAR, specColor)) {
-            mc.specularColor = { specColor.r, specColor.g, specColor.b };
+            mc.specularColor = {specColor.r, specColor.g, specColor.b};
         }
         mc.specularColor.x = std::clamp(mc.specularColor.x, 0.0f, 1.0f);
         mc.specularColor.y = std::clamp(mc.specularColor.y, 0.0f, 1.0f);
@@ -365,7 +425,7 @@ ModelComponent ModelLoader::ProcessMesh(
 
         aiColor3D reflColor(1.f, 1.f, 1.f);
         if (AI_SUCCESS == material->Get(AI_MATKEY_COLOR_REFLECTIVE, reflColor)) {
-            mc.reflectionColor = { reflColor.r, reflColor.g, reflColor.b };
+            mc.reflectionColor = {reflColor.r, reflColor.g, reflColor.b};
         }
         mc.reflectionColor.x = std::clamp(mc.reflectionColor.x, 0.0f, 1.0f);
         mc.reflectionColor.y = std::clamp(mc.reflectionColor.y, 0.0f, 1.0f);
@@ -398,19 +458,17 @@ ModelComponent ModelLoader::ProcessMesh(
         // シェーディングが当たらず真っ白になるため解除する。
     }
 
-
     // ボーンの処理
     if (mesh->HasBones()) {
         mc.isSkinned = true;
         mc.skeleton.bones.resize(mesh->mNumBones);
         mc.skeleton.boneTransforms.resize(mesh->mNumBones);
-        for (auto& m : mc.skeleton.boneTransforms) {
+        for (auto &m : mc.skeleton.boneTransforms) {
             m = DirectX::XMFLOAT4X4{
                 1, 0, 0, 0,
                 0, 1, 0, 0,
                 0, 0, 1, 0,
-                0, 0, 0, 1
-            };
+                0, 0, 0, 1};
         }
 
         // 事前に全ボーン名セットを構築
@@ -432,8 +490,8 @@ ModelComponent ModelLoader::ProcessMesh(
         }
 
         // 親に存在するがボーン配列に無いノード（例: RootNode）をスケルトンに追加して親子関係を失わないようにする
-        for (const auto& kv : parentByName) {
-            const std::string& parentName = kv.second;
+        for (const auto &kv : parentByName) {
+            const std::string &parentName = kv.second;
             if (boneNameToIndex.find(parentName) == boneNameToIndex.end()) {
                 int newIndex = static_cast<int>(mc.skeleton.bones.size());
                 ModelComponent::Bone pseudo{};
@@ -442,17 +500,16 @@ ModelComponent ModelLoader::ProcessMesh(
                 DirectX::XMStoreFloat4x4(&pseudo.offsetMatrix, DirectX::XMMatrixIdentity());
                 mc.skeleton.bones.push_back(pseudo);
                 mc.skeleton.boneTransforms.push_back(DirectX::XMFLOAT4X4{
-                    1,0,0,0,
-                    0,1,0,0,
-                    0,0,1,0,
-                    0,0,0,1
-                });
+                    1, 0, 0, 0,
+                    0, 1, 0, 0,
+                    0, 0, 1, 0,
+                    0, 0, 0, 1});
                 boneNameToIndex[parentName] = newIndex;
             }
         }
 
         for (unsigned int i = 0; i < mesh->mNumBones; i++) {
-            aiBone* bone = mesh->mBones[i];
+            aiBone *bone = mesh->mBones[i];
             std::string boneName = SanitizeFbxChannelName(bone->mName.C_Str());
 
             mc.skeleton.bones[i].name = boneName;
@@ -464,11 +521,12 @@ ModelComponent ModelLoader::ProcessMesh(
 
             // ウェイトの登録
             for (unsigned int j = 0; j < bone->mNumWeights; j++) {
-                const aiVertexWeight& weight = bone->mWeights[j];
+                const aiVertexWeight &weight = bone->mWeights[j];
                 unsigned int vertexId = weight.mVertexId;
                 float w = weight.mWeight;
 
-                if (vertexId >= vertices.size()) continue;
+                if (vertexId >= vertices.size())
+                    continue;
 
                 // 空いているスロットを探す
                 for (int k = 0; k < 4; k++) {
@@ -482,15 +540,17 @@ ModelComponent ModelLoader::ProcessMesh(
 
             // 親ボーンの検索
             // 親ボーン探索: 非ボーンノード(Armature等)を経由する場合は最近傍のボーン祖先まで辿る
-            auto resolveParentIndex = [&](const std::string& startName) -> int {
+            auto resolveParentIndex = [&](const std::string &startName) -> int {
                 std::string cur = startName;
                 std::unordered_set<std::string> visited;
                 while (!cur.empty() && !visited.count(cur)) {
                     visited.insert(cur);
                     auto pit = boneNameToIndex.find(cur);
-                    if (pit != boneNameToIndex.end()) return pit->second;
+                    if (pit != boneNameToIndex.end())
+                        return pit->second;
                     auto up = parentByName.find(cur);
-                    if (up == parentByName.end()) break;
+                    if (up == parentByName.end())
+                        break;
                     cur = up->second;
                 }
                 return -1;
@@ -505,17 +565,18 @@ ModelComponent ModelLoader::ProcessMesh(
 #ifdef _DEBUG
             if (parentIdx < 0) {
                 DEBUGLOG_WARNING("ModelLoader: parent not resolved for '" + boneName + "', originalParent='" +
-                                  (itParentName != parentByName.end() ? itParentName->second : std::string("(none)")) + "'");
+                                 (itParentName != parentByName.end() ? itParentName->second : std::string("(none)")) + "'");
             }
 #endif
         }
 
         // ウェイトの正規化 (合計が1になるように)
         size_t zeroWeightVerts = 0;
-        for (auto& v : vertices) {
+        for (auto &v : vertices) {
             float sum = v.BoneWeights[0] + v.BoneWeights[1] + v.BoneWeights[2] + v.BoneWeights[3];
             if (sum > 0.0f) {
-                for (int k = 0; k < 4; k++) v.BoneWeights[k] /= sum;
+                for (int k = 0; k < 4; k++)
+                    v.BoneWeights[k] /= sum;
             } else {
                 // ウェイトが付与されなかった頂点はルートボーンに1.0を割り当てて伸縮を防ぐ
                 v.BoneWeights[0] = 1.0f;
@@ -523,7 +584,6 @@ ModelComponent ModelLoader::ProcessMesh(
                 zeroWeightVerts++;
             }
         }
-
     }
 
     // 頂点バッファの作成（ボーン／ウェイト処理の後で作ること）
@@ -531,7 +591,7 @@ ModelComponent ModelLoader::ProcessMesh(
     vbd.ByteWidth = static_cast<UINT>(vertices.size() * sizeof(SimpleVertex));
     vbd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
     vbd.Usage = D3D11_USAGE_IMMUTABLE;
-    D3D11_SUBRESOURCE_DATA vinit{ vertices.data(), 0, 0 };
+    D3D11_SUBRESOURCE_DATA vinit{vertices.data(), 0, 0};
     if (FAILED(gfx.Dev()->CreateBuffer(&vbd, &vinit, mc.vertexBuffer.GetAddressOf()))) {
         DEBUGLOG_ERROR("Failed to create vertex buffer for model.");
         mc.indexCount = 0;
@@ -543,7 +603,7 @@ ModelComponent ModelLoader::ProcessMesh(
     ibd.ByteWidth = static_cast<UINT>(indices.size() * sizeof(unsigned short));
     ibd.BindFlags = D3D11_BIND_INDEX_BUFFER;
     ibd.Usage = D3D11_USAGE_IMMUTABLE;
-    D3D11_SUBRESOURCE_DATA iinit{ indices.data(), 0, 0 };
+    D3D11_SUBRESOURCE_DATA iinit{indices.data(), 0, 0};
     if (FAILED(gfx.Dev()->CreateBuffer(&ibd, &iinit, mc.indexBuffer.GetAddressOf()))) {
         DEBUGLOG_ERROR("Failed to create index buffer for model.");
         mc.indexCount = 0;
@@ -554,9 +614,10 @@ ModelComponent ModelLoader::ProcessMesh(
 }
 
 // アニメーションクリップ構築（ノードベースの名前解決対応）
-static std::vector<ModelComponent::AnimationClip> BuildClipsFromAssimp(const aiScene* scene) {
+static std::vector<ModelComponent::AnimationClip> BuildClipsFromAssimp(const aiScene *scene) {
     std::vector<ModelComponent::AnimationClip> clips;
-    if (!scene || !scene->mAnimations || scene->mNumAnimations == 0) return clips;
+    if (!scene || !scene->mAnimations || scene->mNumAnimations == 0)
+        return clips;
 
     // ノードツリーから名前→インデックスを収集（スキニング配列とは異なるため使用しない）
     std::map<std::string, int> nameIndex;
@@ -565,8 +626,9 @@ static std::vector<ModelComponent::AnimationClip> BuildClipsFromAssimp(const aiS
     }
 
     for (unsigned int i = 0; i < scene->mNumAnimations; ++i) {
-        const aiAnimation* a = scene->mAnimations[i];
-        if (!a) continue;
+        const aiAnimation *a = scene->mAnimations[i];
+        if (!a)
+            continue;
 
         ModelComponent::AnimationClip clip;
         clip.name = (a->mName.length > 0) ? a->mName.C_Str() : ("Anim_" + std::to_string(i));
@@ -577,13 +639,14 @@ static std::vector<ModelComponent::AnimationClip> BuildClipsFromAssimp(const aiS
         std::unordered_map<std::string, ModelComponent::BoneAnimation> boneAnimMap;
         float maxTime = -std::numeric_limits<float>::infinity();
         for (unsigned int c = 0; c < a->mNumChannels; ++c) {
-            const aiNodeAnim* ch = a->mChannels[c];
-            if (!ch) continue;
+            const aiNodeAnim *ch = a->mChannels[c];
+            if (!ch)
+                continue;
 
             std::string rawName = ch->mNodeName.C_Str();
             std::string sanitizedName = SanitizeFbxChannelName(rawName);
 
-            auto& boneAnim = boneAnimMap[sanitizedName];
+            auto &boneAnim = boneAnimMap[sanitizedName];
             if (boneAnim.boneName.empty()) {
                 boneAnim.boneName = sanitizedName;
                 // 重要: スキニング側（meshの mBones[] 配列）と一致するインデックスは、後段の AnimationSystem で
@@ -593,33 +656,34 @@ static std::vector<ModelComponent::AnimationClip> BuildClipsFromAssimp(const aiS
 
             // 位置キー
             for (unsigned int k = 0; k < ch->mNumPositionKeys; ++k) {
-                const aiVectorKey& vk = ch->mPositionKeys[k];
-                auto& kf = FindOrCreateKeyframe(boneAnim.keyframes, static_cast<float>(vk.mTime));
-                kf.position = { vk.mValue.x, vk.mValue.y, vk.mValue.z };
+                const aiVectorKey &vk = ch->mPositionKeys[k];
+                auto &kf = FindOrCreateKeyframe(boneAnim.keyframes, static_cast<float>(vk.mTime));
+                kf.position = {vk.mValue.x, vk.mValue.y, vk.mValue.z};
                 boneAnim.hasPositionKeys = true;
             }
             // 回転キー
             for (unsigned int k = 0; k < ch->mNumRotationKeys; ++k) {
-                const aiQuatKey& rk = ch->mRotationKeys[k];
-                auto& kf = FindOrCreateKeyframe(boneAnim.keyframes, static_cast<float>(rk.mTime));
-                kf.rotation = { rk.mValue.x, rk.mValue.y, rk.mValue.z, rk.mValue.w };
+                const aiQuatKey &rk = ch->mRotationKeys[k];
+                auto &kf = FindOrCreateKeyframe(boneAnim.keyframes, static_cast<float>(rk.mTime));
+                kf.rotation = {rk.mValue.x, rk.mValue.y, rk.mValue.z, rk.mValue.w};
                 boneAnim.hasRotationKeys = true;
             }
             // スケールキー
             for (unsigned int k = 0; k < ch->mNumScalingKeys; ++k) {
-                const aiVectorKey& sk = ch->mScalingKeys[k];
-                auto& kf = FindOrCreateKeyframe(boneAnim.keyframes, static_cast<float>(sk.mTime));
-                kf.scale = { sk.mValue.x, sk.mValue.y, sk.mValue.z };
+                const aiVectorKey &sk = ch->mScalingKeys[k];
+                auto &kf = FindOrCreateKeyframe(boneAnim.keyframes, static_cast<float>(sk.mTime));
+                kf.scale = {sk.mValue.x, sk.mValue.y, sk.mValue.z};
                 boneAnim.hasScaleKeys = true;
             }
         }
 
         // キーフレーム整形と追加
-        for (auto& pair : boneAnimMap) {
-            auto& boneAnim = pair.second;
-            if (boneAnim.keyframes.empty()) continue;
+        for (auto &pair : boneAnimMap) {
+            auto &boneAnim = pair.second;
+            if (boneAnim.keyframes.empty())
+                continue;
             std::sort(boneAnim.keyframes.begin(), boneAnim.keyframes.end(),
-                      [](const ModelComponent::Keyframe& a, const ModelComponent::Keyframe& b) { return a.time < b.time; });
+                      [](const ModelComponent::Keyframe &a, const ModelComponent::Keyframe &b) { return a.time < b.time; });
             maxTime = std::max(maxTime, boneAnim.keyframes.back().time);
 
             DirectX::XMFLOAT3 lastPos{0.0f, 0.0f, 0.0f};
@@ -627,16 +691,25 @@ static std::vector<ModelComponent::AnimationClip> BuildClipsFromAssimp(const aiS
             DirectX::XMFLOAT3 lastScale{1.0f, 1.0f, 1.0f};
             bool hasPos = false, hasRot = false, hasScale = false;
 
-            for (auto& kf : boneAnim.keyframes) {
+            for (auto &kf : boneAnim.keyframes) {
                 if (std::isnan(kf.position.x) || std::isnan(kf.position.y) || std::isnan(kf.position.z)) {
                     kf.position = hasPos ? lastPos : DirectX::XMFLOAT3{0.0f, 0.0f, 0.0f};
-                } else { lastPos = kf.position; hasPos = true; }
+                } else {
+                    lastPos = kf.position;
+                    hasPos = true;
+                }
                 if (std::isnan(kf.rotation.w)) {
                     kf.rotation = hasRot ? lastRot : DirectX::XMFLOAT4{0.0f, 0.0f, 0.0f, 1.0f};
-                } else { lastRot = kf.rotation; hasRot = true; }
+                } else {
+                    lastRot = kf.rotation;
+                    hasRot = true;
+                }
                 if (std::isnan(kf.scale.x) || std::isnan(kf.scale.y) || std::isnan(kf.scale.z)) {
                     kf.scale = hasScale ? lastScale : DirectX::XMFLOAT3{1.0f, 1.0f, 1.0f};
-                } else { lastScale = kf.scale; hasScale = true; }
+                } else {
+                    lastScale = kf.scale;
+                    hasScale = true;
+                }
             }
 
             clip.boneAnimations.push_back(std::move(boneAnim));
@@ -644,14 +717,14 @@ static std::vector<ModelComponent::AnimationClip> BuildClipsFromAssimp(const aiS
 
         // 最小時刻を0に正規化
         float minTime = std::numeric_limits<float>::infinity();
-        for (const auto& ba : clip.boneAnimations) {
+        for (const auto &ba : clip.boneAnimations) {
             if (!ba.keyframes.empty()) {
                 minTime = std::min(minTime, ba.keyframes.front().time);
             }
         }
         if (std::isfinite(minTime) && minTime != 0.0f) {
-            for (auto& ba : clip.boneAnimations) {
-                for (auto& kf : ba.keyframes) {
+            for (auto &ba : clip.boneAnimations) {
+                for (auto &kf : ba.keyframes) {
                     kf.time -= minTime;
                 }
             }
@@ -671,8 +744,7 @@ static std::vector<ModelComponent::AnimationClip> BuildClipsFromAssimp(const aiS
     return clips;
 }
 
-std::vector<ModelComponent::AnimationClip> ModelLoader::LoadAnimation(const std::string& path)
-{
+std::vector<ModelComponent::AnimationClip> ModelLoader::LoadAnimation(const std::string &path) {
     DEBUGLOG("ModelLoader::LoadAnimation - begin: " + path);
 
     std::vector<ModelComponent::AnimationClip> clips;
@@ -689,7 +761,7 @@ std::vector<ModelComponent::AnimationClip> ModelLoader::LoadAnimation(const std:
 
     DEBUGLOG("Assimp (primary) flags: Triangulate | LimitBoneWeights | JoinIdenticalVertices | SortByPType");
 
-    const aiScene* scene = importer.ReadFile(path, primaryFlags);
+    const aiScene *scene = importer.ReadFile(path, primaryFlags);
     if (!scene) {
         DEBUGLOG_WARNING(std::string("Assimp Error (anim,primary): ") + importer.GetErrorString() + " | file=" + path);
     } else {
@@ -698,13 +770,13 @@ std::vector<ModelComponent::AnimationClip> ModelLoader::LoadAnimation(const std:
                  ", meshes=" + std::to_string(scene->mNumMeshes));
 
         for (unsigned int i = 0; i < scene->mNumAnimations; ++i) {
-            const aiAnimation* a = scene->mAnimations[i];
+            const aiAnimation *a = scene->mAnimations[i];
             std::string name = (a && a->mName.length > 0) ? a->mName.C_Str() : ("Anim_" + std::to_string(i));
         }
     }
 
     Assimp::Importer fallbackImporter;
-    const aiScene* fallbackScene = nullptr;
+    const aiScene *fallbackScene = nullptr;
     if (!scene || scene->mNumAnimations == 0) {
         const unsigned int fallbackFlags = aiProcess_Triangulate;
         DEBUGLOG("Assimp (fallback-minimal) flags: Triangulate");
@@ -719,7 +791,7 @@ std::vector<ModelComponent::AnimationClip> ModelLoader::LoadAnimation(const std:
                      ", meshes=" + std::to_string(fallbackScene->mNumMeshes));
 
             for (unsigned int i = 0; i < fallbackScene->mNumAnimations; ++i) {
-                const aiAnimation* a = fallbackScene->mAnimations[i];
+                const aiAnimation *a = fallbackScene->mAnimations[i];
                 std::string name = (a && a->mName.length > 0) ? a->mName.C_Str() : ("Anim_" + std::to_string(i));
             }
         }
@@ -743,11 +815,10 @@ std::vector<ModelComponent::AnimationClip> ModelLoader::LoadAnimation(const std:
 }
 
 TextureManager::TextureHandle ModelLoader::LoadMaterialTextures(
-    aiMaterial* mat,
+    aiMaterial *mat,
     aiTextureType type,
-    const std::string& directory,
-    const std::string& modelFilePath)
-{
+    const std::string &directory,
+    const std::string &modelFilePath) {
     // 静的キャッシュ: 解決済みパス -> テクスチャハンドル
     static std::map<std::string, TextureManager::TextureHandle> textureCache;
 
@@ -757,7 +828,7 @@ TextureManager::TextureHandle ModelLoader::LoadMaterialTextures(
         return handle;
     }
 
-    TextureManager& texMgr = ServiceLocator::Get<TextureManager>();
+    TextureManager &texMgr = ServiceLocator::Get<TextureManager>();
 
     const unsigned int texCount = mat->GetTextureCount(type);
     if (texCount == 0) {
@@ -793,7 +864,7 @@ TextureManager::TextureHandle ModelLoader::LoadMaterialTextures(
                          " (model: " + modelFilePath + ")");
     } else {
         DEBUGLOG_CATEGORY(DebugLog::Category::Render,
-            "ModelLoader: loaded texture '" + resolved + "' for model '" + modelFilePath + "'");
+                          "ModelLoader: loaded texture '" + resolved + "' for model '" + modelFilePath + "'");
         // キャッシュに登録
         textureCache[resolved] = handle;
     }

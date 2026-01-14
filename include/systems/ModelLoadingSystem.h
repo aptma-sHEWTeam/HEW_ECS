@@ -29,7 +29,7 @@ struct ModelLoadingSystem : public Behaviour {
                 // Fallback: if model cannot be loaded, attach a simple placeholder mesh
                 MeshRenderer placeholder{};
                 placeholder.meshType = MeshType::Cube;
-                placeholder.color = DirectX::XMFLOAT3{ 0.8f, 0.2f, 0.2f };
+                placeholder.color = DirectX::XMFLOAT3{0.8f, 0.2f, 0.2f};
                 if (!world.Has<MeshRenderer>(entity)) {
                     world.Add<MeshRenderer>(entity, placeholder);
                 }
@@ -48,7 +48,7 @@ struct ModelLoadingSystem : public Behaviour {
 
             // 1st pass: エンティティ生成（Transform/Hierarchy/ModelComponent）
             for (const auto &node : nodes) {
-                Transform t{ node.translation, node.rotationDeg, node.scale };
+                Transform t{node.translation, node.rotationDeg, node.scale};
                 auto builder = world.Create()
                                    .With<Transform>(t)
                                    .With<TransformHierarchy>();
@@ -59,12 +59,14 @@ struct ModelLoadingSystem : public Behaviour {
                 created.push_back(createdEntity);
             }
 
-            // 2nd pass: 親子リンク設定（親が存在しない場合は元エンティティを親にする）
+            // 2nd pass: 親子リンク設定
+            // parentIndex=-1の場合はルートエンティティ（元のModelエンティティ）を親として設定
             for (size_t i = 0; i < nodes.size(); ++i) {
                 const auto &node = nodes[i];
                 Entity child = created[i];
 
-                Entity parent = entity;
+                // 親を決定：parentIndex=-1の場合はルートエンティティを親に
+                Entity parent = entity; // デフォルトはルートエンティティ
                 if (node.parentIndex >= 0 && static_cast<size_t>(node.parentIndex) < created.size()) {
                     parent = created[node.parentIndex];
                 }
