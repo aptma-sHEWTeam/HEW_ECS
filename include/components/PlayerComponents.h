@@ -557,7 +557,7 @@ struct PlayerMovement : Behaviour {
                    SwitchEffect(w, self, EffectState::MaxCharge);
                 }
 
-                //0.1秒以上でリリースエフェクトに切り替え
+                //0.1秒以上でリリースエフェクトに切り替え 
                 if (releaseTimer > 0.1f && currentEffectState == EffectState::MaxCharge) {
                     if (currentEffectState != EffectState::Relesing) {
                         SwitchEffect(w, self, EffectState::Relesing);

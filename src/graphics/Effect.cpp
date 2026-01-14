@@ -107,7 +107,7 @@ void EffekseerManager::Load()
         {"WarpOut",        "Assets/Effect/Warp/warpout_effect.efkefc"},
         {"DashBoard",      "Assets/Effect/SpeedUp/efe_SpeedUp2.efkefc"},
         {"SpeedUp",        "Assets/Effect/SpeedUp/efe_SpeedUp.efkefc"},
-        {"FireFirst",      "Assets/Effect/Fire/fire_1.efkefc"},
+        {"FireFirst",      "Assets/Effect/Fire/fire1.efkefc"},
         {"FireSecond",     "Assets/Effect/Fire/fire_2.efkefc"},
         {"FireThird",      "Assets/Effect/Fire/fire_3.efkefc"},
     };
