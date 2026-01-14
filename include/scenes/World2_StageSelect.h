@@ -72,6 +72,15 @@ class World2_StageSelectScene : public IScene {
             stats.worldCount = 2;
         });
 
+         camera_ = Camera::LookAtLH(
+            baseFovY_,
+            screenWidth / screenHeight,
+            cameraNear_,
+            cameraFar_,
+            cameraPosition_,
+            baseTarget_,
+            baseUp_);
+
         // UICanvas & Systems
         Entity canvas = world.Create().With<UICanvas>().Build();
         ownedEntities_.push_back(canvas);
@@ -92,6 +101,11 @@ class World2_StageSelectScene : public IScene {
 
         CreateTextNormalFormats();
         CreateStageSelectUI(world);
+
+        CreateObject(world, {5.0f,0.0f,0.0f});
+        CreateObject(world, {0.0f,0.0f,5.0f});
+        CreateObject(world, {-5.0f,0.0f,0.0f});
+        CreateObject(world, {0.0f,0.0f,-5.0f});
     }
 
     void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
@@ -124,6 +138,7 @@ class World2_StageSelectScene : public IScene {
             if (input.GetKeyDown(VK_RIGHT)) {
                 if (stats.selectStage < maxStage_) {
                     stats.selectStage++;
+                    targetAngle_ -= DirectX::XM_2PI / maxStage_;
                 } else if (stats.selectStage == maxStage_) {
                     if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
                         manager->ChangeScene("World3_StageSelect", world);
@@ -133,6 +148,7 @@ class World2_StageSelectScene : public IScene {
             if (input.GetKeyDown(VK_LEFT)) {
                 if (stats.selectStage > 1) {
                     stats.selectStage--;
+                    targetAngle_ += DirectX::XM_2PI / maxStage_;
                 } else {
                     if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
                         manager->ChangeScene("World1_StageSelect", world);
@@ -145,6 +161,7 @@ class World2_StageSelectScene : public IScene {
                 if (padsystem2->GetAnyButtonDown({GamepadSystem::Button_DPad_Right, GamepadSystem::Button_B})) {
                     if (stats.selectStage < maxStage_) {
                         stats.selectStage++;
+                        targetAngle_ -= DirectX::XM_2PI / maxStage_;
                     } else if (stats.selectStage == maxStage_) {
                         if (auto *maneger = ServiceLocator::TryGet<SceneManager>()) {
                             maneger->ChangeScene("World3_StageSelect", world);
@@ -154,6 +171,7 @@ class World2_StageSelectScene : public IScene {
                 if (padsystem2->GetAnyButtonDown({GamepadSystem::Button_DPad_Left, GamepadSystem::Button_X})) {
                     if (stats.selectStage > 1) {
                         stats.selectStage--;
+                        targetAngle_ += DirectX::XM_2PI / maxStage_;
                     } else {
                         if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
                             manager->ChangeScene("World1_StageSelect", world);
@@ -174,15 +192,26 @@ class World2_StageSelectScene : public IScene {
             //SOUND_SYS.PlayBGM(cfg_SelectMP3Pass);
          });
 
+         currentAngle_ += (targetAngle_ - currentAngle_) * deltaTime * rotateSpeed_;
+         world.ForEach<Transform, ObjectPos>([&](Entity, Transform &transform, ObjectPos &pos) {
+             float angle = currentAngle_;
+             float x = pos.basepos.x;
+             float z = pos.basepos.z;
+             transform.position.x = x * cosf(angle) - z * sinf(angle);
+             transform.position.z = x * sinf(angle) + z * cosf(angle);
+         });
+
             world.Tick(deltaTime);
       }
     
 
       void OnRender(World &world) {
-            world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
-                MeshRenderer renderer;
-                sys.Render(world);
-            });
+          auto &renderer = ServiceLocator::Get<RenderSystem>();
+          world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
+              MeshRenderer renderer;
+              sys.Render(world);
+          });
+          renderer.Render(world, camera_);
       }
 
       void OnExit(World &world) override{
@@ -199,11 +228,39 @@ class World2_StageSelectScene : public IScene {
                 world.DestroyEntityWithCause(StageSelectEntity_, World::Cause::SceneUnload);
                 StageSelectEntity_ = {};
             }
+
+             for (const auto &e : objectOwnedEntities_) {
+                if (world.IsAlive(e)) {
+                    world.DestroyEntityWithCause(e, World::Cause::SceneUnload);
+                }
+            }
+            objectOwnedEntities_.clear();
+
             textSystem_.Shutdown();
             imageSystem_.Shutdown();
       }
   
   private:
+      struct ObjectPos {
+          DirectX::XMFLOAT3 basepos;
+      };
+      void CreateObject(World &world, const DirectX::XMFLOAT3 &position) {
+          Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
+          MeshRenderer renderer;
+          renderer.meshType = MeshType::Cube;
+          renderer.color = {1.0f, 1.0f, 1.0f};
+          ObjectPos pos;
+          pos.basepos = position;
+
+          Entity Object = world.Create()
+                              .With<Transform>(transform)
+                              .With<MeshRenderer>(renderer)
+                              .With<ObjectPos>(pos)
+                              .Build();
+
+          objectOwnedEntities_.push_back(Object);
+      }
+
      void CreateTextNormalFormats();
      void CreateTextStageNoFormats();
      void CreateStageSelectUI(World &world);
@@ -212,8 +269,20 @@ class World2_StageSelectScene : public IScene {
 
      TextSystem textSystem_{};
      ImageSystem imageSystem_{};
+     Camera camera_{};
+     float baseFovY_ = 40.0f;
+     float cameraNear_ = 0.1f;
+     float cameraFar_ = 1000.0f;
+     DirectX::XMFLOAT3 baseUp_ = {0.0f, 1.0f, 0.0f};
+     DirectX::XMFLOAT3 baseTarget_ = {0.0f, 0.0f, 0.0f};
+     DirectX::XMFLOAT3 cameraPosition_ = {8.0f, 1.5f, 0.0f};
+     DirectX::XMFLOAT3 currentTarget_ = {0.0f, 0.0f, 0.0f};
+     float currentAngle_ = 0.0f;
+     float targetAngle_ = 0.0f;
+     float rotateSpeed_ = 6.0f; 
 
      std::vector<Entity> ownedEntities_{};
+     std::vector<Entity> objectOwnedEntities_;
 
      int maxStage_ = 4;
     };

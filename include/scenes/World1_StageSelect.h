@@ -52,7 +52,7 @@ class World1_StageSlectScene : public IScene {
         if (!hasStageProgress) {
             world.Create().With<StageProgress>().Build();
         }
-        //maxStage_ = GetAvailableStageCount(); //今はオブジェクトを8個表示したいから消してるステージの読み込みをしっかり出来たら直す
+        maxStage_ = GetAvailableStageCount(); 
         world.ForEach<StageProgress>([&](Entity, StageProgress &progress) {
             progress.selectStage = std::clamp(progress.selectStage, 1, maxStage_);
             progress.currentStage = std::clamp(progress.currentStage, 1, maxStage_);
@@ -113,14 +113,9 @@ class World1_StageSlectScene : public IScene {
         // Create UI once
         CreateStageSelectUI(world);
 
-        CreateObject(world, {5.0f, 0.0f, 0.0f});   //右
-        CreateObject(world, {3.0f, 0.0f, 3.0f});   //右上
-        CreateObject(world, {0.0f,0.0f,5.0f});     //上
-        CreateObject(world, {-3.0f, 0.0f, 3.0f});  //左上
-        CreateObject(world, {-5.0f, 0.0f, 0.0f});  //左
-        CreateObject(world, {-3.0f, 0.0f, -3.0f}); //左下
-        CreateObject(world, {0.0f, 0.0f,-5.0f});   //下
-        CreateObject(world, {3.0f, 0.0f, -3.0f});  //右下
+        CreateObject(world, {5.0f, 0.0f, 0.0f});
+        CreateObject(world, {-2.5f, 0.0f,4.33f});
+        CreateObject(world, {-2.5f, 0.0f,-4.33f});
     }
 
     void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
@@ -154,7 +149,7 @@ class World1_StageSlectScene : public IScene {
             if (input.GetKeyDown(VK_RIGHT)) {
                 if (stats.selectStage < maxStage_) {
                     stats.selectStage++;
-                    targetAngle_ += DirectX::XM_2PI / maxStage_;
+                    targetAngle_ -= DirectX::XM_2PI / maxStage_;
                 } else if (stats.selectStage == maxStage_) {
                     if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
                         manager->ChangeScene("World2_StageSelect", world);
@@ -163,7 +158,7 @@ class World1_StageSlectScene : public IScene {
             }
             if (input.GetKeyDown(VK_LEFT) && stats.selectStage > 1) {
                 stats.selectStage--;
-                targetAngle_ -= DirectX::XM_2PI / maxStage_;
+                targetAngle_ += DirectX::XM_2PI / maxStage_;
             }
 
             GamepadSystem *padsystem2 = ServiceLocator::TryGet<GamepadSystem>();
@@ -276,12 +271,12 @@ class World1_StageSlectScene : public IScene {
     TextSystem textSystem_{};
     ImageSystem imageSystem_{};
     Camera camera_{};
-    float baseFovY_ = 60.0f;
+    float baseFovY_ = 40.0f;
     float cameraNear_ = 0.1f;
     float cameraFar_ = 1000.0f;
     DirectX::XMFLOAT3 baseUp_ = {0.0f, 1.0f, 0.0f};
     DirectX::XMFLOAT3 baseTarget_ = {0.0f, 0.0f, 0.0f};
-    DirectX::XMFLOAT3 cameraPosition_ = {6.0f, -1.5f, 0.0f};
+    DirectX::XMFLOAT3 cameraPosition_ = {8.0f, 1.5f, 0.0f};
     DirectX::XMFLOAT3 currentTarget_ = {0.0f, 0.0f, 0.0f};
     float currentAngle_ = 0.0f;
     float targetAngle_ = 0.0f;
@@ -290,5 +285,5 @@ class World1_StageSlectScene : public IScene {
     std::vector<Entity> ownedEntities_{};
     std::vector<Entity> objectOwnedEntities_;
 
-    int maxStage_ = 8;
+    int maxStage_ = 3;
 };
