@@ -239,6 +239,8 @@ class World3_StageSelectScene : public IScene {
         }
         objectOwnedEntities_.clear();
 
+         SOUND_SYS.StopBGM();
+
         textSystem_.Shutdown();
         imageSystem_.Shutdown();
     }
