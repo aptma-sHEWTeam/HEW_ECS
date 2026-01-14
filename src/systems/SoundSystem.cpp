@@ -243,6 +243,15 @@ void SoundSystem::StopSE(const std::string &path) {
 
 }
 
+void SoundSystem::StopBGM() {
+    if (m_pBgmVoice) {
+        m_pBgmVoice->Stop();			//再生停止
+        m_pBgmVoice->DestroyVoice();	//ボイスの廃棄
+        m_pBgmVoice = nullptr;			//ポインタのクリア
+        m_currentBgmPath.clear();		//パスのクリア
+	}
+}
+
 /**
  * @brief wavファイル読み込み
  * @param[in] file 読み込むファイル
