@@ -250,9 +250,11 @@
     <ClCompile Include="src\systems\SoundSystem.cpp" />
     <ClCompile Include="src\systems\SpatialHashGrid.cpp" />
     <ClCompile Include="StageUI.cpp" />
+    <ClCompile Include="TitleUI.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\graphics\StageSave.h" />
+    <ClInclude Include="include\scenes\Title.h" />
     <ClInclude Include="include\scenes\VideoScene.h" />
     <ClInclude Include="include\scenes\World2_StageSelect.h" />
     <ClInclude Include="include\scenes\World3_StageSelect.h" />
@@ -341,6 +343,7 @@
     <ClInclude Include="include\systems\TransformHierarchySystem.h" />
     <ClInclude Include="include\systems\UISystem.h" />
     <ClInclude Include="include\util\Random.h" />
+    <ClInclude Include="Title.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include=".github\ISSUE_TEMPLATE\01_task.yml" />

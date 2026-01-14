@@ -63,6 +63,7 @@
 #include "scenes/World2_stageSelect.h"
 #include "scenes/World3_StageSelect.h"
 #include "scenes/World4_StageSelect.h"
+#include "scenes/title.h"
 #include "scenes/VideoScene.h"
 
 #include "graphics/Effect.h"
@@ -135,9 +136,6 @@ struct App {
         sceneManager_.RegisterScene("World1_StageSelect", std::move(world1_stageslectScene));
         DEBUGLOG("World1_StageSelect registered to SceneManager");
 
-        sceneManager_.Init("World1_StageSelect", world_);
-        DEBUGLOG("SceneManager initialised with Game scene");
-
         DEBUGLOG("InitializeGame() complete");
 
 
@@ -158,6 +156,15 @@ struct App {
 
         sceneManager_.RegisterScene("World4_StageSelect", std::move(world4_stageselectScene));
         DEBUGLOG("World4_StageSelect registered to SceneManager");
+
+         auto titleScene = std::make_unique<TitleScene>();
+        DEBUGLOG("Title instanse created");
+
+        sceneManager_.RegisterScene("Title", std::move(titleScene));
+        DEBUGLOG("Title registered to SceneManager");
+
+        sceneManager_.Init("Title", world_);
+        DEBUGLOG("SceneManager initialised with Game scene");
 
         auto clearVideoScene = std::make_unique<VideoScene>();
         clearVideoScene->SetVideoPath("Assets/Textures/Still/gameclear.mov");
