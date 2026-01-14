@@ -39,6 +39,10 @@ class World1_StageSlectScene : public IScene {
     inline static ConfigVar<float> cfg_UICountG{"UI.StageSelect.Counter", "CountColorG", 1.0f, "ステージセレクトカウンタの色 G"};
     inline static ConfigVar<float> cfg_UICountB{"UI.StageSelect.Counter", "CountColorB", 1.0f, "ステージセレクトカウンタの色 B"};
 
+     inline static const char *StationModel_1 = "Assets/Models/SelectObj_ISS/Station/World1/Station1.fbx";
+     inline static const char *StationModel_2 = "Assets/Models/SelectObj_ISS/Station/World1/Station2.fbx";
+     inline static const char *StationModel_3 = "Assets/Models/SelectObj_ISS/Station/World1/Station3.fbx";
+
     void OnEnter(World &world) override {
         // 既存実装そのまま
         bool hasGameStatus = false;
@@ -76,8 +80,13 @@ class World1_StageSlectScene : public IScene {
         float screenHeight = static_cast<float>(gfx->Height());
 
          world.ForEach<StageProgress>([&](Entity, StageProgress &stats) {
-            stats.selectStage = 0;
             stats.worldCount = 1;
+            if (stats.IsWorldBack) {
+                stats.selectStage = maxStage_;
+                stats.IsWorldBack = false; 
+            } else {
+                stats.selectStage = 1;
+            }
         });
        
         //カメラを初期化
@@ -113,9 +122,9 @@ class World1_StageSlectScene : public IScene {
         // Create UI once
         CreateStageSelectUI(world);
 
-        CreateObject(world, {5.0f, 0.0f, 0.0f});
-        CreateObject(world, {-2.5f, 0.0f,4.33f});
-        CreateObject(world, {-2.5f, 0.0f,-4.33f});
+        CreateObject(world, {5.0f, 0.0f, 0.0f}, StationModel_1);
+        CreateObject(world, {-2.5f, 0.0f, 4.33f}, StationModel_2);
+        CreateObject(world, {-2.5f, 0.0f, -4.33f}, StationModel_3);
     }
 
     void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
@@ -239,22 +248,19 @@ class World1_StageSlectScene : public IScene {
       struct ObjectPos {
         DirectX::XMFLOAT3 basepos;
      };
-    void CreateObject(World &world, const DirectX::XMFLOAT3 &position) {
-        Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
-        MeshRenderer renderer;
-        renderer.meshType = MeshType::Cube;
-        renderer.color = {1.0f, 1.0f, 1.0f};
-        ObjectPos pos;
-        pos.basepos = position;
+      void CreateObject(World &world, const DirectX::XMFLOAT3 &position, const std::string &modelPath) {
+          Transform transform{position, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}};
+          ObjectPos pos;
+          pos.basepos = position;
 
-        Entity Object = world.Create()
-                            .With<Transform>(transform)
-                            .With<MeshRenderer>(renderer)
-                            .With<ObjectPos>(pos)
-                            .Build();
+          Entity Object = world.Create()
+                              .With<Transform>(transform)
+                              .With<Model>(modelPath)
+                              .With<ObjectPos>(pos)
+                              .Build();
 
-        objectOwnedEntities_.push_back(Object);
-    }
+          objectOwnedEntities_.push_back(Object);
+      }
 
     void CreateTextStageNoFormats();
     void CreateTextNormalFormats();
