@@ -320,6 +320,22 @@ class StageSelectScene : public IScene {
         imageSystem_.Shutdown();
     }
 
+    void StartFadeInNormal(World &world) {
+        StartSpriteFade(world, fadeAnimationEntity_, -1, false);
+    }
+
+    void StartSpriteFade(World &world, Entity target, int direction, bool forceOpaque) {
+        if (!world.IsAlive(target))
+            return;
+        AnimationTools::PlaySpriteSheet(world, target, direction, /*loop*/ false, /*reset*/ true);
+        if (auto *img = world.TryGet<UIImage>(target)) {
+            img->opacity = 1.0f;
+        }
+        if (auto *anim = world.TryGet<SpriteSheetAnimation>(target)) {
+            anim->isFinished = false;
+        }
+    }
+
     const Camera &GetCameraSelect() const {
         return camera_;
     }
@@ -335,6 +351,7 @@ class StageSelectScene : public IScene {
     int worldNumber_;
     int maxStage_;
 
+    Entity fadeAnimationEntity_{};
     Entity StageSelectEntity_{};
     TextSystem textSystem_{};
     ImageSystem imageSystem_{};
