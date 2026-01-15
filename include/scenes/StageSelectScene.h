@@ -260,6 +260,11 @@ class StageSelectScene : public IScene {
             transform.position.z = x * sinf(angle) + z * cosf(angle);
         });
 
+        world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+            sp.worldCount = worldNumber_;
+
+         });
+
         world.Tick(deltaTime);
     }
 
