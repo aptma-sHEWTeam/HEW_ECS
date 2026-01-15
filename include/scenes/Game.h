@@ -1583,10 +1583,10 @@ class GameScene : public IScene {
         Transform transform{diffPosition, {0.0f, angle, 0.0f}, {1.0f, 1.0f, 1.0f}};
 
         PointLight wallLight;
-        wallLight.color = {0.0f,0.0f,1.0f};
+        wallLight.color = {1.0f,0.7f,0.5f};
         ApplyDefaultPointLightParams(wallLight);
-        wallLight.range = 0.1f;
-        wallLight.intensity = 0.2f;
+        wallLight.range = 1.0f;
+        wallLight.intensity = 1.0f;
         wallLight.constantAttenuation = 0.1f;
 
         Entity walllightEntity = world.Create()
