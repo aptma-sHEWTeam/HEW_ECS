@@ -173,24 +173,7 @@ class TitleScene : public IScene {
         camera_.Zoom(-0.1f * deltaTime);
         camera_.Update();
 
-        //UIのフェード
-        for (auto &entity : ownedEntities_)
-        {
-            //左スライド(移動する速度設定)
-            if (auto* transform = world.TryGet<UITransform>(entity))
-            {
-                transform->position.x -= 800.0f * deltaTime;
-            }
-            if (auto* image = world.TryGet<UIImage>(entity))
-            {
-                image->opacity = 1.0f - progress;
-            }
-            if (auto* text = world.TryGet<UIText>(entity))
-            {
-                text->color.w = 1.0f - progress;
-            }
-        }
-
+        
         //シーン遷移
         if (progress >= 1.0f)
         {
