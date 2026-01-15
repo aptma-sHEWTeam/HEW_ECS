@@ -59,10 +59,7 @@
 // ゲームシステム
 #include "scenes/SceneManager.h"
 #include "scenes/Game.h"
-#include "scenes/World1_StageSelect.h"
-#include "scenes/World2_stageSelect.h"
-#include "scenes/World3_StageSelect.h"
-#include "scenes/World4_StageSelect.h"
+#include "scenes/StageSelectScene.h"
 #include "scenes/title.h"
 #include "scenes/VideoScene.h"
 
@@ -77,19 +74,19 @@
  */
 struct App {
     // Windows関連
-    HWND hwnd_ = nullptr; ///< メインウィンドウのハンドル
+    HWND hwnd_ = nullptr;         ///< メインウィンドウのハンドル
     bool isWindowFocused_ = true; ///< ウィンドウがフォーカスされているかどうか
 
     // DirectX11システム
-    GfxDevice gfx_; ///< グラフィックスデバイス
-    RenderSystem renderer_; ///< 描画システム
-    TextureManager texManager_; ///< テクスチャ管理
+    GfxDevice gfx_;              ///< グラフィックスデバイス
+    RenderSystem renderer_;      ///< 描画システム
+    TextureManager texManager_;  ///< テクスチャ管理
     ResourceManager resManager_; ///< リソース管理
 
     // ECSシステム
-    World world_; ///< ECSワールド
-    Camera camera_; ///< カメラ
-    InputSystem input_; ///< 入力システム
+    World world_;           ///< ECSワールド
+    Camera camera_;         ///< カメラ
+    InputSystem input_;     ///< 入力システム
     GamepadSystem gamepad_; ///< ゲームパッド入力システム
 
     // シーン管理
@@ -121,43 +118,42 @@ struct App {
         const float fovRad = DirectX::XMConvertToRadians(cfg_CamFovDeg.Get());
         const float nearZ = cfg_CamNear.Get();
         const float farZ = cfg_CamFar.Get();
-        const DirectX::XMFLOAT3 camPos{ cfg_CamPosX.Get(), cfg_CamPosY.Get(), cfg_CamPosZ.Get() };
-        const DirectX::XMFLOAT3 camTarget{ cfg_CamTargetX.Get(), cfg_CamTargetY.Get(), cfg_CamTargetZ.Get() };
-        const DirectX::XMFLOAT3 camUp{ cfg_CamUpX.Get(), cfg_CamUpY.Get(), cfg_CamUpZ.Get() };
+        const DirectX::XMFLOAT3 camPos{cfg_CamPosX.Get(), cfg_CamPosY.Get(), cfg_CamPosZ.Get()};
+        const DirectX::XMFLOAT3 camTarget{cfg_CamTargetX.Get(), cfg_CamTargetY.Get(), cfg_CamTargetZ.Get()};
+        const DirectX::XMFLOAT3 camUp{cfg_CamUpX.Get(), cfg_CamUpY.Get(), cfg_CamUpZ.Get()};
         gameScene->ConfigureBaseCamera(camPos, camTarget, camUp, fovRad, nearZ, farZ);
         DEBUGLOG("GameScene instance created");
 
         sceneManager_.RegisterScene("Game", std::move(gameScene));
         DEBUGLOG("GameScene registered to SceneManager");
 
-        auto world1_stageslectScene = std::make_unique<World1_StageSlectScene>();
-        DEBUGLOG("StageSelectScene instance created");
-
+        // World1
+        auto world1_stageslectScene = std::make_unique<StageSelectScene>(1);
+        DEBUGLOG("StageSelectScene(1) instance created");
         sceneManager_.RegisterScene("World1_StageSelect", std::move(world1_stageslectScene));
         DEBUGLOG("World1_StageSelect registered to SceneManager");
 
         DEBUGLOG("InitializeGame() complete");
 
-
-        auto world2_stageselectScene = std::make_unique<World2_StageSelectScene>();
-        DEBUGLOG("World2_StageSelect instanse created");
-
+        // World2
+        auto world2_stageselectScene = std::make_unique<StageSelectScene>(2);
+        DEBUGLOG("StageSelectScene(2) instanse created");
         sceneManager_.RegisterScene("World2_StageSelect", std::move(world2_stageselectScene));
         DEBUGLOG("World2_StageSelect registered to SceneManager");
 
-        auto world3_stageselectScene = std::make_unique<World3_StageSelectScene>();
-        DEBUGLOG("World3_StageSelect instanse created");
-
+        // World3
+        auto world3_stageselectScene = std::make_unique<StageSelectScene>(3);
+        DEBUGLOG("StageSelectScene(3) instanse created");
         sceneManager_.RegisterScene("World3_StageSelect", std::move(world3_stageselectScene));
         DEBUGLOG("World3_StageSelect registered to SceneManager");
 
-        auto world4_stageselectScene = std::make_unique<World4_StageSelectScene>();
-        DEBUGLOG("World4_StageSelect instanse created");
-
+        // World4
+        auto world4_stageselectScene = std::make_unique<StageSelectScene>(4);
+        DEBUGLOG("StageSelectScene(4) instanse created");
         sceneManager_.RegisterScene("World4_StageSelect", std::move(world4_stageselectScene));
         DEBUGLOG("World4_StageSelect registered to SceneManager");
 
-         auto titleScene = std::make_unique<TitleScene>();
+        auto titleScene = std::make_unique<TitleScene>();
         DEBUGLOG("Title instanse created");
 
         sceneManager_.RegisterScene("Title", std::move(titleScene));
@@ -186,7 +182,7 @@ struct App {
         float totalTime = 0.0f;   ///< 合計フレーム時間（秒）
     };
 
-    FrameMetrics currentMetrics_;       ///< 現在のフレームメトリクス
+    FrameMetrics currentMetrics_; ///< 現在のフレームメトリクス
 
     // 詳細統計用（最大1000フレーム分のサンプル）
     std::vector<float> frameTotalSamples_; ///< フレーム合計時間のサンプル
@@ -194,8 +190,8 @@ struct App {
     std::vector<float> renderSamples_;     ///< Render時間のサンプル
     std::vector<float> presentSamples_;    ///< Present時間のサンプル
 
-    const int maxSamples_ = 1000;          ///< 最大サンプル数
-    bool metricsCollecting_ = true;        ///< メトリクス収集中フラグ
+    const int maxSamples_ = 1000;   ///< 最大サンプル数
+    bool metricsCollecting_ = true; ///< メトリクス収集中フラグ
 
     // ========================================================
     // 初期化
@@ -361,21 +357,21 @@ struct App {
                 if (isWindowFocused_) {
                     try {
                         // GameSceneにWorld参照を渡す（遅延リスポーンなどで使用）
-                        if (auto* gs = dynamic_cast<GameScene*>(sceneManager_.GetCurrentScene())) {
+                        if (auto *gs = dynamic_cast<GameScene *>(sceneManager_.GetCurrentScene())) {
                             gs->SetWorldRef(&world_);
                         }
                         sceneManager_.Update(world_, input_, fixedDeltaTime);
-                    } catch (const std::exception& e) {
+                    } catch (const std::exception &e) {
                         DEBUGLOG("[CRITICAL ERROR] シーン更新中に例外が発生: " + std::string(e.what()));
                         PostQuitMessage(-1);
                     }
                 }
 
-            accumulator -= fixedDeltaTime;
+                accumulator -= fixedDeltaTime;
 
-            auto updateEndTime = std::chrono::high_resolution_clock::now();
-            std::chrono::duration<float> updateDuration = updateEndTime - updateStartTime;
-            currentMetrics_.updateTime = updateDuration.count();
+                auto updateEndTime = std::chrono::high_resolution_clock::now();
+                std::chrono::duration<float> updateDuration = updateEndTime - updateStartTime;
+                currentMetrics_.updateTime = updateDuration.count();
             }
 
             // 固定ステップが一度も実行されなかった場合でもアニメを進める（初期フレームのTポーズ回避）
@@ -394,10 +390,10 @@ struct App {
 #endif // ENABLE_DEBUG_VISUALS
 
             // アクティブなシーンがGameSceneなら、そのカメラを使用
-            if (auto* gs = dynamic_cast<GameScene*>(sceneManager_.GetCurrentScene())) {
+            if (auto *gs = dynamic_cast<GameScene *>(sceneManager_.GetCurrentScene())) {
                 camera_ = gs->GetCamera();
             }
-            if (auto *ss = dynamic_cast<World1_StageSlectScene *>(sceneManager_.GetCurrentScene())) {
+            if (auto *ss = dynamic_cast<StageSelectScene *>(sceneManager_.GetCurrentScene())) {
                 camera_ = ss->GetCameraSelect();
             }
 
@@ -485,7 +481,7 @@ struct App {
         DEBUGLOG("App 正常に破棄");
     }
 
-private:
+  private:
 #if ENABLE_DEBUG_VISUALS
     void UpdateDebugCamera(float deltaTime) {
         const float moveSpeed = 10.0f;
@@ -510,7 +506,6 @@ private:
         } else {
             right = DirectX::XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
         }
-
 
         DirectX::XMVECTOR moveVec = DirectX::XMVectorZero();
 
@@ -597,7 +592,7 @@ private:
     /**
      * @brief 計測メトリクスをログ出力（一定フレーム間隔）
      */
-    void MaybeLogMetrics(int frameCount, const RenderSystem::Statistics& renderStats) {
+    void MaybeLogMetrics(int frameCount, const RenderSystem::Statistics &renderStats) {
         if (frameCount % METRICS_LOG_INTERVAL_FRAMES != 0) {
             return;
         }
@@ -645,7 +640,7 @@ private:
     bool CreateAppWindow(HINSTANCE hInst, int width, int height) {
         DEBUGLOG("CreateAppWindow() 開始");
 
-        WNDCLASSEX wc{ sizeof(WNDCLASSEX) };
+        WNDCLASSEX wc{sizeof(WNDCLASSEX)};
         wc.style = CS_HREDRAW | CS_VREDRAW;
         wc.lpfnWndProc = WndProcStatic;
         wc.hInstance = hInst;
@@ -658,7 +653,7 @@ private:
         }
         DEBUGLOG("ウィンドウクラスを正常に登録");
 
-        RECT rc{ 0, 0, width, height };
+        RECT rc{0, 0, width, height};
         AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
 
         DEBUGLOG("ウィンドウサイズを調整: " + std::to_string(rc.right - rc.left) + "x" + std::to_string(rc.bottom - rc.top));
@@ -669,8 +664,7 @@ private:
             WS_OVERLAPPEDWINDOW,
             CW_USEDEFAULT, CW_USEDEFAULT,
             rc.right - rc.left, rc.bottom - rc.top,
-            nullptr, nullptr, hInst, this
-        );
+            nullptr, nullptr, hInst, this);
 
         if (!hwnd_) {
             DEBUGLOG("[ERROR] CreateWindowW() 失敗 - エラーコード: " + std::to_string(GetLastError()));
@@ -727,13 +721,13 @@ private:
         DEBUGLOG("InputSystemを初期化");
 
         // GamepadSystemを初期化
-     DEBUGLOG("GamepadSystemを初期化中");
+        DEBUGLOG("GamepadSystemを初期化中");
         if (!gamepad_.Init()) {
             DEBUGLOG_WARNING("GamepadSystem::Init() 失敗 - ゲームパッドは利用できません");
-       // 致命的ではないため続行
+            // 致命的ではないため続行
         } else {
-  DEBUGLOG("GamepadSystemを正常に初期化");
-     }
+            DEBUGLOG("GamepadSystemを正常に初期化");
+        }
 
 #if ENABLE_DEBUG_VISUALS
         DEBUGLOG("DebugDrawを初期化中 (DEBUGビルド)");
@@ -764,9 +758,9 @@ private:
         const float fovRad = DirectX::XMConvertToRadians(cfg_CamFovDeg.Get());
         const float nearZ = cfg_CamNear.Get();
         const float farZ = cfg_CamFar.Get();
-        const DirectX::XMFLOAT3 camPos{ cfg_CamPosX.Get(), cfg_CamPosY.Get(), cfg_CamPosZ.Get() };
-        const DirectX::XMFLOAT3 camTarget{ cfg_CamTargetX.Get(), cfg_CamTargetY.Get(), cfg_CamTargetZ.Get() };
-        const DirectX::XMFLOAT3 camUp{ cfg_CamUpX.Get(), cfg_CamUpY.Get(), cfg_CamUpZ.Get() };
+        const DirectX::XMFLOAT3 camPos{cfg_CamPosX.Get(), cfg_CamPosY.Get(), cfg_CamPosZ.Get()};
+        const DirectX::XMFLOAT3 camTarget{cfg_CamTargetX.Get(), cfg_CamTargetY.Get(), cfg_CamTargetZ.Get()};
+        const DirectX::XMFLOAT3 camUp{cfg_CamUpX.Get(), cfg_CamUpY.Get(), cfg_CamUpZ.Get()};
 
         camera_ = Camera::LookAtLH(
             fovRad,
@@ -775,8 +769,7 @@ private:
             farZ,
             camPos,
             camTarget,
-            camUp
-        );
+            camUp);
     }
 
     /**
@@ -792,7 +785,7 @@ private:
      * @param[out] msg メッセージ構造体
      * @return bool メッセージを処理した場合は true
      */
-    bool ProcessWindowsMessages(MSG& msg) {
+    bool ProcessWindowsMessages(MSG &msg) {
         if (PeekMessage(&msg, nullptr, 0U, 0U, PM_REMOVE)) {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
@@ -806,7 +799,7 @@ private:
      * @param[in,out] previousTime 前フレームの時刻
      * @return float デルタタイム（秒）
      */
-    float CalculateDeltaTime(std::chrono::high_resolution_clock::time_point& previousTime) {
+    float CalculateDeltaTime(std::chrono::high_resolution_clock::time_point &previousTime) {
         auto currentTime = std::chrono::high_resolution_clock::now();
         std::chrono::duration<float> deltaTime = currentTime - previousTime;
         previousTime = currentTime;
@@ -876,8 +869,9 @@ private:
      * @param samples サンプルデータ
      * @param unit 単位
      */
-    void OutputMetricStatistics(const std::string& name, std::vector<float> samples, const std::string& unit) {
-        if (samples.empty()) return;
+    void OutputMetricStatistics(const std::string &name, std::vector<float> samples, const std::string &unit) {
+        if (samples.empty())
+            return;
 
         // 外れ値フィルタリング（上位1%と下位1%を除外）
         std::sort(samples.begin(), samples.end());
@@ -895,14 +889,16 @@ private:
 
         // 統計計算
         float sum = 0.0f;
-        for (float s : samples) sum += s;
+        for (float s : samples)
+            sum += s;
         float avg = sum / samples.size();
         float min = samples.front();
         float max = samples.back();
 
         // 99%タイル（上位1%を除外）
         size_t p99Index = static_cast<size_t>(samples.size() * 0.99);
-        if (p99Index >= samples.size()) p99Index = samples.size() - 1;
+        if (p99Index >= samples.size())
+            p99Index = samples.size() - 1;
         float p99 = samples[p99Index];
 
         // 50%タイル（中央値）
@@ -939,15 +935,15 @@ private:
      * 以降のメッセージをメンバ関数のWndProcに転送します。
      */
     static LRESULT CALLBACK WndProcStatic(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
-        App* app = nullptr;
+        App *app = nullptr;
 
         if (msg == WM_NCCREATE) {
-            CREATESTRUCT* cs = reinterpret_cast<CREATESTRUCT*>(lp);
-            app = reinterpret_cast<App*>(cs->lpCreateParams);
+            CREATESTRUCT *cs = reinterpret_cast<CREATESTRUCT *>(lp);
+            app = reinterpret_cast<App *>(cs->lpCreateParams);
             SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(app));
             DEBUGLOG("WM_NCCREATE: Appインスタンスをウィンドウに関連付け");
         } else {
-            app = reinterpret_cast<App*>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
+            app = reinterpret_cast<App *>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
         }
 
         if (app) {
@@ -963,29 +959,29 @@ private:
      */
     LRESULT WndProc(HWND hWnd, UINT msg, WPARAM wp, LPARAM lp) {
         switch (msg) {
-        case WM_ACTIVATE:
-            if (LOWORD(wp) == WA_INACTIVE) {
-                isWindowFocused_ = false;
-                DEBUGLOG_CATEGORY(DebugLog::Category::System, "ウィンドウがフォーカスを失いました - 入力と更新を停止");
-            } else {
-                isWindowFocused_ = true;
-                DEBUGLOG_CATEGORY(DebugLog::Category::System, "ウィンドウがフォーカスを取得しました - 入力と更新を再開");
-            }
-            return 0;
+            case WM_ACTIVATE:
+                if (LOWORD(wp) == WA_INACTIVE) {
+                    isWindowFocused_ = false;
+                    DEBUGLOG_CATEGORY(DebugLog::Category::System, "ウィンドウがフォーカスを失いました - 入力と更新を停止");
+                } else {
+                    isWindowFocused_ = true;
+                    DEBUGLOG_CATEGORY(DebugLog::Category::System, "ウィンドウがフォーカスを取得しました - 入力と更新を再開");
+                }
+                return 0;
 
-        case WM_CLOSE:
-            DEBUGLOG_CATEGORY(DebugLog::Category::System, "WM_CLOSEを受信 - ユーザーによるウィンドウ閉じる操作");
-            // デフォルト処理に委ねる（WM_DESTROYが発生）
-            return DefWindowProc(hWnd, msg, wp, lp);
+            case WM_CLOSE:
+                DEBUGLOG_CATEGORY(DebugLog::Category::System, "WM_CLOSEを受信 - ユーザーによるウィンドウ閉じる操作");
+                // デフォルト処理に委ねる（WM_DESTROYが発生）
+                return DefWindowProc(hWnd, msg, wp, lp);
 
-        case WM_DESTROY:
-            DEBUGLOG_CATEGORY(DebugLog::Category::System, "WM_DESTROYを受信 - 終了メッセージを投稿");
-            PostQuitMessage(0);
-            return 0;
+            case WM_DESTROY:
+                DEBUGLOG_CATEGORY(DebugLog::Category::System, "WM_DESTROYを受信 - 終了メッセージを投稿");
+                PostQuitMessage(0);
+                return 0;
 
-        case WM_MOUSEWHEEL:
-            input_.OnMouseWheel(GET_WHEEL_DELTA_WPARAM(wp));
-            return 0;
+            case WM_MOUSEWHEEL:
+                input_.OnMouseWheel(GET_WHEEL_DELTA_WPARAM(wp));
+                return 0;
         }
 
         return DefWindowProc(hWnd, msg, wp, lp);
@@ -996,4 +992,3 @@ private:
 // 作成者: 山内陽
 // バージョン: v5.1 - Doxygenコメントを追加
 // ========================================================
-

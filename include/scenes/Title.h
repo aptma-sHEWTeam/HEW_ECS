@@ -17,6 +17,10 @@
 #include "config/ConfigVar.h"
 #include "components/UIComponents.h"
 #include "components/StageComponents.h"
+
+#include "components/MeshRenderer.h"
+#include "systems/RenderingSystem.h"
+
 #include "graphics/TextSystem.h"
 #include "graphics/Camera.h"
 #include "graphics/ImageSystem.h"
@@ -27,6 +31,9 @@
 /**
  * @class TitleScene
  * @brief ワールドセレクト2のシーン
+ * 
+ * 2026/01/15 
+ * 　亀多　3Dオブジェクト表示
  */
 class TitleScene : public IScene {
   public:
@@ -52,6 +59,10 @@ class TitleScene : public IScene {
             return;
         }
 
+        //3Dレンダリングの初期化
+        RenderingSystem::GetInstance().Initialize(gfx->Dev());
+        
+
         float screenWidth = static_cast<float>(gfx->Width());
         float screenHeight = static_cast<float>(gfx->Height());
 
@@ -75,6 +86,28 @@ class TitleScene : public IScene {
 
         CreateTextNormalFormats();
         CreateTitleSelectUI(world);
+
+        float aspect = static_cast<float>(gfx->Width()) / gfx->Height();
+        camera_ = Camera::LookAtLH(
+            DirectX::XM_PIDIV4, aspect, 0.1f, 1000.0f,
+            {0, 0, -10}, {0, 0, 0}, {0, 1, 0});
+
+        isTransitioning_ = false;
+        zoomTimer_ = 0.0f;
+        
+        //確認用オブジェクト
+        DirectX::XMFLOAT3 objPos{ 0.0f, 0.0f, 0.0f};
+        Transform t{
+            objPos, {0.0f, 45.0f, 0.0f}, {1.5f, 1.5f, 1.5f}};
+        MeshRenderer mr;
+        mr.meshType = MeshType::Cube;
+        mr.color = DirectX::XMFLOAT3{0.8f, 0.6f, 0.2f};
+        objectEntity_ = world.Create()
+                            .With<Transform>(t)
+                            .With<MeshRenderer>(mr)
+                            .Build();
+        ownedEntities_.push_back(objectEntity_);
+
     }
       void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
         // 既存実装そのまま（前と同じ内容）
@@ -83,14 +116,35 @@ class TitleScene : public IScene {
                 sys.input_ = &input;
             }
         });
-        if (input.GetKeyDown(VK_RETURN)) {
+
+        if (!isTransitioning_)
+        {
+            bool trigger = input.GetKeyDown(VK_RETURN);
+            GamepadSystem *padsystem = ServiceLocator::TryGet<GamepadSystem>();
+
+            if (padsystem && padsystem->GetAnyButtonDown({ GamepadSystem::Button_A, GamepadSystem::Button_Start, GamepadSystem::Button_X }))
+            {
+                DEBUGLOG("Enter pressed!");
+                trigger = true;
+            }
+            if (trigger)
+            {
+                isTransitioning_ = true;
+                DEBUGLOG("Camera Zoom Start!");
+            }
+        }
+        else
+        {
+            UpdateCameraZoom(world, deltaTime);
+        }
+        /*if (input.GetKeyDown(VK_RETURN)) {
             DEBUGLOG("Enter pressed!");
             if (auto *maneger = ServiceLocator::TryGet<SceneManager>()) {
                 maneger->ChangeScene("World1_StageSelect", world);
             }
         }
 
-        GamepadSystem *padsystem = ServiceLocator::TryGet<GamepadSystem>();
+        
         if (padsystem) {
             if (padsystem->GetAnyButtonDown({GamepadSystem::Button_A, GamepadSystem::Button_Start, GamepadSystem::Button_X})) {
                 DEBUGLOG("Enter pressed!");
@@ -98,10 +152,21 @@ class TitleScene : public IScene {
                     maneger->ChangeScene("World1_StageSelect", world);
                 }
             }
-        }
+        }*/
       }
 
        void OnRender(World &world) {
+
+           auto *gfx = ServiceLocator::TryGet<GfxDevice>();
+           if (!gfx)
+               return;
+           try {
+               auto &renderer = ServiceLocator::Get<RenderSystem>();
+               //3Dオブジェクトを描画
+               renderer.Render(world, camera_);
+           } catch (...) {
+               DEBUGLOG_ERROR("[TitkeScene] Failed to get RenderSystem from ServiceLocator");
+           }
           world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
               MeshRenderer renderer;
               sys.Render(world);
@@ -116,16 +181,73 @@ class TitleScene : public IScene {
           }
           ownedEntities_.clear();
 
+          RenderingSystem::GetInstance().Shutdown();//3Dレンダリング
+
           textSystem_.Shutdown();
           imageSystem_.Shutdown();
       }
    
   private: 
+
+      void UpdateCameraZoom(World& world, float deltaTime)
+      {
+          //遷移の時間
+        const float duration = 2.0f;
+        zoomTimer_ += deltaTime;
+        
+        float progress = std::min(zoomTimer_ / duration, 1.0f);
+      
+        //ターゲットに向かってベクトルを計算し、カメラの位置を近づける
+        DirectX::XMVECTOR pos = DirectX::XMLoadFloat3(&camera_.position);
+        DirectX::XMVECTOR target = DirectX::XMLoadFloat3(&camera_.target);
+        DirectX::XMVECTOR dir = DirectX::XMVectorSubtract(target, pos);
+
+        pos = DirectX::XMVectorAdd(pos, DirectX::XMVectorScale(dir, 0.5f * deltaTime));
+        DirectX::XMStoreFloat3(&camera_.position, pos);
+
+        //視野角
+        camera_.Zoom(-0.1f * deltaTime);
+        camera_.Update();
+
+        //UIのフェード
+        for (auto &entity : ownedEntities_)
+        {
+            //左スライド(移動する速度設定)
+            if (auto* transform = world.TryGet<UITransform>(entity))
+            {
+                transform->position.x -= 800.0f * deltaTime;
+            }
+            if (auto* image = world.TryGet<UIImage>(entity))
+            {
+                image->opacity = 1.0f - progress;
+            }
+            if (auto* text = world.TryGet<UIText>(entity))
+            {
+                text->color.w = 1.0f - progress;
+            }
+        }
+
+        //シーン遷移
+        if (progress >= 1.0f)
+        {
+            if (auto* manager = ServiceLocator::TryGet<SceneManager>())
+            {
+                manager->ChangeScene("World1_StageSelect", world);
+            }
+        }
+      }
+
       void CreateTextNormalFormats();
       void CreateTitleSelectUI(World &world);
 
+      bool isTransitioning_ = false;
+      float zoomTimer_ = 0.0f;
+
       TextSystem textSystem_{};
       ImageSystem imageSystem_{};
+      Camera camera_{};
 
       std::vector<Entity> ownedEntities_{};
+
+      Entity objectEntity_{};
 };

@@ -26,17 +26,22 @@ struct UIRenderSystem {
     ImageSystem *imageSystem_ = nullptr;
     float screenWidth_ = 1280.0f;
     float screenHeight_ = 720.0f;
+    float renderOffsetX_ = 0.0f; // トランジション用X方向オフセット
 
     void Render(World &w) {
-        if (!textSystem_ || !textSystem_->IsInitialized()) return;
-        if (!imageSystem_ || !imageSystem_->IsInitialized()) return;
+        if (!textSystem_ || !textSystem_->IsInitialized())
+            return;
+        if (!imageSystem_ || !imageSystem_->IsInitialized())
+            return;
 
         auto drawImages = [&](bool overlayFlag) {
             imageSystem_->BeginDraw();
             w.ForEach<UICanvas>([&](Entity, UICanvas &canvas) {
-                if (!canvas.enabled) return;
+                if (!canvas.enabled)
+                    return;
                 w.ForEach<UITransform, UIImage>([&](Entity, UITransform &t, UIImage &img) {
-                    if (img.overlay == overlayFlag) DrawImage(t, img);
+                    if (img.overlay == overlayFlag)
+                        DrawImage(t, img);
                 });
             });
             imageSystem_->EndDraw();
@@ -45,19 +50,23 @@ struct UIRenderSystem {
         auto drawTextPass = [&]() {
             textSystem_->BeginDraw();
             w.ForEach<UICanvas>([&](Entity, UICanvas &canvas) {
-                if (!canvas.enabled) return;
+                if (!canvas.enabled)
+                    return;
 
                 w.ForEach<UITransform, UIPanel>([&](Entity, UITransform &t, UIPanel &p) {
-                    if (p.visible) DrawPanel(t, p);
+                    if (p.visible)
+                        DrawPanel(t, p);
                 });
 
                 w.ForEach<UITransform, UIButton>([&](Entity e, UITransform &t, UIButton &b) {
                     DrawButton(t, b);
-                    if (auto *txt = w.TryGet<UIText>(e)) DrawButtonText(t, *txt);
+                    if (auto *txt = w.TryGet<UIText>(e))
+                        DrawButtonText(t, *txt);
                 });
 
                 w.ForEach<UITransform, UIText>([&](Entity e, UITransform &t, UIText &txt) {
-                    if (!w.Has<UIButton>(e)) DrawText(t, txt);
+                    if (!w.Has<UIButton>(e))
+                        DrawText(t, txt);
                 });
             });
             textSystem_->EndDraw();
@@ -68,34 +77,78 @@ struct UIRenderSystem {
         drawImages(true);
     }
 
-    void SetTextSystem(TextSystem *ts) { textSystem_ = ts; }
-    void SetImageSystem(ImageSystem *is) { imageSystem_ = is; }
-    void SetScreenSize(float w, float h) { screenWidth_ = w; screenHeight_ = h; }
+    void SetTextSystem(TextSystem *ts) {
+        textSystem_ = ts;
+    }
+    void SetImageSystem(ImageSystem *is) {
+        imageSystem_ = is;
+    }
+    void SetScreenSize(float w, float h) {
+        screenWidth_ = w;
+        screenHeight_ = h;
+    }
+    void SetRenderOffset(float offsetX) {
+        renderOffsetX_ = offsetX;
+    }
 
   private:
     void DrawPanel(const UITransform &transform, const UIPanel &panel) {
         DirectX::XMFLOAT2 pos = transform.GetScreenPosition(screenWidth_, screenHeight_);
-        TextSystem::TextParams p; p.text = L"█"; p.x = pos.x; p.y = pos.y; p.width = transform.size.x; p.height = transform.size.y; p.color = panel.color; p.formatId = "panel";
-        for (float y = 0; y < transform.size.y; y += 20.0f) { p.y = pos.y + y; textSystem_->DrawText(p); }
+        pos.x += renderOffsetX_; // Apply transition offset
+        TextSystem::TextParams p;
+        p.text = L"█";
+        p.x = pos.x;
+        p.y = pos.y;
+        p.width = transform.size.x;
+        p.height = transform.size.y;
+        p.color = panel.color;
+        p.formatId = "panel";
+        for (float y = 0; y < transform.size.y; y += 20.0f) {
+            p.y = pos.y + y;
+            textSystem_->DrawText(p);
+        }
     }
     void DrawButton(const UITransform &transform, const UIButton &button) {
         DirectX::XMFLOAT2 pos = transform.GetScreenPosition(screenWidth_, screenHeight_);
+        pos.x += renderOffsetX_; // Apply transition offset
         DirectX::XMFLOAT4 color = button.GetCurrentColor();
-        TextSystem::TextParams p; p.text = L"█"; p.x = pos.x; p.y = pos.y; p.width = transform.size.x; p.height = transform.size.y; p.color = color; p.formatId = "panel";
-        for (float y = 0; y < transform.size.y; y += 20.0f) { p.y = pos.y + y; textSystem_->DrawText(p); }
+        TextSystem::TextParams p;
+        p.text = L"█";
+        p.x = pos.x;
+        p.y = pos.y;
+        p.width = transform.size.x;
+        p.height = transform.size.y;
+        p.color = color;
+        p.formatId = "panel";
+        for (float y = 0; y < transform.size.y; y += 20.0f) {
+            p.y = pos.y + y;
+            textSystem_->DrawText(p);
+        }
     }
-    void DrawButtonText(const UITransform &transform, const UIText &text) { DrawText(transform, text); }
+    void DrawButtonText(const UITransform &transform, const UIText &text) {
+        DrawText(transform, text);
+    }
     void DrawText(const UITransform &transform, const UIText &text) {
         DirectX::XMFLOAT2 pos = transform.GetScreenPosition(screenWidth_, screenHeight_);
-        TextSystem::TextParams p; p.text = text.text; p.x = pos.x; p.y = pos.y; p.width = transform.size.x; p.height = transform.size.y; p.color = text.color; p.formatId = text.formatId; p.fontSize = text.fontSize; 
+        pos.x += renderOffsetX_; // Apply transition offset
+        TextSystem::TextParams p;
+        p.text = text.text;
+        p.x = pos.x;
+        p.y = pos.y;
+        p.width = transform.size.x;
+        p.height = transform.size.y;
+        p.color = text.color;
+        p.formatId = text.formatId;
+        p.fontSize = text.fontSize;
         textSystem_->DrawText(p);
     }
     void DrawImage(const UITransform &transform, const UIImage &img) {
         DirectX::XMFLOAT2 pos = transform.GetScreenPosition(screenWidth_, screenHeight_);
+        pos.x += renderOffsetX_; // Apply transition offset
         const auto &uv = img.uvRect;
         if (img.textureHandle != TextureManager::INVALID_TEXTURE) {
             auto &texMgr = ServiceLocator::Get<TextureManager>();
-            uint32_t tw=0, th=0;
+            uint32_t tw = 0, th = 0;
             D2D1_RECT_F *srcPtr = nullptr;
             D2D1_RECT_F src;
             if (texMgr.GetSize(img.textureHandle, tw, th)) {
@@ -108,12 +161,18 @@ struct UIRenderSystem {
             }
             imageSystem_->Draw(img.textureHandle, pos.x, pos.y, transform.size.x, transform.size.y, img.opacity, img.keepAspect, srcPtr);
         } else {
-            ImageSystem::Params p; 
-            p.filePath = img.filePath; 
-            p.x = pos.x; p.y = pos.y; 
-            p.width = transform.size.x; p.height = transform.size.y; 
-            p.opacity = img.opacity; p.keepAspect = img.keepAspect;
-            p.srcX = uv[0]; p.srcY = uv[1]; p.srcW = uv[2]; p.srcH = uv[3];
+            ImageSystem::Params p;
+            p.filePath = img.filePath;
+            p.x = pos.x;
+            p.y = pos.y;
+            p.width = transform.size.x;
+            p.height = transform.size.y;
+            p.opacity = img.opacity;
+            p.keepAspect = img.keepAspect;
+            p.srcX = uv[0];
+            p.srcY = uv[1];
+            p.srcW = uv[2];
+            p.srcH = uv[3];
             imageSystem_->Draw(p);
         }
     }
@@ -132,19 +191,35 @@ struct UIInteractionSystem : Behaviour {
     float screenHeight_ = 720.0f;
 
     void OnUpdate(World &w, Entity self, float dt) override {
-        if (!input_) return;
+        if (!input_)
+            return;
         float mx = static_cast<float>(input_->GetMouseX());
         float my = static_cast<float>(input_->GetMouseY());
         bool leftClick = input_->GetMouseButtonDown(InputSystem::Left);
         bool leftHeld = input_->GetMouseButton(InputSystem::Left);
         w.ForEach<UITransform, UIButton>([&](Entity e, UITransform &t, UIButton &b) {
-            if (!b.enabled) { b.state = UIButton::State::Disabled; return; }
+            if (!b.enabled) {
+                b.state = UIButton::State::Disabled;
+                return;
+            }
             boolean hover = t.Contains(mx, my, screenWidth_, screenHeight_);
             if (hover) {
-                if (leftHeld) b.state = UIButton::State::Pressed; else { b.state = UIButton::State::Hovered; if (leftClick && b.onClick) b.onClick(); }
-            } else b.state = UIButton::State::Normal;
+                if (leftHeld)
+                    b.state = UIButton::State::Pressed;
+                else {
+                    b.state = UIButton::State::Hovered;
+                    if (leftClick && b.onClick)
+                        b.onClick();
+                }
+            } else
+                b.state = UIButton::State::Normal;
         });
     }
-    void SetInputSystem(InputSystem *input) { input_ = input; }
-    void SetScreenSize(float w, float h) { screenWidth_ = w; screenHeight_ = h; }
+    void SetInputSystem(InputSystem *input) {
+        input_ = input;
+    }
+    void SetScreenSize(float w, float h) {
+        screenWidth_ = w;
+        screenHeight_ = h;
+    }
 };
