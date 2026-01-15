@@ -195,11 +195,11 @@ class StageSelectScene : public IScene {
         // ゲームシーンへの遷移 (Enter / Aボタン)
         bool enterPressed = input.GetKeyDown(VK_RETURN);
         GamepadSystem *padsystem = ServiceLocator::TryGet<GamepadSystem>();
-        if (padsystem) {
-            if (padsystem->GetAnyButtonDown({GamepadSystem::Button_A, GamepadSystem::Button_Start, GamepadSystem::Button_X})) {
-                enterPressed = true;
+            if (padsystem) {
+                if (padsystem->GetAnyButtonDown({GamepadSystem::Button_A, GamepadSystem::Button_Start, GamepadSystem::Button_X})) {
+                    enterPressed = true;
+                }
             }
-        }
 
         if (enterPressed) {
             DEBUGLOG("Enter pressed!");
