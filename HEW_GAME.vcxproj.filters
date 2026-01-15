@@ -415,6 +415,9 @@
     <ClInclude Include="include\scenes\Title.h">
       <Filter>Header Files\scenes</Filter>
     </ClInclude>
+    <ClInclude Include="include\scenes\StageSelectScene.h">
+      <Filter>Header Files\scenes</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include=".github\ISSUE_TEMPLATE\01_task.yml" />

@@ -247,7 +247,7 @@ class GameScene : public IScene {
 
         // ステージ進行状況に応じてステージデータを読み込む
         int initialStage = 1;
-        const int maxStage = GetAvailableStageCount();
+        const int maxStage = GetAvailableStageCount(world);
         world.ForEach<StageProgress>([&](Entity e, StageProgress &status) {
             int desiredStage = status.selectStage > 0 ? status.selectStage : 1;
             desiredStage = std::min(desiredStage, maxStage);
@@ -321,8 +321,6 @@ class GameScene : public IScene {
                 deltaTime = 0.0f;
             }
         });
-
-
 
         // ステージクリア待機中の処理
         if (stageClearActive_) {
@@ -441,9 +439,6 @@ class GameScene : public IScene {
             sys.Render(world);
         });
         
-          
-  
-      
     }
 
     /**
@@ -1113,7 +1108,7 @@ class GameScene : public IScene {
                 angles.push_back(row);
             }
         }
-
+        
         return angles;
     }
 
