@@ -254,6 +254,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\graphics\StageSave.h" />
+    <ClInclude Include="include\scenes\StageSelectScene.h" />
     <ClInclude Include="include\scenes\Title.h" />
     <ClInclude Include="include\scenes\VideoScene.h" />
     <ClInclude Include="include\scenes\World2_StageSelect.h" />
