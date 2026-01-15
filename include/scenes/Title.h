@@ -1,7 +1,7 @@
-/**
+ï»¿/**
  * @file title.h
- * @brief ƒ^ƒCƒgƒ‹ƒV[ƒ“
- * @author —§R—Iñ
+ * @brief ã‚¿ã‚¤ãƒˆãƒ«ã‚·ãƒ¼ãƒ³
+ * @author ç«‹å±±æ‚ æœ”
  * @date 2025
  * @version 1.0
  */
@@ -30,15 +30,15 @@
 
 /**
  * @class TitleScene
- * @brief ƒ[ƒ‹ƒhƒZƒŒƒNƒg2‚ÌƒV[ƒ“
+ * @brief ãƒ¯ãƒ¼ãƒ«ãƒ‰ã‚»ãƒ¬ã‚¯ãƒˆ2ã®ã‚·ãƒ¼ãƒ³
  * 
  * 2026/01/15 
- * @‹T‘½@3DƒIƒuƒWƒFƒNƒg•\¦
+ * ã€€äº€å¤šã€€3Dã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆè¡¨ç¤º
  */
 class TitleScene : public IScene {
   public:
       void OnEnter(World& world) override {
-        // Šù‘¶À‘•‚»‚Ì‚Ü‚Ü
+        // æ—¢å­˜å®Ÿè£…ãã®ã¾ã¾
         bool hasGameStatus = false;
         world.ForEach<GameStatus>([&](Entity, GameStatus &) { hasGameStatus = true; });
         if (!hasGameStatus) {
@@ -59,7 +59,7 @@ class TitleScene : public IScene {
             return;
         }
 
-        //3DƒŒƒ“ƒ_ƒŠƒ“ƒO‚Ì‰Šú‰»
+        //3Dãƒ¬ãƒ³ãƒ€ãƒªãƒ³ã‚°ã®åˆæœŸåŒ–
         RenderingSystem::GetInstance().Initialize(gfx->Dev());
         
 
@@ -95,7 +95,7 @@ class TitleScene : public IScene {
         isTransitioning_ = false;
         zoomTimer_ = 0.0f;
         
-        //Šm”F—pƒIƒuƒWƒFƒNƒg
+        //ç¢ºèªç”¨ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆ
         DirectX::XMFLOAT3 objPos{ 0.0f, 0.0f, 0.0f};
         Transform t{
             objPos, {0.0f, 45.0f, 0.0f}, {1.5f, 1.5f, 1.5f}};
@@ -110,7 +110,7 @@ class TitleScene : public IScene {
 
     }
       void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
-        // Šù‘¶À‘•‚»‚Ì‚Ü‚Üi‘O‚Æ“¯‚¶“à—ej
+        // æ—¢å­˜å®Ÿè£…ãã®ã¾ã¾ï¼ˆå‰ã¨åŒã˜å†…å®¹ï¼‰
         world.ForEach<UIInteractionSystem>([&](Entity, UIInteractionSystem &sys) {
             if (!sys.input_) {
                 sys.input_ = &input;
@@ -162,7 +162,7 @@ class TitleScene : public IScene {
                return;
            try {
                auto &renderer = ServiceLocator::Get<RenderSystem>();
-               //3DƒIƒuƒWƒFƒNƒg‚ğ•`‰æ
+               //3Dã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã‚’æç”»
                renderer.Render(world, camera_);
            } catch (...) {
                DEBUGLOG_ERROR("[TitkeScene] Failed to get RenderSystem from ServiceLocator");
@@ -181,7 +181,7 @@ class TitleScene : public IScene {
           }
           ownedEntities_.clear();
 
-          RenderingSystem::GetInstance().Shutdown();//3DƒŒƒ“ƒ_ƒŠƒ“ƒO
+          RenderingSystem::GetInstance().Shutdown();//3Dãƒ¬ãƒ³ãƒ€ãƒªãƒ³ã‚°
 
           textSystem_.Shutdown();
           imageSystem_.Shutdown();
@@ -191,13 +191,13 @@ class TitleScene : public IScene {
 
       void UpdateCameraZoom(World& world, float deltaTime)
       {
-          //‘JˆÚ‚ÌŠÔ
+          //é·ç§»ã®æ™‚é–“
         const float duration = 2.0f;
         zoomTimer_ += deltaTime;
         
         float progress = std::min(zoomTimer_ / duration, 1.0f);
       
-        //ƒ^[ƒQƒbƒg‚ÉŒü‚©‚Á‚ÄƒxƒNƒgƒ‹‚ğŒvZ‚µAƒJƒƒ‰‚ÌˆÊ’u‚ğ‹ß‚Ã‚¯‚é
+        //ã‚¿ãƒ¼ã‚²ãƒƒãƒˆã«å‘ã‹ã£ã¦ãƒ™ã‚¯ãƒˆãƒ«ã‚’è¨ˆç®—ã—ã€ã‚«ãƒ¡ãƒ©ã®ä½ç½®ã‚’è¿‘ã¥ã‘ã‚‹
         DirectX::XMVECTOR pos = DirectX::XMLoadFloat3(&camera_.position);
         DirectX::XMVECTOR target = DirectX::XMLoadFloat3(&camera_.target);
         DirectX::XMVECTOR dir = DirectX::XMVectorSubtract(target, pos);
@@ -205,14 +205,14 @@ class TitleScene : public IScene {
         pos = DirectX::XMVectorAdd(pos, DirectX::XMVectorScale(dir, 0.5f * deltaTime));
         DirectX::XMStoreFloat3(&camera_.position, pos);
 
-        //‹–ìŠp
+        //è¦–é‡è§’
         camera_.Zoom(-0.1f * deltaTime);
         camera_.Update();
 
-        //UI‚ÌƒtƒF[ƒh
+        //UIã®ãƒ•ã‚§ãƒ¼ãƒ‰
         for (auto &entity : ownedEntities_)
         {
-            //¶ƒXƒ‰ƒCƒh(ˆÚ“®‚·‚é‘¬“xİ’è)
+            //å·¦ã‚¹ãƒ©ã‚¤ãƒ‰(ç§»å‹•ã™ã‚‹é€Ÿåº¦è¨­å®š)
             if (auto* transform = world.TryGet<UITransform>(entity))
             {
                 transform->position.x -= 800.0f * deltaTime;
@@ -227,7 +227,7 @@ class TitleScene : public IScene {
             }
         }
 
-        //ƒV[ƒ“‘JˆÚ
+        //ã‚·ãƒ¼ãƒ³é·ç§»
         if (progress >= 1.0f)
         {
             if (auto* manager = ServiceLocator::TryGet<SceneManager>())
