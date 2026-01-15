@@ -247,7 +247,7 @@ class GameScene : public IScene {
 
         // ステージ進行状況に応じてステージデータを読み込む
         int initialStage = 1;
-        const int maxStage = GetAvailableStageCount();
+        const int maxStage = GetAvailableStageCount(world);
         world.ForEach<StageProgress>([&](Entity e, StageProgress &status) {
             int desiredStage = status.selectStage > 0 ? status.selectStage : 1;
             desiredStage = std::min(desiredStage, maxStage);
@@ -1041,43 +1041,47 @@ class GameScene : public IScene {
         });
     }
 
-    std::optional<std::string> ResolveSpeedUpCsvPath(const std::string &stageCollisionCsvPath) {
+    std::optional<std::string> ResolveSpeedUpCsvPath(World &world, const std::string &stageCollisionCsvPath) {
+        DEBUGLOG("ResolveSpeedUpCsvPath");
         namespace fs = std::filesystem;
-        StageProgress sp;
+        fs::path worldcount = ("World");
+        world.ForEach<StageProgress>([&](Entity,StageProgress &sp) {
+             worldcount += (std::to_string(sp.worldCount));
+            });
+
         fs::path collisionPath(stageCollisionCsvPath);
         
-        fs::path worldcount = ("World");
-        worldcount += (std::to_string(sp.worldCount));
-
-
         const fs::path stageDir = collisionPath.parent_path().filename();
         if (stageDir.empty()) {
+            DEBUGLOG("パスが空です:"+ stageCollisionCsvPath);
             return std::nullopt;
         }
 
         fs::path speedUpPath = fs::path("Assets/StageData") / worldcount / ("UniqueObj/SpeedUp") / stageDir / collisionPath.filename();
         std::error_code ec;
         if (!fs::exists(speedUpPath, ec) || ec) {
+            DEBUGLOG(speedUpPath.string());
             return std::nullopt;
         }
 
         return speedUpPath.string();
     }
 
-    std::optional<std::string> ResolveMovingObstacleCsvPath(const std::string &stageCollisionCsvPath) {
+    std::optional<std::string> ResolveMovingObstacleCsvPath(World &world,const std::string &stageCollisionCsvPath) {
         namespace fs = std::filesystem;
-        StageProgress sp;
         fs::path collisionPath(stageCollisionCsvPath);
 
-           fs::path worldcount = ("World");
-        worldcount += (std::to_string(sp.worldCount));
+        fs::path worldcount = ("World");
+        world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+            worldcount += (std::to_string(sp.worldCount));
+        });
 
         const fs::path stageDir = collisionPath.parent_path().filename();
         if (stageDir.empty()) {
             return std::nullopt;
         }
 
-        fs::path movePath = fs::path("Assets/StageData")/ worldcount /("/UniqueObj/Move") / stageDir / collisionPath.filename();
+        fs::path movePath = fs::path("Assets/StageData")/ worldcount /("UniqueObj/Move") / stageDir / collisionPath.filename();
         std::error_code ec;
         if (!fs::exists(movePath, ec) || ec) {
             return std::nullopt;
@@ -1583,10 +1587,10 @@ class GameScene : public IScene {
         Transform transform{diffPosition, {0.0f, angle, 0.0f}, {1.0f, 1.0f, 1.0f}};
 
         PointLight wallLight;
-        wallLight.color = {0.0f,0.0f,1.0f};
+        wallLight.color = {1.0f,0.7f,0.5f};
         ApplyDefaultPointLightParams(wallLight);
-        wallLight.range = 0.1f;
-        wallLight.intensity = 0.2f;
+        wallLight.range = 1.0f;
+        wallLight.intensity = 1.0f;
         wallLight.constantAttenuation = 0.1f;
 
         Entity walllightEntity = world.Create()
@@ -1963,7 +1967,7 @@ class GameScene : public IScene {
 
         // ステージに紐づく加速角度CSVをロードしてLoadAngleコンポーネントに反映
         {
-            auto angleCsvPath = ResolveSpeedUpCsvPath(activeStagePtr->csvPath);
+            auto angleCsvPath = ResolveSpeedUpCsvPath(world,activeStagePtr->csvPath);
             std::vector<std::vector<int>> angles;
             if (angleCsvPath) {
                 angles = LoadAngleCsv(*angleCsvPath);
@@ -1991,7 +1995,7 @@ class GameScene : public IScene {
             }
 
             // 動く障害物CSVもステージごとにロード
-            auto moveCsvPath = ResolveMovingObstacleCsvPath(activeStagePtr->csvPath);
+            auto moveCsvPath = ResolveMovingObstacleCsvPath(world,activeStagePtr->csvPath);
             std::vector<MovingObstaclePattern> movePatterns;
             if (moveCsvPath) {
                 movePatterns = LoadMovingObstacleCsv(*moveCsvPath);
