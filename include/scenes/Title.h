@@ -17,6 +17,10 @@
 #include "config/ConfigVar.h"
 #include "components/UIComponents.h"
 #include "components/StageComponents.h"
+
+#include "components/MeshRenderer.h"
+#include "systems/RenderingSystem.h"
+
 #include "graphics/TextSystem.h"
 #include "graphics/Camera.h"
 #include "graphics/ImageSystem.h"
@@ -27,6 +31,9 @@
 /**
  * @class TitleScene
  * @brief ワールドセレクト2のシーン
+ * 
+ * 2026/01/15 
+ * 　亀多　3Dオブジェクト表示
  */
 class TitleScene : public IScene {
   public:
@@ -51,6 +58,10 @@ class TitleScene : public IScene {
             DEBUGLOG_ERROR("[StageSelect] ImageSystem init failed");
             return;
         }
+
+        //3Dレンダリングの初期化
+        RenderingSystem::GetInstance().Initialize(gfx->Dev());
+        
 
         float screenWidth = static_cast<float>(gfx->Width());
         float screenHeight = static_cast<float>(gfx->Height());
@@ -83,7 +94,19 @@ class TitleScene : public IScene {
 
         isTransitioning_ = false;
         zoomTimer_ = 0.0f;
-
+        
+        //確認用オブジェクト
+        DirectX::XMFLOAT3 objPos{ 0.0f, 0.0f, 0.0f};
+        Transform t{
+            objPos, {0.0f, 45.0f, 0.0f}, {1.5f, 1.5f, 1.5f}};
+        MeshRenderer mr;
+        mr.meshType = MeshType::Cube;
+        mr.color = DirectX::XMFLOAT3{0.8f, 0.6f, 0.2f};
+        objectEntity_ = world.Create()
+                            .With<Transform>(t)
+                            .With<MeshRenderer>(mr)
+                            .Build();
+        ownedEntities_.push_back(objectEntity_);
 
     }
       void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
@@ -133,6 +156,17 @@ class TitleScene : public IScene {
       }
 
        void OnRender(World &world) {
+
+           auto *gfx = ServiceLocator::TryGet<GfxDevice>();
+           if (!gfx)
+               return;
+           try {
+               auto &renderer = ServiceLocator::Get<RenderSystem>();
+               //3Dオブジェクトを描画
+               renderer.Render(world, camera_);
+           } catch (...) {
+               DEBUGLOG_ERROR("[TitkeScene] Failed to get RenderSystem from ServiceLocator");
+           }
           world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
               MeshRenderer renderer;
               sys.Render(world);
@@ -146,6 +180,8 @@ class TitleScene : public IScene {
               }
           }
           ownedEntities_.clear();
+
+          RenderingSystem::GetInstance().Shutdown();//3Dレンダリング
 
           textSystem_.Shutdown();
           imageSystem_.Shutdown();
@@ -195,4 +231,6 @@ class TitleScene : public IScene {
       Camera camera_{};
 
       std::vector<Entity> ownedEntities_{};
+
+      Entity objectEntity_{};
 };
