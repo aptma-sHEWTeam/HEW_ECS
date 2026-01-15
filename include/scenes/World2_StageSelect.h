@@ -25,24 +25,32 @@
 #include "app/ServiceLocator.h"
 
 
-/**
- * @class World2_StageSelectScene
- * @brief ワールドセレクト2のシーン
- */
+ /**
+  * @class World2_StageSelectScene
+  * @brief ワールドセレクト2のシーン
+  */
 class World2_StageSelectScene : public IScene {
-  public:
-    void OnEnter(World &world) override {
+public:
+    void OnEnter(World& world) {
         // 既存実装そのまま
         bool hasGameStatus = false;
-        world.ForEach<GameStatus>([&](Entity, GameStatus &) { hasGameStatus = true; });
+        world.ForEach<GameStatus>([&](Entity, GameStatus&) { hasGameStatus = true; });
         if (!hasGameStatus) {
             world.Create().With<GameStatus>().Build();
         }
 
         bool hasStageProgress = false;
-        world.ForEach<StageProgress>([&](Entity, StageProgress &) { hasStageProgress = true; });
+        world.ForEach<StageProgress>([&](Entity, StageProgress& sp) {
+            hasStageProgress = true;
+            sp.worldCount = 2;
+            DEBUGLOG("Existing StageProgress updated: worldCount = 2");
+            });
+
         if (!hasStageProgress) {
-            world.Create().With<StageProgress>().Build();
+            Entity e = world.Create().With<StageProgress>().Build();
+            if (auto* sp = world.TryGet<StageProgress>(e)){
+                sp->worldCount = 2;
+            }
         }
 
         world.ForEach<StageProgress>([&](Entity, StageProgress &progress) {
@@ -120,23 +128,7 @@ class World2_StageSelectScene : public IScene {
                 sys.input_ = &input;
             }
         });
-        if (input.GetKeyDown(VK_RETURN)) {
-            DEBUGLOG("Enter pressed!");
-            if (auto *maneger = ServiceLocator::TryGet<SceneManager>()) {
-                maneger->ChangeScene("Game", world);
-            }
-        }
-
-        GamepadSystem *padsystem = ServiceLocator::TryGet<GamepadSystem>();
-        if (padsystem) {
-            if (padsystem->GetAnyButtonDown({GamepadSystem::Button_A, GamepadSystem::Button_Start, GamepadSystem::Button_X})) {
-                DEBUGLOG("Enter pressed!");
-                if (auto *maneger = ServiceLocator::TryGet<SceneManager>()) {
-                    maneger->ChangeScene("Game", world);
-                }
-            }
-        }
-
+       
         const int maxStage = maxStage_;
 
          world.ForEach<StageProgress>([&](Entity, StageProgress &stats) {
@@ -185,6 +177,24 @@ class World2_StageSelectScene : public IScene {
                         }
                     }
                 }
+
+                 if (input.GetKeyDown(VK_RETURN)) {
+                    DEBUGLOG("Enter pressed!");
+                    if (auto *maneger = ServiceLocator::TryGet<SceneManager>()) {
+                        maneger->ChangeScene("Game", world);
+                    }
+                }
+
+                GamepadSystem *padsystem = ServiceLocator::TryGet<GamepadSystem>();
+                if (padsystem) {
+                    if (padsystem->GetAnyButtonDown({GamepadSystem::Button_A, GamepadSystem::Button_Start, GamepadSystem::Button_X})) {
+                        DEBUGLOG("Enter pressed!");
+                        if (auto *maneger = ServiceLocator::TryGet<SceneManager>()) {
+                            maneger->ChangeScene("Game", world);
+                        }
+                    }
+                }
+
 
                 stats.selectStage = std::clamp(stats.selectStage, 1, maxStage);
 
