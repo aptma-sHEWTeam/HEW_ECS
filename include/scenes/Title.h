@@ -17,6 +17,8 @@
 #include "config/ConfigVar.h"
 #include "components/UIComponents.h"
 #include "components/StageComponents.h"
+#include "systems/ModelLoadingSystem.h"
+
 
 #include "components/MeshRenderer.h"
 #include "systems/RenderingSystem.h"
@@ -27,6 +29,9 @@
 #include "input/GamepadSystem.h"
 #include "systems/UISystem.h"
 #include "app/ServiceLocator.h"
+//#include "Game.h"
+#include "scenes/StageConfig.h"
+
 
 /**
  * @class TitleScene
@@ -44,6 +49,8 @@ class TitleScene : public IScene {
         if (!hasGameStatus) {
             world.Create().With<GameStatus>().Build();
         }
+        Entity modelLoaderSystem = world.Create().With<ModelLoadingSystem>().Build();
+        ownedEntities_.push_back(modelLoaderSystem);
 
          auto *gfx = ServiceLocator::TryGet<GfxDevice>();
         if (!gfx) {
@@ -83,9 +90,12 @@ class TitleScene : public IScene {
             interactionSys->SetScreenSize(screenWidth, screenHeight);
         }
         ownedEntities_.push_back(uiInteractionSystem);
-
+        
+        CreateWindows(world);
+        CreatePlayer(world);
         CreateTextNormalFormats();
         CreateTitleSelectUI(world);
+       
 
         float aspect = static_cast<float>(gfx->Width()) / gfx->Height();
         camera_ = Camera::LookAtLH(
@@ -95,20 +105,48 @@ class TitleScene : public IScene {
         isTransitioning_ = false;
         zoomTimer_ = 0.0f;
         
+    }
+      //プレイヤーの仮描画
+      void CreatePlayer(World &world) {
+
+          float s = cfg_PlayerScale;
+          DirectX::XMFLOAT3 pos{4.0f, -1.0f, 1.0f};
+          Transform transform{
+              {pos}, {0.0f, 0.0f, 0.0f}, {3.0f, 5.0f, 1.0f}};
+          MeshRenderer mrPlayer;
+          mrPlayer.meshType = MeshType::Sphere;
+          mrPlayer.color = DirectX::XMFLOAT3{1.0f, 1.0f, 1.0f};
+          Entity player = world.Create()
+                              .With<Transform>(transform)
+                              .With<MeshRenderer>(mrPlayer)
+                              .With<Model>(cfg_PlayerFBXPass.Get())
+                              .With<PlayerTag>()
+                              .Build();
+          playerEntity_ = player;
+          ownedEntities_.push_back(player);
+
+          // CreatePlayer(world);
+      }
+    
+
+      void CreateWindows(World& world) 
+      {
         //確認用オブジェクト
-        DirectX::XMFLOAT3 objPos{ 0.0f, 0.0f, 0.0f};
-        Transform t{
-            objPos, {0.0f, 45.0f, 0.0f}, {1.5f, 1.5f, 1.5f}};
-        MeshRenderer mr;
-        mr.meshType = MeshType::Cube;
-        mr.color = DirectX::XMFLOAT3{0.8f, 0.6f, 0.2f};
+        DirectX::XMFLOAT3 objPos{0.0f, 0.0f, 0.0f};
+        Transform transform{
+            {objPos}, {0.0f, 0.0f, 0.0f}, {15.0f, 10.0f, 1.0f}};//3Dオブジェクト仮置き値（窓）
+        MeshRenderer meshrenderer;
+        meshrenderer.meshType = MeshType::Cube;
+        meshrenderer.color = DirectX::XMFLOAT3{0.0f, 0.0f, 0.0f};
         objectEntity_ = world.Create()
-                            .With<Transform>(t)
-                            .With<MeshRenderer>(mr)
-                            .Build();
+                                   .With<Transform>(transform)
+                                  // .With<MeshRenderer>(meshrenderer)//仮置き分かりにくい色二しかできなかったので確認したいときはココをコメントにしてください。
+                                   .With<Model>("Assets/Models/StageObj/Window/window.fbx")
+                                   .Build();
         ownedEntities_.push_back(objectEntity_);
 
-    }
+      }
+    
       void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
         // 既存実装そのまま（前と同じ内容）
         world.ForEach<UIInteractionSystem>([&](Entity, UIInteractionSystem &sys) {
@@ -164,6 +202,7 @@ class TitleScene : public IScene {
                auto &renderer = ServiceLocator::Get<RenderSystem>();
                //3Dオブジェクトを描画
                renderer.Render(world, camera_);
+
            } catch (...) {
                DEBUGLOG_ERROR("[TitkeScene] Failed to get RenderSystem from ServiceLocator");
            }
@@ -249,5 +288,8 @@ class TitleScene : public IScene {
 
       std::vector<Entity> ownedEntities_{};
 
-      Entity objectEntity_{};
+      Entity playerEntity_{};
+      Entity objectEntity_{};//3Dオブジェクト用
+     
+
 };
