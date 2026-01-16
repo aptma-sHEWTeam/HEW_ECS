@@ -376,9 +376,6 @@ class GameScene : public IScene {
         ChargCameraAction(world);
         RenderingSystem::GetInstance().UpdateLights(world, camera_.position);
 
-        // ECSワールドのTickを進める
-        world.Tick(deltaTime * timeScale);
-
         // 時間切れチェック
         if (world.IsAlive(playerEntity_)) {
             CheckTimeLimit(world, playerEntity_, cfg_LimitTime);

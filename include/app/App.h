@@ -294,6 +294,14 @@ struct App {
             // 時間の計算
             float deltaTime = CalculateDeltaTime(previousTime);
 
+            if (!isWindowFocused_) {
+                accumulator = 0.0f;
+                previousTime = std::chrono::high_resolution_clock::now();
+                ::Sleep(0);
+                frameCount++;
+                continue;
+            }
+
             // デルタタイムの異常値チェック (Spiral of Death prevention)
             if (deltaTime > 0.25f) {
                 DEBUGLOG("[WARNING] 異常なdeltaTimeを検出: " + std::to_string(deltaTime) + "s (0.25sにクランプ)");
