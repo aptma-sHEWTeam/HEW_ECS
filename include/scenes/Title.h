@@ -57,12 +57,12 @@ class TitleScene : public IScene {
     inline static ConfigVar<float> cfg_WindowRotY{"Title.Window", "RotY", 90.0f, "タイトル: Window 回転Y"};
     inline static ConfigVar<float> cfg_WindowRotZ{"Title.Window", "RotZ", 0.0f, "タイトル: Window 回転Z"};
 
-    inline static ConfigVar<float> cfg_PlayerPosX{"Title.Player", "PosX", 4.0f, "タイトル: Player 位置X"};
-    inline static ConfigVar<float> cfg_PlayerPosY{"Title.Player", "PosY", -1.0f, "タイトル: Player 位置Y"};
-    inline static ConfigVar<float> cfg_PlayerPosZ{"Title.Player", "PosZ", 1.0f, "タイトル: Player 位置Z"};
-    inline static ConfigVar<float> cfg_PlayerScaleX{"Title.Player", "ScaleX", 3.0f, "タイトル: Player スケールX"};
+    inline static ConfigVar<float> cfg_PlayerPosX{"Title.Player", "PosX", 2.0f, "タイトル: Player 位置X"};
+    inline static ConfigVar<float> cfg_PlayerPosY{"Title.Player", "PosY", -5.0f, "タイトル: Player 位置Y"};
+    inline static ConfigVar<float> cfg_PlayerPosZ{"Title.Player", "PosZ", -2.0f, "タイトル: Player 位置Z"};
+    inline static ConfigVar<float> cfg_PlayerScaleX{"Title.Player", "ScaleX", 5.0f, "タイトル: Player スケールX"};
     inline static ConfigVar<float> cfg_PlayerScaleY{"Title.Player", "ScaleY", 5.0f, "タイトル: Player スケールY"};
-    inline static ConfigVar<float> cfg_PlayerScaleZ{"Title.Player", "ScaleZ", 1.0f, "タイトル: Player スケールZ"};
+    inline static ConfigVar<float> cfg_PlayerScaleZ{"Title.Player", "ScaleZ", 5.0f, "タイトル: Player スケールZ"};
     inline static ConfigVar<float> cfg_PlayerRotX{"Title.Player", "RotX", 0.0f, "タイトル: Player 回転X"};
     inline static ConfigVar<float> cfg_PlayerRotY{"Title.Player", "RotY", 0.0f, "タイトル: Player 回転Y"};
     inline static ConfigVar<float> cfg_PlayerRotZ{"Title.Player", "RotZ", 0.0f, "タイトル: Player 回転Z"};
@@ -146,6 +146,7 @@ class TitleScene : public IScene {
 
         isTransitioning_ = false;
         zoomTimer_ = 0.0f;
+        isUiVisible_ = true;
         
     }
       //プレイヤーの仮描画
@@ -258,6 +259,7 @@ class TitleScene : public IScene {
             }
             if (trigger) {
                 isTransitioning_ = true;
+                isUiVisible_ = false;
                 DEBUGLOG("Camera Zoom Start!");
             }
         } else {
@@ -294,10 +296,12 @@ class TitleScene : public IScene {
            } catch (...) {
                DEBUGLOG_ERROR("[TitkeScene] Failed to get RenderSystem from ServiceLocator");
            }
-          world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
-              MeshRenderer renderer;
-              sys.Render(world);
-          });
+          if (isUiVisible_) {
+              world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
+                  MeshRenderer renderer;
+                  sys.Render(world);
+              });
+          }
       }
 
     void OnExit(World &world) override {
@@ -322,7 +326,7 @@ class TitleScene : public IScene {
     struct SceneOwnedTag : IComponent {};
 
        void UpdateCameraZoom(World &world, float deltaTime) {
-         const float duration = 2.0f;
+         const float duration = 4.0f;
          zoomTimer_ += deltaTime;
 
          float progress = std::min(zoomTimer_ / duration, 1.0f);
@@ -349,6 +353,7 @@ class TitleScene : public IScene {
 
     bool isTransitioning_ = false;
     float zoomTimer_ = 0.0f;
+    bool isUiVisible_ = true;
 
        std::vector<Entity> ownedEntities_{};
 
