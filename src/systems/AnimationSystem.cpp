@@ -7,37 +7,31 @@
 using namespace DirectX;
 
 namespace {
-    // NaN チェックヘルパー
     inline bool IsNaN(float v) { return v != v; }
     inline bool IsNaN(const XMFLOAT3& v) { return IsNaN(v.x) || IsNaN(v.y) || IsNaN(v.z); }
     inline bool IsNaN(const XMFLOAT4& v) { return IsNaN(v.x) || IsNaN(v.y) || IsNaN(v.z) || IsNaN(v.w); }
 
-    // 補間ヘルパー - 時刻 t に対応する Position を補間
     XMVECTOR InterpolatePosition(const ModelComponent::BoneAnimation& ch, float t, const XMVECTOR& fallback) {
         if (ch.keyframes.empty() || !ch.hasPositionKeys) return fallback;
         
-        // キーフレームが1つだけの場合
         if (ch.keyframes.size() == 1) {
             const auto& k = ch.keyframes[0];
             if (IsNaN(k.position)) return fallback;
             return XMLoadFloat3(&k.position);
         }
 
-        // サンプル時刻が最初のキー以前の場合 → 最初のキーの値を使用
         if (t <= ch.keyframes.front().time) {
             const auto& k = ch.keyframes.front();
             if (IsNaN(k.position)) return fallback;
             return XMLoadFloat3(&k.position);
         }
         
-        // サンプル時刻が最後のキー以降の場合 → 最後のキーの値を使用
         if (t >= ch.keyframes.back().time) {
             const auto& k = ch.keyframes.back();
             if (IsNaN(k.position)) return fallback;
             return XMLoadFloat3(&k.position);
         }
 
-        // キーを探索 (線形探索) - t が [idx].time と [idx+1].time の間にあるインデックスを探す
         size_t idx = 0;
         for (; idx < ch.keyframes.size() - 1; ++idx) {
             if (t < ch.keyframes[idx + 1].time) break;
@@ -48,7 +42,6 @@ namespace {
         const auto& k1 = ch.keyframes[idx];
         const auto& k2 = ch.keyframes[nextIdx];
         
-        // NaN チェック
         if (IsNaN(k1.position) && IsNaN(k2.position)) return fallback;
         if (IsNaN(k1.position)) return XMLoadFloat3(&k2.position);
         if (IsNaN(k2.position)) return XMLoadFloat3(&k1.position);
@@ -63,25 +56,21 @@ namespace {
         return XMVectorLerp(p1, p2, factor);
     }
 
-    // 補間ヘルパー - 時刻 t に対応する Rotation を補間
     XMVECTOR InterpolateRotation(const ModelComponent::BoneAnimation& ch, float t, const XMVECTOR& fallback) {
         if (ch.keyframes.empty() || !ch.hasRotationKeys) return fallback;
         
-        // キーフレームが1つだけの場合
         if (ch.keyframes.size() == 1) {
             const auto& k = ch.keyframes[0];
             if (IsNaN(k.rotation)) return fallback;
             return XMLoadFloat4(&k.rotation);
         }
 
-        // サンプル時刻が最初のキー以前の場合
         if (t <= ch.keyframes.front().time) {
             const auto& k = ch.keyframes.front();
             if (IsNaN(k.rotation)) return fallback;
             return XMLoadFloat4(&k.rotation);
         }
         
-        // サンプル時刻が最後のキー以降の場合
         if (t >= ch.keyframes.back().time) {
             const auto& k = ch.keyframes.back();
             if (IsNaN(k.rotation)) return fallback;
@@ -98,7 +87,6 @@ namespace {
         const auto& k1 = ch.keyframes[idx];
         const auto& k2 = ch.keyframes[nextIdx];
         
-        // NaN チェック
         if (IsNaN(k1.rotation) && IsNaN(k2.rotation)) return fallback;
         if (IsNaN(k1.rotation)) return XMLoadFloat4(&k2.rotation);
         if (IsNaN(k2.rotation)) return XMLoadFloat4(&k1.rotation);
@@ -110,9 +98,6 @@ namespace {
         XMVECTOR r1 = XMLoadFloat4(&k1.rotation);
         XMVECTOR r2 = XMLoadFloat4(&k2.rotation);
 
-        // 最短経路補間 (Shortest Path Slerp)
-        // クォータニオンの内積が負の場合、遠回り（360度以上の回転）をしてしまうため、
-        // 片方を反転させて最短経路を取るようにする。
         if (XMVectorGetX(XMQuaternionDot(r1, r2)) < 0.0f) {
             r1 = XMVectorNegate(r1);
         }
@@ -120,25 +105,21 @@ namespace {
         return XMQuaternionSlerp(r1, r2, factor);
     }
 
-    // 補間ヘルパー - 時刻 t に対応する Scale を補間
     XMVECTOR InterpolateScale(const ModelComponent::BoneAnimation& ch, float t, const XMVECTOR& fallback) {
         if (ch.keyframes.empty() || !ch.hasScaleKeys) return fallback;
         
-        // キーフレームが1つだけの場合
         if (ch.keyframes.size() == 1) {
             const auto& k = ch.keyframes[0];
             if (IsNaN(k.scale)) return fallback;
             return XMLoadFloat3(&k.scale);
         }
 
-        // サンプル時刻が最初のキー以前の場合
         if (t <= ch.keyframes.front().time) {
             const auto& k = ch.keyframes.front();
             if (IsNaN(k.scale)) return fallback;
             return XMLoadFloat3(&k.scale);
         }
         
-        // サンプル時刻が最後のキー以降の場合
         if (t >= ch.keyframes.back().time) {
             const auto& k = ch.keyframes.back();
             if (IsNaN(k.scale)) return fallback;
@@ -155,7 +136,6 @@ namespace {
         const auto& k1 = ch.keyframes[idx];
         const auto& k2 = ch.keyframes[nextIdx];
         
-        // NaN チェック
         if (IsNaN(k1.scale) && IsNaN(k2.scale)) return fallback;
         if (IsNaN(k1.scale)) return XMLoadFloat3(&k2.scale);
         if (IsNaN(k2.scale)) return XMLoadFloat3(&k1.scale);
@@ -180,29 +160,34 @@ void AnimationSystem::Update(World& world, float dt) {
         const float ticksPerSecond = std::max(clip.ticksPerSecond, 1.0f);
         const float duration = std::max(clip.duration, 1e-4f);
         
-        // 累積時間（秒）を更新
         anim.currentTime += dt * anim.speed;
         
-        // サンプリング時刻（ticks）を計算
         float sampleTicks = anim.currentTime * ticksPerSecond;
         if (!std::isfinite(sampleTicks)) {
             sampleTicks = 0.0f;
         }
-        
+
         // ループ処理
         if (sampleTicks >= duration) {
             if (anim.isLooping) {
                 sampleTicks = fmodf(sampleTicks, duration);
                 anim.currentTime = sampleTicks / ticksPerSecond;
             } else {
-                sampleTicks = duration;
+                sampleTicks = duration - 0.001f;
                 anim.currentTime = sampleTicks / ticksPerSecond;
                 anim.isFinished = true;
             }
         }
         
-        // 負のサンプル時刻を防止
-        sampleTicks = std::max(0.0f, sampleTicks);
+        sampleTicks = std::clamp(sampleTicks, 0.0f, duration - 0.001f);
+
+        // ループ境界でのブレンド係数を計算（終端近くで先頭とブレンド）
+        float loopBlendFactor = 0.0f;
+        const float blendRegion = duration * 0.1f;
+        if (anim.isLooping && sampleTicks > duration - blendRegion && blendRegion > 0.001f) {
+            loopBlendFactor = (sampleTicks - (duration - blendRegion)) / blendRegion;
+            loopBlendFactor = std::clamp(loopBlendFactor, 0.0f, 1.0f);
+        }
 
         // マッピング更新 (初回または変更時)
         if (anim.isMappingDirty || anim.boneMapping.empty()) {
@@ -285,6 +270,31 @@ void AnimationSystem::Update(World& world, float dt) {
             if (boneAnim.hasPositionKeys && !boneAnim.keyframes.empty()) {
                 T = InterpolatePosition(boneAnim, sampleTicks, T);
             }
+
+            // ループ境界でのブレンド（終端近くで先頭ポーズとブレンド）
+            if (loopBlendFactor > 0.0f && !boneAnim.keyframes.empty()) {
+                XMVECTOR S0 = bindScales[boneIndex];
+                XMVECTOR R0 = bindRotations[boneIndex];
+                XMVECTOR T0 = bindTranslations[boneIndex];
+                if (boneAnim.hasScaleKeys) {
+                    S0 = InterpolateScale(boneAnim, 0.0f, S0);
+                }
+                if (boneAnim.hasRotationKeys) {
+                    R0 = InterpolateRotation(boneAnim, 0.0f, R0);
+                }
+                if (boneAnim.hasPositionKeys) {
+                    T0 = InterpolatePosition(boneAnim, 0.0f, T0);
+                }
+                S = XMVectorLerp(S, S0, loopBlendFactor);
+                if (XMVectorGetX(XMQuaternionDot(R, R0)) < 0.0f) {
+                    R0 = XMVectorNegate(R0);
+                }
+                R = XMQuaternionSlerp(R, R0, loopBlendFactor);
+                T = XMVectorLerp(T, T0, loopBlendFactor);
+            }
+
+
+
 
             const std::string& bName = mc.skeleton.bones[boneIndex].name;
             // ユーザー提供の修正: 右肩(RightShoulder)をX軸-180度回転させる

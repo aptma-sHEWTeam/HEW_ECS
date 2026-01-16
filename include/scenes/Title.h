@@ -27,11 +27,15 @@
 #include "graphics/TextSystem.h"
 #include "graphics/Camera.h"
 #include "graphics/ImageSystem.h"
+#include "graphics/ModelLoader.h"
 #include "input/GamepadSystem.h"
 #include "systems/UISystem.h"
 #include "app/ServiceLocator.h"
 //#include "Game.h"
 #include "scenes/StageConfig.h"
+#include "animation/AnimationTools.h"
+#include "animation/AnimationConfig.h"
+#include "components/Animator.h"
 
 
 /**
@@ -43,6 +47,26 @@
  */
 class TitleScene : public IScene {
   public:
+    inline static ConfigVar<float> cfg_WindowPosX{"Title.Window", "PosX", 0.0f, "タイトル: Window 位置X"};
+    inline static ConfigVar<float> cfg_WindowPosY{"Title.Window", "PosY", 0.0f, "タイトル: Window 位置Y"};
+    inline static ConfigVar<float> cfg_WindowPosZ{"Title.Window", "PosZ", 0.0f, "タイトル: Window 位置Z"};
+    inline static ConfigVar<float> cfg_WindowScaleX{"Title.Window", "ScaleX", 0.650000f, "タイトル: Window スケールX"};
+    inline static ConfigVar<float> cfg_WindowScaleY{"Title.Window", "ScaleY", 0.650000f, "タイトル: Window スケールY"};
+    inline static ConfigVar<float> cfg_WindowScaleZ{"Title.Window", "ScaleZ", 0.650000f, "タイトル: Window スケールZ"};
+    inline static ConfigVar<float> cfg_WindowRotX{"Title.Window", "RotX", 0.0f, "タイトル: Window 回転X"};
+    inline static ConfigVar<float> cfg_WindowRotY{"Title.Window", "RotY", 90.0f, "タイトル: Window 回転Y"};
+    inline static ConfigVar<float> cfg_WindowRotZ{"Title.Window", "RotZ", 0.0f, "タイトル: Window 回転Z"};
+
+    inline static ConfigVar<float> cfg_PlayerPosX{"Title.Player", "PosX", 4.0f, "タイトル: Player 位置X"};
+    inline static ConfigVar<float> cfg_PlayerPosY{"Title.Player", "PosY", -1.0f, "タイトル: Player 位置Y"};
+    inline static ConfigVar<float> cfg_PlayerPosZ{"Title.Player", "PosZ", 1.0f, "タイトル: Player 位置Z"};
+    inline static ConfigVar<float> cfg_PlayerScaleX{"Title.Player", "ScaleX", 3.0f, "タイトル: Player スケールX"};
+    inline static ConfigVar<float> cfg_PlayerScaleY{"Title.Player", "ScaleY", 5.0f, "タイトル: Player スケールY"};
+    inline static ConfigVar<float> cfg_PlayerScaleZ{"Title.Player", "ScaleZ", 1.0f, "タイトル: Player スケールZ"};
+    inline static ConfigVar<float> cfg_PlayerRotX{"Title.Player", "RotX", 0.0f, "タイトル: Player 回転X"};
+    inline static ConfigVar<float> cfg_PlayerRotY{"Title.Player", "RotY", 0.0f, "タイトル: Player 回転Y"};
+    inline static ConfigVar<float> cfg_PlayerRotZ{"Title.Player", "RotZ", 0.0f, "タイトル: Player 回転Z"};
+
     Camera GetCameraTitle() const { return camera_; }
 
     void OnEnter(World &world) override {
@@ -128,18 +152,54 @@ class TitleScene : public IScene {
       void CreatePlayer(World &world) {
 
           float s = cfg_PlayerScale;
-          DirectX::XMFLOAT3 pos{4.0f, -1.0f, 1.0f};
+          DirectX::XMFLOAT3 pos{cfg_PlayerPosX.Get(), cfg_PlayerPosY.Get(), cfg_PlayerPosZ.Get()};
           Transform transform{
-              {pos}, {0.0f, 0.0f, 0.0f}, {3.0f, 5.0f, 1.0f}};
+              {pos}, {cfg_PlayerRotX.Get(), cfg_PlayerRotY.Get(), cfg_PlayerRotZ.Get()}, {cfg_PlayerScaleX.Get(), cfg_PlayerScaleY.Get(), cfg_PlayerScaleZ.Get()}};
           MeshRenderer mrPlayer;
           mrPlayer.meshType = MeshType::Sphere;
           mrPlayer.color = DirectX::XMFLOAT3{1.0f, 1.0f, 1.0f};
-          Entity player = world.Create()
-                              .With<Transform>(transform)
-                              .With<Model>(cfg_PlayerFBXPass.Get())
-                              .With<SceneOwnedTag>()
-                              .With<PlayerTag>()
-                              .Build();
+
+          const std::string modelPath = AnimationConfig::Paths::PlayerModel;
+          std::vector<std::string> animPaths = {
+              AnimationConfig::Paths::PlayerAnimFry,
+          };
+          std::vector<std::string> animAliases = {
+              AnimationConfig::Clips::PlayerIdle,
+          };
+
+          std::vector<ModelPrefabNode> nodes = ModelLoader::LoadModel(modelPath);
+          auto clips = AnimationTools::LoadClipsFromFiles(animPaths, {AnimationConfig::Paths::PlayerAnimFallback}, animAliases);
+
+          ModelPrefabNode *targetNode = nullptr;
+          for (auto &node : nodes) {
+              if (node.hasMesh) {
+                  targetNode = &node;
+                  break;
+              }
+          }
+          if (!targetNode && !nodes.empty())
+              targetNode = &nodes[0];
+
+          Entity player = world.CreateEntity();
+          world.Add<Transform>(player, transform);
+
+          if (targetNode && targetNode->hasMesh) {
+              world.Add<ModelComponent>(player, targetNode->component);
+              if (targetNode->component.isSkinned) {
+                  std::string defaultClip = AnimationConfig::Clips::PlayerDefault;
+                  const bool defaultExists = std::any_of(clips.begin(), clips.end(), [&](const auto &c) { return c.name == defaultClip; });
+                  if (!defaultExists && !clips.empty()) {
+                      defaultClip = clips.front().name;
+                  }
+                  AnimationTools::InitAnimator(world, player, clips, defaultClip);
+              }
+          } else {
+              world.Add<Model>(player, modelPath);
+          }
+
+          world.Add<SceneOwnedTag>(player);
+          world.Add<PlayerTag>(player);
+
           playerEntity_ = player;
           ownedEntities_.push_back(player);
 
@@ -150,20 +210,18 @@ class TitleScene : public IScene {
       void CreateWindows(World& world) 
       {
         //確認用オブジェクト
-        DirectX::XMFLOAT3 objPos{0.0f, 0.0f, 0.0f};
+        DirectX::XMFLOAT3 objPos{cfg_WindowPosX.Get(), cfg_WindowPosY.Get(), cfg_WindowPosZ.Get()};
         Transform transform{
-            {objPos}, {0.0f, 0.0f, 0.0f}, {15.0f, 10.0f, 1.0f}};//3Dオブジェクト仮置き値（窓）
+            {objPos}, {cfg_WindowRotX.Get(), cfg_WindowRotY.Get(), cfg_WindowRotZ.Get()}, {cfg_WindowScaleX.Get(), cfg_WindowScaleY.Get(), cfg_WindowScaleZ.Get()}}; 
         MeshRenderer meshrenderer;
         meshrenderer.meshType = MeshType::Cube;
         meshrenderer.color = DirectX::XMFLOAT3{0.0f, 0.0f, 0.0f};
         objectEntity_ = world.Create()
                                    .With<Transform>(transform)
-                                  // .With<MeshRenderer>(meshrenderer)//仮置き分かりにくい色二しかできなかったので確認したいときはココをコメントにしてください。
                                    .With<Model>("Assets/Models/StageObj/Window/window.fbx")
                                    .With<SceneOwnedTag>()
                                    .Build();
         ownedEntities_.push_back(objectEntity_);
-
       }
     
       void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
@@ -173,6 +231,22 @@ class TitleScene : public IScene {
                 sys.input_ = &input;
             }
         });
+
+        if (world.IsAlive(objectEntity_)) {
+            if (auto *t = world.TryGet<Transform>(objectEntity_)) {
+                t->position = {cfg_WindowPosX.Get(), cfg_WindowPosY.Get(), cfg_WindowPosZ.Get()};
+                t->rotation = {cfg_WindowRotX.Get(), cfg_WindowRotY.Get(), cfg_WindowRotZ.Get()};
+                t->scale = {cfg_WindowScaleX.Get(), cfg_WindowScaleY.Get(), cfg_WindowScaleZ.Get()};
+            }
+        }
+
+        if (world.IsAlive(playerEntity_)) {
+            if (auto *t = world.TryGet<Transform>(playerEntity_)) {
+                t->position = {cfg_PlayerPosX.Get(), cfg_PlayerPosY.Get(), cfg_PlayerPosZ.Get()};
+                t->rotation = {cfg_PlayerRotX.Get(), cfg_PlayerRotY.Get(), cfg_PlayerRotZ.Get()};
+                t->scale = {cfg_PlayerScaleX.Get(), cfg_PlayerScaleY.Get(), cfg_PlayerScaleZ.Get()};
+            }
+        }
 
         if (!isTransitioning_) {
             bool trigger = input.GetKeyDown(VK_RETURN);

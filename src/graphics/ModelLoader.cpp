@@ -712,6 +712,49 @@ static std::vector<ModelComponent::AnimationClip> BuildClipsFromAssimp(const aiS
                 }
             }
 
+            // 終端キーフレームが先頭と大きく異なる場合は削除（ループアニメーション用）
+            // FBXエクスポート時に終端にバインドポーズが入ることがあるため
+            auto quatDot = [](const DirectX::XMFLOAT4& a, const DirectX::XMFLOAT4& b) {
+                return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
+            };
+            auto vecDistSq = [](const DirectX::XMFLOAT3& a, const DirectX::XMFLOAT3& b) {
+                float dx = a.x - b.x, dy = a.y - b.y, dz = a.z - b.z;
+                return dx * dx + dy * dy + dz * dz;
+            };
+            
+            const float rotThreshold = 0.3f;
+            const float posThreshold = 100.0f;
+
+            // 先頭キーフレームが2番目と大きく異なる場合は削除
+            if (boneAnim.keyframes.size() >= 3) {
+                const auto& first = boneAnim.keyframes[0];
+                const auto& second = boneAnim.keyframes[1];
+                
+                float rotDiff = 1.0f - std::abs(quatDot(first.rotation, second.rotation));
+                float posDiff = vecDistSq(first.position, second.position);
+                
+                if (rotDiff > rotThreshold || posDiff > posThreshold) {
+                    boneAnim.keyframes.erase(boneAnim.keyframes.begin());
+                }
+            }
+            
+            // 終端キーフレームがその前と大きく異なる場合は削除
+            if (boneAnim.keyframes.size() >= 3) {
+                const auto& last = boneAnim.keyframes.back();
+                const auto& secondLast = boneAnim.keyframes[boneAnim.keyframes.size() - 2];
+                
+                float rotDiff = 1.0f - std::abs(quatDot(last.rotation, secondLast.rotation));
+                float posDiff = vecDistSq(last.position, secondLast.position);
+                
+                if (rotDiff > rotThreshold || posDiff > posThreshold) {
+                    boneAnim.keyframes.pop_back();
+                }
+            }
+            
+            if (!boneAnim.keyframes.empty()) {
+                maxTime = std::max(maxTime, boneAnim.keyframes.back().time);
+            }
+
             clip.boneAnimations.push_back(std::move(boneAnim));
         }
 
