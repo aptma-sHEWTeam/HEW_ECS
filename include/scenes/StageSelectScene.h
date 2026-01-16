@@ -130,6 +130,9 @@ class StageSelectScene : public IScene {
             baseTarget_,
             baseUp_);
 
+        isTransitioning_ = false;
+        zoomTimer_ = 0.0f;
+
         Entity dirLight = world.Create().With<DirectionalLight>().Build();
         if (auto *light = world.TryGet<DirectionalLight>(dirLight)) {
             light->direction = {0.0f, -1.0f, 0.0f};
@@ -193,19 +196,20 @@ class StageSelectScene : public IScene {
         });
 
         // ゲームシーンへの遷移 (Enter / Aボタン)
-        bool enterPressed = input.GetKeyDown(VK_RETURN);
+        bool trigger = input.GetKeyDown(VK_RETURN);
         GamepadSystem *padsystem = ServiceLocator::TryGet<GamepadSystem>();
-        if (padsystem) {
-            if (padsystem->GetAnyButtonDown({GamepadSystem::Button_A, GamepadSystem::Button_Start, GamepadSystem::Button_X})) {
-                enterPressed = true;
+        if (!isTransitioning_) {
+            if (padsystem &&
+                padsystem->GetAnyButtonDown({GamepadSystem::Button_A, GamepadSystem::Button_Start,GamepadSystem::Button_X})) {
+                trigger = true;
             }
-        }
-
-        if (enterPressed) {
-            DEBUGLOG("Enter pressed!");
-            if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
-                manager->ChangeScene("Game", world);
+            if (trigger) {
+                isTransitioning_ = true;
+                zoomTimer_ = 0.0f;
+                DEBUGLOG("StageSelect Camera Zoom Start!");
             }
+        } else {
+            UpdateCameraZoom(world, deltaTime);
         }
 
         // ステージ選択処理
@@ -259,6 +263,11 @@ class StageSelectScene : public IScene {
             transform.position.x = x * cosf(angle) - z * sinf(angle);
             transform.position.z = x * sinf(angle) + z * cosf(angle);
         });
+
+        world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+            sp.worldCount = worldNumber_;
+
+         });
 
         world.Tick(deltaTime);
     }
@@ -333,6 +342,22 @@ class StageSelectScene : public IScene {
         imageSystem_.Shutdown();
     }
 
+    void StartFadeInNormal(World &world) {
+        StartSpriteFade(world, fadeAnimationEntity_, -1, false);
+    }
+
+    void StartSpriteFade(World &world, Entity target, int direction, bool forceOpaque) {
+        if (!world.IsAlive(target))
+            return;
+        AnimationTools::PlaySpriteSheet(world, target, direction, /*loop*/ false, /*reset*/ true);
+        if (auto *img = world.TryGet<UIImage>(target)) {
+            img->opacity = 1.0f;
+        }
+        if (auto *anim = world.TryGet<SpriteSheetAnimation>(target)) {
+            anim->isFinished = false;
+        }
+    }
+
     const Camera &GetCameraSelect() const {
         return camera_;
     }
@@ -348,6 +373,7 @@ class StageSelectScene : public IScene {
     int worldNumber_;
     int maxStage_;
 
+    Entity fadeAnimationEntity_{};
     Entity StageSelectEntity_{};
     TextSystem textSystem_{};
     ImageSystem imageSystem_{};
@@ -440,6 +466,35 @@ class StageSelectScene : public IScene {
             manager->ChangeSceneWithTransition(prevScene.c_str(), world, TransitionDirection::Left);
         }
     }
+
+     void UpdateCameraZoom(World &world, float deltaTime) {
+        //遷移の時間
+        const float duration = 0.3f;
+        zoomTimer_ += deltaTime;
+
+        float progress = std::min(zoomTimer_ / duration, 1.0f);
+
+        //ターゲットに向かってベクトルを計算し、カメラの位置を近づける
+        DirectX::XMVECTOR pos = DirectX::XMLoadFloat3(&camera_.position);
+        DirectX::XMVECTOR target = DirectX::XMLoadFloat3(&camera_.target);
+        DirectX::XMVECTOR dir = DirectX::XMVectorSubtract(target, pos);
+
+        pos = DirectX::XMVectorAdd(pos, DirectX::XMVectorScale(dir, 0.5f * deltaTime));
+        DirectX::XMStoreFloat3(&camera_.position, pos);
+
+        //視野角
+        camera_.Zoom(-0.1f * deltaTime);
+        camera_.Update();
+        //シーン遷移
+        if (progress >= 1.0f) {
+            if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
+                manager->ChangeScene("Game", world);
+            }
+        }
+    }
+
+    bool isTransitioning_ = false;
+    float zoomTimer_ = 0.0f;
 
     // UI creation methods defined in StageUI.cpp
     void CreateTextStageNoFormats();

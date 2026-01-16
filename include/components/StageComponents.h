@@ -70,16 +70,26 @@ struct StageProgress : IComponent {
  * @brief 利用可能なステージ数を探索する
  * @details Assets/StageData/StageCollision/ 配下の DebugStageN / StageN を走査し、room1.csv が存在する最大番号を返す
  */
-inline int GetAvailableStageCount() {
+inline int GetAvailableStageCount(World &world) {
     namespace fs = std::filesystem;
-    const fs::path baseDir{"Assets/StageData/StageCollision"};
+    fs::path worldcount;
+
+    world.ForEach<StageProgress>([&](Entity e, StageProgress &status) {
+        worldcount += (std::to_string(status.worldCount));
+    });
+    fs::path Dir =
+        fs::path("Assets/StageData") /
+        ("World" + worldcount.string()) /
+        "StageCollision";
+
     static std::optional<int> cachedCount;
     static bool hasLoggedMissingDir = false;
     std::error_code ec;
 
-    if (!fs::exists(baseDir, ec) || ec) {
+    if (!fs::exists(Dir, ec) || ec) {
         if (!hasLoggedMissingDir) {
             DEBUGLOG_WARNING("[Stage] StageCollision ディレクトリが見つかりません。既定で1を使用します");
+            DEBUGLOG(Dir.string());
             hasLoggedMissingDir = true;
         }
         return cachedCount.value_or(1);
@@ -87,7 +97,7 @@ inline int GetAvailableStageCount() {
 
     hasLoggedMissingDir = false;
     int maxStage = 1;
-    for (const auto& entry : fs::directory_iterator(baseDir, ec)) {
+    for (const auto &entry : fs::directory_iterator(Dir, ec)) {
         if (ec) break;
         if (!entry.is_directory()) continue;
 

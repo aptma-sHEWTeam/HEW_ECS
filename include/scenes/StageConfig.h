@@ -74,6 +74,7 @@ inline ConfigVar<float> cfg_FloorWallG{"Stage.Wall.Visual", "FloorWallColorG", 0
 inline ConfigVar<float> cfg_FloorWallB{"Stage.Wall.Visual", "FloorWallColorB", 0.5f, "床境界壁の色 B"};
 inline ConfigVar<float> cfg_WallSize{"Stage.Wall.Geometry", "WallSize", 1.0f, "壁ブロックのサイズ"};
 
+
 // FBXパス設定
 inline ConfigVar<std::string> cfg_PlayerFBXPass{"Player.Asset", "PlayerFBXPass", "Assets/Models/Player/obj_player.fbx", "プレイヤーモデル FBX パス"};
 inline ConfigVar<std::string> cfg_FloorFBXPass{"Stage.Floor.Asset", "FloorFBXPass", "Assets/Models/StageObj/Ground/floor_cube.fbx", "床モデル FBX パス"};
@@ -87,6 +88,8 @@ inline ConfigVar<std::string> cfg_AObstacleFBXPass{"Stage.PC.Asset","AObstacle",
 inline ConfigVar<std::string> cfg_BObstacleFBXPass{"Stage.GasPipe.Asset", "BObstacleFBXPass", "Assets/Models/StageObj/GasPipe/obj_obstacleB.fbx", "ガスパイプ障害物 FBX パス"};
 inline ConfigVar<std::string> cfg_CObstacleFBXPass{"Stage.Cube.Asset", "CObstacleFBXPass", "Assets/Models/StageObj/Cub/Cube.fbx", "キューブ障害物 FBX パス"};
 inline ConfigVar<std::string> cfg_WallLightFBXPass{"Stage.Light.Asset", "WallLightFBXPass", "Assets/Models/StageObj/Light/obj_light.fbx", "蛍光灯 FBX パス"};
+
+inline ConfigVar<std::string> cfg_WindowFBXPass{"Title.Window.Asset", "WindowsPass", "Assets/Models/StageObj/Window/window.fbx", "窓付きの壁FBX パス"};
 
 
 // UI設定（ゲーム中 HUD）
