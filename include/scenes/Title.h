@@ -128,7 +128,7 @@ class TitleScene : public IScene {
 
         Entity dirLight = world.Create().With<DirectionalLight>().With<SceneOwnedTag>().Build();
         if (auto *light = world.TryGet<DirectionalLight>(dirLight)) {
-            light->direction = {0.0f, -1.0f, 0.0f};
+            light->direction = {0.3f, -1.0f, 0.3f};
             light->color = {1.0f, 1.0f, 1.0f, 1.0f};
         }
         ownedEntities_.push_back(dirLight);

@@ -205,7 +205,7 @@ class StageSelectScene : public IScene {
         GamepadSystem *padsystem = ServiceLocator::TryGet<GamepadSystem>();
         if (!isTransitioning_) {
             if (padsystem &&
-                padsystem->GetAnyButtonDown({GamepadSystem::Button_A, GamepadSystem::Button_Start,GamepadSystem::Button_X})) {
+                padsystem->GetAnyButtonDown({GamepadSystem::Button_A, GamepadSystem::Button_Start, GamepadSystem::Button_X})) {
                 trigger = true;
             }
             if (trigger) {
@@ -271,8 +271,7 @@ class StageSelectScene : public IScene {
 
         world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
             sp.worldCount = worldNumber_;
-
-         });
+        });
 
         world.Tick(deltaTime);
     }
@@ -296,12 +295,29 @@ class StageSelectScene : public IScene {
                 float offset = manager->GetTransitionOffset();
 
                 if (dir == TransitionDirection::Forward) {
-                    // Zoom In Transition: 奥から手前へ (Title -> StageSelect)
+                    // Zoom In Transition: 奥から拡大しながら自然に出てくる (Title -> StageSelect)
                     float progress = manager->GetTransitionProgress();
-                    float startDist = -100.0f;
-                    float currentDist = startDist * (1.0f - progress);
+
+                    // イージング関数で滑らかに（加速→減速）
+                    float easedProgress = progress < 0.5f
+                                              ? 4.0f * progress * progress * progress
+                                              : 1.0f - powf(-2.0f * progress + 2.0f, 3.0f) / 2.0f;
+
+                    // カメラ位置: 奥(-30)から通常位置(0)へ
+                    float startDist = -30.0f;
+                    float currentDist = startDist * (1.0f - easedProgress);
                     renderCamera.position.z += currentDist;
-                    renderCamera.target.z += currentDist;
+                    renderCamera.target.z += currentDist * 0.5f; // ターゲットは半分だけ動かして奥行き感を出す
+
+                    // FOV: 広め(60度)から通常(40度)へ収束 → 膨らんで近づく感覚
+                    float startFov = DirectX::XMConvertToRadians(60.0f);
+                    float endFov = DirectX::XMConvertToRadians(baseFovY_);
+                    renderCamera.fovY = startFov + (endFov - startFov) * easedProgress;
+
+                    // 軽微な上昇演出: 少し下から上がってくる
+                    float verticalOffset = -2.0f * (1.0f - easedProgress);
+                    renderCamera.position.y += verticalOffset;
+
                     renderCamera.Update();
                 } else if (offset != 0.0f) {
                     // 通常のスライド移動
@@ -478,7 +494,7 @@ class StageSelectScene : public IScene {
         }
     }
 
-     void UpdateCameraZoom(World &world, float deltaTime) {
+    void UpdateCameraZoom(World &world, float deltaTime) {
         //遷移の時間
         const float duration = 0.3f;
         zoomTimer_ += deltaTime;
