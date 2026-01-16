@@ -26,6 +26,8 @@
 #include "app/ServiceLocator.h"
 #include "systems/ModelLoadingSystem.h"
 #include "components/Light.h"
+#include "components/PointLight.h"
+#include "systems/RenderingSystem.h"
 
 /**
  * @class StageSelectScene
@@ -97,6 +99,9 @@ class StageSelectScene : public IScene {
             DEBUGLOG_ERROR("[StageSelect] GfxDevice not found");
             return;
         }
+
+        RenderingSystem::GetInstance().Initialize(gfx->Dev());
+        RenderingSystem::GetInstance().SetAmbientLight({0.15f, 0.15f, 0.2f}, 1.0f);
         if (!textSystem_.Init(*gfx)) {
             DEBUGLOG_ERROR("[StageSelect] TextSystem init failed");
             return;
@@ -426,7 +431,13 @@ class StageSelectScene : public IScene {
         ObjectPos pos;
         pos.basepos = position;
 
-        auto builder = world.Create().With<Transform>(transform).With<ObjectPos>(pos);
+        PointLight light{
+            DirectX::XMFLOAT3{1.0f, 1.0f, 1.0f},
+            1.0f,
+            10.0f};
+        light.SetAttenuation(1.0f, 1.0f, 1.0f);
+
+        auto builder = world.Create().With<Transform>(transform).With<ObjectPos>(pos).With<PointLight>(light);
 
         if (!modelPath.empty()) {
             builder.With<Model>(modelPath);

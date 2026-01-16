@@ -361,6 +361,7 @@ struct App {
                             gs->SetWorldRef(&world_);
                         }
                         sceneManager_.Update(world_, input_, fixedDeltaTime);
+                        world_.Tick(fixedDeltaTime);
                     } catch (const std::exception &e) {
                         DEBUGLOG("[CRITICAL ERROR] シーン更新中に例外が発生: " + std::string(e.what()));
                         PostQuitMessage(-1);
@@ -395,6 +396,9 @@ struct App {
             }
             if (auto *ss = dynamic_cast<StageSelectScene *>(sceneManager_.GetCurrentScene())) {
                 camera_ = ss->GetCameraSelect();
+            }
+            if (auto *ts = dynamic_cast<TitleScene *>(sceneManager_.GetCurrentScene())) {
+                camera_ = ts->GetCameraTitle();
             }
 
             // シーンのレンダリング

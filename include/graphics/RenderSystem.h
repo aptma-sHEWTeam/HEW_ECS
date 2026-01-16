@@ -160,6 +160,11 @@ struct RenderSystem {
 
         auto &gfx = ServiceLocator::Get<GfxDevice>();
 
+        if (!RenderingSystem::GetInstance().Initialize(gfx.Dev())) {
+            DEBUGLOG_ERROR("[RenderSystem] RenderingSystem の初期化に失敗");
+            return false;
+        }
+
         if (!CompileShaders(gfx)) {
             DEBUGLOG_ERROR("[RenderSystem] シェーダーのコンパイルに失敗");
             return false;
@@ -246,6 +251,8 @@ struct RenderSystem {
             return;
 
         DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "[RenderSystem] シャットダウン開始");
+
+        RenderingSystem::GetInstance().Shutdown();
 
         // 統計情報のログ出力
         if (stats_.totalDrawCalls > 0) {

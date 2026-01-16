@@ -43,6 +43,8 @@
  */
 class TitleScene : public IScene {
   public:
+    Camera GetCameraTitle() const { return camera_; }
+
     void OnEnter(World &world) override {
         // 既存実装そのまま
         bool hasGameStatus = false;
@@ -228,6 +230,7 @@ class TitleScene : public IScene {
         world.ForEach<SceneOwnedTag>([&](Entity e, SceneOwnedTag &) {
             world.DestroyEntityWithCause(e, World::Cause::SceneUnload);
         });
+        world.DestroyAllEntitiesImmediate(World::Cause::SceneUnload);
         for (const auto &e : ownedEntities_) {
             if (world.IsAlive(e)) {
                 world.DestroyEntityWithCause(e, World::Cause::SceneUnload);
