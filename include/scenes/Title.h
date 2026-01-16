@@ -22,6 +22,7 @@
 
 #include "components/MeshRenderer.h"
 #include "systems/RenderingSystem.h"
+#include "components/Light.h"
 
 #include "graphics/TextSystem.h"
 #include "graphics/Camera.h"
@@ -50,6 +51,7 @@ class TitleScene : public IScene {
             world.Create().With<GameStatus>().Build();
         }
         Entity modelLoaderSystem = world.Create().With<ModelLoadingSystem>().Build();
+        world.Add<SceneOwnedTag>(modelLoaderSystem);
         ownedEntities_.push_back(modelLoaderSystem);
 
         auto *gfx = ServiceLocator::TryGet<GfxDevice>();
@@ -68,16 +70,23 @@ class TitleScene : public IScene {
 
         //3Dレンダリングの初期化
         RenderingSystem::GetInstance().Initialize(gfx->Dev());
+
+        try {
+            auto &renderer = ServiceLocator::Get<RenderSystem>();
+            renderer.Init();
+        } catch (...) {
+            DEBUGLOG_ERROR("[TitleScene] Failed to init RenderSystem");
+        }
         
 
         float screenWidth = static_cast<float>(gfx->Width());
         float screenHeight = static_cast<float>(gfx->Height());
 
         // UICanvas & Systems
-        Entity canvas = world.Create().With<UICanvas>().Build();
+        Entity canvas = world.Create().With<UICanvas>().With<SceneOwnedTag>().Build();
         ownedEntities_.push_back(canvas);
 
-        Entity uiRenderSystem = world.Create().With<UIRenderSystem>().Build();
+        Entity uiRenderSystem = world.Create().With<UIRenderSystem>().With<SceneOwnedTag>().Build();
         if (auto *renderSys = world.TryGet<UIRenderSystem>(uiRenderSystem)) {
             renderSys->SetTextSystem(&textSystem_);
             renderSys->SetImageSystem(&imageSystem_);
@@ -85,11 +94,18 @@ class TitleScene : public IScene {
         }
         ownedEntities_.push_back(uiRenderSystem);
 
-        Entity uiInteractionSystem = world.Create().With<UIInteractionSystem>().Build();
+        Entity uiInteractionSystem = world.Create().With<UIInteractionSystem>().With<SceneOwnedTag>().Build();
         if (auto *interactionSys = world.TryGet<UIInteractionSystem>(uiInteractionSystem)) {
             interactionSys->SetScreenSize(screenWidth, screenHeight);
         }
         ownedEntities_.push_back(uiInteractionSystem);
+
+        Entity dirLight = world.Create().With<DirectionalLight>().With<SceneOwnedTag>().Build();
+        if (auto *light = world.TryGet<DirectionalLight>(dirLight)) {
+            light->direction = {0.0f, -1.0f, 0.0f};
+            light->color = {1.0f, 1.0f, 1.0f, 1.0f};
+        }
+        ownedEntities_.push_back(dirLight);
         
         CreateWindows(world);
         CreatePlayer(world);
@@ -118,8 +134,8 @@ class TitleScene : public IScene {
           mrPlayer.color = DirectX::XMFLOAT3{1.0f, 1.0f, 1.0f};
           Entity player = world.Create()
                               .With<Transform>(transform)
-                              .With<MeshRenderer>(mrPlayer)
                               .With<Model>(cfg_PlayerFBXPass.Get())
+                              .With<SceneOwnedTag>()
                               .With<PlayerTag>()
                               .Build();
           playerEntity_ = player;
@@ -142,6 +158,7 @@ class TitleScene : public IScene {
                                    .With<Transform>(transform)
                                   // .With<MeshRenderer>(meshrenderer)//仮置き分かりにくい色二しかできなかったので確認したいときはココをコメントにしてください。
                                    .With<Model>("Assets/Models/StageObj/Window/window.fbx")
+                                   .With<SceneOwnedTag>()
                                    .Build();
         ownedEntities_.push_back(objectEntity_);
 
@@ -208,6 +225,9 @@ class TitleScene : public IScene {
       }
 
     void OnExit(World &world) override {
+        world.ForEach<SceneOwnedTag>([&](Entity e, SceneOwnedTag &) {
+            world.DestroyEntityWithCause(e, World::Cause::SceneUnload);
+        });
         for (const auto &e : ownedEntities_) {
             if (world.IsAlive(e)) {
                 world.DestroyEntityWithCause(e, World::Cause::SceneUnload);
@@ -222,6 +242,7 @@ class TitleScene : public IScene {
       }
    
   private:
+    struct SceneOwnedTag : IComponent {};
 
        void UpdateCameraZoom(World &world, float deltaTime) {
          const float duration = 2.0f;
