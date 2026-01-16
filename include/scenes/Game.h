@@ -322,8 +322,6 @@ class GameScene : public IScene {
             }
         });
 
-
-
         // ステージクリア待機中の処理
         if (stageClearActive_) {
             stageClearTimer_ += deltaTime;
@@ -441,9 +439,6 @@ class GameScene : public IScene {
             sys.Render(world);
         });
         
-          
-  
-      
     }
 
     /**
@@ -1117,7 +1112,7 @@ class GameScene : public IScene {
                 angles.push_back(row);
             }
         }
-
+        
         return angles;
     }
 
