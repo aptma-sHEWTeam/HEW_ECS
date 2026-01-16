@@ -326,7 +326,7 @@ class TitleScene : public IScene {
     struct SceneOwnedTag : IComponent {};
 
        void UpdateCameraZoom(World &world, float deltaTime) {
-         const float duration = 4.0f;
+         const float duration = 1.5f;
          zoomTimer_ += deltaTime;
 
          float progress = std::min(zoomTimer_ / duration, 1.0f);
@@ -335,7 +335,7 @@ class TitleScene : public IScene {
          DirectX::XMVECTOR target = DirectX::XMLoadFloat3(&camera_.target);
          DirectX::XMVECTOR dir = DirectX::XMVectorSubtract(target, pos);
 
-         pos = DirectX::XMVectorAdd(pos, DirectX::XMVectorScale(dir, 0.5f * deltaTime));
+         pos = DirectX::XMVectorAdd(pos, DirectX::XMVectorScale(dir, 1.5f * deltaTime));
          DirectX::XMStoreFloat3(&camera_.position, pos);
 
          camera_.Zoom(-0.1f * deltaTime);
