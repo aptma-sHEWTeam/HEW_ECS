@@ -188,7 +188,7 @@ class TitleScene : public IScene {
         }*/
     }
 
-       void OnRender(World &world) {
+       void OnRender(World &world) override {
 
            auto *gfx = ServiceLocator::TryGet<GfxDevice>();
            if (!gfx)
@@ -221,40 +221,30 @@ class TitleScene : public IScene {
           imageSystem_.Shutdown();
       }
    
-  private: 
+  private:
 
-      void UpdateCameraZoom(World& world, float deltaTime)
-      {
-          //遷移の時間
-        const float duration = 2.0f;
-        zoomTimer_ += deltaTime;
+       void UpdateCameraZoom(World &world, float deltaTime) {
+         const float duration = 2.0f;
+         zoomTimer_ += deltaTime;
 
-        float progress = std::min(zoomTimer_ / duration, 1.0f);
+         float progress = std::min(zoomTimer_ / duration, 1.0f);
 
-        //ターゲットに向かってベクトルを計算し、カメラの位置を近づける
-        DirectX::XMVECTOR pos = DirectX::XMLoadFloat3(&camera_.position);
-        DirectX::XMVECTOR target = DirectX::XMLoadFloat3(&camera_.target);
-        DirectX::XMVECTOR dir = DirectX::XMVectorSubtract(target, pos);
+         DirectX::XMVECTOR pos = DirectX::XMLoadFloat3(&camera_.position);
+         DirectX::XMVECTOR target = DirectX::XMLoadFloat3(&camera_.target);
+         DirectX::XMVECTOR dir = DirectX::XMVectorSubtract(target, pos);
 
-        pos = DirectX::XMVectorAdd(pos, DirectX::XMVectorScale(dir, 0.5f * deltaTime));
-        DirectX::XMStoreFloat3(&camera_.position, pos);
+         pos = DirectX::XMVectorAdd(pos, DirectX::XMVectorScale(dir, 0.5f * deltaTime));
+         DirectX::XMStoreFloat3(&camera_.position, pos);
 
-        //視野角
-        camera_.Zoom(-0.1f * deltaTime);
-        camera_.Update();
+         camera_.Zoom(-0.1f * deltaTime);
+         camera_.Update();
 
-        
-                text->color.w = 1.0f - progress;
-            }
-        }
-
-        //シーン遷移
-        if (progress >= 1.0f) {
-            if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
-                manager->ChangeSceneWithTransition("World1_StageSelect", world, TransitionDirection::Forward);
-            }
-        }
-    }
+         if (progress >= 1.0f) {
+             if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
+                 manager->ChangeSceneWithTransition("World1_StageSelect", world, TransitionDirection::Forward);
+             }
+         }
+     }
 
     void CreateTextNormalFormats();
     void CreateTitleSelectUI(World &world);
@@ -262,14 +252,12 @@ class TitleScene : public IScene {
     bool isTransitioning_ = false;
     float zoomTimer_ = 0.0f;
 
-      std::vector<Entity> ownedEntities_{};
+       std::vector<Entity> ownedEntities_{};
 
-      Entity playerEntity_{};
-      Entity objectEntity_{};//3Dオブジェクト用
-     
+       Entity playerEntity_{};
+       Entity objectEntity_{};
 
-    ImageSystem imageSystem_{};
-    Camera camera_{};
-
-      std::vector<Entity> ownedEntities_{};
+       TextSystem textSystem_{};
+       ImageSystem imageSystem_{};
+       Camera camera_{};
 };
