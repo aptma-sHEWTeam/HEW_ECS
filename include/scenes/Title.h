@@ -1,7 +1,7 @@
 /**
  * @file title.h
- * @brief ƒ^ƒCƒgƒ‹ƒV[ƒ“
- * @author —§R—Iñ
+ * @brief ã‚¿ã‚¤ãƒˆãƒ«ã‚·ãƒ¼ãƒ³
+ * @author ç«‹å±±æ‚ æœ”
  * @date 2025
  * @version 1.0
  */
@@ -26,19 +26,19 @@
 
 /**
  * @class TitleScene
- * @brief ƒ[ƒ‹ƒhƒZƒŒƒNƒg2‚ÌƒV[ƒ“
+ * @brief ãƒ¯ãƒ¼ãƒ«ãƒ‰ã‚»ãƒ¬ã‚¯ãƒˆ2ã®ã‚·ãƒ¼ãƒ³
  */
 class TitleScene : public IScene {
   public:
-      void OnEnter(World& world) override {
-        // Šù‘¶À‘•‚»‚Ì‚Ü‚Ü
+    void OnEnter(World &world) override {
+        // æ—¢å­˜å®Ÿè£…ãã®ã¾ã¾
         bool hasGameStatus = false;
         world.ForEach<GameStatus>([&](Entity, GameStatus &) { hasGameStatus = true; });
         if (!hasGameStatus) {
             world.Create().With<GameStatus>().Build();
         }
 
-         auto *gfx = ServiceLocator::TryGet<GfxDevice>();
+        auto *gfx = ServiceLocator::TryGet<GfxDevice>();
         if (!gfx) {
             DEBUGLOG_ERROR("[StageSelect] GfxDevice not found");
             return;
@@ -83,41 +83,34 @@ class TitleScene : public IScene {
 
         isTransitioning_ = false;
         zoomTimer_ = 0.0f;
-
-
     }
-      void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
-        // Šù‘¶À‘•‚»‚Ì‚Ü‚Üi‘O‚Æ“¯‚¶“à—ej
+    void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
+        // æ—¢å­˜å®Ÿè£…ãã®ã¾ã¾ï¼ˆå‰ã¨åŒã˜å†…å®¹ï¼‰
         world.ForEach<UIInteractionSystem>([&](Entity, UIInteractionSystem &sys) {
             if (!sys.input_) {
                 sys.input_ = &input;
             }
         });
 
-        if (!isTransitioning_)
-        {
+        if (!isTransitioning_) {
             bool trigger = input.GetKeyDown(VK_RETURN);
             GamepadSystem *padsystem = ServiceLocator::TryGet<GamepadSystem>();
 
-            if (padsystem && padsystem->GetAnyButtonDown({ GamepadSystem::Button_A, GamepadSystem::Button_Start, GamepadSystem::Button_X }))
-            {
+            if (padsystem && padsystem->GetAnyButtonDown({GamepadSystem::Button_A, GamepadSystem::Button_Start, GamepadSystem::Button_X})) {
                 DEBUGLOG("Enter pressed!");
                 trigger = true;
             }
-            if (trigger)
-            {
+            if (trigger) {
                 isTransitioning_ = true;
                 DEBUGLOG("Camera Zoom Start!");
             }
-        }
-        else
-        {
+        } else {
             UpdateCameraZoom(world, deltaTime);
         }
         /*if (input.GetKeyDown(VK_RETURN)) {
             DEBUGLOG("Enter pressed!");
             if (auto *maneger = ServiceLocator::TryGet<SceneManager>()) {
-                maneger->ChangeScene("World1_StageSelect", world);
+                maneger->ChangeSceneWithTransition("World1_StageSelect", world, TransitionDirection::Forward);
             }
         }
 
@@ -126,42 +119,40 @@ class TitleScene : public IScene {
             if (padsystem->GetAnyButtonDown({GamepadSystem::Button_A, GamepadSystem::Button_Start, GamepadSystem::Button_X})) {
                 DEBUGLOG("Enter pressed!");
                 if (auto *maneger = ServiceLocator::TryGet<SceneManager>()) {
-                    maneger->ChangeScene("World1_StageSelect", world);
+                    maneger->ChangeSceneWithTransition("World1_StageSelect", world, TransitionDirection::Forward);
                 }
             }
         }*/
-      }
+    }
 
-       void OnRender(World &world) {
-          world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
-              MeshRenderer renderer;
-              sys.Render(world);
-          });
-      }
+    void OnRender(World &world) {
+        world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
+            MeshRenderer renderer;
+            sys.Render(world);
+        });
+    }
 
-       void OnExit(World &world) override {
-          for (const auto &e : ownedEntities_) {
-              if (world.IsAlive(e)) {
-                  world.DestroyEntityWithCause(e, World::Cause::SceneUnload);
-              }
-          }
-          ownedEntities_.clear();
+    void OnExit(World &world) override {
+        for (const auto &e : ownedEntities_) {
+            if (world.IsAlive(e)) {
+                world.DestroyEntityWithCause(e, World::Cause::SceneUnload);
+            }
+        }
+        ownedEntities_.clear();
 
-          textSystem_.Shutdown();
-          imageSystem_.Shutdown();
-      }
-   
-  private: 
+        textSystem_.Shutdown();
+        imageSystem_.Shutdown();
+    }
 
-      void UpdateCameraZoom(World& world, float deltaTime)
-      {
-          //‘JˆÚ‚ÌŠÔ
+  private:
+    void UpdateCameraZoom(World &world, float deltaTime) {
+        //é·ç§»ã®æ™‚é–“
         const float duration = 2.0f;
         zoomTimer_ += deltaTime;
-        
+
         float progress = std::min(zoomTimer_ / duration, 1.0f);
-      
-        //ƒ^[ƒQƒbƒg‚ÉŒü‚©‚Á‚ÄƒxƒNƒgƒ‹‚ğŒvZ‚µAƒJƒƒ‰‚ÌˆÊ’u‚ğ‹ß‚Ã‚¯‚é
+
+        //ã‚¿ãƒ¼ã‚²ãƒƒãƒˆã«å‘ã‹ã£ã¦ãƒ™ã‚¯ãƒˆãƒ«ã‚’è¨ˆç®—ã—ã€ã‚«ãƒ¡ãƒ©ã®ä½ç½®ã‚’è¿‘ã¥ã‘ã‚‹
         DirectX::XMVECTOR pos = DirectX::XMLoadFloat3(&camera_.position);
         DirectX::XMVECTOR target = DirectX::XMLoadFloat3(&camera_.target);
         DirectX::XMVECTOR dir = DirectX::XMVectorSubtract(target, pos);
@@ -169,47 +160,41 @@ class TitleScene : public IScene {
         pos = DirectX::XMVectorAdd(pos, DirectX::XMVectorScale(dir, 0.5f * deltaTime));
         DirectX::XMStoreFloat3(&camera_.position, pos);
 
-        //‹–ìŠp
+        //è¦–é‡è§’
         camera_.Zoom(-0.1f * deltaTime);
         camera_.Update();
 
-        //UI‚ÌƒtƒF[ƒh
-        for (auto &entity : ownedEntities_)
-        {
-            //¶ƒXƒ‰ƒCƒh(ˆÚ“®‚·‚é‘¬“xİ’è)
-            if (auto* transform = world.TryGet<UITransform>(entity))
-            {
-                transform->position.x -= 800.0f * deltaTime;
+        //UIã®ãƒ•ã‚§ãƒ¼ãƒ‰
+        for (auto &entity : ownedEntities_) {
+            //å·¦ã‚¹ãƒ©ã‚¤ãƒ‰(ç§»å‹•ã™ã‚‹é€Ÿåº¦è¨­å®š)
+            if (auto *transform = world.TryGet<UITransform>(entity)) {
+                //transform->position.x -= 800.0f * deltaTime; // Disabled for zoom transition
             }
-            if (auto* image = world.TryGet<UIImage>(entity))
-            {
+            if (auto *image = world.TryGet<UIImage>(entity)) {
                 image->opacity = 1.0f - progress;
             }
-            if (auto* text = world.TryGet<UIText>(entity))
-            {
+            if (auto *text = world.TryGet<UIText>(entity)) {
                 text->color.w = 1.0f - progress;
             }
         }
 
-        //ƒV[ƒ“‘JˆÚ
-        if (progress >= 1.0f)
-        {
-            if (auto* manager = ServiceLocator::TryGet<SceneManager>())
-            {
-                manager->ChangeScene("World1_StageSelect", world);
+        //ã‚·ãƒ¼ãƒ³é·ç§»
+        if (progress >= 1.0f) {
+            if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
+                manager->ChangeSceneWithTransition("World1_StageSelect", world, TransitionDirection::Forward);
             }
         }
-      }
+    }
 
-      void CreateTextNormalFormats();
-      void CreateTitleSelectUI(World &world);
+    void CreateTextNormalFormats();
+    void CreateTitleSelectUI(World &world);
 
-      bool isTransitioning_ = false;
-      float zoomTimer_ = 0.0f;
+    bool isTransitioning_ = false;
+    float zoomTimer_ = 0.0f;
 
-      TextSystem textSystem_{};
-      ImageSystem imageSystem_{};
-      Camera camera_{};
+    TextSystem textSystem_{};
+    ImageSystem imageSystem_{};
+    Camera camera_{};
 
-      std::vector<Entity> ownedEntities_{};
+    std::vector<Entity> ownedEntities_{};
 };

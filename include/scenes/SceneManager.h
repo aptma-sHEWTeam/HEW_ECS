@@ -17,9 +17,10 @@
  * @brief Slide transition direction for scene changes
  */
 enum class TransitionDirection {
-    None, // No transition (instant)
-    Left, // Slide left (going to previous)
-    Right // Slide right (going to next)
+    None,   // No transition (instant)
+    Left,   // Slide left (going to previous)
+    Right,  // Slide right (going to next)
+    Forward // Zoom in / Move forward (going deeper)
 };
 
 /**
@@ -183,7 +184,7 @@ class SceneManager {
      * Scenes should multiply this by their screen width to offset all rendering.
      */
     float GetTransitionOffset() const {
-        if (transitionPhase_ == TransitionPhase::None) {
+        if (transitionPhase_ == TransitionPhase::None || transitionDirection_ == TransitionDirection::Forward) {
             return 0.0f;
         }
 
@@ -214,6 +215,13 @@ class SceneManager {
      */
     TransitionPhase GetTransitionPhase() const {
         return transitionPhase_;
+    }
+
+    /**
+     * @brief Get the current transition direction.
+     */
+    TransitionDirection GetTransitionDirection() const {
+        return transitionDirection_;
     }
 
     /**

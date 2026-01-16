@@ -274,15 +274,28 @@ class StageSelectScene : public IScene {
             }
         }
 
-        // トランジション中はカメラをオフセットしてスライド演出
+        // トランジション中はカメラをオフセットして演出
         Camera renderCamera = camera_;
         if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
             if (manager->IsTransitioning()) {
-                // 画面幅に相当する距離でオフセット（カメラ距離に応じて調整）
-                float slideDistance = transitionOffset * 15.0f; // カメラからの距離に応じた係数
-                renderCamera.position.z += slideDistance;
-                renderCamera.target.z += slideDistance;
-                renderCamera.Update();
+                TransitionDirection dir = manager->GetTransitionDirection();
+                float offset = manager->GetTransitionOffset();
+
+                if (dir == TransitionDirection::Forward) {
+                    // Zoom In Transition: 奥から手前へ (Title -> StageSelect)
+                    float progress = manager->GetTransitionProgress();
+                    float startDist = -100.0f;
+                    float currentDist = startDist * (1.0f - progress);
+                    renderCamera.position.z += currentDist;
+                    renderCamera.target.z += currentDist;
+                    renderCamera.Update();
+                } else if (offset != 0.0f) {
+                    // 通常のスライド移動
+                    float slideDistance = offset * 15.0f;
+                    renderCamera.position.z += slideDistance;
+                    renderCamera.target.z += slideDistance;
+                    renderCamera.Update();
+                }
             }
         }
 
