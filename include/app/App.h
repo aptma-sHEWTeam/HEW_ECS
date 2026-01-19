@@ -672,7 +672,7 @@ struct App {
 
         hwnd_ = CreateWindowW(
             wc.lpszClassName,
-            L"はじく！",
+            L"Flip Escape",
             WS_OVERLAPPEDWINDOW,
             CW_USEDEFAULT, CW_USEDEFAULT,
             rc.right - rc.left, rc.bottom - rc.top,
@@ -823,7 +823,7 @@ struct App {
      */
     void UpdateWindowTitle() {
         if (hwnd_) {
-            SetWindowTextW(hwnd_, L"HEW GAME");
+            SetWindowTextW(hwnd_, L"Flip Escape");
         }
     }
 #if ENABLE_DEBUG_VISUALS

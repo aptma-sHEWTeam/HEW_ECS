@@ -123,9 +123,9 @@ public:
 
     /**
      * @brief フレーム開始(画面クリア)
-     * @param[in] r 赤成分(デフォルト: 0.1f)
-     * @param[in] g 緑成分(デフォルト: 0.1f)
-     * @param[in] b 青成分(デフォルト: 0.12f)
+     * @param[in] r 赤成分(デフォルト: 0.20f)
+     * @param[in] g 緑成分(デフォルト: 0.60f)
+     * @param[in] b 青成分(デフォルト: 1.00f)
      * @param[in] a アルファ成分(デフォルト: 1.0f)
      *
      * @details
