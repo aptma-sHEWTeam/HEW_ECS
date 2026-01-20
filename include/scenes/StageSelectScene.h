@@ -11,6 +11,7 @@
 #include <vector>
 #include <algorithm>
 #include <string>
+#include <filesystem>
 #include <array>
 #include <DirectXMath.h>
 
@@ -47,8 +48,15 @@ class StageSelectScene : public IScene {
     // ワールドごとの最大ステージ数定義
     static constexpr int MAX_STAGES_WORLD1 = 3;
     static constexpr int MAX_STAGES_WORLD2 = 4;
-    static constexpr int MAX_STAGES_WORLD3 = 4;
-    static constexpr int MAX_STAGES_WORLD4 = 4;
+    static constexpr int MAX_STAGES_WORLD3 = 5;
+    static constexpr int MAX_STAGES_WORLD4 = 6;
+    struct max_stages {
+        int Stage_Num;
+        int Serial;
+    };
+
+    inline static max_stages ms[4] = {{MAX_STAGES_WORLD1, 1}, {MAX_STAGES_WORLD2, 2}, {MAX_STAGES_WORLD3, 3}, {MAX_STAGES_WORLD4, 4}};
+
 
     /**
      * @brief コンストラクタ
@@ -181,17 +189,30 @@ class StageSelectScene : public IScene {
             CreateObject(world, {-2.5f, 0.0f, 4.33f}, basePath + "2.fbx");
             CreateObject(world, {-2.5f, 0.0f, -4.33f}, basePath + "3.fbx");
         } else {
-            //// World2-4: 4 stages
-            //CreateObject(world, {5.0f, 0.0f, 0.0f}, basePath + "1.fbx");
-            //CreateObject(world, {0.0f, 0.0f, 5.0f}, basePath + "2.fbx");
-            //CreateObject(world, {-5.0f, 0.0f, 0.0f}, basePath + "3.fbx");
-            //CreateObject(world, {0.0f, 0.0f, -5.0f}, basePath + "4.fbx");
-            // World2-4: 現状モデルがないため、World1/Station3.fbx (Assets/Models/SelectObj_ISS/Station/World1/Station3.fbx) を仮で使用
+            int stageCount = maxStage_;
+            if (worldNumber_ >= 1 && worldNumber_ <= 4) {
+                int idx = worldNumber_ - 1;
+                if (ms[idx].Stage_Num > 0) {
+                    stageCount = ms[idx].Stage_Num;
+                }
+            }
+
             std::string fallbackPath = "Assets/Models/SelectObj_ISS/Station/World1/Station3.fbx";
-            CreateObject(world, {5.0f, 0.0f, 0.0f}, fallbackPath);
-            CreateObject(world, {0.0f, 0.0f, 5.0f}, fallbackPath);
-            CreateObject(world, {-5.0f, 0.0f, 0.0f}, fallbackPath);
-            CreateObject(world, {0.0f, 0.0f, -5.0f}, fallbackPath);
+            const float radius = 5.0f;
+            for (int i = 0; i < stageCount; ++i) {
+                // place stations evenly around a circle
+                float angle = static_cast<float>(i) * DirectX::XM_2PI / static_cast<float>(stageCount);
+                float x = cosf(angle) * radius;
+                float z = sinf(angle) * radius;
+
+                std::string modelPath = basePath + std::to_string(i + 1) + ".fbx";
+                std::error_code ec;
+                if (!std::filesystem::exists(modelPath, ec) || ec) {
+                    modelPath = fallbackPath;
+                }
+
+                CreateObject(world, {x, 0.0f, z}, modelPath);
+            }
         }
     }
 
@@ -438,6 +459,7 @@ class StageSelectScene : public IScene {
     struct ObjectPos {
         DirectX::XMFLOAT3 basepos;
     };
+
 
     int worldNumber_;
     int maxStage_;
