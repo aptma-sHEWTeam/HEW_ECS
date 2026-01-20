@@ -288,7 +288,11 @@ class StageSelectScene : public IScene {
         float transitionOffset = 0.0f;
         if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
             if (manager->IsTransitioning()) {
-                transitionOffset = manager->GetTransitionOffset();
+                TransitionDirection dir = manager->GetTransitionDirection();
+                // カメラ回転遷移(Left/Right)時はUIスライドしない
+                if (dir != TransitionDirection::Left && dir != TransitionDirection::Right) {
+                    transitionOffset = manager->GetTransitionOffset();
+                }
             }
         }
 
@@ -309,7 +313,7 @@ class StageSelectScene : public IScene {
                                               : 1.0f - powf(-2.0f * progress + 2.0f, 3.0f) / 2.0f;
 
                     // カメラ位置: 奥(-30)から通常位置(0)へ
-                    float startDist = -30.0f;
+                    float startDist = -40.0f;
                     float currentDist = startDist * (1.0f - easedProgress);
                     renderCamera.position.z += currentDist;
                     renderCamera.target.z += currentDist * 0.5f; // ターゲットは半分だけ動かして奥行き感を出す
@@ -324,11 +328,47 @@ class StageSelectScene : public IScene {
                     renderCamera.position.y += verticalOffset;
 
                     renderCamera.Update();
-                } else if (offset != 0.0f) {
-                    // 通常のスライド移動
-                    float slideDistance = offset * 15.0f;
-                    renderCamera.position.z += slideDistance;
-                    renderCamera.target.z += slideDistance;
+                } else if (dir == TransitionDirection::Right || dir == TransitionDirection::Left) {
+                    // カメラ回転遷移: カメラが120度横を向く演出
+                    float progress = manager->GetTransitionProgress();
+                    TransitionPhase phase = manager->GetTransitionPhase();
+
+                    // イージング
+                    float easedProgress = progress < 0.5f
+                                              ? 4.0f * progress * progress * progress
+                                              : 1.0f - powf(-2.0f * progress + 2.0f, 3.0f) / 2.0f;
+
+                    // 回転方向: Right=負方向(-120度), Left=正方向(+120度)
+                    float maxAngle = DirectX::XMConvertToRadians(120.0f);
+                    if (dir == TransitionDirection::Right) {
+                        maxAngle = -maxAngle;
+                    }
+
+                    // フェーズに応じた回転角度
+                    float currentAngle = 0.0f;
+                    if (phase == TransitionPhase::SlideOut) {
+                        // 出て行く: 0 → 120度
+                        currentAngle = maxAngle * easedProgress;
+                    } else {
+                        // 入ってくる: 逆側120度 → 0（正面を向く）
+                        currentAngle = -maxAngle * (1.0f - easedProgress);
+                    }
+
+                    // カメラ位置から原点へのベースベクトルを回転させる
+                    // 元のターゲット方向: (0,0,0) - cameraPosition_ = (-8, -1.5, 0)
+                    float baseDirX = baseTarget_.x - cameraPosition_.x;
+                    float baseDirZ = baseTarget_.z - cameraPosition_.z;
+
+                    // Y軸周りに回転
+                    float cosA = cosf(currentAngle);
+                    float sinA = sinf(currentAngle);
+                    float rotatedDirX = baseDirX * cosA - baseDirZ * sinA;
+                    float rotatedDirZ = baseDirX * sinA + baseDirZ * cosA;
+
+                    // 新しいターゲット = カメラ位置 + 回転後の方向
+                    renderCamera.target.x = renderCamera.position.x + rotatedDirX;
+                    renderCamera.target.z = renderCamera.position.z + rotatedDirZ;
+
                     renderCamera.Update();
                 }
             }

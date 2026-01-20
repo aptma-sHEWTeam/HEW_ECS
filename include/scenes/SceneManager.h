@@ -61,8 +61,8 @@ class IScene {
 class SceneManager {
   public:
     // Transition configuration
-    static constexpr float TRANSITION_DURATION = 0.35f; // Total duration for slide out/in
-    static constexpr float SCREEN_WIDTH_FACTOR = 1.2f;  // How far to slide (1.0 = full screen width)
+    static constexpr float TRANSITION_DURATION = 0.8f; // Total duration for slide out/in (演出確認用に長め)
+    static constexpr float SCREEN_WIDTH_FACTOR = 1.2f; // How far to slide (1.0 = full screen width)
     /**
      * @brief Initialise manager and enter the first scene.
      * @param startSceneName Name of the scene to activate. May be nullptr.
