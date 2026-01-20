@@ -47,8 +47,20 @@ class StageSelectScene : public IScene {
     // ワールドごとの最大ステージ数定義
     static constexpr int MAX_STAGES_WORLD1 = 3;
     static constexpr int MAX_STAGES_WORLD2 = 4;
-    static constexpr int MAX_STAGES_WORLD3 = 4;
-    static constexpr int MAX_STAGES_WORLD4 = 4;
+    static constexpr int MAX_STAGES_WORLD3 = 5;
+    static constexpr int MAX_STAGES_WORLD4 = 6;
+    struct max_stages {
+        inline static int Stage_Num;
+        inline static int Serial;
+    };
+
+    
+    static max_stages ms[4] = {
+        {1, 3},
+        {2, 4},
+        {3, 5},
+        {4, 6}};
+
 
     /**
      * @brief コンストラクタ
@@ -179,17 +191,10 @@ class StageSelectScene : public IScene {
             CreateObject(world, {-2.5f, 0.0f, 4.33f}, basePath + "2.fbx");
             CreateObject(world, {-2.5f, 0.0f, -4.33f}, basePath + "3.fbx");
         } else {
-            //// World2-4: 4 stages
-            //CreateObject(world, {5.0f, 0.0f, 0.0f}, basePath + "1.fbx");
-            //CreateObject(world, {0.0f, 0.0f, 5.0f}, basePath + "2.fbx");
-            //CreateObject(world, {-5.0f, 0.0f, 0.0f}, basePath + "3.fbx");
-            //CreateObject(world, {0.0f, 0.0f, -5.0f}, basePath + "4.fbx");
-            // World2-4: 現状モデルがないため、World1/Station3.fbx (Assets/Models/SelectObj_ISS/Station/World1/Station3.fbx) を仮で使用
-            std::string fallbackPath = "Assets/Models/SelectObj_ISS/Station/World1/Station3.fbx";
-            CreateObject(world, {5.0f, 0.0f, 0.0f}, fallbackPath);
-            CreateObject(world, {0.0f, 0.0f, 5.0f}, fallbackPath);
-            CreateObject(world, {-5.0f, 0.0f, 0.0f}, fallbackPath);
-            CreateObject(world, {0.0f, 0.0f, -5.0f}, fallbackPath);
+            for (int i = 0; i < worldNumber_; i++) {
+                std::string fallbackPath = "Assets/Models/SelectObj_ISS/Station/World1/Station3.fbx";
+                CreateObject(world, {5.0f, 0.0f, 0.0f}, fallbackPath);
+            }
         }
     }
 
