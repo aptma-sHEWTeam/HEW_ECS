@@ -75,6 +75,7 @@ class SceneManager {
             DEBUGLOG_WARNING("SceneManager::Init() - start scene not found");
             return;
         }
+        SOUND_SYS.StopBGM();
         currentScene_->OnEnter(world);
     }
 
@@ -121,6 +122,7 @@ class SceneManager {
         if (!currentScene_) {
             return;
         }
+        
         currentScene_->OnRender(world);
     }
 

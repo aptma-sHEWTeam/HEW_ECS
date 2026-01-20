@@ -238,7 +238,7 @@ struct PlayerMovement : Behaviour {
             if (maxChargeEffectHandle[i] != -1)
             {
                 EffekseerManager::GetInstance().StopEffectHandle(maxChargeEffectHandle[i]);
-                releaseEffectHandle[i] = -1;
+               maxChargeEffectHandle[i] = -1;
             }
         }
 
@@ -504,6 +504,7 @@ struct PlayerMovement : Behaviour {
                 isCharging_ = true;
                 v->isDecelerating = true; // チャージ中は減速
                 v->isRotate = true;
+                releaseTimer = 0.0f;
                 // チャージ最大時間でMinSpeedまで落とすための減速量を算出（毎秒）
                 v->SlowFactor = (std::max(0.0f, v->speed - v->MinSpeed)) / std::max(0.0001f, chargeMaxTime);
                 float charge = gamepad_->GetLeftStickChargeAmount(chargeMaxTime); (void)charge;
@@ -526,15 +527,16 @@ struct PlayerMovement : Behaviour {
 
                 //SOUND_SYS.PlaySE(cfg_DriftMP3Pass);
             }
+            else
+            {
+                releaseTimer += dt;
+            }
             bool releasedSys = gamepad_->IsLeftStickReleased();
             bool releasedLocal = (wasCharging_ && !chargingNowLocal);
             if (releasedSys || releasedLocal) {
                 float chargeAmount = gamepad_->GetLeftStickChargeAmount(chargeMaxTime);
                 int count = angleFilled ? PlayerConstants::ANGLE_HISTORY_SIZE : angleIndex;
-                
-                releaseTimer = 0.0f;
-                releaseTimer += dt;
-
+              
                 SOUND_SYS.StopSE(cfg_DriftMP3Pass);
 
                 if (count > 0) {
@@ -553,11 +555,6 @@ struct PlayerMovement : Behaviour {
                     }
                 }
                 chargeTimer = 0.0f;
-
-                if (currentEffectState != EffectState::MaxCharge) 
-                {
-                   SwitchEffect(w, self, EffectState::MaxCharge);
-                }
 
                 //0.1秒以上でリリースエフェクトに切り替え 
                 if (releaseTimer > 0.1f && currentEffectState == EffectState::MaxCharge) {

@@ -20,6 +20,7 @@ namespace {
             return XMLoadFloat3(&k.position);
         }
 
+
         if (t <= ch.keyframes.front().time) {
             const auto& k = ch.keyframes.front();
             if (IsNaN(k.position)) return fallback;

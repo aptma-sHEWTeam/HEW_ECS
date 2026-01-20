@@ -375,7 +375,7 @@ struct SwitchCollisionHandler : ICollisionHandler {
                     sp.goalUnlocked = true;
                     DEBUGLOG("スイッチが押されました");
                     //以下SEなど
-                    SOUND_SYS.PlaySE(cfg_CollideMP3Pass.Get());
+                    SOUND_SYS.PlaySE(cfg_KeyMP3Pass.Get());
                 }
             });
             //見た目変更系の処理
