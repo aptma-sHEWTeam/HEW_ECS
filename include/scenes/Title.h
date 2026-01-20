@@ -144,6 +144,9 @@ class TitleScene : public IScene {
             DirectX::XM_PIDIV4, aspect, 0.1f, 1000.0f,
             {0, 0, -10}, {0, 0, 0}, {0, 1, 0});
 
+        //サウンドの初期化
+        SOUND_SYS.Init();
+
         isTransitioning_ = false;
         zoomTimer_ = 0.0f;
         isUiVisible_ = true;
@@ -254,6 +257,7 @@ class TitleScene : public IScene {
             GamepadSystem *padsystem = ServiceLocator::TryGet<GamepadSystem>();
 
             if (padsystem && padsystem->GetAnyButtonDown({GamepadSystem::Button_A, GamepadSystem::Button_Start, GamepadSystem::Button_X})) {
+                SOUND_SYS.PlaySE(cfg_EnterMP3Pass);
                 DEBUGLOG("Enter pressed!");
                 trigger = true;
             }
@@ -265,6 +269,10 @@ class TitleScene : public IScene {
         } else {
             UpdateCameraZoom(world, deltaTime);
         }
+
+        //サウンドの音量設定の更新
+        SOUND_SYS.UpdateVolume();
+
         /*if (input.GetKeyDown(VK_RETURN)) {
             DEBUGLOG("Enter pressed!");
             if (auto *maneger = ServiceLocator::TryGet<SceneManager>()) {
@@ -302,6 +310,8 @@ class TitleScene : public IScene {
                   sys.Render(world);
               });
           }
+
+          SOUND_SYS.PlayBGM(cfg_TitleMP3Pass);
       }
 
     void OnExit(World &world) override {
@@ -317,6 +327,8 @@ class TitleScene : public IScene {
         ownedEntities_.clear();
 
           RenderingSystem::GetInstance().Shutdown();//3Dレンダリング
+
+         
 
           textSystem_.Shutdown();
           imageSystem_.Shutdown();
