@@ -177,6 +177,8 @@ class StageSelectScene : public IScene {
         CreateTextNormalFormats();
         CreateStageSelectUI(world);
 
+
+
         // 3Dオブジェクト(Station)の配置
         std::string worldName = "World" + std::to_string(worldNumber_);
         std::string basePath = "Assets/Models/SelectObj_ISS/Station/" + worldName + "/Station";
@@ -228,6 +230,7 @@ class StageSelectScene : public IScene {
             if (padsystem &&
                 padsystem->GetAnyButtonDown({GamepadSystem::Button_A, GamepadSystem::Button_Start, GamepadSystem::Button_X})) {
                 trigger = true;
+                SOUND_SYS.PlaySE(cfg_EnterMP3Pass);
             }
             if (trigger) {
                 isTransitioning_ = true;
@@ -254,6 +257,7 @@ class StageSelectScene : public IScene {
                 if (stats.selectStage < maxStage_) {
                     stats.selectStage++;
                     targetAngle_ -= DirectX::XM_2PI / maxStage_;
+                    SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
                 } else if (stats.selectStage == maxStage_) {
                     // 次のワールドへ
                     GoToNextWorld(world);
@@ -263,6 +267,7 @@ class StageSelectScene : public IScene {
                 if (stats.selectStage > 1) {
                     stats.selectStage--;
                     targetAngle_ += DirectX::XM_2PI / maxStage_;
+                    SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
                 } else {
                     // 前のワールドへ
                     GoToPrevWorld(world, stats);
@@ -293,6 +298,8 @@ class StageSelectScene : public IScene {
         world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
             sp.worldCount = worldNumber_;
         });
+
+
 
         world.Tick(deltaTime);
     }
@@ -401,6 +408,8 @@ class StageSelectScene : public IScene {
             sys.SetRenderOffset(0.0f); // Reset after rendering
         });
         renderer.Render(world, renderCamera);
+
+        SOUND_SYS.PlayBGM(cfg_TitleMP3Pass);
     }
 
     void OnExit(World &world) override {
@@ -419,7 +428,6 @@ class StageSelectScene : public IScene {
             StageSelectEntity_ = {};
         }
 
-        SOUND_SYS.StopBGM();
         textSystem_.Shutdown();
         imageSystem_.Shutdown();
     }

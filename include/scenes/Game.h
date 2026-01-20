@@ -295,8 +295,7 @@ class GameScene : public IScene {
             DEBUGLOG("[ERROR] ShadowRenderSystem::Initialize() 失敗");
         }
 
-        //サウンドの初期化
-        SOUND_SYS.Init();
+
 
         DEBUGLOG("GameWithUIScene の初期化が正常に完了しました");
     }
@@ -381,8 +380,7 @@ class GameScene : public IScene {
             CheckTimeLimit(world, playerEntity_, cfg_LimitTime);
         }
 
-        //サウンドの音量設定の更新
-        SOUND_SYS.UpdateVolume();
+      
 
         EffekseerManager::GetInstance().Update();
 
@@ -436,6 +434,8 @@ class GameScene : public IScene {
             sys.Render(world);
         });
         
+        SOUND_SYS.PlayBGM(cfg_GameMP3Pass);
+
     }
 
     /**
@@ -901,7 +901,7 @@ class GameScene : public IScene {
                     DEBUGLOG_WARNING("[StageCreate] Stage" + std::to_string(sp.currentStage) + "/room" + std::to_string(nextRoomIndex) + ".csv が見つかりません。ステージクリア扱いにします");
 
                     // ステージクリア演出: テキスト表示して一定時間後にステージセレクトへ
-                    SOUND_SYS.PlayBGM(cfg_ClearMP3Pass);
+                    //SOUND_SYS.PlayBGM(cfg_ClearMP3Pass);
                     stageClearActive_ = true;
                     stageClearTimer_ = 0.0f;
 
