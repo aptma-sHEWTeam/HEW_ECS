@@ -11,6 +11,7 @@
 #include <vector>
 #include <algorithm>
 #include <string>
+#include <filesystem>
 #include <array>
 #include <DirectXMath.h>
 
@@ -50,16 +51,11 @@ class StageSelectScene : public IScene {
     static constexpr int MAX_STAGES_WORLD3 = 5;
     static constexpr int MAX_STAGES_WORLD4 = 6;
     struct max_stages {
-        inline static int Stage_Num;
-        inline static int Serial;
+        int Stage_Num;
+        int Serial;
     };
 
-    
-    static max_stages ms[4] = {
-        {1, 3},
-        {2, 4},
-        {3, 5},
-        {4, 6}};
+    inline static max_stages ms[4] = {{MAX_STAGES_WORLD1, 1}, {MAX_STAGES_WORLD2, 2}, {MAX_STAGES_WORLD3, 3}, {MAX_STAGES_WORLD4, 4}};
 
 
     /**
@@ -191,9 +187,29 @@ class StageSelectScene : public IScene {
             CreateObject(world, {-2.5f, 0.0f, 4.33f}, basePath + "2.fbx");
             CreateObject(world, {-2.5f, 0.0f, -4.33f}, basePath + "3.fbx");
         } else {
-            for (int i = 0; i < worldNumber_; i++) {
-                std::string fallbackPath = "Assets/Models/SelectObj_ISS/Station/World1/Station3.fbx";
-                CreateObject(world, {5.0f, 0.0f, 0.0f}, fallbackPath);
+            int stageCount = maxStage_;
+            if (worldNumber_ >= 1 && worldNumber_ <= 4) {
+                int idx = worldNumber_ - 1;
+                if (ms[idx].Stage_Num > 0) {
+                    stageCount = ms[idx].Stage_Num;
+                }
+            }
+
+            std::string fallbackPath = "Assets/Models/SelectObj_ISS/Station/World1/Station3.fbx";
+            const float radius = 5.0f;
+            for (int i = 0; i < stageCount; ++i) {
+                // place stations evenly around a circle
+                float angle = static_cast<float>(i) * DirectX::XM_2PI / static_cast<float>(stageCount);
+                float x = cosf(angle) * radius;
+                float z = sinf(angle) * radius;
+
+                std::string modelPath = basePath + std::to_string(i + 1) + ".fbx";
+                std::error_code ec;
+                if (!std::filesystem::exists(modelPath, ec) || ec) {
+                    modelPath = fallbackPath;
+                }
+
+                CreateObject(world, {x, 0.0f, z}, modelPath);
             }
         }
     }
@@ -435,6 +451,7 @@ class StageSelectScene : public IScene {
     struct ObjectPos {
         DirectX::XMFLOAT3 basepos;
     };
+
 
     int worldNumber_;
     int maxStage_;
