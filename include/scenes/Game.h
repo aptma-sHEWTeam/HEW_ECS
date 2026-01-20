@@ -533,7 +533,7 @@ class GameScene : public IScene {
         impulseElapsed_ = 0.0f;
         impulseActive_ = true;
     }
-
+    
     /**
      * @brief カメラズームを開始する
      */
