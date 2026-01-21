@@ -153,6 +153,10 @@ class StageSelectScene : public IScene {
             baseTarget_,
             baseUp_);
 
+        skyboxTexture_ = TextureManager::INVALID_TEXTURE;
+        skyboxTextureApplied_ = false;
+        EnsureSkyboxTextureLoaded();
+
         CreateSkybox(world);
 
 #if defined(_DEBUG)
@@ -421,12 +425,15 @@ class StageSelectScene : public IScene {
         float screenWidth = gfx ? static_cast<float>(gfx->Width()) : 1280.0f;
         float uiOffsetX = -transitionOffset * screenWidth;
 
+        renderer.Render(world, renderCamera);
+        if (gfx) {
+            gfx->Ctx()->OMSetDepthStencilState(nullptr, 0);
+        }
         world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
             sys.SetRenderOffset(uiOffsetX);
             sys.Render(world);
-            sys.SetRenderOffset(0.0f); // Reset after rendering
+            sys.SetRenderOffset(0.0f);
         });
-        renderer.Render(world, renderCamera);
 
         SOUND_SYS.PlayBGM(cfg_TitleMP3Pass);
     }
@@ -491,7 +498,7 @@ class StageSelectScene : public IScene {
     // Camera params
     float baseFovY_ = 40.0f;
     float cameraNear_ = 0.1f;
-    float cameraFar_ = 1000.0f;
+    float cameraFar_ = 10000.0f;
     DirectX::XMFLOAT3 baseUp_ = {0.0f, 1.0f, 0.0f};
     DirectX::XMFLOAT3 baseTarget_ = {0.0f, 0.0f, 0.0f};
     DirectX::XMFLOAT3 cameraPosition_ = {8.0f, 1.5f, 0.0f};
@@ -540,9 +547,10 @@ class StageSelectScene : public IScene {
             return;
         }
         const float scale = SanitizeSkyboxScale(cfg_SkyboxScale.Get());
+        const float yawDeg = GetCameraYawDeg(camera_);
         Transform transform{
-            camera_.position,
-            {0.0f, 0.0f, 0.0f},
+            {camera_.position.x, camera_.position.y, camera_.position.z},
+            {0.0f, yawDeg, 0.0f},
             {scale, scale, scale}};
         skyboxEntity_ = world.Create()
                             .With<Transform>(transform)
@@ -559,11 +567,33 @@ class StageSelectScene : public IScene {
         if (auto *t = world.TryGet<Transform>(skyboxEntity_)) {
             const float scale = SanitizeSkyboxScale(cfg_SkyboxScale.Get());
             t->position = camera_.position;
+            t->rotation = {0.0f, GetCameraYawDeg(camera_), 0.0f};
             t->scale = {scale, scale, scale};
         }
     }
 
+    static float GetCameraYawDeg(const Camera &cam) {
+        using namespace DirectX;
+        const XMVECTOR pos = XMLoadFloat3(&cam.position);
+        const XMVECTOR target = XMLoadFloat3(&cam.target);
+        XMVECTOR dir = XMVectorSubtract(target, pos);
+        dir = XMVector3Normalize(dir);
+
+        XMFLOAT3 d{};
+        XMStoreFloat3(&d, dir);
+        const float yawRad = atan2f(d.x, d.z);
+        return DirectX::XMConvertToDegrees(yawRad);
+    }
+
     std::string ResolveSkyboxTexturePath() const {
+        {
+            ConfigVar<std::string> titleSkyboxTexture{"Title.Skybox", "TexturePath", "", ""};
+            const std::string titlePath = titleSkyboxTexture.Get();
+            if (!titlePath.empty()) {
+                return titlePath;
+            }
+        }
+
         std::string worldPath;
         switch (worldNumber_) {
             case 1:

@@ -409,6 +409,7 @@ struct RenderSystem {
     Microsoft::WRL::ComPtr<ID3D11Buffer> psLightCb_;
     Microsoft::WRL::ComPtr<ID3D11RasterizerState> rasterState_;
     Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerState_;
+    Microsoft::WRL::ComPtr<ID3D11SamplerState> samplerStateClamp_;
 
     // メッシュキャッシュ
     std::unordered_map<int, std::unique_ptr<MeshData>> meshCache_;
@@ -842,6 +843,15 @@ struct RenderSystem {
             return false;
         }
 
+        sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_CLAMP;
+        sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_CLAMP;
+        sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_CLAMP;
+        hr = gfx.Dev()->CreateSamplerState(&sampDesc, samplerStateClamp_.GetAddressOf());
+        if (FAILED(hr)) {
+            DEBUGLOG_ERROR("[RenderSystem] クランプサンプラーステートの作成失敗 (HRESULT: 0x" + std::to_string(hr) + ")");
+            return false;
+        }
+
         // ラスタライザーステート
         D3D11_RASTERIZER_DESC rsd{};
         rsd.FillMode = D3D11_FILL_SOLID;
@@ -1173,6 +1183,16 @@ struct RenderSystem {
         gfx.Ctx()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     }
 
+    void SetClampSampler(bool enabled, GfxDevice &gfx) {
+        ID3D11SamplerState *samplers[1] = {nullptr};
+        if (enabled) {
+            samplers[0] = samplerStateClamp_.Get();
+        } else {
+            samplers[0] = samplerState_.Get();
+        }
+        gfx.Ctx()->PSSetSamplers(0, 1, samplers);
+    }
+
     /**
 * @brief ライト定数の更新（非使用・互換維持）
      */
@@ -1201,6 +1221,14 @@ struct RenderSystem {
 
             // ワールド行列の計算
             DirectX::XMMATRIX worldMatrix = CalculateWorldMatrix(w, e, *t, worldCache);
+
+            bool useClampSampler = false;
+            if (mc.useLighting < 0.5f && mc.normalTexture == TextureManager::INVALID_TEXTURE) {
+                if (auto *hier = w.TryGet<TransformHierarchy>(e)) {
+                    useClampSampler = (hier->GetParent() == Entity{});
+                }
+            }
+            SetClampSampler(useClampSampler, gfx);
 
                 // 定数バッファの更新
             UpdateVSConstants(gfx, worldMatrix, cam, mc.uvOffset, mc.uvScale);
@@ -1265,6 +1293,10 @@ struct RenderSystem {
             gfx.Ctx()->IASetVertexBuffers(0, 1, mc.vertexBuffer.GetAddressOf(), &stride, &offset);
             gfx.Ctx()->IASetIndexBuffer(mc.indexBuffer.Get(), DXGI_FORMAT_R16_UINT, 0);
             gfx.Ctx()->DrawIndexed(mc.indexCount, 0, 0);
+
+            if (useClampSampler) {
+                SetClampSampler(false, gfx);
+            }
 
             stats_.modelsRendered++;
             stats_.totalDrawCalls++;
