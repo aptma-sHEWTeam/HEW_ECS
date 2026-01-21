@@ -212,6 +212,34 @@ class StageSelectScene : public IScene {
                 CreateObject(world, {x, 0.0f, z}, modelPath);
             }
         }
+
+        //2DUI
+        UITransform FadeAnimation;
+        FadeAnimation.position = {0.0f, 0.0f};
+        FadeAnimation.size = {1280.0f, 720.0f};
+        FadeAnimation.anchor = {0.0f, 0.0f};
+        FadeAnimation.pivot = {0.0f, 0.0f};
+
+        UIImage fade{L"./Assets/Textures/Fade/tex_fade.png"};
+        fade.opacity = 1.0f;
+        fade.keepAspect = false;
+        fade.overlay = true;
+
+        SpriteSheetDesc fadeDesc = SpriteSheetDesc::Grid(
+            AnimationConfig::UI::FadeFrames,
+            AnimationConfig::UI::FadeCols,
+            0.1f,
+            /*loop*/ false);
+        fadeDesc.playOnStart = false;
+
+        Entity fadeOutAnimation = world.Create()
+                                      .With<UITransform>(FadeAnimation)
+                                      .With<UIImage>(fade)
+                                      .Build();
+        AnimationTools::AddSpriteSheet(world, fadeOutAnimation, fadeDesc);
+
+        ownedEntities_.push_back(fadeOutAnimation);
+        fadeEntity_ = fadeOutAnimation;
     }
 
     void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
@@ -233,9 +261,11 @@ class StageSelectScene : public IScene {
                 isTransitioning_ = true;
                 zoomTimer_ = 0.0f;
                 DEBUGLOG("StageSelect Camera Zoom Start!");
+                StartFadeInNormal(world);
             }
         } else {
             UpdateCameraZoom(world, deltaTime);
+            StartFadeInNormal(world);
         }
 
         // ステージ選択処理
@@ -425,7 +455,7 @@ class StageSelectScene : public IScene {
     }
 
     void StartFadeInNormal(World &world) {
-        StartSpriteFade(world, fadeAnimationEntity_, -1, false);
+        StartSpriteFade(world,fadeEntity_, -1, false);
     }
 
     void StartSpriteFade(World &world, Entity target, int direction, bool forceOpaque) {
@@ -456,8 +486,8 @@ class StageSelectScene : public IScene {
     int worldNumber_;
     int maxStage_;
 
-    Entity fadeAnimationEntity_{};
     Entity StageSelectEntity_{};
+    Entity fadeEntity_{};
     TextSystem textSystem_{};
     ImageSystem imageSystem_{};
     Camera camera_{};
