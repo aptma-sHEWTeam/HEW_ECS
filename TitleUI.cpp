@@ -69,6 +69,7 @@ void TitleScene::CreateTitleSelectUI(World &world) {
     startImgTr.pivot = {0.0f, 0.0f};
 
     UIImage startImg{L"./Assets/Textures/UI/TitleUI/title4.png "};
+    UIImage startselectImg{L"./Assets/Textures/UI/TitleUI/title3.png "};
     startImg.opacity = 1.0f;
     startImg.keepAspect = true;
 
@@ -87,6 +88,7 @@ void TitleScene::CreateTitleSelectUI(World &world) {
     restartImgTr.pivot = {0.0f, 0.0f};
 
     UIImage restartImg{L"./Assets/Textures/UI/TitleUI/title6.png"};
+    UIImage restartselectImg{L"./Assets/Textures/UI/TitleUI/title5.png"};
     restartImg.opacity = 1.0f;
     restartImg.keepAspect = true;
 
@@ -105,6 +107,7 @@ void TitleScene::CreateTitleSelectUI(World &world) {
     exitImgTr.pivot = {0.0f, 0.0f};
 
     UIImage exitImg{L"./Assets/Textures/UI/TitleUI/title2.png"};
+    UIImage exitselectImg{L"./Assets/Textures/UI/TitleUI/title1.png"};
     exitImg.opacity = 1.0f;
     exitImg.keepAspect = true;
 

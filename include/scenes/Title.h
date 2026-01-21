@@ -207,7 +207,6 @@ class TitleScene : public IScene {
           playerEntity_ = player;
           ownedEntities_.push_back(player);
 
-          // CreatePlayer(world);
       }
     
 
@@ -254,7 +253,20 @@ class TitleScene : public IScene {
 
         if (!isTransitioning_) {
             bool trigger = input.GetKeyDown(VK_RETURN);
+            
+
             GamepadSystem *padsystem = ServiceLocator::TryGet<GamepadSystem>();
+
+
+
+            /*if (padsystem) {
+                if (padsystem->GetAnyButtonDown({GamepadSystem::Button_DPad_Up, GamepadSystem::Button_B}))
+                    TitleSelect::Start;
+                    upPressed = true;
+                if (padsystem->GetAnyButtonDown({GamepadSystem::Button_DPad_Down, GamepadSystem::Button_X}))
+                    downPressed = true;
+            }*/
+
 
             if (padsystem && padsystem->GetAnyButtonDown({GamepadSystem::Button_A, GamepadSystem::Button_Start, GamepadSystem::Button_X})) {
                 SOUND_SYS.PlaySE(cfg_EnterMP3Pass);
@@ -359,6 +371,12 @@ class TitleScene : public IScene {
              }
          }
      }
+
+     enum TitleSelect {
+        Start = 0,
+        Restart = 1,
+        Exit = 2
+     };
 
     void CreateTextNormalFormats();
     void CreateTitleSelectUI(World &world);
