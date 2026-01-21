@@ -131,7 +131,7 @@ void StageSelectScene::CreateStageSelectUI(World &world) {
     circleImgTr.anchor = {0.0f, 0.0f};
     circleImgTr.pivot = {0.0f, 0.0f};
 
-    UIImage circleImg{L"./Assets/Textures/StageUI/maru.png"};
+    UIImage circleImg{L"Assets/Textures/StageUI/maru.png"};
     circleImg.opacity = 1.0f;
     circleImg.keepAspect = true;
 
@@ -148,7 +148,7 @@ void StageSelectScene::CreateStageSelectUI(World &world) {
     crossImgTr.anchor = {0.0f, 0.0f};
     crossImgTr.pivot = {0.0f, 0.0f};
 
-    UIImage crossImg{L"./Assets/Textures/StageUI/batu.png"};
+    UIImage crossImg{L"Assets/Textures/StageUI/batu.png"};
     crossImg.opacity = 1.0f;
     crossImg.keepAspect = true;
 

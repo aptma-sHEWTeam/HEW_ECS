@@ -36,11 +36,13 @@
 #include "components/Rotator.h"
 #include "components/Light.h"
 #include "components/MeshRenderer.h"
+#include "components/ModelComponent.h"
 #include "components/Collision.h"
 #include "components/GameStats.h"
 #include "components/StageComponents.h"
 #include "components/EmissiveMaterial.h"
 #include "components/EmissivePulse.h"
+#include "components/TransformHierarchy.h"
 #include "components/PointLight.h"
 #include "systems/RenderingSystem.h"
 #include "input/GamepadSystem.h"
@@ -77,6 +79,9 @@ inline static ConfigVar<float> cfg_StickZoomTargetSpeed{"Camera.Stick", "StickZo
 // 追加: ステージクリア待機時間
 inline static ConfigVar<float> cfg_StageClearWait{"UI.StageClear", "WaitSeconds", 2.0f, "ステージクリア表示後にシーン遷移するまでの待機時間"};
 inline static ConfigVar<float> cfg_SkyboxSpeed{"Skybox", "Speed", 0.05f, "スカイボックスの回転速度(rad/sec)"};
+inline static ConfigVar<std::string> cfg_GameSkyboxModelPath{"Game.Skybox", "ModelPath", "Assets/Textures/Skybox/skybox.fbx", "ゲーム: Skybox モデルパス"};
+inline static ConfigVar<std::string> cfg_GameSkyboxTexturePath{"Game.Skybox", "TexturePath", "Assets/Textures/Skybox/Sky_Box.png", "ゲーム: Skybox テクスチャパス"};
+inline static ConfigVar<float> cfg_GameSkyboxScale{"Game.Skybox", "Scale", 200.0f, "ゲーム: Skybox スケール"};
 //プレイヤーが壁に衝突/タイムアップした時のフェード表示の遅延時間
 inline static ConfigVar<float> cfg_DeathAnimationFadeTime{"DeathFadeAnimation", "Time", 1.0f, "壁に衝突/タイムアップ時のフェード表示遅延時間"};
 
@@ -245,6 +250,16 @@ class GameScene : public IScene {
         Entity modelLoaderSystem = world.Create().With<ModelLoadingSystem>().Build();
         ownedEntities_.push_back(modelLoaderSystem);
 
+        CreateSkybox(world);
+
+#if defined(_DEBUG)
+        static bool skyboxScaleTestsRan = false;
+        if (!skyboxScaleTestsRan) {
+            RunSkyboxScaleTests();
+            skyboxScaleTestsRan = true;
+        }
+#endif
+
         // ステージ進行状況に応じてステージデータを読み込む
         int initialStage = 1;
         const int maxStage = GetAvailableStageCount(world);
@@ -259,11 +274,11 @@ class GameScene : public IScene {
             status.currentStage = desiredStage;
             status.currentRoom = 1; // ステージ開始時は常にroom1から
 
-            auto stagePath = ResolveStageRoomCsvPath(status.worldCount,desiredStage, status.currentRoom);
+            auto stagePath = ResolveStageRoomCsvPath(status.worldCount, desiredStage, status.currentRoom);
             if (!stagePath) {
                 DEBUGLOG_ERROR("[StageCreate] ステージ" + std::to_string(desiredStage) + " の room" + std::to_string(status.currentRoom) + ".csv が見つかりません。Stage1/room1へフォールバックします");
                 status.currentStage = 1;
-                status.selectStage = 1;      
+                status.selectStage = 1;
                 status.currentRoom = 1;
                 stagePath = ResolveStageRoomCsvPath(1, 1, 1);
             }
@@ -294,8 +309,6 @@ class GameScene : public IScene {
         if (!shadowSystem_.Initialize(*gfx)) {
             DEBUGLOG("[ERROR] ShadowRenderSystem::Initialize() 失敗");
         }
-
-
 
         DEBUGLOG("GameWithUIScene の初期化が正常に完了しました");
     }
@@ -372,6 +385,8 @@ class GameScene : public IScene {
 
         // カメラリアクションを更新
         UpdateCameraReaction(deltaTime * timeScale, world);
+        UpdateSkyboxTransform(world);
+        UpdateSkyboxTexture(world);
         ChargCameraAction(world);
         RenderingSystem::GetInstance().UpdateLights(world, camera_.position);
 
@@ -379,8 +394,6 @@ class GameScene : public IScene {
         if (world.IsAlive(playerEntity_)) {
             CheckTimeLimit(world, playerEntity_, cfg_LimitTime);
         }
-
-      
 
         EffekseerManager::GetInstance().Update();
 
@@ -433,9 +446,8 @@ class GameScene : public IScene {
         world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
             sys.Render(world);
         });
-        
-        SOUND_SYS.PlayBGM(cfg_GameMP3Pass);
 
+        SOUND_SYS.PlayBGM(cfg_GameMP3Pass);
     }
 
     /**
@@ -521,7 +533,7 @@ class GameScene : public IScene {
         impulseElapsed_ = 0.0f;
         impulseActive_ = true;
     }
-
+    
     /**
      * @brief カメラズームを開始する
      */
@@ -585,8 +597,8 @@ class GameScene : public IScene {
         SOUND_SYS.PlaySE(cfg_Fire1MP3Pass.Get());
     }
 
-    void UpdateDeathFade(World &world, float dt/*dt*/) {
-        
+    void UpdateDeathFade(World &world, float dt /*dt*/) {
+
         if (isDeathFadePending_) {
             deathFadeTimer_ -= dt;
             if (deathFadeTimer_ <= 0.0f) {
@@ -615,7 +627,6 @@ class GameScene : public IScene {
                 img->opacity = 0.0f;
         }
     }
-   
 
     void UpdateGoal(World &world) {
         bool pressed = false;
@@ -630,7 +641,6 @@ class GameScene : public IScene {
                 }
             }
         }
-        
     }
 
     /** @brief カメラオブジェクトへのconst参照を取得 */
@@ -699,7 +709,7 @@ class GameScene : public IScene {
             return;
         ResetChargeState();
 
-         // 再生用フェードアニメーションを開始
+        // 再生用フェードアニメーションを開始
         deathFadeTimer_ = cfg_DeathAnimationFadeTime;
         isDeathFadePending_ = true;
 
@@ -725,7 +735,7 @@ class GameScene : public IScene {
                 v->boostSpeed = 0.0f;
             }
         }
-       
+
         pendingRespawn_ = true;
         respawnPlayer_ = player;
         respawnTimer_ = cfg_WallHitRespawnDelay.Get() + deathFadeTimer_;
@@ -888,7 +898,7 @@ class GameScene : public IScene {
     // =========================================
     // 更新ヘルパーメソッド
     // =========================================
-     
+
     void HandleStageAdvance(World &world) {
         world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
             if (sp.requestAdvance) {
@@ -896,7 +906,7 @@ class GameScene : public IScene {
 
                 // 同一ステージ内で次のroomへ
                 const int nextRoomIndex = sp.currentRoom + 1;
-                auto nextRoomPath = ResolveStageRoomCsvPath(sp.worldCount,sp.currentStage, nextRoomIndex);
+                auto nextRoomPath = ResolveStageRoomCsvPath(sp.worldCount, sp.currentStage, nextRoomIndex);
                 if (!nextRoomPath) {
                     DEBUGLOG_WARNING("[StageCreate] Stage" + std::to_string(sp.currentStage) + "/room" + std::to_string(nextRoomIndex) + ".csv が見つかりません。ステージクリア扱いにします");
 
@@ -1037,15 +1047,15 @@ class GameScene : public IScene {
         DEBUGLOG("ResolveSpeedUpCsvPath");
         namespace fs = std::filesystem;
         fs::path worldcount = ("World");
-        world.ForEach<StageProgress>([&](Entity,StageProgress &sp) {
-             worldcount += (std::to_string(sp.worldCount));
-            });
+        world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+            worldcount += (std::to_string(sp.worldCount));
+        });
 
         fs::path collisionPath(stageCollisionCsvPath);
-        
+
         const fs::path stageDir = collisionPath.parent_path().filename();
         if (stageDir.empty()) {
-            DEBUGLOG("パスが空です:"+ stageCollisionCsvPath);
+            DEBUGLOG("パスが空です:" + stageCollisionCsvPath);
             return std::nullopt;
         }
 
@@ -1059,7 +1069,7 @@ class GameScene : public IScene {
         return speedUpPath.string();
     }
 
-    std::optional<std::string> ResolveMovingObstacleCsvPath(World &world,const std::string &stageCollisionCsvPath) {
+    std::optional<std::string> ResolveMovingObstacleCsvPath(World &world, const std::string &stageCollisionCsvPath) {
         namespace fs = std::filesystem;
         fs::path collisionPath(stageCollisionCsvPath);
 
@@ -1073,7 +1083,7 @@ class GameScene : public IScene {
             return std::nullopt;
         }
 
-        fs::path movePath = fs::path("Assets/StageData")/ worldcount /("UniqueObj/Move") / stageDir / collisionPath.filename();
+        fs::path movePath = fs::path("Assets/StageData") / worldcount / ("UniqueObj/Move") / stageDir / collisionPath.filename();
         std::error_code ec;
         if (!fs::exists(movePath, ec) || ec) {
             return std::nullopt;
@@ -1109,7 +1119,7 @@ class GameScene : public IScene {
                 angles.push_back(row);
             }
         }
-        
+
         return angles;
     }
 
@@ -1308,7 +1318,7 @@ class GameScene : public IScene {
 
     void CreateBlockByType(World &world, const DirectX::XMFLOAT3 &position, int blockType, int stagenumber) {
         float lightangle = 0;
-        DirectX::XMFLOAT3 lightpos = {0.0f,-2.0f,0.0f};
+        DirectX::XMFLOAT3 lightpos = {0.0f, -2.0f, 0.0f};
         switch (blockType) {
             case 1:
                 CreateStart(world, position);
@@ -1334,24 +1344,24 @@ class GameScene : public IScene {
             case 54:
                 CreateObjectC(world, position, blockType);
                 break;
-            case 60://右向き
-                lightpos.x += 0.15f;                
+            case 60: //右向き
+                lightpos.x += 0.15f;
                 CreateWallLight(world, position, lightangle, lightpos);
                 CreateWall(world, position);
                 break;
-            case 61://上向き
+            case 61: //上向き
                 lightpos.z += 0.15f;
                 lightangle = 270.0f;
                 CreateWallLight(world, position, lightangle, lightpos);
                 CreateWall(world, position);
                 break;
-            case 62://左向き
+            case 62: //左向き
                 lightpos.x += -0.15f;
                 lightangle = 180.0f;
                 CreateWallLight(world, position, lightangle, lightpos);
                 CreateWall(world, position);
                 break;
-            case 63://下向き
+            case 63: //下向き
                 lightpos.z += -0.15f;
                 lightangle = 90.0f;
                 CreateWallLight(world, position, lightangle, lightpos);
@@ -1541,8 +1551,6 @@ class GameScene : public IScene {
                 return;
 
             world.ForEach<StageProgress>([](Entity, StageProgress &sp) {
-                
-
                 if (sp.clearedThisStage)
                     return;
                 sp.clearedThisStage = true;
@@ -1579,19 +1587,19 @@ class GameScene : public IScene {
         Transform transform{diffPosition, {0.0f, angle, 0.0f}, {1.0f, 1.0f, 1.0f}};
 
         PointLight wallLight;
-        wallLight.color = {1.0f,0.7f,0.5f};
+        wallLight.color = {1.0f, 0.7f, 0.5f};
         ApplyDefaultPointLightParams(wallLight);
         wallLight.range = 1.0f;
         wallLight.intensity = 1.0f;
         wallLight.constantAttenuation = 0.1f;
 
         Entity walllightEntity = world.Create()
-                                .With<Transform>(transform)
-                                .With<Model>(cfg_WallLightFBXPass)
-                                .With<StageElementTag>()
-                                .With<PointLight>(wallLight)
-                                .With<WallLightTag>()
-                                .Build();
+                                     .With<Transform>(transform)
+                                     .With<Model>(cfg_WallLightFBXPass)
+                                     .With<StageElementTag>()
+                                     .With<PointLight>(wallLight)
+                                     .With<WallLightTag>()
+                                     .Build();
 
         stageOwnedEntities_.push_back(walllightEntity);
     }
@@ -1959,7 +1967,7 @@ class GameScene : public IScene {
 
         // ステージに紐づく加速角度CSVをロードしてLoadAngleコンポーネントに反映
         {
-            auto angleCsvPath = ResolveSpeedUpCsvPath(world,activeStagePtr->csvPath);
+            auto angleCsvPath = ResolveSpeedUpCsvPath(world, activeStagePtr->csvPath);
             std::vector<std::vector<int>> angles;
             if (angleCsvPath) {
                 angles = LoadAngleCsv(*angleCsvPath);
@@ -1987,7 +1995,7 @@ class GameScene : public IScene {
             }
 
             // 動く障害物CSVもステージごとにロード
-            auto moveCsvPath = ResolveMovingObstacleCsvPath(world,activeStagePtr->csvPath);
+            auto moveCsvPath = ResolveMovingObstacleCsvPath(world, activeStagePtr->csvPath);
             std::vector<MovingObstaclePattern> movePatterns;
             if (moveCsvPath) {
                 movePatterns = LoadMovingObstacleCsv(*moveCsvPath);
@@ -2179,6 +2187,14 @@ class GameScene : public IScene {
         return next;
     }
 
+    static bool IsSkyboxTexturePathValid(const std::string &path) {
+        return !path.empty();
+    }
+
+    static float SanitizeSkyboxScale(float scale) {
+        return std::max(scale, 0.1f);
+    }
+
 #if defined(_DEBUG)
     void RunStickZoomSmoothingTests() {
         {
@@ -2205,6 +2221,14 @@ class GameScene : public IScene {
             assert(std::abs(next.x - current.x) < 1e-6f);
             assert(std::abs(next.y - current.y) < 1e-6f);
         }
+    }
+
+    void RunSkyboxScaleTests() {
+        assert(!IsSkyboxTexturePathValid(""));
+        assert(IsSkyboxTexturePathValid("Assets/Textures/Skybox/Sky_Box.png"));
+        assert(SanitizeSkyboxScale(1.0f) == 1.0f);
+        assert(SanitizeSkyboxScale(0.0f) == 0.1f);
+        assert(SanitizeSkyboxScale(-2.0f) == 0.1f);
     }
 #endif
 
@@ -2257,7 +2281,8 @@ class GameScene : public IScene {
                 currentTarget_ = SmoothStickTarget(currentTarget_, blendedTarget, dt, response, moveSpeed, 1e-3f);
                 float verticalBlendSpeed = std::max(0.5f, cfg_StickZoomTargetSpeed.Get());
                 currentVerticalBlend_ += verticalBlendSpeed * dt;
-                if (currentVerticalBlend_ > 1.0f) currentVerticalBlend_ = 1.0f;
+                if (currentVerticalBlend_ > 1.0f)
+                    currentVerticalBlend_ = 1.0f;
             }
         } else {
             // プレイヤーがいない場合は基準注視点へ戻す
@@ -2269,7 +2294,8 @@ class GameScene : public IScene {
             currentTarget_ = SmoothStickTarget(currentTarget_, blendedTarget, dt, response, moveSpeed, 1e-3f);
             float verticalBlendSpeed = std::max(0.5f, cfg_StickZoomTargetSpeed.Get());
             currentVerticalBlend_ += verticalBlendSpeed * dt;
-            if (currentVerticalBlend_ > 1.0f) currentVerticalBlend_ = 1.0f;
+            if (currentVerticalBlend_ > 1.0f)
+                currentVerticalBlend_ = 1.0f;
         }
 
         // Use the smoothed currentTarget_ as the effective target to apply
@@ -2282,6 +2308,91 @@ class GameScene : public IScene {
 
         camera_.Proj = DirectX::XMMatrixPerspectiveFovLH(camera_.fovY, camera_.aspect, camera_.nearZ, camera_.farZ);
         camera_.Update();
+    }
+
+    void CreateSkybox(World &world) {
+        const std::string modelPath = cfg_GameSkyboxModelPath.Get();
+        if (modelPath.empty()) {
+            DEBUGLOG_ERROR("[GameScene] Skybox model path is empty");
+            return;
+        }
+        const float scale = SanitizeSkyboxScale(cfg_GameSkyboxScale.Get());
+        Transform transform{
+            camera_.position,
+            {0.0f, 0.0f, 0.0f},
+            {scale, scale, scale}};
+        skyboxEntity_ = world.Create()
+                            .With<Transform>(transform)
+                            .With<Model>(modelPath)
+                            .Build();
+        ownedEntities_.push_back(skyboxEntity_);
+        skyboxTextureApplied_ = false;
+    }
+
+    void UpdateSkyboxTransform(World &world) {
+        if (!world.IsAlive(skyboxEntity_)) {
+            return;
+        }
+        if (auto *t = world.TryGet<Transform>(skyboxEntity_)) {
+            const float scale = SanitizeSkyboxScale(cfg_GameSkyboxScale.Get());
+            t->position = camera_.position;
+            t->scale = {scale, scale, scale};
+        }
+    }
+
+    bool EnsureSkyboxTextureLoaded() {
+        if (skyboxTexture_ != TextureManager::INVALID_TEXTURE) {
+            return true;
+        }
+        const std::string texturePath = cfg_GameSkyboxTexturePath.Get();
+        if (!IsSkyboxTexturePathValid(texturePath)) {
+            DEBUGLOG_ERROR("[GameScene] Skybox texture path is empty");
+            return false;
+        }
+        std::error_code ec;
+        if (!std::filesystem::exists(texturePath, ec) || ec) {
+            DEBUGLOG_ERROR("[GameScene] Skybox texture not found: " + texturePath);
+            return false;
+        }
+        auto &texMgr = ServiceLocator::Get<TextureManager>();
+        skyboxTexture_ = texMgr.LoadFromFile(texturePath.c_str());
+        if (skyboxTexture_ == TextureManager::INVALID_TEXTURE) {
+            DEBUGLOG_ERROR("[GameScene] Failed to load skybox texture: " + texturePath);
+            return false;
+        }
+        return true;
+    }
+
+    bool ApplySkyboxTextureRecursive(World &world, Entity entity) {
+        bool applied = false;
+        if (auto *mc = world.TryGet<ModelComponent>(entity)) {
+            mc->texture = skyboxTexture_;
+            mc->useLighting = 0.0f;
+            applied = true;
+        }
+        if (auto *hier = world.TryGet<TransformHierarchy>(entity)) {
+            for (const auto &child : hier->GetChildren()) {
+                if (world.IsAlive(child)) {
+                    applied |= ApplySkyboxTextureRecursive(world, child);
+                }
+            }
+        }
+        return applied;
+    }
+
+    void UpdateSkyboxTexture(World &world) {
+        if (skyboxTextureApplied_) {
+            return;
+        }
+        if (!world.IsAlive(skyboxEntity_)) {
+            return;
+        }
+        if (!EnsureSkyboxTextureLoaded()) {
+            return;
+        }
+        if (ApplySkyboxTextureRecursive(world, skyboxEntity_)) {
+            skyboxTextureApplied_ = true;
+        }
     }
 
     void UpdateChargeOverlay(World &world, float dt) {
@@ -2435,6 +2546,7 @@ class GameScene : public IScene {
     Entity goalEntity_{};
     int goalEffectHandle_ = -1;
     Entity gimmickEntity_{};
+    Entity skyboxEntity_{};
     Entity fadeAnimationEntity_{};
     Entity deathFadeAnimationEntity_{};
     float deathFadeTimer_ = 0.0f;
@@ -2492,11 +2604,12 @@ class GameScene : public IScene {
     float stickZoomTarget_ = 0.0f;
     float stickZoomCurrent_ = 0.0f;
     float stickZoomRatioCurrent_ = 0.0f; ///< スティックズーム時の現在の寄り率（0〜1）
+    TextureManager::TextureHandle skyboxTexture_ = TextureManager::INVALID_TEXTURE;
+    bool skyboxTextureApplied_ = false;
 
     DirectX::XMFLOAT3 baseTarget_ = {0.0f, 0.0f, 0.0f};
     float skyboxRotation_ = 0.0f;
 };
-
 
 // =========================================
 // 衝突ハンドラーの実装（GameScene定義後）
@@ -2534,7 +2647,7 @@ inline void WallCollisionHandler::OnCollisionEnter(World &w, Entity self, Entity
         bool isGoalTransition = false;
 
         auto *tEffect = w.TryGet<PlayerMovement>(other);
-        tEffect->SwitchEffect(w,other, PlayerMovement::EffectState::Idle);
+        tEffect->SwitchEffect(w, other, PlayerMovement::EffectState::Idle);
 
         w.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
             if (sp.goalTransitioning)
