@@ -30,6 +30,7 @@ struct GameUIUpdater : Behaviour {
     int cachedWorldCount = 1;
     Entity startplayer_;
     
+    
 
     void OnUpdate(World &w, Entity self, float dt) override {
         w.ForEach<GameStatus>([&](Entity e, GameStatus &stats) {
@@ -59,11 +60,19 @@ struct GameUIUpdater : Behaviour {
             //経過時間表示の更新
             if (auto *timeText = w.TryGet<UIText>(timeTextEntity_)) {
                 std::wstringstream ss;
-                int minutes = static_cast<int>(stats.elapsedTime) / 60;
+              
+                int seconds = static_cast<int>(stats.elapsedTime);
+                int milliseconds = static_cast<int>((stats.elapsedTime - seconds) * 100);
+
+                  ss << L" " << std::setw(2) << std::setfill(L'0') << seconds
+                   << L":" << std::setw(2) << std::setfill(L'0') << milliseconds;
+                timeText->text = ss.str(); 
+
+                 /* int minutes = static_cast<int>(stats.elapsedTime) / 60;
                 int seconds = static_cast<int>(stats.elapsedTime) % 60;
                 ss << L" " << std::setw(2) << std::setfill(L'0') << minutes
                    << L":" << std::setw(2) << std::setfill(L'0') << seconds;
-                timeText->text = ss.str();
+                timeText->text = ss.str();*/
             }
 
             //スタートのカウントダウン時間の更新
@@ -103,7 +112,7 @@ struct GameUIUpdater : Behaviour {
             }
 
         });
-
+       
         // ステージの更新
         w.ForEach<StageProgress>([&](Entity e, StageProgress &sp) {
             RefreshRoomCount(sp.worldCount,sp.currentStage);

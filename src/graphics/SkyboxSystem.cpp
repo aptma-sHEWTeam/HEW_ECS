@@ -5,8 +5,9 @@
 
 #pragma comment(lib, "d3dcompiler.lib")
 
-bool SkyboxSystem::Initialize(GfxDevice& gfx) {
-    if (initialized_) return true;
+bool SkyboxSystem::Initialize(GfxDevice &gfx) {
+    if (initialized_)
+        return true;
 
     if (!CreateShaders(gfx)) {
         DEBUGLOG_ERROR("SkyboxSystem: Failed to compile shaders");
@@ -29,7 +30,7 @@ bool SkyboxSystem::Initialize(GfxDevice& gfx) {
     bd.ByteWidth = sizeof(VSConstants);
     bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     bd.CPUAccessFlags = 0;
-    
+
     if (FAILED(gfx.Dev()->CreateBuffer(&bd, nullptr, constantBuffer_.GetAddressOf()))) {
         DEBUGLOG_ERROR("SkyboxSystem: Failed to create constant buffer");
         return false;
@@ -53,27 +54,31 @@ void SkyboxSystem::Shutdown() {
     initialized_ = false;
 }
 
-void SkyboxSystem::Render(GfxDevice& gfx, const Camera& camera, float rotationY) {
-    if (!initialized_ || textureHandle_ == TextureManager::INVALID_TEXTURE) return;
+void SkyboxSystem::Render(GfxDevice &gfx, const Camera &camera, float rotationY) {
+    if (!initialized_ || textureHandle_ == TextureManager::INVALID_TEXTURE)
+        return;
 
-    auto* context = gfx.Ctx();
-    auto& texMgr = ServiceLocator::Get<TextureManager>();
-    auto* srv = texMgr.GetSRV(textureHandle_);
-    if (!srv) return;
+    auto *context = gfx.Ctx();
+    auto &texMgr = ServiceLocator::Get<TextureManager>();
+    auto *srv = texMgr.GetSRV(textureHandle_);
+    if (!srv)
+        return;
 
     // Save previous state (optional, but good practice. For now assume full overwrite)
-    
+
     // Calculate Matrix
     // Skybox should be centered at camera, so view matrix translation is removed (or just use position = 0 relative to camera)
     // Actually, Skybox is usually rendered with View(Rotation) * Proj
-    
+
     DirectX::XMMATRIX view = camera.View; // Use copy to modify
     DirectX::XMMATRIX proj = camera.Proj;
-    
+
     // Remove translation from View Matrix
     DirectX::XMFLOAT4X4 viewF;
     DirectX::XMStoreFloat4x4(&viewF, view);
-    viewF._41 = 0.0f; viewF._42 = 0.0f; viewF._43 = 0.0f;
+    viewF._41 = 0.0f;
+    viewF._42 = 0.0f;
+    viewF._43 = 0.0f;
     view = DirectX::XMLoadFloat4x4(&viewF);
 
     DirectX::XMMATRIX world = DirectX::XMMatrixRotationY(rotationY);
@@ -82,14 +87,14 @@ void SkyboxSystem::Render(GfxDevice& gfx, const Camera& camera, float rotationY)
     DirectX::XMMATRIX worldView = DirectX::XMMatrixTranspose(world * view);
 
     VSConstants cb;
-    DirectX::XMStoreFloat4x4(reinterpret_cast<DirectX::XMFLOAT4X4*>(&cb.WVP.r[0]), wvp);
-    DirectX::XMStoreFloat4x4(reinterpret_cast<DirectX::XMFLOAT4X4*>(&cb.WorldView.r[0]), worldView);
+    DirectX::XMStoreFloat4x4(reinterpret_cast<DirectX::XMFLOAT4X4 *>(&cb.WVP.r[0]), wvp);
+    DirectX::XMStoreFloat4x4(reinterpret_cast<DirectX::XMFLOAT4X4 *>(&cb.WorldView.r[0]), worldView);
     context->UpdateSubresource(constantBuffer_.Get(), 0, nullptr, &cb, 0, 0);
 
     // Set States
     context->OMSetDepthStencilState(depthStencilState_.Get(), 0);
     context->RSSetState(rasterizerState_.Get());
-    
+
     // Set Shaders & Buffers
     context->IASetInputLayout(layout_.Get());
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -111,14 +116,14 @@ void SkyboxSystem::Render(GfxDevice& gfx, const Camera& camera, float rotationY)
     // Reset Depth State (Important for subsequent opaque rendering if this was first, but usually this is last)
     // If last, we are fine. If first, logic is different.
     // If we rely on default state being DepthWrite=On, DepthFunc=Less, we should restore it.
-    // D3D11 has no "Restore Default" easily. 
+    // D3D11 has no "Restore Default" easily.
     // Usually RenderSystem sets its own state every frame. RenderSystem::SetupPipeline does.
     // So if RenderSystem is called BEFORE Skybox, and Skybox is LAST, it's fine.
     context->OMSetDepthStencilState(nullptr, 0);
 }
 
-bool SkyboxSystem::CreateShaders(GfxDevice& gfx) {
-    const char* vsCode = R"(
+bool SkyboxSystem::CreateShaders(GfxDevice &gfx) {
+    const char *vsCode = R"(
         cbuffer SkyboxConstant : register(b0) {
             float4x4 WVP;
             float4x4 WorldView;
@@ -133,7 +138,7 @@ bool SkyboxSystem::CreateShaders(GfxDevice& gfx) {
             return output;
         }
     )";
-    const char* psCode = R"(
+    const char *psCode = R"(
         Texture2D gTexture : register(t0);
         SamplerState gSampler : register(s0);
         static const float PI = 3.14159265f;
@@ -161,25 +166,24 @@ bool SkyboxSystem::CreateShaders(GfxDevice& gfx) {
     gfx.Dev()->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(), nullptr, &ps_);
 
     D3D11_INPUT_ELEMENT_DESC desc[] = {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 }
-    };
+        {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0}};
     gfx.Dev()->CreateInputLayout(desc, 1, vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(), &layout_);
 
     return true;
 }
 
-bool SkyboxSystem::CreateCubeMesh(GfxDevice& gfx) {
+bool SkyboxSystem::CreateCubeMesh(GfxDevice &gfx) {
     float size = 10.0f; // Size doesn't matter much as it's centered and always far plane, but give it some size.
     // 8 vertices
     DirectX::XMFLOAT3 vertices[] = {
         {-size, -size, -size},
-        {-size,  size, -size},
-        { size,  size, -size},
-        { size, -size, -size},
-        {-size, -size,  size},
-        {-size,  size,  size},
-        { size,  size,  size},
-        { size, -size,  size},
+        {-size, size, -size},
+        {size, size, -size},
+        {size, -size, -size},
+        {-size, -size, size},
+        {-size, size, size},
+        {size, size, size},
+        {size, -size, size},
     };
 
     // CCW Winding for inside view? No, usually indices are for outside.
@@ -194,7 +198,7 @@ bool SkyboxSystem::CreateCubeMesh(GfxDevice& gfx) {
         1, 5, 6, 1, 6, 2, // Top
         4, 0, 3, 4, 3, 7  // Bottom
     };
-    
+
     indexCount_ = 36;
 
     D3D11_BUFFER_DESC vbd = {};
@@ -216,7 +220,7 @@ bool SkyboxSystem::CreateCubeMesh(GfxDevice& gfx) {
     return true;
 }
 
-bool SkyboxSystem::CreateStates(GfxDevice& gfx) {
+bool SkyboxSystem::CreateStates(GfxDevice &gfx) {
     // Depth State: Less Equal, ZWrite Off (since we are at far plane/background)
     // Actually, if we draw LAST, we want LessEqual (pass if equal to far plane).
     D3D11_DEPTH_STENCIL_DESC dsd = {};

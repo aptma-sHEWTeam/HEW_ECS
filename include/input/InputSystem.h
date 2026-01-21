@@ -137,7 +137,10 @@ public:
                 keyStates_[i] = static_cast<uint8_t>(wasDown ? KeyState::Pressed : KeyState::Down);
             } else {
                 keyStates_[i] = static_cast<uint8_t>(wasDown ? KeyState::Up : KeyState::None);
+              
             }
+            float moveX = 0.0f;
+            float moveY = 0.0f;
         }
         
         POINT pt;

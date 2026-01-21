@@ -132,20 +132,24 @@ inline ConfigVar<float> cfg_StartLightRange{"Stage.Start.Light", "StartLightRang
 inline ConfigVar<float> cfg_GoalLightRange{"Stage.Goal.Light", "GoalLightRange", 8.0f, "ゴール地点のライト照射距離"};
 
 //サウンド設定
-inline ConfigVar<std::string> cfg_ColdMP3Pass{"Stage.Cold.SE", "ColdMP3Pass","Assets/Sound/SE/cold.mp3", "はじき時の風音"};
-inline ConfigVar<std::string> cfg_CollideMP3Pass{"Stage.Collide.SE", "CollideMP3Pass","Assets/Sound/SE/collide.mp3", "衝突時の音"};
-inline ConfigVar<std::string> cfg_DeathMP3Pass{"Stage.Death.SE", "DeathMP3Pass","Assets/Sound/SE/death.mp3", "死亡時の音"};
-inline ConfigVar<std::string> cfg_DriftMP3Pass{"Stage.Drift.SE", "DriftMP3Pass","Assets/Sound/SE/drift.mp3", "ドリフト音"};
-inline ConfigVar<std::string> cfg_Fire1MP3Pass{"Stage.Fire1.SE", "Fire1MP3Pass","Assets/Sound/SE/fire1.mp3", "ジェットパック段階音１"};
-inline ConfigVar<std::string> cfg_Fire2MP3Pass{"Stage.Fire2.SE", "Fire2MP3Pass","Assets/Sound/SE/fire2.mp3", "ジェットパック段階音２"};
-inline ConfigVar<std::string> cfg_Fire3MP3Pass{"Stage.Fire3.SE", "Fire3MP3Pass","Assets/Sound/SE/fire3.mp3", "ジェットパック段階音３"};
-inline ConfigVar<std::string> cfg_SirenMP3Pass{"Stage.Siren.SE", "SirenMP3Pass","Assets/Sound/SE/siren.mp3", "警報音"};
-inline ConfigVar<std::string> cfg_StartMP3Pass{"Stage.Start.SE", "StartMP3Pass","Assets/Sound/SE/start.mp3", "スタート時の音"};
-inline ConfigVar<std::string> cfg_SpeedUpMP3Pass{"Stage.SpeedUp.SE", "SpeedUpMP3Pass","Assets/Sound/SE/speedup.mp3", "加速板の音"};
-inline ConfigVar<std::string> cfg_WarpDownMP3Pass{"Stage.WarpDown.SE", "WarpDownMP3Pass","Assets/Sound/SE/warpdown.mp3", "ワープから出る音"};
-inline ConfigVar<std::string> cfg_WarpUpMP3Pass{"Stage.WarpUp.SE", "WarpUpMP3Pass","Assets/Sound/SE/warpup.mp3", "ワープに入ったときの音"};
-inline ConfigVar<std::string> cfg_ClearMP3Pass{"Stage.Clear.BGM", "ClearMP3Pass","Assets/Sound/BGM/clear.mp3", "クリア時のBGM"};
-inline ConfigVar<std::string> cfg_SelectMP3Pass{"Stage.Select.BGM", "SelectMP3Pass","Assets/Sound/DemoBGM/Demo_Title&StageSelect_20260106.mp3", "セレクト画面のBGM"};
+inline ConfigVar<std::string> cfg_ColdMP3Pass{"Stage.Cold.SE", "ColdMP3Pass","Assets/Sound/DemoSE/cold.mp3", "はじき時の風音"};
+inline ConfigVar<std::string> cfg_CollideMP3Pass{"Stage.Collide.SE", "CollideMP3Pass","Assets/Sound/DemoSE/collide.mp3", "衝突時の音"};
+inline ConfigVar<std::string> cfg_DeathMP3Pass{"Stage.Death.SE", "DeathMP3Pass","Assets/Sound/DemoSE/death.mp3", "死亡時の音"};
+inline ConfigVar<std::string> cfg_DriftMP3Pass{"Stage.Drift.SE", "DriftMP3Pass","Assets/Sound/DemoSE/drift.mp3", "ドリフト音"};
+inline ConfigVar<std::string> cfg_Fire1MP3Pass{"Stage.Fire1.SE", "Fire1MP3Pass","Assets/Sound/DemoSE/fire1.mp3", "ジェットパック段階音１"};
+inline ConfigVar<std::string> cfg_Fire2MP3Pass{"Stage.Fire2.SE", "Fire2MP3Pass","Assets/Sound/DemoSE/fire2.mp3", "ジェットパック段階音２"};
+inline ConfigVar<std::string> cfg_Fire3MP3Pass{"Stage.Fire3.SE", "Fire3MP3Pass","Assets/Sound/DemoSE/fire3.mp3", "ジェットパック段階音３"};
+inline ConfigVar<std::string> cfg_SirenMP3Pass{"Stage.Siren.SE", "SirenMP3Pass","Assets/Sound/DemoSE/siren.mp3", "警報音"};
+inline ConfigVar<std::string> cfg_StartMP3Pass{"Stage.Start.SE", "StartMP3Pass","Assets/Sound/DemoSE/start.mp3", "スタート時の音"};
+inline ConfigVar<std::string> cfg_SpeedUpMP3Pass{"Stage.SpeedUp.SE", "SpeedUpMP3Pass","Assets/Sound/DemoSE/speedup.mp3", "加速板の音"};
+inline ConfigVar<std::string> cfg_WarpDownMP3Pass{"Stage.WarpDown.SE", "WarpDownMP3Pass","Assets/Sound/DemoSE/warpdown.mp3", "ワープから出る音"};
+inline ConfigVar<std::string> cfg_WarpUpMP3Pass{"Stage.WarpUp.SE", "WarpUpMP3Pass","Assets/Sound/DemoSE/warpup.mp3", "ワープに入ったときの音"};
+inline ConfigVar<std::string> cfg_EnterMP3Pass{"Stage.Enter.SE", "EnterMP3Pass","Assets/Sound/DemoSE/enter.mp3", "決定ボタンを押した音"};
+inline ConfigVar<std::string> cfg_SelectMP3Pass{"Stage.Select.SE", "SelectMP3Pass","Assets/Sound/DemoSE/select.mp3", "選択を移動させた音"};
+inline ConfigVar<std::string> cfg_KeyMP3Pass{"Stage.Key.SE", "KeyMP3Pass","Assets/Sound/DemoSE/key.mp3", "鍵が開いた音"};
+inline ConfigVar<std::string> cfg_ClearMP3Pass{"Stage.Clear.BGM", "ClearMP3Pass","Assets/Sound/DemoBGM/clearBGM20260119.mp3", "クリア時のBGM"};
+inline ConfigVar<std::string> cfg_TitleMP3Pass{"Stage.Title.BGM", "TitleMP3Pass","Assets/Sound/DemoBGM/titleBGM.mp3", "タイトル画面のBGM"};
+inline ConfigVar<std::string> cfg_GameMP3Pass{"Stage.Game.BGM", "GameMP3Pass","Assets/Sound/DemoBGM/escape20260119.mp3", "ゲーム画面のBGM"};
 inline ConfigVar<float> cfg_MasterVolume{"Stage.Master.Volume", "MasterVolume", 1.0f, "マスタの大きさ"};
 inline ConfigVar<float> cfg_BGMVolume{"Stage.BGM.Volume", "BGMVolume", 1.0f, "BGMの大きさ"};
 inline ConfigVar<float> cfg_SEVolume{"Stage.SE.Volume", "SEVolume", 0.6f, "SEの大きさ"};
