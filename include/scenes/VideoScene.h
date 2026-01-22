@@ -141,6 +141,8 @@ public:
             }
         }
 
+        SOUND_SYS.PlayBGM(cfg_ClearMP3Pass);
+
         world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
             sys.Render(world);
         });

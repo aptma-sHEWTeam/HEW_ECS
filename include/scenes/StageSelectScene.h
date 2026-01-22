@@ -11,6 +11,8 @@
 #include <vector>
 #include <algorithm>
 #include <string>
+#include <filesystem>
+#include <cassert>
 #include <array>
 #include <DirectXMath.h>
 
@@ -26,8 +28,11 @@
 #include "app/ServiceLocator.h"
 #include "systems/ModelLoadingSystem.h"
 #include "components/Light.h"
+#include "components/ModelComponent.h"
 #include "components/PointLight.h"
+#include "components/TransformHierarchy.h"
 #include "systems/RenderingSystem.h"
+#include "graphics/TextureManager.h"
 
 /**
  * @class StageSelectScene
@@ -43,12 +48,25 @@ class StageSelectScene : public IScene {
     inline static ConfigVar<float> cfg_UICountR{"UI.StageSelect.Counter", "CountColorR", 0.0f, "ステージセレクトカウンタの色 R"};
     inline static ConfigVar<float> cfg_UICountG{"UI.StageSelect.Counter", "CountColorG", 1.0f, "ステージセレクトカウンタの色 G"};
     inline static ConfigVar<float> cfg_UICountB{"UI.StageSelect.Counter", "CountColorB", 1.0f, "ステージセレクトカウンタの色 B"};
+    inline static ConfigVar<std::string> cfg_SkyboxModelPath{"StageSelect.Skybox", "ModelPath", "Assets/Textures/Skybox/skybox.fbx", "ステージセレクト: Skybox モデルパス"};
+    inline static ConfigVar<std::string> cfg_SkyboxTexturePath{"StageSelect.Skybox", "TexturePath", "Assets/Textures/Skybox/Sky_Box.png", "ステージセレクト: Skybox テクスチャパス"};
+    inline static ConfigVar<std::string> cfg_SkyboxWorld1TexturePath{"StageSelect.Skybox.World1", "TexturePath", "", "ステージセレクト: World1 Skybox テクスチャパス"};
+    inline static ConfigVar<std::string> cfg_SkyboxWorld2TexturePath{"StageSelect.Skybox.World2", "TexturePath", "", "ステージセレクト: World2 Skybox テクスチャパス"};
+    inline static ConfigVar<std::string> cfg_SkyboxWorld3TexturePath{"StageSelect.Skybox.World3", "TexturePath", "", "ステージセレクト: World3 Skybox テクスチャパス"};
+    inline static ConfigVar<std::string> cfg_SkyboxWorld4TexturePath{"StageSelect.Skybox.World4", "TexturePath", "", "ステージセレクト: World4 Skybox テクスチャパス"};
+    inline static ConfigVar<float> cfg_SkyboxScale{"StageSelect.Skybox", "Scale", 200.0f, "ステージセレクト: Skybox スケール"};
 
     // ワールドごとの最大ステージ数定義
     static constexpr int MAX_STAGES_WORLD1 = 3;
     static constexpr int MAX_STAGES_WORLD2 = 4;
-    static constexpr int MAX_STAGES_WORLD3 = 4;
-    static constexpr int MAX_STAGES_WORLD4 = 4;
+    static constexpr int MAX_STAGES_WORLD3 = 5;
+    static constexpr int MAX_STAGES_WORLD4 = 6;
+    struct max_stages {
+        int Stage_Num;
+        int Serial;
+    };
+
+    inline static max_stages ms[4] = {{MAX_STAGES_WORLD1, 1}, {MAX_STAGES_WORLD2, 2}, {MAX_STAGES_WORLD3, 3}, {MAX_STAGES_WORLD4, 4}};
 
     /**
      * @brief コンストラクタ
@@ -133,6 +151,20 @@ class StageSelectScene : public IScene {
             baseTarget_,
             baseUp_);
 
+        skyboxTexture_ = TextureManager::INVALID_TEXTURE;
+        skyboxTextureApplied_ = false;
+        EnsureSkyboxTextureLoaded();
+
+        CreateSkybox(world);
+
+#if defined(_DEBUG)
+        static bool skyboxScaleTestsRan = false;
+        if (!skyboxScaleTestsRan) {
+            RunSkyboxScaleTests();
+            skyboxScaleTestsRan = true;
+        }
+#endif
+
         isTransitioning_ = false;
         zoomTimer_ = 0.0f;
 
@@ -177,17 +209,30 @@ class StageSelectScene : public IScene {
             CreateObject(world, {-2.5f, 0.0f, 4.33f}, basePath + "2.fbx");
             CreateObject(world, {-2.5f, 0.0f, -4.33f}, basePath + "3.fbx");
         } else {
-            //// World2-4: 4 stages
-            //CreateObject(world, {5.0f, 0.0f, 0.0f}, basePath + "1.fbx");
-            //CreateObject(world, {0.0f, 0.0f, 5.0f}, basePath + "2.fbx");
-            //CreateObject(world, {-5.0f, 0.0f, 0.0f}, basePath + "3.fbx");
-            //CreateObject(world, {0.0f, 0.0f, -5.0f}, basePath + "4.fbx");
-            // World2-4: 現状モデルがないため、World1/Station3.fbx (Assets/Models/SelectObj_ISS/Station/World1/Station3.fbx) を仮で使用
+            int stageCount = maxStage_;
+            if (worldNumber_ >= 1 && worldNumber_ <= 4) {
+                int idx = worldNumber_ - 1;
+                if (ms[idx].Stage_Num > 0) {
+                    stageCount = ms[idx].Stage_Num;
+                }
+            }
+
             std::string fallbackPath = "Assets/Models/SelectObj_ISS/Station/World1/Station3.fbx";
-            CreateObject(world, {5.0f, 0.0f, 0.0f}, fallbackPath);
-            CreateObject(world, {0.0f, 0.0f, 5.0f}, fallbackPath);
-            CreateObject(world, {-5.0f, 0.0f, 0.0f}, fallbackPath);
-            CreateObject(world, {0.0f, 0.0f, -5.0f}, fallbackPath);
+            const float radius = 5.0f;
+            for (int i = 0; i < stageCount; ++i) {
+                // place stations evenly around a circle
+                float angle = static_cast<float>(i) * DirectX::XM_2PI / static_cast<float>(stageCount);
+                float x = cosf(angle) * radius;
+                float z = sinf(angle) * radius;
+
+                std::string modelPath = basePath + std::to_string(i + 1) + ".fbx";
+                std::error_code ec;
+                if (!std::filesystem::exists(modelPath, ec) || ec) {
+                    modelPath = fallbackPath;
+                }
+
+                CreateObject(world, {x, 0.0f, z}, modelPath);
+            }
         }
     }
 
@@ -205,6 +250,7 @@ class StageSelectScene : public IScene {
             if (padsystem &&
                 padsystem->GetAnyButtonDown({GamepadSystem::Button_X})) {
                 trigger = true;
+                SOUND_SYS.PlaySE(cfg_EnterMP3Pass);
             }
             if (trigger) {
                 isTransitioning_ = true;
@@ -214,6 +260,9 @@ class StageSelectScene : public IScene {
         } else {
             UpdateCameraZoom(world, deltaTime);
         }
+
+        UpdateSkyboxTransform(world);
+        UpdateSkyboxTexture(world);
 
         // ステージ選択処理
         world.ForEach<StageProgress>([&](Entity, StageProgress &stats) {
@@ -256,6 +305,7 @@ class StageSelectScene : public IScene {
                 if (stats.selectStage < maxStage_) {
                     stats.selectStage++;
                     targetAngle_ -= DirectX::XM_2PI / maxStage_;
+                    SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
                 } else if (stats.selectStage == maxStage_) {
                     // 次のワールドへ
                     stats.selectStage = 1;
@@ -266,6 +316,7 @@ class StageSelectScene : public IScene {
                 if (stats.selectStage > 1) {
                     stats.selectStage--;
                     targetAngle_ += DirectX::XM_2PI / maxStage_;
+                    SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
                 } else {
                     // 前のワールドへ
                     GoToPrevWorld(world, stats);
@@ -398,12 +449,17 @@ class StageSelectScene : public IScene {
         float screenWidth = gfx ? static_cast<float>(gfx->Width()) : 1280.0f;
         float uiOffsetX = -transitionOffset * screenWidth;
 
+        renderer.Render(world, renderCamera);
+        if (gfx) {
+            gfx->Ctx()->OMSetDepthStencilState(nullptr, 0);
+        }
         world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
             sys.SetRenderOffset(uiOffsetX);
             sys.Render(world);
-            sys.SetRenderOffset(0.0f); // Reset after rendering
+            sys.SetRenderOffset(0.0f);
         });
-        renderer.Render(world, renderCamera);
+
+        SOUND_SYS.PlayBGM(cfg_TitleMP3Pass);
     }
 
     void OnExit(World &world) override {
@@ -422,7 +478,6 @@ class StageSelectScene : public IScene {
             StageSelectEntity_ = {};
         }
 
-        SOUND_SYS.StopBGM();
         textSystem_.Shutdown();
         imageSystem_.Shutdown();
     }
@@ -467,7 +522,7 @@ class StageSelectScene : public IScene {
     // Camera params
     float baseFovY_ = 40.0f;
     float cameraNear_ = 0.1f;
-    float cameraFar_ = 1000.0f;
+    float cameraFar_ = 10000.0f;
     DirectX::XMFLOAT3 baseUp_ = {0.0f, 1.0f, 0.0f};
     DirectX::XMFLOAT3 baseTarget_ = {0.0f, 0.0f, 0.0f};
     DirectX::XMFLOAT3 cameraPosition_ = {8.0f, 1.5f, 0.0f};
@@ -479,6 +534,9 @@ class StageSelectScene : public IScene {
 
     std::vector<Entity> ownedEntities_{};
     std::vector<Entity> objectOwnedEntities_;
+    Entity skyboxEntity_{};
+    TextureManager::TextureHandle skyboxTexture_ = TextureManager::INVALID_TEXTURE;
+    bool skyboxTextureApplied_ = false;
 
     void DestroyEntityHierarchy(World &world, Entity root) {
         if (!world.IsAlive(root)) {
@@ -503,6 +561,138 @@ class StageSelectScene : public IScene {
             if (world.IsAlive(current)) {
                 world.DestroyEntityWithCause(current, World::Cause::SceneUnload);
             }
+        }
+    }
+
+    void CreateSkybox(World &world) {
+        const std::string modelPath = cfg_SkyboxModelPath.Get();
+        if (modelPath.empty()) {
+            DEBUGLOG_ERROR("[StageSelect] Skybox model path is empty");
+            return;
+        }
+        const float scale = SanitizeSkyboxScale(cfg_SkyboxScale.Get());
+        const float yawDeg = GetCameraYawDeg(camera_);
+        Transform transform{
+            {camera_.position.x, camera_.position.y, camera_.position.z},
+            {0.0f, yawDeg, 0.0f},
+            {scale, scale, scale}};
+        skyboxEntity_ = world.Create()
+                            .With<Transform>(transform)
+                            .With<Model>(modelPath)
+                            .Build();
+        ownedEntities_.push_back(skyboxEntity_);
+        skyboxTextureApplied_ = false;
+    }
+
+    void UpdateSkyboxTransform(World &world) {
+        if (!world.IsAlive(skyboxEntity_)) {
+            return;
+        }
+        if (auto *t = world.TryGet<Transform>(skyboxEntity_)) {
+            const float scale = SanitizeSkyboxScale(cfg_SkyboxScale.Get());
+            t->position = camera_.position;
+            t->rotation = {0.0f, GetCameraYawDeg(camera_), 0.0f};
+            t->scale = {scale, scale, scale};
+        }
+    }
+
+    static float GetCameraYawDeg(const Camera &cam) {
+        using namespace DirectX;
+        const XMVECTOR pos = XMLoadFloat3(&cam.position);
+        const XMVECTOR target = XMLoadFloat3(&cam.target);
+        XMVECTOR dir = XMVectorSubtract(target, pos);
+        dir = XMVector3Normalize(dir);
+
+        XMFLOAT3 d{};
+        XMStoreFloat3(&d, dir);
+        const float yawRad = atan2f(d.x, d.z);
+        return DirectX::XMConvertToDegrees(yawRad);
+    }
+
+    std::string ResolveSkyboxTexturePath() const {
+        {
+            ConfigVar<std::string> titleSkyboxTexture{"Title.Skybox", "TexturePath", "", ""};
+            const std::string titlePath = titleSkyboxTexture.Get();
+            if (!titlePath.empty()) {
+                return titlePath;
+            }
+        }
+
+        std::string worldPath;
+        switch (worldNumber_) {
+            case 1:
+                worldPath = cfg_SkyboxWorld1TexturePath.Get();
+                break;
+            case 2:
+                worldPath = cfg_SkyboxWorld2TexturePath.Get();
+                break;
+            case 3:
+                worldPath = cfg_SkyboxWorld3TexturePath.Get();
+                break;
+            case 4:
+                worldPath = cfg_SkyboxWorld4TexturePath.Get();
+                break;
+            default:
+                break;
+        }
+        if (!worldPath.empty()) {
+            return worldPath;
+        }
+        return cfg_SkyboxTexturePath.Get();
+    }
+
+    bool EnsureSkyboxTextureLoaded() {
+        if (skyboxTexture_ != TextureManager::INVALID_TEXTURE) {
+            return true;
+        }
+        const std::string texturePath = ResolveSkyboxTexturePath();
+        if (!IsSkyboxTexturePathValid(texturePath)) {
+            DEBUGLOG_ERROR("[StageSelect] Skybox texture path is empty");
+            return false;
+        }
+        std::error_code ec;
+        if (!std::filesystem::exists(texturePath, ec) || ec) {
+            DEBUGLOG_ERROR("[StageSelect] Skybox texture not found: " + texturePath);
+            return false;
+        }
+        auto &texMgr = ServiceLocator::Get<TextureManager>();
+        skyboxTexture_ = texMgr.LoadFromFile(texturePath.c_str());
+        if (skyboxTexture_ == TextureManager::INVALID_TEXTURE) {
+            DEBUGLOG_ERROR("[StageSelect] Failed to load skybox texture: " + texturePath);
+            return false;
+        }
+        return true;
+    }
+
+    bool ApplySkyboxTextureRecursive(World &world, Entity entity) {
+        bool applied = false;
+        if (auto *mc = world.TryGet<ModelComponent>(entity)) {
+            mc->texture = skyboxTexture_;
+            mc->useLighting = 0.0f;
+            applied = true;
+        }
+        if (auto *hier = world.TryGet<TransformHierarchy>(entity)) {
+            for (const auto &child : hier->GetChildren()) {
+                if (world.IsAlive(child)) {
+                    applied |= ApplySkyboxTextureRecursive(world, child);
+                }
+            }
+        }
+        return applied;
+    }
+
+    void UpdateSkyboxTexture(World &world) {
+        if (skyboxTextureApplied_) {
+            return;
+        }
+        if (!world.IsAlive(skyboxEntity_)) {
+            return;
+        }
+        if (!EnsureSkyboxTextureLoaded()) {
+            return;
+        }
+        if (ApplySkyboxTextureRecursive(world, skyboxEntity_)) {
+            skyboxTextureApplied_ = true;
         }
     }
 
@@ -583,6 +773,24 @@ class StageSelectScene : public IScene {
             }
         }
     }
+
+    static bool IsSkyboxTexturePathValid(const std::string &path) {
+        return !path.empty();
+    }
+
+    static float SanitizeSkyboxScale(float scale) {
+        return std::max(scale, 0.1f);
+    }
+
+#if defined(_DEBUG)
+    void RunSkyboxScaleTests() {
+        assert(!IsSkyboxTexturePathValid(""));
+        assert(IsSkyboxTexturePathValid("Assets/Textures/Skybox/Sky_Box.png"));
+        assert(SanitizeSkyboxScale(1.0f) == 1.0f);
+        assert(SanitizeSkyboxScale(0.0f) == 0.1f);
+        assert(SanitizeSkyboxScale(-2.0f) == 0.1f);
+    }
+#endif
 
     bool isTransitioning_ = false;
     float zoomTimer_ = 0.0f;
