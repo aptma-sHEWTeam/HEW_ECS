@@ -98,7 +98,7 @@ public:
         FadeAnimation.anchor = {0.0f, 0.0f};
         FadeAnimation.pivot = {0.0f, 0.0f};
 
-        UIImage fade{L"./Assets/Textures/Fade/tex_fadekorigori.png"};
+        UIImage fade{L"./Assets/Textures/Fade/tex_fade.png"};
         fade.opacity = 1.0f;
         fade.keepAspect = false;
         fade.overlay = true;
@@ -123,6 +123,7 @@ public:
         player_.Play();
         isPlaying_ = true;
         loopPlaying_ = false;
+        isFading = false;
 
         DEBUGLOG(std::string("VideoScene: Video playback started - ") + videoPath_);
     }
@@ -137,9 +138,19 @@ public:
             if (!sys.input_) sys.input_ = &input;
         });
 
+        if (isFading) {
+            world.Tick(deltaTime);
+            if (auto *anim = world.TryGet<SpriteSheetAnimation>(fadeEntity_)) {
+                if (anim->isFinished) {
+                    TransitionToNextScene(world);
+                }
+            }
+            return;
+        }
+
         if (skipEnabled_ && CheckExitInput(input)) {
             StartFadeInNormal(world);
-            TransitionToNextScene(world);
+            isFading = true;
             return;
         }
 
@@ -156,10 +167,14 @@ public:
                 return;
             }
             if (!loopPlaying_) {
-                TransitionToNextScene(world);
+                //TransitionToNextScene(world);
+                StartFadeInNormal(world);
+                isFading = true;
+                return;
             }
         }
         world.Tick(deltaTime);
+        
     }
 
     void OnRender(World& world) override {
@@ -194,6 +209,7 @@ public:
         isPlaying_ = false;
         shouldExit_ = false;
         loopPlaying_ = false;
+        isFading = false;
     }
 
 private:
@@ -436,7 +452,7 @@ private:
     }
 
     void StartFadeInNormal(World &world) {
-        StartSpriteFade(world,fadeEntity_, -1, false);
+        StartSpriteFade(world,fadeEntity_, 1, false);
     }
 
     void StartSpriteFade(World &world, Entity target, int direction, bool forceOpaque) {
@@ -465,6 +481,7 @@ private:
     bool isPlaying_ = false;
     bool shouldExit_ = false;
     bool loopPlaying_ = false;
+    bool isFading = false;
 
     Microsoft::WRL::ComPtr<ID3D11VertexShader> vertexShader_;
     Microsoft::WRL::ComPtr<ID3D11PixelShader> pixelShader_;
@@ -475,8 +492,7 @@ private:
     TextSystem textSystem_;
     ImageSystem imageSystem_;
     std::vector<Entity> uiOwnedEntities_;
-    std::vector<Entity> animationOwnedEntities_;
-
+    
     std::string loopVideoPath_;
 
     Entity fadeEntity_;
