@@ -312,6 +312,7 @@ class StageSelectScene : public IScene {
 
         // 回転アニメーション
         currentAngle_ += (targetAngle_ - currentAngle_) * deltaTime * rotateSpeed_;
+        skyboxYawDeg_ = DirectX::XMConvertToDegrees(currentAngle_);
         world.ForEach<Transform, ObjectPos>([&](Entity, Transform &transform, ObjectPos &pos) {
             float angle = currentAngle_;
             float x = pos.basepos.x;
@@ -496,7 +497,7 @@ class StageSelectScene : public IScene {
     Camera camera_{};
 
     // Camera params
-    float baseFovY_ = 40.0f;
+    float baseFovY_ = 90.0f;
     float cameraNear_ = 0.1f;
     float cameraFar_ = 10000.0f;
     DirectX::XMFLOAT3 baseUp_ = {0.0f, 1.0f, 0.0f};
@@ -507,6 +508,8 @@ class StageSelectScene : public IScene {
     float currentAngle_ = 0.0f;
     float targetAngle_ = 0.0f;
     float rotateSpeed_ = 6.0f;
+
+    float skyboxYawDeg_ = 0.0f;
 
     std::vector<Entity> ownedEntities_{};
     std::vector<Entity> objectOwnedEntities_;
@@ -547,10 +550,10 @@ class StageSelectScene : public IScene {
             return;
         }
         const float scale = SanitizeSkyboxScale(cfg_SkyboxScale.Get());
-        const float yawDeg = GetCameraYawDeg(camera_);
+        skyboxYawDeg_ = DirectX::XMConvertToDegrees(currentAngle_);
         Transform transform{
             {camera_.position.x, camera_.position.y, camera_.position.z},
-            {0.0f, yawDeg, 0.0f},
+            {0.0f, skyboxYawDeg_, 0.0f},
             {scale, scale, scale}};
         skyboxEntity_ = world.Create()
                             .With<Transform>(transform)
@@ -567,22 +570,9 @@ class StageSelectScene : public IScene {
         if (auto *t = world.TryGet<Transform>(skyboxEntity_)) {
             const float scale = SanitizeSkyboxScale(cfg_SkyboxScale.Get());
             t->position = camera_.position;
-            t->rotation = {0.0f, GetCameraYawDeg(camera_), 0.0f};
+            t->rotation = {0.0f, -skyboxYawDeg_, 0.0f};
             t->scale = {scale, scale, scale};
         }
-    }
-
-    static float GetCameraYawDeg(const Camera &cam) {
-        using namespace DirectX;
-        const XMVECTOR pos = XMLoadFloat3(&cam.position);
-        const XMVECTOR target = XMLoadFloat3(&cam.target);
-        XMVECTOR dir = XMVectorSubtract(target, pos);
-        dir = XMVector3Normalize(dir);
-
-        XMFLOAT3 d{};
-        XMStoreFloat3(&d, dir);
-        const float yawRad = atan2f(d.x, d.z);
-        return DirectX::XMConvertToDegrees(yawRad);
     }
 
     std::string ResolveSkyboxTexturePath() const {
