@@ -234,6 +234,36 @@ class StageSelectScene : public IScene {
                 CreateObject(world, {x, 0.0f, z}, modelPath);
             }
         }
+
+        //2DUI
+        UITransform FadeAnimation;
+        FadeAnimation.position = {0.0f, 0.0f};
+        FadeAnimation.size = {1280.0f, 720.0f};
+        FadeAnimation.anchor = {0.0f, 0.0f};
+        FadeAnimation.pivot = {0.0f, 0.0f};
+
+        UIImage fade{L"./Assets/Textures/Fade/tex_fade.png"};
+        fade.opacity = 1.0f;
+        fade.keepAspect = false;
+        fade.overlay = true;
+
+        SpriteSheetDesc fadeDesc = SpriteSheetDesc::Grid(
+            AnimationConfig::UI::FadeFrames,
+            AnimationConfig::UI::FadeCols,
+            0.1f,
+            /*loop*/ false);
+        fadeDesc.playOnStart = false;
+
+        Entity fadeOutAnimation = world.Create()
+                                      .With<UITransform>(FadeAnimation)
+                                      .With<UIImage>(fade)
+                                      .Build();
+        AnimationTools::AddSpriteSheet(world, fadeOutAnimation, fadeDesc);
+
+        ownedEntities_.push_back(fadeOutAnimation);
+        fadeEntity_ = fadeOutAnimation;
+
+        isFading = false;
     }
 
     void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
@@ -242,6 +272,19 @@ class StageSelectScene : public IScene {
                 sys.input_ = &input;
             }
         });
+
+        if (isFading) {
+            world.Tick(deltaTime);
+            if (auto *anim = world.TryGet<SpriteSheetAnimation>(fadeEntity_)) {
+                if (anim->isFinished) 
+                {
+                    if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
+                        manager->ChangeScene("Game", world);
+                    }
+                }
+            }
+            return;
+        }
 
         // ゲームシーンへの遷移 (Enter / Aボタン)
         bool trigger = input.GetKeyDown(VK_RETURN);
@@ -256,9 +299,11 @@ class StageSelectScene : public IScene {
                 isTransitioning_ = true;
                 zoomTimer_ = 0.0f;
                 DEBUGLOG("StageSelect Camera Zoom Start!");
+                //StartFadeInNormal(world);
             }
         } else {
             UpdateCameraZoom(world, deltaTime);
+           /* StartFadeInNormal(world);*/
         }
 
         UpdateSkyboxTransform(world);
@@ -481,10 +526,11 @@ class StageSelectScene : public IScene {
 
         textSystem_.Shutdown();
         imageSystem_.Shutdown();
+        isFading = false;
     }
 
     void StartFadeInNormal(World &world) {
-        StartSpriteFade(world, fadeAnimationEntity_, -1, false);
+        StartSpriteFade(world,fadeEntity_, 1, false);
     }
 
     void StartSpriteFade(World &world, Entity target, int direction, bool forceOpaque) {
@@ -514,8 +560,8 @@ class StageSelectScene : public IScene {
     int worldNumber_;
     int maxStage_;
 
-    Entity fadeAnimationEntity_{};
     Entity StageSelectEntity_{};
+    Entity fadeEntity_{};
     TextSystem textSystem_{};
     ImageSystem imageSystem_{};
     Camera camera_{};
@@ -532,6 +578,7 @@ class StageSelectScene : public IScene {
     float currentAngle_ = 0.0f;
     float targetAngle_ = 0.0f;
     float rotateSpeed_ = 6.0f;
+    bool isFading = false;
 
     float skyboxYawDeg_ = 0.0f;
 
@@ -758,9 +805,9 @@ class StageSelectScene : public IScene {
         camera_.Update();
         //シーン遷移
         if (progress >= 1.0f) {
-            if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
-                manager->ChangeScene("Game", world);
-            }
+            StartFadeInNormal(world);
+            isFading = true;
+            return;
         }
     }
 
