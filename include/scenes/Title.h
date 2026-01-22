@@ -75,10 +75,19 @@ class TitleScene : public IScene {
     inline static ConfigVar<float> cfg_CameraBobAmplitude{"Title.Camera", "BobAmplitude", 0.2f, "Title: Camera bob amplitude"};
     inline static ConfigVar<float> cfg_CameraBobSpeed{"Title.Camera", "BobSpeed", 1.0f, "Title: Camera bob speed (rad/sec)"};
 
-    Camera GetCameraTitle() const {
-        return camera_;
-    }
+    // 壁見た目
+    inline static ConfigVar<float> cfg_WallPosX{"Title.Wall", "PosX", 20.0f, "壁: Window 位置X"};
+    inline static ConfigVar<float> cfg_WallPosY{"Title.Wall", "PosY", -10.0f, "壁: Window 位置Y"};
+    inline static ConfigVar<float> cfg_WallPosZ{"Title.Wall", "PosZ", -2.0f, "壁: Window 位置Z"};
+    inline static ConfigVar<float> cfg_WallScaleX{"Title.Wall", "ScaleX", 1.650000f, "壁: Wall スケールX"};
+    inline static ConfigVar<float> cfg_WallScaleY{"Title.Wall", "ScaleY", 1.650000f, "壁: Wall スケールY"};
+    inline static ConfigVar<float> cfg_WallScaleZ{"Title.Wall", "ScaleZ", 1.650000f, "壁: Wall スケールZ"};
+    inline static ConfigVar<float> cfg_WallRotX{"Title.Wall", "RotX",  0.0f, "壁: Wall 回転X"};
+    inline static ConfigVar<float> cfg_WallRotY{"Title.Wall", "RotY", 90.0f, "壁: Wall 回転Y"};
+    inline static ConfigVar<float> cfg_WallRotZ{"Title.Wall", "RotZ",  0.0f, "壁: Wall 回転Z"};
 
+    Camera GetCameraTitle() const { return camera_; }
+   
     void OnEnter(World &world) override {
         // 既存実装そのまま
         bool hasGameStatus = false;
@@ -143,10 +152,12 @@ class TitleScene : public IScene {
         ownedEntities_.push_back(dirLight);
 
         CreateWindows(world);
+        CreateWall(world);
         CreatePlayer(world);
         CreateTextNormalFormats();
         CreateTitleSelectUI(world);
-
+       
+        //カメラの詳細設定
         float aspect = static_cast<float>(gfx->Width()) / gfx->Height();
         camera_ = Camera::LookAtLH(
             DirectX::XM_PIDIV4, aspect, 0.1f, 1000.0f,
@@ -248,7 +259,32 @@ class TitleScene : public IScene {
                             .With<SceneOwnedTag>()
                             .Build();
         ownedEntities_.push_back(objectEntity_);
-    }
+      }
+
+      void CreateWall(World& world) 
+      {//壁オブジェクト
+          //DirectX::XMFLOAT3 wallPos{cfg_WallPosX.Get(), cfg_WallPosY.Get(), cfg_WallPosZ.Get()};
+          DirectX::XMFLOAT3 wallPos{1,0.0,4};
+       // Transform transform{
+       //     {wallPos}, {cfg_WallRotX.Get(), cfg_WallRotY.Get(), cfg_WallRotZ.Get()}, {cfg_WallScaleX.Get(), cfg_WallScaleY.Get(), cfg_WallScaleZ.Get()}}; 
+        Transform transform{
+              {wallPos}, {cfg_WallRotX.Get(), cfg_WallRotY.Get(), cfg_WallRotZ.Get()}, {3, 3, 3}}; 
+
+         Entity wall = world.CreateEntity();
+        world.Add<Transform>(wall, transform);
+
+        MeshRenderer mrWall;
+        mrWall.meshType = MeshType::Cube;
+        mrWall.color = DirectX::XMFLOAT3{0.5f, 0.5f, 0.5f};
+        wallEntitiy_ = world.Create()
+                                   .With<Transform>(transform)
+                                   .With<Model>("Assets/Models/StageObj/Wall/obj_wall.fbx")
+                                   .With<SceneOwnedTag>()
+                                   .Build();
+        wallEntitiy_ = wall;
+        ownedEntities_.push_back(wallEntitiy_);
+
+      }
 
     void CreateSkybox(World &world) {
         const std::string modelPath = cfg_SkyboxModelPath.Get();
@@ -369,6 +405,14 @@ class TitleScene : public IScene {
             }
         }
 
+        if (world.IsAlive(wallEntitiy_)) {
+            if (auto *t = world.TryGet<Transform>(wallEntitiy_)) {
+                t->position = {cfg_WallPosX.Get(), cfg_WallPosY.Get(), cfg_WallPosZ.Get()};
+                t->rotation = {cfg_WallRotX.Get(), cfg_WallRotY.Get(), cfg_WallRotZ.Get()};
+                t->scale = {cfg_WallScaleX.Get(), cfg_WallScaleY.Get(), cfg_WallScaleZ.Get()};
+            }
+        }
+
         if (!isTransitioning_) {
             bool trigger = input.GetKeyDown(VK_RETURN);
             GamepadSystem *padsystem = ServiceLocator::TryGet<GamepadSystem>();
@@ -467,8 +511,10 @@ class TitleScene : public IScene {
         DirectX::XMVECTOR target = DirectX::XMLoadFloat3(&camera_.target);
         DirectX::XMVECTOR dir = DirectX::XMVectorSubtract(target, pos);
 
-        pos = DirectX::XMVectorAdd(pos, DirectX::XMVectorScale(dir, 1.5f * deltaTime));
-        DirectX::XMStoreFloat3(&camera_.position, pos);
+         pos = DirectX::XMVectorAdd(pos, DirectX::XMVectorScale(dir, 3.5f * deltaTime)); //カメラ移動速度調整
+         DirectX::XMStoreFloat3(&camera_.position, pos );
+       /* pos = DirectX::XMVectorAdd(pos, DirectX::XMVectorScale(dir, 1.5f * deltaTime));
+        DirectX::XMStoreFloat3(&camera_.position, pos);*/
 
         camera_.Zoom(-0.1f * deltaTime);
         camera_.Update();
@@ -548,6 +594,7 @@ class TitleScene : public IScene {
 
     std::vector<Entity> ownedEntities_{};
 
+    Entity wallEntitiy_{};
     Entity playerEntity_{};
     Entity objectEntity_{};
     Entity skyboxEntity_{};
