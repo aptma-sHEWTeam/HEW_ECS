@@ -84,10 +84,7 @@ class TitleScene : public IScene {
     inline static ConfigVar<float> cfg_WallRotZ{"Title.Wall", "RotZ",  0.0f, "壁: Wall 回転Z"};
 
     Camera GetCameraTitle() const { return camera_; }
-    Camera GetCameraTitle() const {
-        return camera_;
-    }
-
+   
     void OnEnter(World &world) override {
         // 既存実装そのまま
         bool hasGameStatus = false;
@@ -158,8 +155,6 @@ class TitleScene : public IScene {
         CreateTitleSelectUI(world);
        
         //カメラの詳細設定
-        float aspect = static_cast<float>(gfx->Width()/ gfx->Height());
-
         float aspect = static_cast<float>(gfx->Width()) / gfx->Height();
         camera_ = Camera::LookAtLH(
             DirectX::XM_PIDIV4, aspect, 0.1f, 1000.0f,
@@ -280,9 +275,6 @@ class TitleScene : public IScene {
         ownedEntities_.push_back(wallEntitiy_);
 
       }
-    
-      void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
-    }
 
     void CreateSkybox(World &world) {
         const std::string modelPath = cfg_SkyboxModelPath.Get();
@@ -494,17 +486,14 @@ class TitleScene : public IScene {
 
         float progress = std::min(zoomTimer_ / duration, 1.0f);
 
-         DirectX::XMVECTOR pos = DirectX::XMLoadFloat3(&camera_.position);
-         DirectX::XMVECTOR target = DirectX::XMLoadFloat3(&camera_.target);
-         DirectX::XMVECTOR dir = DirectX::XMVectorSubtract(target, pos );
         DirectX::XMVECTOR pos = DirectX::XMLoadFloat3(&camera_.position);
         DirectX::XMVECTOR target = DirectX::XMLoadFloat3(&camera_.target);
         DirectX::XMVECTOR dir = DirectX::XMVectorSubtract(target, pos);
 
          pos = DirectX::XMVectorAdd(pos, DirectX::XMVectorScale(dir, 3.5f * deltaTime)); //カメラ移動速度調整
          DirectX::XMStoreFloat3(&camera_.position, pos );
-        pos = DirectX::XMVectorAdd(pos, DirectX::XMVectorScale(dir, 1.5f * deltaTime));
-        DirectX::XMStoreFloat3(&camera_.position, pos);
+       /* pos = DirectX::XMVectorAdd(pos, DirectX::XMVectorScale(dir, 1.5f * deltaTime));
+        DirectX::XMStoreFloat3(&camera_.position, pos);*/
 
         camera_.Zoom(-0.1f * deltaTime);
         camera_.Update();
@@ -543,9 +532,7 @@ class TitleScene : public IScene {
 
     std::vector<Entity> ownedEntities_{};
 
-       Entity playerEntity_{};
-       Entity objectEntity_{};
-       Entity wallEntitiy_{};
+    Entity wallEntitiy_{};
     Entity playerEntity_{};
     Entity objectEntity_{};
     Entity skyboxEntity_{};

@@ -240,7 +240,8 @@ class StageSelectScene : public IScene {
         FadeAnimation.anchor = {0.0f, 0.0f};
         FadeAnimation.pivot = {0.0f, 0.0f};
 
-        UIImage fade{L"./Assets/Textures/Fade/tex_fade.png"};
+        //tex_fade.pngだと分かりにくいのでとりま仮置きでtex_fadekorigori
+        UIImage fade{L"./Assets/Textures/Fade/tex_fadekorigori.png"};
         fade.opacity = 1.0f;
         fade.keepAspect = false;
         fade.overlay = true;
@@ -286,7 +287,7 @@ class StageSelectScene : public IScene {
             }
         } else {
             UpdateCameraZoom(world, deltaTime);
-            StartFadeInNormal(world);
+           /* StartFadeInNormal(world);*/
         }
 
         UpdateSkyboxTransform(world);

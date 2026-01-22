@@ -92,6 +92,33 @@ public:
             CreateUI(world, screenWidth_, screenHeight_);
         }
 
+        UITransform FadeAnimation;
+        FadeAnimation.position = {0.0f, 0.0f};
+        FadeAnimation.size = {1280.0f, 720.0f};
+        FadeAnimation.anchor = {0.0f, 0.0f};
+        FadeAnimation.pivot = {0.0f, 0.0f};
+
+        UIImage fade{L"./Assets/Textures/Fade/tex_fadekorigori.png"};
+        fade.opacity = 1.0f;
+        fade.keepAspect = false;
+        fade.overlay = true;
+
+        SpriteSheetDesc fadeDesc = SpriteSheetDesc::Grid(
+            AnimationConfig::UI::FadeFrames,
+            AnimationConfig::UI::FadeCols,
+            0.1f,
+            /*loop*/ false);
+        fadeDesc.playOnStart = false;
+
+        Entity fadeOutAnimation = world.Create()
+                                      .With<UITransform>(FadeAnimation)
+                                      .With<UIImage>(fade)
+                                      .Build();
+        AnimationTools::AddSpriteSheet(world, fadeOutAnimation, fadeDesc);
+
+        uiOwnedEntities_.push_back(fadeOutAnimation);
+        fadeEntity_ = fadeOutAnimation;
+
         player_.SetLoop(false);
         player_.Play();
         isPlaying_ = true;
@@ -111,6 +138,7 @@ public:
         });
 
         if (skipEnabled_ && CheckExitInput(input)) {
+            StartFadeInNormal(world);
             TransitionToNextScene(world);
             return;
         }
@@ -131,6 +159,7 @@ public:
                 TransitionToNextScene(world);
             }
         }
+        world.Tick(deltaTime);
     }
 
     void OnRender(World& world) override {
@@ -233,6 +262,7 @@ private:
 
         Entity crossImageEntity = world.Create().With<UITransform>(crossImgTr).With<UIImage>(crossImg).Build();
         uiOwnedEntities_.push_back(crossImageEntity);
+
     }
 
     void ShutdownUI(World& world) {
@@ -405,6 +435,22 @@ private:
         }
     }
 
+    void StartFadeInNormal(World &world) {
+        StartSpriteFade(world,fadeEntity_, -1, false);
+    }
+
+    void StartSpriteFade(World &world, Entity target, int direction, bool forceOpaque) {
+        if (!world.IsAlive(target))
+            return;
+        AnimationTools::PlaySpriteSheet(world, target, direction, /*loop*/ false, /*reset*/ true);
+        if (auto *img = world.TryGet<UIImage>(target)) {
+            img->opacity = 1.0f;
+        }
+        if (auto *anim = world.TryGet<SpriteSheetAnimation>(target)) {
+            anim->isFinished = false;
+        }
+    }
+
     GfxDevice* gfx_ = nullptr;
 
     VideoPlayer player_;
@@ -429,6 +475,9 @@ private:
     TextSystem textSystem_;
     ImageSystem imageSystem_;
     std::vector<Entity> uiOwnedEntities_;
+    std::vector<Entity> animationOwnedEntities_;
 
     std::string loopVideoPath_;
+
+    Entity fadeEntity_;
 };

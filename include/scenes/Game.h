@@ -342,6 +342,7 @@ class GameScene : public IScene {
             }
             // 一定時間経過でクリア動画へ
             if (stageClearTimer_ >= cfg_StageClearWait.Get()) {
+               
                 if (auto *mgr = ServiceLocator::TryGet<SceneManager>()) {
                     mgr->ChangeScene("ClearVideo", world);
                     return;
