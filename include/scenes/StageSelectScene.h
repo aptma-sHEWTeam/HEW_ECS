@@ -120,9 +120,7 @@ class StageSelectScene : public IScene {
             if (stats.IsWorldBack) {
                 stats.selectStage = maxStage_;
                 stats.IsWorldBack = false;
-            } else {
-                stats.selectStage = 1;
-            }
+            } 
         });
 
         // カメラ初期化
@@ -205,7 +203,7 @@ class StageSelectScene : public IScene {
         GamepadSystem *padsystem = ServiceLocator::TryGet<GamepadSystem>();
         if (!isTransitioning_) {
             if (padsystem &&
-                padsystem->GetAnyButtonDown({GamepadSystem::Button_A, GamepadSystem::Button_Start, GamepadSystem::Button_X})) {
+                padsystem->GetAnyButtonDown({GamepadSystem::Button_X})) {
                 trigger = true;
             }
             if (trigger) {
@@ -223,11 +221,36 @@ class StageSelectScene : public IScene {
             bool leftPressed = input.GetKeyDown(VK_LEFT);
 
             if (padsystem) {
-                if (padsystem->GetAnyButtonDown({GamepadSystem::Button_DPad_Right, GamepadSystem::Button_B}))
+                float gx = padsystem->GetLeftStickX();
+                bool dpadRightNow = padsystem->GetButton(padsystem->Button_DPad_Right);
+                bool dpadLeftNow = padsystem->GetButton(padsystem->Button_DPad_Left);
+
+                const float STICK_THRESHOLD = 0.8f;
+                bool stickRightNow = gx > STICK_THRESHOLD;
+                bool stickLeftNow = gx < -STICK_THRESHOLD;
+
+                //スティックでの切り替え
+                if (stickRightNow && !stickRightPrev_) {
                     rightPressed = true;
-                if (padsystem->GetAnyButtonDown({GamepadSystem::Button_DPad_Left, GamepadSystem::Button_X}))
+                }
+                if (stickLeftNow && !stickLeftPrev_) {
                     leftPressed = true;
+                }
+                //ボタンでの切り替え
+                if (dpadRightNow && !dpadRightPrev_) {
+                    rightPressed = true;
+                }
+                if (dpadLeftNow && !dpadLeftPrev_) {
+                    leftPressed = true;
+                }
+
+                stickRightPrev_ = stickRightNow;
+                stickLeftPrev_ = stickLeftNow;
+                dpadRightPrev_ = dpadRightNow;
+                dpadLeftPrev_ = dpadLeftNow;
             }
+
+           
 
             if (rightPressed) {
                 if (stats.selectStage < maxStage_) {
@@ -235,6 +258,7 @@ class StageSelectScene : public IScene {
                     targetAngle_ -= DirectX::XM_2PI / maxStage_;
                 } else if (stats.selectStage == maxStage_) {
                     // 次のワールドへ
+                    stats.selectStage = 1;
                     GoToNextWorld(world);
                 }
             }
@@ -562,6 +586,12 @@ class StageSelectScene : public IScene {
 
     bool isTransitioning_ = false;
     float zoomTimer_ = 0.0f;
+
+    bool stickRightPrev_ = false;
+    bool stickLeftPrev_ = false;
+    bool dpadRightPrev_ = false;
+    bool dpadLeftPrev_ = false;
+
 
     // UI creation methods defined in StageUI.cpp
     void CreateTextStageNoFormats();
