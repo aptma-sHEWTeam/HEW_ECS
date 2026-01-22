@@ -71,6 +71,7 @@ class TitleScene : public IScene {
     inline static ConfigVar<std::string> cfg_SkyboxModelPath{"Title.Skybox", "ModelPath", "Assets/Textures/Skybox/skybox.fbx", "タイトル: Skybox モデルパス"};
     inline static ConfigVar<std::string> cfg_SkyboxTexturePath{"Title.Skybox", "TexturePath", "Assets/Textures/Skybox/Sky_Box.png", "タイトル: Skybox テクスチャパス"};
     inline static ConfigVar<float> cfg_SkyboxScale{"Title.Skybox", "Scale", 200.0f, "タイトル: Skybox スケール"};
+    inline static ConfigVar<float> cfg_SkyboxSpeed{"Skybox", "Speed", 0.05f, "スカイボックスの回転速度(rad/sec)"};
 
     Camera GetCameraTitle() const {
         return camera_;
@@ -247,9 +248,10 @@ class TitleScene : public IScene {
             return;
         }
         const float scale = SanitizeSkyboxScale(cfg_SkyboxScale.Get());
+        const float yawDeg = SkyboxRotationToDegrees(skyboxRotation_);
         Transform transform{
             camera_.position,
-            {0.0f, 0.0f, 0.0f},
+            {0.0f, yawDeg, 0.0f},
             {scale, scale, scale}};
         skyboxEntity_ = world.Create()
                             .With<Transform>(transform)
@@ -267,7 +269,15 @@ class TitleScene : public IScene {
         if (auto *t = world.TryGet<Transform>(skyboxEntity_)) {
             const float scale = SanitizeSkyboxScale(cfg_SkyboxScale.Get());
             t->position = camera_.position;
+            t->rotation = {0.0f, SkyboxRotationToDegrees(skyboxRotation_), 0.0f};
             t->scale = {scale, scale, scale};
+        }
+    }
+
+    void UpdateSkyboxRotation(float dt) {
+        skyboxRotation_ += cfg_SkyboxSpeed.Get() * dt;
+        if (skyboxRotation_ > DirectX::XM_2PI) {
+            skyboxRotation_ -= DirectX::XM_2PI;
         }
     }
 
@@ -368,6 +378,7 @@ class TitleScene : public IScene {
             UpdateCameraZoom(world, deltaTime);
         }
 
+        UpdateSkyboxRotation(deltaTime);
         UpdateSkyboxTransform(world);
         UpdateSkyboxTexture(world);
 
@@ -470,6 +481,10 @@ class TitleScene : public IScene {
         return std::max(scale, 0.1f);
     }
 
+    static float SkyboxRotationToDegrees(float rotationRad) {
+        return DirectX::XMConvertToDegrees(rotationRad);
+    }
+
 #if defined(_DEBUG)
     void RunSkyboxScaleTests() {
         assert(!IsSkyboxTexturePathValid(""));
@@ -477,6 +492,7 @@ class TitleScene : public IScene {
         assert(SanitizeSkyboxScale(1.0f) == 1.0f);
         assert(SanitizeSkyboxScale(0.0f) == 0.1f);
         assert(SanitizeSkyboxScale(-2.0f) == 0.1f);
+        assert(std::abs(SkyboxRotationToDegrees(DirectX::XM_PIDIV2) - 90.0f) < 1e-3f);
     }
 #endif
 
@@ -491,6 +507,7 @@ class TitleScene : public IScene {
     Entity skyboxEntity_{};
     TextureManager::TextureHandle skyboxTexture_ = TextureManager::INVALID_TEXTURE;
     bool skyboxTextureApplied_ = false;
+    float skyboxRotation_ = 0.0f;
 
     TextSystem textSystem_{};
     ImageSystem imageSystem_{};

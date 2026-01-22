@@ -385,6 +385,7 @@ class GameScene : public IScene {
 
         // カメラリアクションを更新
         UpdateCameraReaction(deltaTime * timeScale, world);
+        UpdateSkyboxRotation(deltaTime);
         UpdateSkyboxTransform(world);
         UpdateSkyboxTexture(world);
         ChargCameraAction(world);
@@ -397,12 +398,10 @@ class GameScene : public IScene {
 
         EffekseerManager::GetInstance().Update();
 
-        skyboxRotation_ += cfg_SkyboxSpeed.Get() * deltaTime;
 
         //ゴールの見た目変更
         UpdateGoal(world);
 
-        skyboxRotation_ += cfg_SkyboxSpeed.Get() * deltaTime;
     }
 
     /**
@@ -430,9 +429,6 @@ class GameScene : public IScene {
             } else {
                 renderer.SetShadowMap(nullptr);
             }
-
-            // スカイボックスを先に描画 (背景)
-            skybox_.Render(*gfx, camera_, skyboxRotation_);
 
             // メインレンダリング (不透明オブジェクト)
             renderer.Render(world, camera_);
@@ -789,6 +785,26 @@ class GameScene : public IScene {
     }
 
   private:
+    static float GetCameraYawDeg(const Camera &cam) {
+        using namespace DirectX;
+        const XMVECTOR pos = XMLoadFloat3(&cam.position);
+        const XMVECTOR target = XMLoadFloat3(&cam.target);
+        XMVECTOR dir = XMVectorSubtract(target, pos);
+        dir = XMVector3Normalize(dir);
+
+        XMFLOAT3 d{};
+        XMStoreFloat3(&d, dir);
+        const float yawRad = atan2f(d.x, d.z);
+        return XMConvertToDegrees(yawRad);
+    }
+
+    static float SkyboxRotationToDegrees(float rotationRad) {
+        return DirectX::XMConvertToDegrees(rotationRad);
+    }
+
+    static float BuildSkyboxYawDeg(const Camera &cam, float rotationRad) {
+        return GetCameraYawDeg(cam) + SkyboxRotationToDegrees(rotationRad);
+    }
     struct StageAdvanceInfo {
         bool active = false;
         bool stageBuilt = false;
@@ -2229,6 +2245,11 @@ class GameScene : public IScene {
         assert(SanitizeSkyboxScale(1.0f) == 1.0f);
         assert(SanitizeSkyboxScale(0.0f) == 0.1f);
         assert(SanitizeSkyboxScale(-2.0f) == 0.1f);
+        assert(std::abs(SkyboxRotationToDegrees(DirectX::XM_PI) - 180.0f) < 1e-3f);
+        Camera testCam{};
+        testCam.position = {0.0f, 0.0f, 0.0f};
+        testCam.target = {1.0f, 0.0f, 0.0f};
+        assert(std::abs(BuildSkyboxYawDeg(testCam, DirectX::XM_PIDIV2) - 180.0f) < 1e-3f);
     }
 #endif
 
@@ -2317,10 +2338,9 @@ class GameScene : public IScene {
             return;
         }
         const float scale = SanitizeSkyboxScale(cfg_GameSkyboxScale.Get());
-        Transform transform{
-            camera_.position,
-            {0.0f, 0.0f, 0.0f},
-            {scale, scale, scale}};
+        const float yawDeg = BuildSkyboxYawDeg(camera_, skyboxRotation_);
+        Transform transform{camera_.position, {0.0f, yawDeg, 0.0f}, {scale, scale, scale}};
+
         skyboxEntity_ = world.Create()
                             .With<Transform>(transform)
                             .With<Model>(modelPath)
@@ -2336,7 +2356,15 @@ class GameScene : public IScene {
         if (auto *t = world.TryGet<Transform>(skyboxEntity_)) {
             const float scale = SanitizeSkyboxScale(cfg_GameSkyboxScale.Get());
             t->position = camera_.position;
+            t->rotation = {0.0f, BuildSkyboxYawDeg(camera_, skyboxRotation_), 0.0f};
             t->scale = {scale, scale, scale};
+        }
+    }
+
+    void UpdateSkyboxRotation(float dt) {
+        skyboxRotation_ += cfg_SkyboxSpeed.Get() * dt;
+        if (skyboxRotation_ > DirectX::XM_2PI) {
+            skyboxRotation_ -= DirectX::XM_2PI;
         }
     }
 
@@ -2365,6 +2393,11 @@ class GameScene : public IScene {
 
     bool ApplySkyboxTextureRecursive(World &world, Entity entity) {
         bool applied = false;
+        if (auto *mr = world.TryGet<MeshRenderer>(entity)) {
+            mr->texture = skyboxTexture_;
+            mr->useLighting = 0.0f;
+            applied = true;
+        }
         if (auto *mc = world.TryGet<ModelComponent>(entity)) {
             mc->texture = skyboxTexture_;
             mc->useLighting = 0.0f;
@@ -2567,7 +2600,7 @@ class GameScene : public IScene {
     Camera camera_{};
     float baseFovY_ = DirectX::XM_PIDIV4;
     float cameraNear_ = 0.1f;
-    float cameraFar_ = 1000.0f;
+    float cameraFar_ = 10000.0f;
     DirectX::XMFLOAT3 baseUp_ = {0.0f, 1.0f, 0.0f};
 
     // シェイク用
