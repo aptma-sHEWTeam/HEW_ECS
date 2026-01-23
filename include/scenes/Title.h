@@ -160,7 +160,7 @@ class TitleScene : public IScene {
         //カメラの詳細設定
         float aspect = static_cast<float>(gfx->Width()) / gfx->Height();
         camera_ = Camera::LookAtLH(
-            DirectX::XM_PIDIV4, aspect, 0.1f, 1000.0f,
+            DirectX::XM_PIDIV4, aspect, 0.1f, 10000.0f,
             {0, 0, -23}, {0, 0, 0}, {0, 1, 0});
         cameraBobPhase_ = 0.0f;
         cameraBobOffsetY_ = 0.0f;
