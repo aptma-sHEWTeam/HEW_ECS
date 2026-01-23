@@ -338,7 +338,7 @@ class GameScene : public IScene {
         if (stageClearActive_) {
             stageClearTimer_ += deltaTime;
             if (auto *txt = world.TryGet<UIText>(stageClearTextEntity_)) {
-                txt->text = L"ステージクリア！";
+                //txt->text = L"ステージクリア！";
             }
             // 一定時間経過でクリア動画へ
             if (stageClearTimer_ >= cfg_StageClearWait.Get()) {
@@ -922,7 +922,7 @@ class GameScene : public IScene {
 
                     if (world.IsAlive(stageClearTextEntity_)) {
                         if (auto *txt = world.TryGet<UIText>(stageClearTextEntity_)) {
-                            txt->text = L"ステージクリア！";
+                            //txt->text = L"ステージクリア！";
                         }
                     }
                     ClearGoalTransitionFlag(world);

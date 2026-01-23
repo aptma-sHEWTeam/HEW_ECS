@@ -150,7 +150,7 @@ inline ConfigVar<std::string> cfg_KeyMP3Pass{"Stage.Key.SE", "KeyMP3Pass","Asset
 inline ConfigVar<std::string> cfg_ClearMP3Pass{"Stage.Clear.BGM", "ClearMP3Pass","Assets/Sound/DemoBGM/clearBGM20260119.mp3", "クリア時のBGM"};
 inline ConfigVar<std::string> cfg_TitleMP3Pass{"Stage.Title.BGM", "TitleMP3Pass","Assets/Sound/DemoBGM/titleBGM.mp3", "タイトル画面のBGM"};
 inline ConfigVar<std::string> cfg_GameMP3Pass{"Stage.Game.BGM", "GameMP3Pass","Assets/Sound/DemoBGM/escape20260119.mp3", "ゲーム画面のBGM"};
-inline ConfigVar<float> cfg_MasterVolume{"Stage.Master.Volume", "MasterVolume", 1.0f, "マスタの大きさ"};
+inline ConfigVar<float> cfg_MasterVolume{"Stage.Master.Volume", "MasterVolume", 0.3f, "マスタの大きさ"};
 inline ConfigVar<float> cfg_BGMVolume{"Stage.BGM.Volume", "BGMVolume", 1.0f, "BGMの大きさ"};
 inline ConfigVar<float> cfg_SEVolume{"Stage.SE.Volume", "SEVolume", 0.6f, "SEの大きさ"};
 // プレイヤー移動設定

@@ -224,9 +224,6 @@ class TitleScene : public IScene {
         // CreatePlayer(world);
     }
 
-    void CreateWindows(World &world) {
-      }
-    
 
       void CreateWindows(World& world) 
       {
@@ -363,13 +360,12 @@ class TitleScene : public IScene {
 
 
 
-            /*if (padsystem) {
-                if (padsystem->GetAnyButtonDown({GamepadSystem::Button_DPad_Up, GamepadSystem::Button_B}))
-                    TitleSelect::Start;
-                    upPressed = true;
-                if (padsystem->GetAnyButtonDown({GamepadSystem::Button_DPad_Down, GamepadSystem::Button_X}))
-                    downPressed = true;
-            }*/
+            //if (padsystem) {
+            //    if (padsystem->GetAnyButtonDown({GamepadSystem::Button_DPad_Up, GamepadSystem::Button_B}))
+            //    
+            //    if (padsystem->GetAnyButtonDown({GamepadSystem::Button_DPad_Down, GamepadSystem::Button_X}))
+            //        
+            //}
 
 
             if (padsystem && padsystem->GetAnyButtonDown({GamepadSystem::Button_A, GamepadSystem::Button_Start, GamepadSystem::Button_X})) {
