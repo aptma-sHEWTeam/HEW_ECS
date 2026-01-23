@@ -29,6 +29,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D11PixelShader> ps_; 
     Microsoft::WRL::ComPtr<ID3D11InputLayout> layout_;
     Microsoft::WRL::ComPtr<ID3D11Buffer> constantBuffer_;
+    Microsoft::WRL::ComPtr<ID3D11Buffer> skinningBuffer_;
     Microsoft::WRL::ComPtr<ID3D11RasterizerState> rasterState_;
     
     bool initialized_ = false;

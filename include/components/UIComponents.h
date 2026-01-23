@@ -67,10 +67,13 @@ struct UITransform : IComponent {
  * @brief テキストラベルコンポーネント
  */
 struct UIText : IComponent {
-    std::wstring text = L"Label";                    ///< 表示するテキスト
-    DirectX::XMFLOAT4 color{1.0f, 1.0f, 1.0f, 1.0f}; ///< テキストの色(RGBA)
-    std::string formatId = "default";                ///< TextSystemのフォーマットID
-    float fontSize = 0.0f;                            ///< フォントサイズ上書き(>0 で適用)
+    std::wstring text = L"Label";                           ///< 表示するテキスト
+    DirectX::XMFLOAT4 color{1.0f, 1.0f, 1.0f, 1.0f};        ///< テキストの色(RGBA)
+    std::string formatId = "default";                       ///< TextSystemのフォーマットID
+    float fontSize = 0.0f;                                  ///< フォントサイズ上書き(>0 で適用)
+    DirectX::XMFLOAT4 outlineColor{1.0f, 1.0f, 1.0f, 1.0f}; ///< アウトライン色(RGBA)
+    float outlineThickness = 0.0f;                          ///< アウトライン太さ(0で無効)
+    std::wstring fillTexturePath;                           ///< 文字塗りつぶし用テクスチャ
 
     explicit UIText(const std::wstring &txt = L"Label")
         : text(txt) {}
@@ -106,7 +109,7 @@ struct UIButton : IComponent {
     inline static ConfigVar<float> cfg_BtnNormalR{"UI.Button.Normal", "BtnNormalR", 0.2f, "ボタン通常時の色 R"};
     inline static ConfigVar<float> cfg_BtnNormalG{"UI.Button.Normal", "BtnNormalG", 0.2f, "ボタン通常時の色 G"};
     inline static ConfigVar<float> cfg_BtnNormalB{"UI.Button.Normal", "BtnNormalB", 0.2f, "ボタン通常時の色 B"};
-    
+
     inline static ConfigVar<float> cfg_BtnHoverR{"UI.Button.Hover", "BtnHoverR", 0.3f, "ボタンホバー時の色 R"};
     inline static ConfigVar<float> cfg_BtnHoverG{"UI.Button.Hover", "BtnHoverG", 0.3f, "ボタンホバー時の色 G"};
     inline static ConfigVar<float> cfg_BtnHoverB{"UI.Button.Hover", "BtnHoverB", 0.3f, "ボタンホバー時の色 B"};

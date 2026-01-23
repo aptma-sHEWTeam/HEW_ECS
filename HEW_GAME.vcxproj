@@ -253,6 +253,7 @@
     <ClCompile Include="TitleUI.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="include\components\TimeScaleComponents.h" />
     <ClInclude Include="include\graphics\StageSave.h" />
     <ClInclude Include="include\scenes\StageSelectScene.h" />
     <ClInclude Include="include\scenes\Title.h" />

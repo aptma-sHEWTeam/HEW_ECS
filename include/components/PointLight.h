@@ -19,6 +19,7 @@ struct PointLight : public IComponent {
     float constantAttenuation = 1.0f;
     float linearAttenuation = 0.09f;
     float quadraticAttenuation = 0.032f;
+    DirectX::XMFLOAT3 offset = { 0.0f, 0.0f, 0.0f };
     bool enabled = true;
 
     PointLight() = default;
@@ -32,3 +33,12 @@ struct PointLight : public IComponent {
         quadraticAttenuation = quadratic;
     }
 };
+
+inline DirectX::XMFLOAT3 ApplyPointLightOffset(const DirectX::XMFLOAT3& base,
+                                               const PointLight& light) {
+    return {
+        base.x + light.offset.x,
+        base.y + light.offset.y,
+        base.z + light.offset.z
+    };
+}

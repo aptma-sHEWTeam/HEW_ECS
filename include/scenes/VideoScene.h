@@ -34,19 +34,27 @@ inline static ConfigVar<bool> cfg_VideoSkipEnabled{"Video.Clear", "SkipEnabled",
  * @brief 汎用動画再生シーン
  */
 class VideoScene : public IScene {
-public:
+  public:
     VideoScene() = default;
     ~VideoScene() override = default;
 
-    void SetVideoPath(const std::string& path) { videoPath_ = path; }
-    void SetNextScene(const std::string& sceneName) { nextSceneName_ = sceneName; }
-    void SetSkipEnabled(bool enabled) { skipEnabled_ = enabled; }
-    void SetLoopVideoPath(const std::string& path) { loopVideoPath_ = path; }
+    void SetVideoPath(const std::string &path) {
+        videoPath_ = path;
+    }
+    void SetNextScene(const std::string &sceneName) {
+        nextSceneName_ = sceneName;
+    }
+    void SetSkipEnabled(bool enabled) {
+        skipEnabled_ = enabled;
+    }
+    void SetLoopVideoPath(const std::string &path) {
+        loopVideoPath_ = path;
+    }
 
-    void OnEnter(World& world) override {
+    void OnEnter(World &world) override {
         DEBUGLOG("VideoScene::OnEnter() start");
 
-        auto* gfx = ServiceLocator::TryGet<GfxDevice>();
+        auto *gfx = ServiceLocator::TryGet<GfxDevice>();
         if (!gfx) {
             DEBUGLOG_ERROR("VideoScene: GfxDevice not found");
             shouldExit_ = true;
@@ -128,14 +136,15 @@ public:
         DEBUGLOG(std::string("VideoScene: Video playback started - ") + videoPath_);
     }
 
-    void OnUpdate(World& world, InputSystem& input, float deltaTime) override {
+    void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
         if (shouldExit_) {
             TransitionToNextScene(world);
             return;
         }
 
         world.ForEach<UIInteractionSystem>([&](Entity, UIInteractionSystem &sys) {
-            if (!sys.input_) sys.input_ = &input;
+            if (!sys.input_)
+                sys.input_ = &input;
         });
 
         if (isFading) {
@@ -174,12 +183,11 @@ public:
             }
         }
         world.Tick(deltaTime);
-        
     }
 
-    void OnRender(World& world) override {
+    void OnRender(World &world) override {
         if (gfx_ && (isPlaying_ || loopPlaying_)) {
-            ID3D11ShaderResourceView* srv = player_.GetSRV();
+            ID3D11ShaderResourceView *srv = player_.GetSRV();
             if (srv) {
                 RenderVideoFrame(srv);
             }
@@ -192,7 +200,7 @@ public:
         });
     }
 
-    void OnExit(World& world) override {
+    void OnExit(World &world) override {
         DEBUGLOG("VideoScene::OnExit()");
 
         player_.Stop();
@@ -212,10 +220,12 @@ public:
         isFading = false;
     }
 
-private:
+  private:
     void StartLoopVideo() {
-        if (!gfx_) return;
-        if (loopVideoPath_.empty()) return;
+        if (!gfx_)
+            return;
+        if (loopVideoPath_.empty())
+            return;
         player_.Stop();
         if (!player_.Open(*gfx_, loopVideoPath_.c_str())) {
             shouldExit_ = true;
@@ -228,12 +238,12 @@ private:
         DEBUGLOG(std::string("VideoScene: Loop playback started - ") + loopVideoPath_);
     }
 
-    void CreateUI(World& world, float screenW, float screenH) {
+    void CreateUI(World &world, float screenW, float screenH) {
         Entity canvas = world.Create().With<UICanvas>().Build();
         uiOwnedEntities_.push_back(canvas);
 
         Entity uiRenderSystem = world.Create().With<UIRenderSystem>().Build();
-        if (auto* renderSys = world.TryGet<UIRenderSystem>(uiRenderSystem)) {
+        if (auto *renderSys = world.TryGet<UIRenderSystem>(uiRenderSystem)) {
             renderSys->SetTextSystem(&textSystem_);
             renderSys->SetImageSystem(&imageSystem_);
             renderSys->SetScreenSize(screenW, screenH);
@@ -241,7 +251,7 @@ private:
         uiOwnedEntities_.push_back(uiRenderSystem);
 
         Entity uiInteractionSystem = world.Create().With<UIInteractionSystem>().Build();
-        if (auto* interaction = world.TryGet<UIInteractionSystem>(uiInteractionSystem)) {
+        if (auto *interaction = world.TryGet<UIInteractionSystem>(uiInteractionSystem)) {
             interaction->SetScreenSize(screenW, screenH);
             interaction->input_ = nullptr;
         }
@@ -249,7 +259,7 @@ private:
 
         TextSystem::TextFormat hud;
         hud.fontSize = 60.0f;
-        hud.fontFamily = L"メイリオ";
+        hud.fontFamily = L"Mamelon-5-Hi-Regular.otf";
         hud.alignment = DWRITE_TEXT_ALIGNMENT_LEADING;
         textSystem_.CreateTextFormat("hud", hud);
 
@@ -278,10 +288,9 @@ private:
 
         Entity crossImageEntity = world.Create().With<UITransform>(crossImgTr).With<UIImage>(crossImg).Build();
         uiOwnedEntities_.push_back(crossImageEntity);
-
     }
 
-    void ShutdownUI(World& world) {
+    void ShutdownUI(World &world) {
         for (const auto &e : uiOwnedEntities_) {
             if (world.IsAlive(e)) {
                 world.DestroyEntityWithCause(e, World::Cause::SceneUnload);
@@ -290,18 +299,16 @@ private:
         uiOwnedEntities_.clear();
     }
 
-    bool CheckExitInput(InputSystem& input) {
+    bool CheckExitInput(InputSystem &input) {
         if (input.GetKeyDown(VK_RETURN) || input.GetKeyDown(VK_SPACE) || input.GetKeyDown(VK_ESCAPE)) {
             return true;
         }
 
-        auto* gamepad = ServiceLocator::TryGet<GamepadSystem>();
+        auto *gamepad = ServiceLocator::TryGet<GamepadSystem>();
         if (gamepad) {
-            if (gamepad->GetAnyButtonDown({
-                GamepadSystem::Button_A,
-                GamepadSystem::Button_B,
-                GamepadSystem::Button_Start
-            })) {
+            if (gamepad->GetAnyButtonDown({GamepadSystem::Button_A,
+                                           GamepadSystem::Button_B,
+                                           GamepadSystem::Button_Start})) {
                 return true;
             }
         }
@@ -309,9 +316,10 @@ private:
     }
 
     bool InitializeRendering() {
-        if (!gfx_) return false;
+        if (!gfx_)
+            return false;
 
-        const char* vsCode = R"(
+        const char *vsCode = R"(
             struct VS_INPUT {
                 float3 pos : POSITION;
                 float2 uv : TEXCOORD;
@@ -328,7 +336,7 @@ private:
             }
         )";
 
-        const char* psCode = R"(
+        const char *psCode = R"(
             Texture2D tex : register(t0);
             SamplerState samp : register(s0);
             struct PS_INPUT {
@@ -343,14 +351,14 @@ private:
         Microsoft::WRL::ComPtr<ID3DBlob> vsBlob, psBlob, errorBlob;
 
         HRESULT hr = D3DCompile(vsCode, strlen(vsCode), nullptr, nullptr, nullptr,
-            "main", "vs_5_0", 0, 0, &vsBlob, &errorBlob);
+                                "main", "vs_5_0", 0, 0, &vsBlob, &errorBlob);
         if (FAILED(hr)) {
             DEBUGLOG_ERROR("VideoScene: Vertex shader compile failed");
             return false;
         }
 
         hr = D3DCompile(psCode, strlen(psCode), nullptr, nullptr, nullptr,
-            "main", "ps_5_0", 0, 0, &psBlob, &errorBlob);
+                        "main", "ps_5_0", 0, 0, &psBlob, &errorBlob);
         if (FAILED(hr)) {
             DEBUGLOG_ERROR("VideoScene: Pixel shader compile failed");
             return false;
@@ -359,22 +367,24 @@ private:
         hr = gfx_->Dev()->CreateVertexShader(
             vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(),
             nullptr, &vertexShader_);
-        if (FAILED(hr)) return false;
+        if (FAILED(hr))
+            return false;
 
         hr = gfx_->Dev()->CreatePixelShader(
             psBlob->GetBufferPointer(), psBlob->GetBufferSize(),
             nullptr, &pixelShader_);
-        if (FAILED(hr)) return false;
+        if (FAILED(hr))
+            return false;
 
         D3D11_INPUT_ELEMENT_DESC layout[] = {
             {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0},
-            {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}
-        };
+            {"TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}};
         hr = gfx_->Dev()->CreateInputLayout(
             layout, 2,
             vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(),
             &inputLayout_);
-        if (FAILED(hr)) return false;
+        if (FAILED(hr))
+            return false;
 
         struct Vertex {
             float x, y, z;
@@ -382,11 +392,10 @@ private:
         };
 
         Vertex vertices[] = {
-            {-1.0f,  1.0f, 0.0f, 0.0f, 0.0f},
-            { 1.0f,  1.0f, 0.0f, 1.0f, 0.0f},
+            {-1.0f, 1.0f, 0.0f, 0.0f, 0.0f},
+            {1.0f, 1.0f, 0.0f, 1.0f, 0.0f},
             {-1.0f, -1.0f, 0.0f, 0.0f, 1.0f},
-            { 1.0f, -1.0f, 0.0f, 1.0f, 1.0f}
-        };
+            {1.0f, -1.0f, 0.0f, 1.0f, 1.0f}};
 
         D3D11_BUFFER_DESC bd{};
         bd.ByteWidth = sizeof(vertices);
@@ -397,7 +406,8 @@ private:
         initData.pSysMem = vertices;
 
         hr = gfx_->Dev()->CreateBuffer(&bd, &initData, &vertexBuffer_);
-        if (FAILED(hr)) return false;
+        if (FAILED(hr))
+            return false;
 
         D3D11_SAMPLER_DESC sd{};
         sd.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
@@ -409,7 +419,8 @@ private:
         sd.MaxLOD = D3D11_FLOAT32_MAX;
 
         hr = gfx_->Dev()->CreateSamplerState(&sd, &samplerState_);
-        if (FAILED(hr)) return false;
+        if (FAILED(hr))
+            return false;
 
         return true;
     }
@@ -422,8 +433,8 @@ private:
         samplerState_.Reset();
     }
 
-    void RenderVideoFrame(ID3D11ShaderResourceView* srv) {
-        auto* ctx = gfx_->Ctx();
+    void RenderVideoFrame(ID3D11ShaderResourceView *srv) {
+        auto *ctx = gfx_->Ctx();
 
         ctx->IASetInputLayout(inputLayout_.Get());
         ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
@@ -439,12 +450,12 @@ private:
 
         ctx->Draw(4, 0);
 
-        ID3D11ShaderResourceView* nullSRV = nullptr;
+        ID3D11ShaderResourceView *nullSRV = nullptr;
         ctx->PSSetShaderResources(0, 1, &nullSRV);
     }
 
-    void TransitionToNextScene(World& world) {
-        if (auto* mgr = ServiceLocator::TryGet<SceneManager>()) {
+    void TransitionToNextScene(World &world) {
+        if (auto *mgr = ServiceLocator::TryGet<SceneManager>()) {
             std::string target = nextSceneName_.empty() ? cfg_VideoNextScene.Get() : nextSceneName_;
             DEBUGLOG(std::string("VideoScene: ChangeScene -> ") + target);
             mgr->ChangeScene(target.c_str(), world);
@@ -452,7 +463,7 @@ private:
     }
 
     void StartFadeInNormal(World &world) {
-        StartSpriteFade(world,fadeEntity_, 1, false);
+        StartSpriteFade(world, fadeEntity_, 1, false);
     }
 
     void StartSpriteFade(World &world, Entity target, int direction, bool forceOpaque) {
@@ -467,7 +478,7 @@ private:
         }
     }
 
-    GfxDevice* gfx_ = nullptr;
+    GfxDevice *gfx_ = nullptr;
 
     VideoPlayer player_;
 
@@ -492,7 +503,7 @@ private:
     TextSystem textSystem_;
     ImageSystem imageSystem_;
     std::vector<Entity> uiOwnedEntities_;
-    
+
     std::string loopVideoPath_;
 
     Entity fadeEntity_;

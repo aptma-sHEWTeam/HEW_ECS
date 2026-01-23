@@ -19,6 +19,7 @@
 #include <wrl/client.h>
 #include <string>
 #include <unordered_map>
+#include <vector>
 #include <DirectXMath.h>
 
 #pragma comment(lib, "d2d1.lib")
@@ -62,7 +63,7 @@ class TextSystem {
      * @brief テキストフォーマット設定
      */
     struct TextFormat {
-        std::wstring fontFamily = L"メイリオ";                                           ///< フォントファミリー
+        std::wstring fontFamily = L"Mamelon-5-Hi-Regular.otf";                           ///< フォントファミリー
         float fontSize = 24.0f;                                                          ///< フォントサイズ
         DWRITE_FONT_WEIGHT weight = DWRITE_FONT_WEIGHT_NORMAL;                           ///< フォントの太さ
         DWRITE_FONT_STYLE style = DWRITE_FONT_STYLE_NORMAL;                              ///< フォントスタイル
@@ -75,25 +76,28 @@ class TextSystem {
 * @brief テキスト描画パラメータ
      */
     struct TextParams {
-        std::wstring text;                               ///< 描画するテキスト
-        float x = 0.0f;                                  ///< X座標
-        float y = 0.0f;                                  ///< Y座標
-        float width = 100.0f;                            ///< 描画領域の幅
-        float height = 50.0f;                            ///< 描画領域の高さ
-        float fontSize = 0.0f;                           ///< フォントサイズの上書き(>0 の場合に適用)
-        DirectX::XMFLOAT4 color{1.0f, 1.0f, 1.0f, 1.0f}; ///< テキストの色(RGBA)
-        std::string formatId = "default";                ///< 使用するフォーマットID
+        std::wstring text;                                      ///< 描画するテキスト
+        float x = 0.0f;                                         ///< X座標
+        float y = 0.0f;                                         ///< Y座標
+        float width = 100.0f;                                   ///< 描画領域の幅
+        float height = 50.0f;                                   ///< 描画領域の高さ
+        float fontSize = 0.0f;                                  ///< フォントサイズの上書き(>0 の場合に適用)
+        DirectX::XMFLOAT4 color{1.0f, 1.0f, 1.0f, 1.0f};        ///< テキストの色(RGBA)
+        DirectX::XMFLOAT4 outlineColor{1.0f, 1.0f, 1.0f, 1.0f}; ///< アウトライン色(RGBA)
+        float outlineThickness = 0.0f;                          ///< アウトライン太さ(0で無効)
+        std::wstring fillTexturePath;                           ///< 文字塗りつぶし用テクスチャ
+        std::string formatId = "default";                       ///< 使用するフォーマットID
     };
 
     // 画像描画用パラメータ
     struct ImageParams {
-        float x = 0.0f;          ///< X座標
-        float y = 0.0f;          ///< Y座標
-        float width = 100.0f;    ///< 描画領域の幅
-        float height = 100.0f;   ///< 描画領域の高さ
-        float opacity = 1.0f;     ///< 透過(0..1)
-        bool keepAspect = true;   ///< アスペクト比維持
-        std::wstring filePath;    ///< 画像ファイルパス
+        float x = 0.0f;         ///< X座標
+        float y = 0.0f;         ///< Y座標
+        float width = 100.0f;   ///< 描画領域の幅
+        float height = 100.0f;  ///< 描画領域の高さ
+        float opacity = 1.0f;   ///< 透過(0..1)
+        bool keepAspect = true; ///< アスペクト比維持
+        std::wstring filePath;  ///< 画像ファイルパス
     };
 
     TextSystem() = default;
@@ -127,6 +131,19 @@ class TextSystem {
      * BeginDraw()とEndDraw()の間で呼び出す必要があります。
      */
     void DrawText(const TextParams &params);
+
+    /**
+     * @brief 矩形を塗りつぶし描画
+     * @param[in] x 左上X座標
+     * @param[in] y 左上Y座標
+     * @param[in] width 幅
+     * @param[in] height 高さ
+     * @param[in] color 塗りつぶし色(RGBA)
+     *
+     * @details
+     * BeginDraw()とEndDraw()の間で呼び出す必要があります。
+     */
+    void FillRect(float x, float y, float width, float height, const DirectX::XMFLOAT4 &color);
 
     // 画像描画API
     /**
@@ -178,13 +195,20 @@ class TextSystem {
     std::unordered_map<std::string, Microsoft::WRL::ComPtr<IDWriteTextFormat>> textFormats_;
     std::unordered_map<uint32_t, Microsoft::WRL::ComPtr<ID2D1SolidColorBrush>> brushCache_;
     std::unordered_map<std::wstring, Microsoft::WRL::ComPtr<ID2D1Bitmap1>> bitmapCache_;
+    std::unordered_map<std::wstring, Microsoft::WRL::ComPtr<ID2D1BitmapBrush>> bitmapBrushCache_;
+    Microsoft::WRL::ComPtr<IDWriteFontCollection> customFontCollection_;
+    Microsoft::WRL::ComPtr<IDWriteFontCollectionLoader> customFontCollectionLoader_;
+    std::vector<std::wstring> customFontFiles_;
 
     bool initialized_ = false;
     GfxDevice *gfx_ = nullptr;
 
     ID2D1SolidColorBrush *GetOrCreateBrush(const DirectX::XMFLOAT4 &color);
+    ID2D1BitmapBrush *GetOrCreateBitmapBrush(const std::wstring &filePath);
     uint32_t ColorToHash(const DirectX::XMFLOAT4 &color) const;
     void RefreshTargetBitmap();
+    bool InitCustomFontCollection();
+    bool TryResolveCustomFontFamily(const std::wstring &requestedFamily, std::wstring &outFamily) const;
 
     // 画像読み込み（キャッシュ利用）
     bool LoadBitmapFromFile(const std::wstring &filePath, Microsoft::WRL::ComPtr<ID2D1Bitmap1> &outBitmap);

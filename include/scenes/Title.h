@@ -72,6 +72,8 @@ class TitleScene : public IScene {
     inline static ConfigVar<std::string> cfg_SkyboxTexturePath{"Title.Skybox", "TexturePath", "Assets/Textures/Skybox/Sky_Box.png", "タイトル: Skybox テクスチャパス"};
     inline static ConfigVar<float> cfg_SkyboxScale{"Title.Skybox", "Scale", 200.0f, "タイトル: Skybox スケール"};
     inline static ConfigVar<float> cfg_SkyboxSpeed{"Skybox", "Speed", 0.05f, "スカイボックスの回転速度(rad/sec)"};
+    inline static ConfigVar<float> cfg_CameraBobAmplitude{"Title.Camera", "BobAmplitude", 0.2f, "Title: Camera bob amplitude"};
+    inline static ConfigVar<float> cfg_CameraBobSpeed{"Title.Camera", "BobSpeed", 1.0f, "Title: Camera bob speed (rad/sec)"};
 
     // 壁見た目
     inline static ConfigVar<float> cfg_WallPosX{"Title.Wall", "PosX", 20.0f, "壁: Window 位置X"};
@@ -158,8 +160,10 @@ class TitleScene : public IScene {
         //カメラの詳細設定
         float aspect = static_cast<float>(gfx->Width()) / gfx->Height();
         camera_ = Camera::LookAtLH(
-            DirectX::XM_PIDIV4, aspect, 0.1f, 1000.0f,
+            DirectX::XM_PIDIV4, aspect, 0.1f, 10000.0f,
             {0, 0, -23}, {0, 0, 0}, {0, 1, 0});
+        cameraBobPhase_ = 0.0f;
+        cameraBobOffsetY_ = 0.0f;
 
         CreateSkybox(world);
 
@@ -168,6 +172,11 @@ class TitleScene : public IScene {
         if (!skyboxScaleTestsRan) {
             RunSkyboxScaleTests();
             skyboxScaleTestsRan = true;
+        }
+        static bool cameraBobTestsRan = false;
+        if (!cameraBobTestsRan) {
+            RunCameraBobTests();
+            cameraBobTestsRan = true;
         }
 #endif
 
@@ -472,6 +481,7 @@ class TitleScene : public IScene {
             UpdateCameraZoom(world, deltaTime);
         }
 
+        UpdateCameraBob(deltaTime);
         UpdateSkyboxRotation(deltaTime);
         UpdateSkyboxTransform(world);
         UpdateSkyboxTexture(world);
@@ -566,6 +576,32 @@ class TitleScene : public IScene {
         }
     }
 
+    void UpdateCameraBob(float deltaTime) {
+        const float amplitude = std::max(0.0f, cfg_CameraBobAmplitude.Get());
+        const float speed = std::max(0.0f, cfg_CameraBobSpeed.Get());
+
+        if (amplitude <= 0.0f || speed <= 0.0f) {
+            if (cameraBobOffsetY_ != 0.0f) {
+                camera_.position.y -= cameraBobOffsetY_;
+                camera_.target.y -= cameraBobOffsetY_;
+                cameraBobOffsetY_ = 0.0f;
+                camera_.Update();
+            }
+            return;
+        }
+
+        camera_.position.y -= cameraBobOffsetY_;
+        camera_.target.y -= cameraBobOffsetY_;
+        cameraBobPhase_ += speed * deltaTime;
+        if (cameraBobPhase_ > DirectX::XM_2PI) {
+            cameraBobPhase_ -= DirectX::XM_2PI;
+        }
+        cameraBobOffsetY_ = CameraBobOffset(cameraBobPhase_, amplitude);
+        camera_.position.y += cameraBobOffsetY_;
+        camera_.target.y += cameraBobOffsetY_;
+        camera_.Update();
+    }
+
      enum TitleSelect {
         Start = 0,
         Restart = 1,
@@ -587,6 +623,10 @@ class TitleScene : public IScene {
         return DirectX::XMConvertToDegrees(rotationRad);
     }
 
+    static float CameraBobOffset(float phaseRad, float amplitude) {
+        return std::sin(phaseRad) * amplitude;
+    }
+
 #if defined(_DEBUG)
     void RunSkyboxScaleTests() {
         assert(!IsSkyboxTexturePathValid(""));
@@ -595,6 +635,12 @@ class TitleScene : public IScene {
         assert(SanitizeSkyboxScale(0.0f) == 0.1f);
         assert(SanitizeSkyboxScale(-2.0f) == 0.1f);
         assert(std::abs(SkyboxRotationToDegrees(DirectX::XM_PIDIV2) - 90.0f) < 1e-3f);
+    }
+
+    void RunCameraBobTests() {
+        assert(std::abs(CameraBobOffset(0.0f, 1.0f)) < 1e-6f);
+        assert(std::abs(CameraBobOffset(DirectX::XM_PIDIV2, 2.0f) - 2.0f) < 1e-3f);
+        assert(std::abs(CameraBobOffset(DirectX::XM_PI, 2.0f)) < 1e-3f);
     }
 #endif
 
@@ -618,6 +664,8 @@ class TitleScene : public IScene {
     TextureManager::TextureHandle skyboxTexture_ = TextureManager::INVALID_TEXTURE;
     bool skyboxTextureApplied_ = false;
     float skyboxRotation_ = 0.0f;
+    float cameraBobPhase_ = 0.0f;
+    float cameraBobOffsetY_ = 0.0f;
 
     TextSystem textSystem_{};
     ImageSystem imageSystem_{};
