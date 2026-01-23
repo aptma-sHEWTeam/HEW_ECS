@@ -165,7 +165,7 @@ public:
             if (count >= MAX_POINT_LIGHTS) break;
             
             auto& dst = lightingData_.pointLights[count];
-            dst.position = src.t->position;
+              dst.position = ApplyPointLightOffset(src.t->position, *src.pl);
             dst.range = src.pl->range;
             dst.color = src.pl->color;
             dst.intensity = src.pl->intensity;

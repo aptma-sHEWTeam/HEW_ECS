@@ -269,6 +269,7 @@ class GameScene : public IScene {
         static bool skyboxScaleTestsRan = false;
         if (!skyboxScaleTestsRan) {
             RunSkyboxScaleTests();
+            RunPointLightOffsetTests();
             skyboxScaleTestsRan = true;
         }
 #endif
@@ -1511,6 +1512,7 @@ class GameScene : public IScene {
             cfg_GoalEmissiveIntensity.Get(),
             cfg_GoalLightRange.Get()};
         ApplyDefaultPointLightParams(light);
+        light.offset = {0.0f, std::max(0.0f, cfg_PointLightYOffset.Get()), 0.0f};
 
         StopGoalEffect();
 
@@ -1622,6 +1624,7 @@ class GameScene : public IScene {
         wallLight.range = 1.0f;
         wallLight.intensity = 1.0f;
         wallLight.constantAttenuation = 0.1f;
+        wallLight.offset = {0.0f, std::max(0.0f, cfg_PointLightYOffset.Get()), 0.0f};
 
         Entity walllightEntity = world.Create()
                                      .With<Transform>(transform)
@@ -2264,6 +2267,16 @@ class GameScene : public IScene {
         testCam.position = {0.0f, 0.0f, 0.0f};
         testCam.target = {1.0f, 0.0f, 0.0f};
         assert(std::abs(BuildSkyboxYawDeg(testCam, DirectX::XM_PIDIV2) - 180.0f) < 1e-3f);
+    }
+
+    void RunPointLightOffsetTests() {
+        PointLight light;
+        light.offset = {0.0f, 1.0f, 0.0f};
+        DirectX::XMFLOAT3 base{1.0f, 2.0f, 3.0f};
+        DirectX::XMFLOAT3 pos = ApplyPointLightOffset(base, light);
+        assert(std::abs(pos.x - 1.0f) < 1e-6f);
+        assert(std::abs(pos.y - 3.0f) < 1e-6f);
+        assert(std::abs(pos.z - 3.0f) < 1e-6f);
     }
 #endif
 
