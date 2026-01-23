@@ -270,6 +270,7 @@ class GameScene : public IScene {
         if (!skyboxScaleTestsRan) {
             RunSkyboxScaleTests();
             RunPointLightOffsetTests();
+            assert(cfg_LimitTime.Get() > 0.0f);
             skyboxScaleTestsRan = true;
         }
 #endif

@@ -5,6 +5,7 @@
 #pragma once
 
 #include "components/Component.h"
+#include "scenes/StageConfig.h"
 
 /**
  * @struct GameStats
