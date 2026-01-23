@@ -18,13 +18,13 @@ inline static ConfigVar<float> cfg_FadeFrameTime{"Fade.Out", "FadeFrameTime", 0.
 void GameScene::CreateTextFormats() {
     TextSystem::TextFormat hudFormat;
     hudFormat.fontSize = 24.0f;
-    hudFormat.fontFamily = L"メイリオ";
+    hudFormat.fontFamily = L"Mamelon-5-Hi-Regular.otf";
     hudFormat.alignment = DWRITE_TEXT_ALIGNMENT_LEADING;
     textSystem_.CreateTextFormat("hud", hudFormat);
 
     TextSystem::TextFormat pauseFormat;
     pauseFormat.fontSize = 72.0f;
-    pauseFormat.fontFamily = L"メイリオ";
+    pauseFormat.fontFamily = L"Mamelon-5-Hi-Regular.otf";
     pauseFormat.alignment = DWRITE_TEXT_ALIGNMENT_CENTER;
     pauseFormat.paragraphAlignment = DWRITE_PARAGRAPH_ALIGNMENT_CENTER;
     textSystem_.CreateTextFormat("pause", pauseFormat);
@@ -41,11 +41,16 @@ void GameScene::CreateTextFormats() {
 
     TextSystem::TextFormat titleFormat;
     titleFormat.fontSize = 20.0f;
-    titleFormat.fontFamily = L"メイリオ";
+    titleFormat.fontFamily = L"Mamelon-5-Hi-Regular.otf";
     titleFormat.style = DWRITE_FONT_STYLE_ITALIC;
     titleFormat.alignment = DWRITE_TEXT_ALIGNMENT_JUSTIFIED;
     titleFormat.paragraphAlignment = DWRITE_PARAGRAPH_ALIGNMENT_FAR;
     textSystem_.CreateTextFormat("title", titleFormat);
+
+    TextSystem::TextFormat roomNumberFormat = hudFormat;
+    roomNumberFormat.fontFamily = L"Kinkakuji-Normal";
+    roomNumberFormat.weight = DWRITE_FONT_WEIGHT_BOLD;
+    textSystem_.CreateTextFormat("roomNumber", roomNumberFormat);
 }
 
 void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
@@ -218,18 +223,24 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 
     UIText stageText[2];
 
-    stageText[0].text = {L"Room : 0/"};
+    stageText[0].text = {L"Room : 0"};
     stageText[0].color = {0.0f, 0.5f, 1.0f, 1.0f};
-    stageText[0].formatId = "hud";
+    stageText[0].formatId = "roomNumber";
+    stageText[0].outlineColor = {1.0f, 1.0f, 1.0f, 1.0f};
+    stageText[0].outlineThickness = 1.0f;
+    stageText[0].fillTexturePath = L"./Assets/Textures/RoomNo/UI-2-color.png";
     float stagetextSize0 = 3.9f * sizeof(stageText[0].text);
 
     stageText[1].text = {L"0"};
     stageText[1].color = {0.0f, 0.5f, 1.0f, 1.0f};
-    stageText[1].formatId = "hud";
+    stageText[1].formatId = "roomNumber";
+    stageText[1].outlineColor = {1.0f, 1.0f, 1.0f, 1.0f};
+    stageText[1].outlineThickness = 1.0f;
+    stageText[1].fillTexturePath = L"./Assets/Textures/RoomNo/UI-2-color.png";
 
     UITransform stageTransform[2];
-    stageTransform[0].position = {1450.0f, 84.0f};
-    stageTransform[0].size = {200.0f, 80.0f};
+    stageTransform[0].position = {1450.0f, 65.0};
+    stageTransform[0].size = {210.0f, 100.0f};
     stageTransform[0].anchor = {0.0f, 0.0f};
     stageTransform[0].pivot = {1.0f, 0.0f};
 

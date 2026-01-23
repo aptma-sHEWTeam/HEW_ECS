@@ -6,11 +6,199 @@
  */
 #include "graphics/TextSystem.h"
 #include <cmath>
+#include <algorithm>
+#include <atomic>
+#include <cwctype>
+#include <new>
 #include <dxgi.h>
 #include <dxgi1_2.h>
 #include <vector>
 #include <wincodec.h>
 #include <comdef.h>
+
+namespace {
+class FontFileEnumerator final : public IDWriteFontFileEnumerator {
+  public:
+    FontFileEnumerator(IDWriteFactory *factory, const std::vector<std::wstring> &files)
+        : refCount_(1), factory_(factory), files_(files) {
+        if (factory_) {
+            factory_->AddRef();
+        }
+    }
+
+    ~FontFileEnumerator() {
+        if (factory_) {
+            factory_->Release();
+            factory_ = nullptr;
+        }
+    }
+
+    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void **ppvObject) override {
+        if (!ppvObject) {
+            return E_POINTER;
+        }
+        if (iid == __uuidof(IUnknown) || iid == __uuidof(IDWriteFontFileEnumerator)) {
+            *ppvObject = this;
+            AddRef();
+            return S_OK;
+        }
+        *ppvObject = nullptr;
+        return E_NOINTERFACE;
+    }
+
+    ULONG STDMETHODCALLTYPE AddRef() override {
+        return ++refCount_;
+    }
+
+    ULONG STDMETHODCALLTYPE Release() override {
+        ULONG count = --refCount_;
+        if (count == 0) {
+            delete this;
+        }
+        return count;
+    }
+
+    HRESULT STDMETHODCALLTYPE MoveNext(BOOL *hasCurrentFile) override {
+        if (!hasCurrentFile) {
+            return E_POINTER;
+        }
+        if (index_ >= files_.size()) {
+            *hasCurrentFile = FALSE;
+            currentFile_.Reset();
+            return S_OK;
+        }
+
+        HRESULT hr = factory_->CreateFontFileReference(files_[index_].c_str(), nullptr, currentFile_.GetAddressOf());
+        if (SUCCEEDED(hr)) {
+            *hasCurrentFile = TRUE;
+            ++index_;
+        } else {
+            *hasCurrentFile = FALSE;
+        }
+        return hr;
+    }
+
+    HRESULT STDMETHODCALLTYPE GetCurrentFontFile(IDWriteFontFile **fontFile) override {
+        if (!fontFile) {
+            return E_POINTER;
+        }
+        if (!currentFile_) {
+            return E_FAIL;
+        }
+        *fontFile = currentFile_.Get();
+        (*fontFile)->AddRef();
+        return S_OK;
+    }
+
+  private:
+    std::atomic<ULONG> refCount_;
+    IDWriteFactory *factory_ = nullptr;
+    std::vector<std::wstring> files_;
+    size_t index_ = 0;
+    Microsoft::WRL::ComPtr<IDWriteFontFile> currentFile_;
+};
+
+class FontCollectionLoader final : public IDWriteFontCollectionLoader {
+  public:
+    explicit FontCollectionLoader(const std::vector<std::wstring> &files)
+        : refCount_(1), files_(files) {}
+
+    HRESULT STDMETHODCALLTYPE QueryInterface(REFIID iid, void **ppvObject) override {
+        if (!ppvObject) {
+            return E_POINTER;
+        }
+        if (iid == __uuidof(IUnknown) || iid == __uuidof(IDWriteFontCollectionLoader)) {
+            *ppvObject = this;
+            AddRef();
+            return S_OK;
+        }
+        *ppvObject = nullptr;
+        return E_NOINTERFACE;
+    }
+
+    ULONG STDMETHODCALLTYPE AddRef() override {
+        return ++refCount_;
+    }
+
+    ULONG STDMETHODCALLTYPE Release() override {
+        ULONG count = --refCount_;
+        if (count == 0) {
+            delete this;
+        }
+        return count;
+    }
+
+    HRESULT STDMETHODCALLTYPE CreateEnumeratorFromKey(
+        IDWriteFactory *factory,
+        const void *collectionKey,
+        UINT32 collectionKeySize,
+        IDWriteFontFileEnumerator **fontFileEnumerator) override {
+        (void) collectionKey;
+        (void) collectionKeySize;
+        if (!factory || !fontFileEnumerator) {
+            return E_INVALIDARG;
+        }
+        auto *enumerator = new (std::nothrow) FontFileEnumerator(factory, files_);
+        if (!enumerator) {
+            return E_OUTOFMEMORY;
+        }
+        *fontFileEnumerator = enumerator;
+        return S_OK;
+    }
+
+  private:
+    std::atomic<ULONG> refCount_;
+    std::vector<std::wstring> files_;
+};
+
+std::wstring ToLowerCopy(const std::wstring &value) {
+    std::wstring out(value);
+    std::transform(out.begin(), out.end(), out.begin(), [](wchar_t c) { return static_cast<wchar_t>(std::towlower(c)); });
+    return out;
+}
+
+bool EndsWithIgnoreCase(const std::wstring &value, const std::wstring &suffix) {
+    if (suffix.size() > value.size()) {
+        return false;
+    }
+    std::wstring tail = value.substr(value.size() - suffix.size());
+    return ToLowerCopy(tail) == ToLowerCopy(suffix);
+}
+
+std::wstring StripStyleSuffix(std::wstring name) {
+    const std::wstring regularSuffix = L"-Regular";
+    const std::wstring normalSuffix = L"-Normal";
+    if (EndsWithIgnoreCase(name, regularSuffix)) {
+        name.erase(name.size() - regularSuffix.size());
+    }
+    if (EndsWithIgnoreCase(name, normalSuffix)) {
+        name.erase(name.size() - normalSuffix.size());
+    }
+    return name;
+}
+
+std::wstring ExtractBaseName(const std::wstring &path) {
+    std::wstring base = path;
+    size_t pos = base.find_last_of(L"\\/");
+    if (pos != std::wstring::npos) {
+        base = base.substr(pos + 1);
+    }
+    size_t dot = base.find_last_of(L'.');
+    if (dot != std::wstring::npos) {
+        base = base.substr(0, dot);
+    }
+    return StripStyleSuffix(base);
+}
+
+bool ContainsIgnoreCase(const std::wstring &value, const std::wstring &needle) {
+    if (needle.empty()) {
+        return false;
+    }
+    std::wstring haystackLower = ToLowerCopy(value);
+    std::wstring needleLower = ToLowerCopy(needle);
+    return haystackLower.find(needleLower) != std::wstring::npos;
+}
+} // namespace
 
 bool TextSystem::Init(GfxDevice &gfx) {
     try {
@@ -52,6 +240,8 @@ bool TextSystem::Init(GfxDevice &gfx) {
             DEBUGLOG_ERROR("Failed to create DWrite Factory");
             return false;
         }
+
+        InitCustomFontCollection();
 
         // WIC Imaging Factory (for image decoding)
         hr = CoCreateInstance(
@@ -113,9 +303,14 @@ bool TextSystem::CreateTextFormat(const std::string &id, const TextFormat &forma
         return false;
     }
     Microsoft::WRL::ComPtr<IDWriteTextFormat> textFormat;
+    std::wstring resolvedFamily = format.fontFamily;
+    IDWriteFontCollection *fontCollection = nullptr;
+    if (TryResolveCustomFontFamily(format.fontFamily, resolvedFamily)) {
+        fontCollection = customFontCollection_.Get();
+    }
     HRESULT hr = dwriteFactory_->CreateTextFormat(
-        format.fontFamily.c_str(),
-        nullptr,
+        resolvedFamily.c_str(),
+        fontCollection,
         format.weight,
         format.style,
         DWRITE_FONT_STRETCH_NORMAL,
@@ -132,6 +327,91 @@ bool TextSystem::CreateTextFormat(const std::string &id, const TextFormat &forma
     return true;
 }
 
+bool TextSystem::InitCustomFontCollection() {
+    if (!dwriteFactory_) {
+        return false;
+    }
+    customFontFiles_.clear();
+    customFontFiles_.push_back(L"./Assets/Fonts/Mamelon-5-Hi-Regular.otf");
+    customFontFiles_.push_back(L"./Assets/Fonts/Kinkakuji-Normal.ttf");
+
+    auto *loader = new (std::nothrow) FontCollectionLoader(customFontFiles_);
+    if (!loader) {
+        return false;
+    }
+    customFontCollectionLoader_.Attach(loader);
+
+    HRESULT hr = dwriteFactory_->RegisterFontCollectionLoader(customFontCollectionLoader_.Get());
+    if (FAILED(hr)) {
+        customFontCollectionLoader_.Reset();
+        return false;
+    }
+
+    hr = dwriteFactory_->CreateCustomFontCollection(
+        customFontCollectionLoader_.Get(),
+        nullptr,
+        0,
+        customFontCollection_.GetAddressOf());
+    if (FAILED(hr)) {
+        dwriteFactory_->UnregisterFontCollectionLoader(customFontCollectionLoader_.Get());
+        customFontCollectionLoader_.Reset();
+        customFontCollection_.Reset();
+        return false;
+    }
+    return true;
+}
+
+bool TextSystem::TryResolveCustomFontFamily(const std::wstring &requestedFamily, std::wstring &outFamily) const {
+    if (!customFontCollection_ || requestedFamily.empty()) {
+        return false;
+    }
+
+    UINT32 index = 0;
+    BOOL exists = FALSE;
+    if (SUCCEEDED(customFontCollection_->FindFamilyName(requestedFamily.c_str(), &index, &exists)) && exists) {
+        outFamily = requestedFamily;
+        return true;
+    }
+
+    std::wstring key = ExtractBaseName(requestedFamily);
+    if (key.empty()) {
+        return false;
+    }
+
+    UINT32 familyCount = customFontCollection_->GetFontFamilyCount();
+    for (UINT32 i = 0; i < familyCount; ++i) {
+        Microsoft::WRL::ComPtr<IDWriteFontFamily> family;
+        if (FAILED(customFontCollection_->GetFontFamily(i, family.GetAddressOf()))) {
+            continue;
+        }
+        Microsoft::WRL::ComPtr<IDWriteLocalizedStrings> names;
+        if (FAILED(family->GetFamilyNames(names.GetAddressOf()))) {
+            continue;
+        }
+
+        UINT32 nameIndex = 0;
+        BOOL nameExists = FALSE;
+        if (SUCCEEDED(names->FindLocaleName(L"en-us", &nameIndex, &nameExists)) && !nameExists) {
+            nameIndex = 0;
+        }
+
+        UINT32 length = 0;
+        if (FAILED(names->GetStringLength(nameIndex, &length))) {
+            continue;
+        }
+        std::wstring familyName(length + 1, L'\0');
+        if (FAILED(names->GetString(nameIndex, familyName.data(), length + 1))) {
+            continue;
+        }
+        familyName.resize(length);
+        if (ContainsIgnoreCase(familyName, key)) {
+            outFamily = familyName;
+            return true;
+        }
+    }
+    return false;
+}
+
 void TextSystem::DrawText(const TextParams &params) {
     if (!d2dContext_) {
         DEBUGLOG_ERROR("DeviceContext not initialized");
@@ -143,18 +423,6 @@ void TextSystem::DrawText(const TextParams &params) {
         DEBUGLOG_ERROR("Text format not found");
         return;
     }
-
-    ID2D1SolidColorBrush *brush = GetOrCreateBrush(params.color);
-    if (!brush) {
-        DEBUGLOG_ERROR("Failed to create brush");
-        return;
-    }
-
-    D2D1_RECT_F rect = D2D1::RectF(
-        params.x,
-        params.y,
-        params.x + params.width,
-        params.y + params.height);
 
     // 使用するテキストフォーマットを決定（fontSize > 0 の場合、サイズ上書きフォーマットを一時作成）
     IDWriteTextFormat *formatToUse = formatIt->second.Get();
@@ -195,12 +463,63 @@ void TextSystem::DrawText(const TextParams &params) {
         }
     }
 
-    d2dContext_->DrawTextW(
-        params.text.c_str(),
-        static_cast<UINT32>(params.text.length()),
-        formatToUse,
-        &rect,
-        brush);
+    auto drawTextWithBrush = [&](ID2D1Brush *brush, float offsetX, float offsetY) {
+        if (!brush) {
+            DEBUGLOG_ERROR("Failed to create brush");
+            return;
+        }
+        D2D1_RECT_F rect = D2D1::RectF(
+            params.x + offsetX,
+            params.y + offsetY,
+            params.x + params.width + offsetX,
+            params.y + params.height + offsetY);
+        d2dContext_->DrawTextW(
+            params.text.c_str(),
+            static_cast<UINT32>(params.text.length()),
+            formatToUse,
+            &rect,
+            brush);
+    };
+
+    auto drawTextWithColor = [&](const DirectX::XMFLOAT4 &color, float offsetX, float offsetY) {
+        ID2D1SolidColorBrush *brush = GetOrCreateBrush(color);
+        if (!brush) {
+            DEBUGLOG_ERROR("Failed to create brush");
+            return;
+        }
+        drawTextWithBrush(brush, offsetX, offsetY);
+    };
+
+    if (params.outlineThickness > 0.0f && params.outlineColor.w > 0.0f) {
+        const float t = params.outlineThickness;
+        const float offsets[][2] = {
+            {-t, 0.0f},
+            {t, 0.0f},
+            {0.0f, -t},
+            {0.0f, t},
+            {-t, -t},
+            {-t, t},
+            {t, -t},
+            {t, t},
+        };
+        for (const auto &offset : offsets) {
+            drawTextWithColor(params.outlineColor, offset[0], offset[1]);
+        }
+    }
+
+    ID2D1Brush *fillBrush = nullptr;
+    if (!params.fillTexturePath.empty()) {
+        if (auto *bitmapBrush = GetOrCreateBitmapBrush(params.fillTexturePath)) {
+            bitmapBrush->SetTransform(D2D1::Matrix3x2F::Translation(params.x, params.y));
+            fillBrush = bitmapBrush;
+        }
+    }
+
+    if (fillBrush) {
+        drawTextWithBrush(fillBrush, 0.0f, 0.0f);
+    } else {
+        drawTextWithColor(params.color, 0.0f, 0.0f);
+    }
 }
 
 void TextSystem::FillRect(float x, float y, float width, float height, const DirectX::XMFLOAT4 &color) {
@@ -246,9 +565,16 @@ void TextSystem::Shutdown() {
 
     textFormats_.clear();
     brushCache_.clear();
+    bitmapBrushCache_.clear();
     targetBitmap_.Reset();
     d2dContext_.Reset();
     d2dDevice_.Reset();
+    if (dwriteFactory_ && customFontCollectionLoader_) {
+        dwriteFactory_->UnregisterFontCollectionLoader(customFontCollectionLoader_.Get());
+    }
+    customFontCollection_.Reset();
+    customFontCollectionLoader_.Reset();
+    customFontFiles_.clear();
     dwriteFactory_.Reset();
     wicFactory_.Reset();
     d2dFactory_.Reset();
@@ -276,6 +602,37 @@ ID2D1SolidColorBrush *TextSystem::GetOrCreateBrush(const DirectX::XMFLOAT4 &colo
     }
 
     brushCache_[hash] = brush;
+    return brush.Get();
+}
+
+ID2D1BitmapBrush *TextSystem::GetOrCreateBitmapBrush(const std::wstring &filePath) {
+    if (!d2dContext_ || filePath.empty()) {
+        return nullptr;
+    }
+
+    auto it = bitmapBrushCache_.find(filePath);
+    if (it != bitmapBrushCache_.end()) {
+        return it->second.Get();
+    }
+
+    Microsoft::WRL::ComPtr<ID2D1Bitmap1> bitmap;
+    if (!LoadBitmapFromFile(filePath, bitmap)) {
+        return nullptr;
+    }
+
+    D2D1_BITMAP_BRUSH_PROPERTIES brushProps = D2D1::BitmapBrushProperties(
+        D2D1_EXTEND_MODE_CLAMP,
+        D2D1_EXTEND_MODE_CLAMP,
+        D2D1_BITMAP_INTERPOLATION_MODE_LINEAR);
+    D2D1_BRUSH_PROPERTIES baseProps = D2D1::BrushProperties(1.0f, D2D1::Matrix3x2F::Identity());
+
+    Microsoft::WRL::ComPtr<ID2D1BitmapBrush> brush;
+    HRESULT hr = d2dContext_->CreateBitmapBrush(bitmap.Get(), brushProps, baseProps, brush.GetAddressOf());
+    if (FAILED(hr)) {
+        return nullptr;
+    }
+
+    bitmapBrushCache_[filePath] = brush;
     return brush.Get();
 }
 

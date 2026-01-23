@@ -127,6 +127,9 @@ struct UIRenderSystem {
         p.width = transform.size.x;
         p.height = transform.size.y;
         p.color = text.color;
+        p.outlineColor = text.outlineColor;
+        p.outlineThickness = text.outlineThickness;
+        p.fillTexturePath = text.fillTexturePath;
         p.formatId = text.formatId;
         p.fontSize = text.fontSize;
         textSystem_->DrawText(p);
