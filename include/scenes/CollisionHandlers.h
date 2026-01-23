@@ -156,14 +156,22 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
 inline void CheckTimeLimit(World &w, Entity player, float timeLimitSeconds) {
     // GameStatusコンポーネントを持つエンティティを検索
     w.ForEach<GameStatus>([&](Entity e, GameStatus &stats) {
+        
+        if (stats.resetDone) {
+            return;
+        }
         // 経過時間が制限時間を超えたかチェック
-        if (stats.elapsedTime <= 0) {
+        if (stats.elapsedTime <= 0.0f) {
             DEBUGLOG("Timeout");
             GameScene_OnTimeUp(w, player);
-            stats.elapsedTime = timeLimitSeconds;
+            stats.elapsedTime = 0.0f;
+            stats.resetDone = true;
         }
     });
 }
+
+
+
 
 /**
  * @struct PlayerCollisionHandler

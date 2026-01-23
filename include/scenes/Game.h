@@ -101,6 +101,19 @@ class GameScene : public IScene {
         DEBUGLOG("GameWithUIScene::OnEnter() 開始");
 
         StageSave::Load();
+        auto *mgr = ServiceLocator::TryGet<SceneManager>();
+        if (!mgr)
+            return;
+
+        world.ForEach<GameStatus>([&](Entity, GameStatus &stats) {
+           
+            if (stats.isDead &&
+                !mgr->IsTransitioning() &&
+                !stats.resetDone) {
+                stats.elapsedTime = cfg_LimitTime; 
+                stats.resetDone = true;            
+            }
+        });
 
         world.ForEach<StageProgress>([](Entity, StageProgress &sp) {
             sp.clearedThisStage = false;
