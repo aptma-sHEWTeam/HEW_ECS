@@ -68,8 +68,7 @@ void TitleScene::CreateTitleSelectUI(World &world) {
     startImgTr.anchor = {0.0f, 0.0f};
     startImgTr.pivot = {0.0f, 0.0f};
 
-    UIImage startImg{L"./Assets/Textures/UI/TitleUI/title4.png "};
-    UIImage startselectImg{L"./Assets/Textures/UI/TitleUI/title3.png "};
+    UIImage startImg{normalPaths[0]};
     startImg.opacity = 1.0f;
     startImg.keepAspect = true;
 
@@ -87,8 +86,7 @@ void TitleScene::CreateTitleSelectUI(World &world) {
     restartImgTr.anchor = {0.0f, 0.0f};
     restartImgTr.pivot = {0.0f, 0.0f};
 
-    UIImage restartImg{L"./Assets/Textures/UI/TitleUI/title6.png"};
-    UIImage restartselectImg{L"./Assets/Textures/UI/TitleUI/title5.png"};
+    UIImage restartImg{normalPaths[1]};
     restartImg.opacity = 1.0f;
     restartImg.keepAspect = true;
 
@@ -106,8 +104,7 @@ void TitleScene::CreateTitleSelectUI(World &world) {
     exitImgTr.anchor = {0.0f, 0.0f};
     exitImgTr.pivot = {0.0f, 0.0f};
 
-    UIImage exitImg{L"./Assets/Textures/UI/TitleUI/title2.png"};
-    UIImage exitselectImg{L"./Assets/Textures/UI/TitleUI/title1.png"};
+    UIImage exitImg{normalPaths[2]};
     exitImg.opacity = 1.0f;
     exitImg.keepAspect = true;
 
@@ -116,5 +113,25 @@ void TitleScene::CreateTitleSelectUI(World &world) {
                                   .With<UIImage>(exitImg)
                                   .Build();
 
+    //各エンティティを格納
     ownedEntities_.push_back(exitImageEntity);
+
+    menuEntity_[0] = world.Create()
+                         .With<UITransform>(startImgTr)
+                         .With<UIImage>(startImg)
+                         .Build();
+    ownedEntities_.push_back(menuEntity_[0]);
+
+     menuEntity_[1] = world.Create()
+                         .With<UITransform>(restartImgTr)
+                         .With<UIImage>(restartImg)
+                         .Build();
+    ownedEntities_.push_back(menuEntity_[1]);
+
+     menuEntity_[2] = world.Create()
+                         .With<UITransform>(exitImgTr)
+                         .With<UIImage>(exitImg)
+                         .Build();
+    ownedEntities_.push_back(menuEntity_[2]);
 }
+

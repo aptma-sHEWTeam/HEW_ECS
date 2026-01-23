@@ -382,6 +382,41 @@ class TitleScene : public IScene {
             }
         });
 
+        bool upPressd = input.GetKeyDown(VK_UP);
+        bool downPressd = input.GetKeyDown(VK_DOWN);
+
+        GamepadSystem *pad = ServiceLocator::TryGet<GamepadSystem>();
+        if (pad) {
+            float pady = pad->GetLeftStickY();
+            bool dpadUp = pad->GetButton(GamepadSystem::Button_DPad_Up);
+            bool dpadDown = pad->GetButton(GamepadSystem::Button_DPad_Down);
+        
+            if (pady > 0.8f && !stickUpPrev_)upPressd = true;
+            if (pady < -0.8f && !stickDownPrev_)downPressd = true;
+            if (dpadUp && !dpadDownPrev_)upPressd = true;
+            if (dpadDown && !dpadDownPrev_)downPressd = true;
+
+            stickUpPrev_ = (pady > 0.8f);
+            stickDownPrev_ = (pady < -0.8f);
+            dpadUpPrev_ = dpadUp;
+            dpadDownPrev_ = dpadDown;
+        }
+
+        if (upPressd) {
+            currentSelect = (currentSelect - 1 + 3) % 3;
+            SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
+        }
+        if (downPressd) {
+            currentSelect = (currentSelect + 1) % 3;
+            SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
+        }
+
+        for (int i = 0; i < 3; ++i) {
+            if (auto *img = world.TryGet<UIImage>(menuEntity_[i])) {
+                img->filePath = (i == currentSelect) ? selectPaths[i] : normalPaths[i];
+            }
+        }
+
         if (world.IsAlive(objectEntity_)) {
             if (auto *t = world.TryGet<Transform>(objectEntity_)) {
                 t->position = {cfg_WindowPosX.Get(), cfg_WindowPosY.Get(), cfg_WindowPosZ.Get()};
@@ -409,23 +444,24 @@ class TitleScene : public IScene {
         if (!isTransitioning_) {
             bool trigger = input.GetKeyDown(VK_RETURN);
             
-
             GamepadSystem *padsystem = ServiceLocator::TryGet<GamepadSystem>();
 
 
-
-            //if (padsystem) {
-            //    if (padsystem->GetAnyButtonDown({GamepadSystem::Button_DPad_Up, GamepadSystem::Button_B}))
-            //    
-            //    if (padsystem->GetAnyButtonDown({GamepadSystem::Button_DPad_Down, GamepadSystem::Button_X}))
-            //        
-            //}
-
-
             if (padsystem && padsystem->GetAnyButtonDown({GamepadSystem::Button_A, GamepadSystem::Button_Start, GamepadSystem::Button_X})) {
-                SOUND_SYS.PlaySE(cfg_EnterMP3Pass);
-                DEBUGLOG("Enter pressed!");
-                trigger = true;
+                switch (currentSelect) {
+                    case Start:
+                        SOUND_SYS.PlaySE(cfg_EnterMP3Pass);
+                        DEBUGLOG("Enter pressed!");
+                        trigger = true;
+                        break;
+                    case Restart:
+                        break;
+                    case Exit:
+                        DEBUGLOG("Game End!");
+                        PostQuitMessage(0);
+                        break;
+
+                }
             }
             if (trigger) {
                 isTransitioning_ = true;
@@ -566,12 +602,19 @@ class TitleScene : public IScene {
     float zoomTimer_ = 0.0f;
     bool isUiVisible_ = true;
 
+    int currentSelect = 0;
+    bool stickUpPrev_ = false;
+    bool stickDownPrev_ = false;
+    bool dpadUpPrev_ = false;
+    bool dpadDownPrev_ = false;
+
     std::vector<Entity> ownedEntities_{};
 
     Entity wallEntitiy_{};
     Entity playerEntity_{};
     Entity objectEntity_{};
     Entity skyboxEntity_{};
+    Entity menuEntity_[3];
     TextureManager::TextureHandle skyboxTexture_ = TextureManager::INVALID_TEXTURE;
     bool skyboxTextureApplied_ = false;
     float skyboxRotation_ = 0.0f;
@@ -579,4 +622,16 @@ class TitleScene : public IScene {
     TextSystem textSystem_{};
     ImageSystem imageSystem_{};
     Camera camera_{};
+
+    const std::wstring normalPaths[3] = {
+        {L"./Assets/Textures/UI/TitleUI/title4.png "},
+        {L"./Assets/Textures/UI/TitleUI/title6.png"},
+        {L"./Assets/Textures/UI/TitleUI/title2.png"},
+    };
+
+    const std::wstring selectPaths[3] = {
+        {L"./Assets/Textures/UI/TitleUI/title3.png "},
+        {L"./Assets/Textures/UI/TitleUI/title5.png"},
+        {L"./Assets/Textures/UI/TitleUI/title1.png"},
+    };
 };

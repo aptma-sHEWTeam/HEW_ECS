@@ -344,7 +344,11 @@ class StageSelectScene : public IScene {
                 dpadLeftPrev_ = dpadLeftNow;
             }
 
-           
+          /*  if (input.GetKeyDown(VK_F5)) {
+                    if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
+                        manager->ChangeScene("Title", world);
+                    }
+           }*/
 
             if (rightPressed) {
                 if (stats.selectStage < maxStage_) {
