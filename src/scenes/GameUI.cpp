@@ -72,7 +72,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     }
     ownedEntities_.push_back(uiInteractionSystem);
 
-   /* UITransform scoreTransform;
+    /* UITransform scoreTransform;
     scoreTransform.position = {20.0f, 20.0f};
     scoreTransform.size = {300.0f, 40.0f};
     scoreTransform.anchor = {0.0f, 0.0f};
@@ -132,13 +132,44 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 
     ownedEntities_.push_back(timerImageEntity);
 
+    UITransform warningOverlayTransform;
+    warningOverlayTransform.position = {0.0f, 0.0f};
+    warningOverlayTransform.size = {screenWidth, screenHeight};
+    warningOverlayTransform.anchor = {0.0f, 0.0f};
+    warningOverlayTransform.pivot = {0.0f, 0.0f};
+
+    UIPanel warningOverlay{{1.0f, 0.0f, 0.0f, 0.0f}};
+    warningOverlay.visible = false;
+
+    Entity warningOverlayEntity = world.Create()
+                                      .With<UITransform>(warningOverlayTransform)
+                                      .With<UIPanel>(warningOverlay)
+                                      .Build();
+    ownedEntities_.push_back(warningOverlayEntity);
+
+    UITransform warningTextTransform;
+    warningTextTransform.position = {0.0f, -140.0f};
+    warningTextTransform.size = {800.0f, 120.0f};
+    warningTextTransform.anchor = {0.5f, 0.5f};
+    warningTextTransform.pivot = {0.5f, 0.5f};
+
+    UIText warningText{L""};
+    warningText.color = {1.0f, 1.0f, 0.2f, 1.0f};
+    warningText.formatId = "pause";
+
+    Entity warningTextEntity = world.Create()
+                                   .With<UITransform>(warningTextTransform)
+                                   .With<UIText>(warningText)
+                                   .Build();
+    ownedEntities_.push_back(warningTextEntity);
+
     UITransform starttimeTransform;
     starttimeTransform.position = {600.0f, 250.0f};
     starttimeTransform.size = {300.0f, 300.0f};
     starttimeTransform.anchor = {0.0f, 0.0f};
     starttimeTransform.pivot = {0.0f, 0.0f};
 
-     UIText starttimeText{L"rdy : 00:00"};
+    UIText starttimeText{L"rdy : 00:00"};
     starttimeText.color = {1.0f, 0.0f, 0.0f, 1.0f};
     starttimeText.formatId = "hud";
     starttimeText.fontSize = 36.0f;
@@ -147,7 +178,6 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                            .With<UITransform>(starttimeTransform)
                            .With<UIText>(starttimeText)
                            .Build();
-
 
     ownedEntities_.push_back(starttime);
 
@@ -169,7 +199,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     ownedEntities_.push_back(fpsEntity);
 #endif // !_DEBUG
 
-     UITransform roomImgTr;
+    UITransform roomImgTr;
     roomImgTr.position = {1030.0f, 60.0f};
     roomImgTr.size = {200.0f, 80.0f};
     roomImgTr.anchor = {0.0f, 0.0f};
@@ -179,14 +209,12 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     roomImg.opacity = 1.0f;
     roomImg.keepAspect = true;
 
-     Entity roomImageEntity = world.Create()
-                                  .With<UITransform>(roomImgTr)
-                                  .With<UIImage>(roomImg)
-                                  .Build();
+    Entity roomImageEntity = world.Create()
+                                 .With<UITransform>(roomImgTr)
+                                 .With<UIImage>(roomImg)
+                                 .Build();
 
     ownedEntities_.push_back(roomImageEntity);
-
-
 
     UIText stageText[2];
 
@@ -198,9 +226,6 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     stageText[1].text = {L"0"};
     stageText[1].color = {0.0f, 0.5f, 1.0f, 1.0f};
     stageText[1].formatId = "hud";
-
-
-
 
     UITransform stageTransform[2];
     stageTransform[0].position = {1450.0f, 84.0f};
@@ -251,9 +276,9 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     clearText.formatId = "pause"; // 大きい中央寄せフォントを流用
 
     Entity clearEntity = world.Create()
-                           .With<UITransform>(clearTransform)
-                           .With<UIText>(clearText)
-                           .Build();
+                             .With<UITransform>(clearTransform)
+                             .With<UIText>(clearText)
+                             .Build();
     ownedEntities_.push_back(clearEntity);
     stageClearTextEntity_ = clearEntity;
 
@@ -269,14 +294,15 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         updater->pauseTextEntity_ = pauseEntity;
         updater->stageTextEntity_[0] = stageEntity[0];
         updater->stageTextEntity_[1] = stageEntity[1];
-      //  updater->numEntity_ = numEntity;
+        //  updater->numEntity_ = numEntity;
         updater->timeImageEntity_ = timerImageEntity;
         updater->startplayer_ = starttime;
+        updater->warningOverlayEntity_ = warningOverlayEntity;
+        updater->warningTextEntity_ = warningTextEntity;
     }
     ownedEntities_.push_back(uiUpdater);
 
-
-   /* UITransform UIanimation;
+    /* UITransform UIanimation;
     UIanimation.position = {0.0f, -280.0f};
     UIanimation.size = {1280.0f, 1280.0f};
     UIanimation.anchor = {0.0f, 0.0f};
@@ -301,81 +327,81 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
    fadeAnimationEntity_ = animation;*/
     float fadeFrameTime = cfg_FadeFrameTime;
 
-   UITransform FadeAnimation;
-   FadeAnimation.position = {0.0f, 0.0f};
-   FadeAnimation.size = {1280.0f, 720.0f};
-   FadeAnimation.anchor = {0.0f, 0.0f};
-   FadeAnimation.pivot = {0.0f, 0.0f};
+    UITransform FadeAnimation;
+    FadeAnimation.position = {0.0f, 0.0f};
+    FadeAnimation.size = {1280.0f, 720.0f};
+    FadeAnimation.anchor = {0.0f, 0.0f};
+    FadeAnimation.pivot = {0.0f, 0.0f};
 
-   UIImage fade{L"./Assets/Textures/Fade/tex_fade.png"};
-   fade.opacity = 1.0f;
-   fade.keepAspect = false;
-   fade.overlay = true;
+    UIImage fade{L"./Assets/Textures/Fade/tex_fade.png"};
+    fade.opacity = 1.0f;
+    fade.keepAspect = false;
+    fade.overlay = true;
 
-   SpriteSheetDesc fadeDesc = SpriteSheetDesc::Grid(
-       AnimationConfig::UI::FadeFrames,
-       AnimationConfig::UI::FadeCols,
-       fadeFrameTime,
-       /*loop*/false);
-   fadeDesc.playOnStart = false;
+    SpriteSheetDesc fadeDesc = SpriteSheetDesc::Grid(
+        AnimationConfig::UI::FadeFrames,
+        AnimationConfig::UI::FadeCols,
+        fadeFrameTime,
+        /*loop*/ false);
+    fadeDesc.playOnStart = false;
 
-   Entity fadeOutAnimation = world.Create()
-                                 .With<UITransform>(FadeAnimation)
-                                 .With<UIImage>(fade)
-                                 .Build();
-   AnimationTools::AddSpriteSheet(world, fadeOutAnimation, fadeDesc);
+    Entity fadeOutAnimation = world.Create()
+                                  .With<UITransform>(FadeAnimation)
+                                  .With<UIImage>(fade)
+                                  .Build();
+    AnimationTools::AddSpriteSheet(world, fadeOutAnimation, fadeDesc);
 
-   ownedEntities_.push_back(fadeOutAnimation);
-   fadeAnimationEntity_ = fadeOutAnimation;
+    ownedEntities_.push_back(fadeOutAnimation);
+    fadeAnimationEntity_ = fadeOutAnimation;
 
-   // 死亡専用フェードアウト
-   // 元の tex_fadekorigori.png (77760x4320) は巨大すぎてパフォーマンスに悪影響があるため、
-   // tex_fade.png (通常のフェード用) で代用する。
-   UIImage deathFade{L"./Assets/Textures/Fade/tex_fadekorigori.png"};
-   deathFade.opacity = 1.0f;
-   deathFade.keepAspect = false;
-   deathFade.overlay = true;
+    // 死亡専用フェードアウト
+    // 元の tex_fadekorigori.png (77760x4320) は巨大すぎてパフォーマンスに悪影響があるため、
+    // tex_fade.png (通常のフェード用) で代用する。
+    UIImage deathFade{L"./Assets/Textures/Fade/tex_fadekorigori.png"};
+    deathFade.opacity = 1.0f;
+    deathFade.keepAspect = false;
+    deathFade.overlay = true;
 
-   SpriteSheetDesc deathFadeDesc = SpriteSheetDesc::Grid(
-       AnimationConfig::UI::DeathFadeFrames,
-       AnimationConfig::UI::DeathFadeCols,
-       AnimationConfig::UI::DeathFadeFrameTime,
-       /*loop*/false);
-   deathFadeDesc.playOnStart = false;
+    SpriteSheetDesc deathFadeDesc = SpriteSheetDesc::Grid(
+        AnimationConfig::UI::DeathFadeFrames,
+        AnimationConfig::UI::DeathFadeCols,
+        AnimationConfig::UI::DeathFadeFrameTime,
+        /*loop*/ false);
+    deathFadeDesc.playOnStart = false;
 
-   Entity deathFadeAnimation = world.Create()
+    Entity deathFadeAnimation = world.Create()
                                     .With<UITransform>(FadeAnimation)
                                     .With<UIImage>(deathFade)
                                     .Build();
-   AnimationTools::AddSpriteSheet(world, deathFadeAnimation, deathFadeDesc);
+    AnimationTools::AddSpriteSheet(world, deathFadeAnimation, deathFadeDesc);
 
-   ownedEntities_.push_back(deathFadeAnimation);
-   deathFadeAnimationEntity_ = deathFadeAnimation;
+    ownedEntities_.push_back(deathFadeAnimation);
+    deathFadeAnimationEntity_ = deathFadeAnimation;
 
-   // チャージ中の軽い暗転オーバーレイ（アルファをコード側で制御）
-   UIImage chargeOverlay{L"./Assets/Textures/Fade/tex_fade_Charging.png"};
-   chargeOverlay.opacity = 0.0f;
-   chargeOverlay.keepAspect = false;
-   chargeOverlay.overlay = true;
+    // チャージ中の軽い暗転オーバーレイ（アルファをコード側で制御）
+    UIImage chargeOverlay{L"./Assets/Textures/Fade/tex_fade_Charging.png"};
+    chargeOverlay.opacity = 0.0f;
+    chargeOverlay.keepAspect = false;
+    chargeOverlay.overlay = true;
 
-   SpriteSheetDesc chargeDesc;
-   chargeDesc.frameCount = 1;
-   chargeDesc.columns = 1;
-   chargeDesc.rows = 1;
-   chargeDesc.frameTime = 0.5f;
-   chargeDesc.loop = false;
-   chargeDesc.playOnStart = false;
+    SpriteSheetDesc chargeDesc;
+    chargeDesc.frameCount = 1;
+    chargeDesc.columns = 1;
+    chargeDesc.rows = 1;
+    chargeDesc.frameTime = 0.5f;
+    chargeDesc.loop = false;
+    chargeDesc.playOnStart = false;
 
-   Entity chargeOverlayEntity = world.Create()
+    Entity chargeOverlayEntity = world.Create()
                                      .With<UITransform>(FadeAnimation)
                                      .With<UIImage>(chargeOverlay)
                                      .Build();
-   AnimationTools::AddSpriteSheet(world, chargeOverlayEntity, chargeDesc);
-   ownedEntities_.push_back(chargeOverlayEntity);
-   chargeOverlayEntity_ = chargeOverlayEntity;
+    AnimationTools::AddSpriteSheet(world, chargeOverlayEntity, chargeDesc);
+    ownedEntities_.push_back(chargeOverlayEntity);
+    chargeOverlayEntity_ = chargeOverlayEntity;
 
-   // 初期状態で確実に非表示
-   if (auto *img = world.TryGet<UIImage>(chargeOverlayEntity_)) {
-       img->opacity = 0.0f;
-   }
+    // 初期状態で確実に非表示
+    if (auto *img = world.TryGet<UIImage>(chargeOverlayEntity_)) {
+        img->opacity = 0.0f;
+    }
 }

@@ -14,91 +14,91 @@
 
 bool TextSystem::Init(GfxDevice &gfx) {
     try {
-    if (initialized_) {
-        DEBUGLOG_WARNING("TextSystem already initialized");
+        if (initialized_) {
+            DEBUGLOG_WARNING("TextSystem already initialized");
+            return true;
+        }
+        gfx_ = &gfx;
+
+        Microsoft::WRL::ComPtr<IDXGIDevice> dxgiDevice;
+        HRESULT hr = gfx.Dev()->QueryInterface(IID_PPV_ARGS(&dxgiDevice));
+        if (FAILED(hr)) {
+            DEBUGLOG_ERROR("Failed to get IDXGIDevice from D3D11 device");
+            return false;
+        }
+
+        hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, d2dFactory_.GetAddressOf());
+        if (FAILED(hr)) {
+            DEBUGLOG_ERROR("Failed to create D2D1 Factory1");
+            return false;
+        }
+
+        hr = d2dFactory_->CreateDevice(dxgiDevice.Get(), d2dDevice_.GetAddressOf());
+        if (FAILED(hr)) {
+            DEBUGLOG_ERROR("Failed to create D2D1 Device");
+            return false;
+        }
+        hr = d2dDevice_->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, d2dContext_.GetAddressOf());
+        if (FAILED(hr)) {
+            DEBUGLOG_ERROR("Failed to create D2D1 DeviceContext");
+            return false;
+        }
+
+        hr = DWriteCreateFactory(
+            DWRITE_FACTORY_TYPE_SHARED,
+            __uuidof(IDWriteFactory),
+            reinterpret_cast<IUnknown **>(dwriteFactory_.GetAddressOf()));
+        if (FAILED(hr)) {
+            DEBUGLOG_ERROR("Failed to create DWrite Factory");
+            return false;
+        }
+
+        // WIC Imaging Factory (for image decoding)
+        hr = CoCreateInstance(
+            CLSID_WICImagingFactory,
+            nullptr,
+            CLSCTX_INPROC_SERVER,
+            IID_PPV_ARGS(wicFactory_.GetAddressOf()));
+        if (FAILED(hr)) {
+            DEBUGLOG_ERROR("Failed to create WIC Imaging Factory");
+            return false;
+        }
+
+        Microsoft::WRL::ComPtr<IDXGISurface> dxgiBackBuffer;
+        hr = gfx.GetSwapChain()->GetBuffer(0, IID_PPV_ARGS(&dxgiBackBuffer));
+        if (FAILED(hr)) {
+            DEBUGLOG_ERROR("Failed to get back buffer");
+            return false;
+        }
+
+        FLOAT dpiX = 96.0f;
+        FLOAT dpiY = 96.0f; // 固定DPI (GetDesktopDpiは非推奨)
+        // d2dFactory_->GetDesktopDpi(&dpiX, &dpiY);
+
+        D2D1_BITMAP_PROPERTIES1 bp = D2D1::BitmapProperties1(
+            D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
+            D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_IGNORE),
+            dpiX,
+            dpiY);
+        hr = d2dContext_->CreateBitmapFromDxgiSurface(dxgiBackBuffer.Get(), &bp, targetBitmap_.GetAddressOf());
+        if (FAILED(hr)) {
+            DEBUGLOG_ERROR("Failed to create D2D1 Bitmap1 from back buffer");
+            return false;
+        }
+        d2dContext_->SetTarget(targetBitmap_.Get());
+
+        TextFormat defaultFormat;
+        if (!CreateTextFormat("default", defaultFormat)) {
+            DEBUGLOG_ERROR("Failed to create default text format");
+            return false;
+        }
+
+        initialized_ = true;
+        DEBUGLOG("TextSystem initialized successfully");
         return true;
-    }
-    gfx_ = &gfx;
-
-    Microsoft::WRL::ComPtr<IDXGIDevice> dxgiDevice;
-    HRESULT hr = gfx.Dev()->QueryInterface(IID_PPV_ARGS(&dxgiDevice));
-    if (FAILED(hr)) {
-        DEBUGLOG_ERROR("Failed to get IDXGIDevice from D3D11 device");
-        return false;
-    }
-
-    hr = D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, d2dFactory_.GetAddressOf());
-    if (FAILED(hr)) {
-        DEBUGLOG_ERROR("Failed to create D2D1 Factory1");
-        return false;
-    }
-
-    hr = d2dFactory_->CreateDevice(dxgiDevice.Get(), d2dDevice_.GetAddressOf());
-    if (FAILED(hr)) {
-        DEBUGLOG_ERROR("Failed to create D2D1 Device");
-        return false;
-    }
-    hr = d2dDevice_->CreateDeviceContext(D2D1_DEVICE_CONTEXT_OPTIONS_NONE, d2dContext_.GetAddressOf());
-    if (FAILED(hr)) {
-        DEBUGLOG_ERROR("Failed to create D2D1 DeviceContext");
-        return false;
-    }
-
-    hr = DWriteCreateFactory(
-        DWRITE_FACTORY_TYPE_SHARED,
-        __uuidof(IDWriteFactory),
-        reinterpret_cast<IUnknown **>(dwriteFactory_.GetAddressOf()));
-    if (FAILED(hr)) {
-        DEBUGLOG_ERROR("Failed to create DWrite Factory");
-        return false;
-    }
-
-    // WIC Imaging Factory (for image decoding)
-    hr = CoCreateInstance(
-        CLSID_WICImagingFactory,
-        nullptr,
-        CLSCTX_INPROC_SERVER,
-        IID_PPV_ARGS(wicFactory_.GetAddressOf()));
-    if (FAILED(hr)) {
-        DEBUGLOG_ERROR("Failed to create WIC Imaging Factory");
-        return false;
-    }
-
-    Microsoft::WRL::ComPtr<IDXGISurface> dxgiBackBuffer;
-    hr = gfx.GetSwapChain()->GetBuffer(0, IID_PPV_ARGS(&dxgiBackBuffer));
-    if (FAILED(hr)) {
-        DEBUGLOG_ERROR("Failed to get back buffer");
-        return false;
-    }
-
-    FLOAT dpiX = 96.0f;
-    FLOAT dpiY = 96.0f; // 固定DPI (GetDesktopDpiは非推奨)
-    // d2dFactory_->GetDesktopDpi(&dpiX, &dpiY);
-
-    D2D1_BITMAP_PROPERTIES1 bp = D2D1::BitmapProperties1(
-        D2D1_BITMAP_OPTIONS_TARGET | D2D1_BITMAP_OPTIONS_CANNOT_DRAW,
-        D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_IGNORE),
-        dpiX,
-        dpiY);
-    hr = d2dContext_->CreateBitmapFromDxgiSurface(dxgiBackBuffer.Get(), &bp, targetBitmap_.GetAddressOf());
-    if (FAILED(hr)) {
-        DEBUGLOG_ERROR("Failed to create D2D1 Bitmap1 from back buffer");
-        return false;
-    }
-    d2dContext_->SetTarget(targetBitmap_.Get());
-
-    TextFormat defaultFormat;
-    if (!CreateTextFormat("default", defaultFormat)) {
-        DEBUGLOG_ERROR("Failed to create default text format");
-        return false;
-    }
-
-    initialized_ = true;
-    DEBUGLOG("TextSystem initialized successfully");
-    return true;
-    } catch (const _com_error& ex) {
+    } catch (const _com_error &ex) {
         std::wostringstream woss;
-        const wchar_t* wmsg = ex.ErrorMessage() ? ex.ErrorMessage() : L"unknown";
+        const wchar_t *wmsg = ex.ErrorMessage() ? ex.ErrorMessage() : L"unknown";
         woss << L"TextSystem::Init _com_error hr=0x" << std::hex << ex.Error() << L" msg=" << wmsg;
         //std::wstring w = woss.str();
         //std::string n(w.begin(), w.end());
@@ -203,6 +203,22 @@ void TextSystem::DrawText(const TextParams &params) {
         brush);
 }
 
+void TextSystem::FillRect(float x, float y, float width, float height, const DirectX::XMFLOAT4 &color) {
+    if (!d2dContext_) {
+        DEBUGLOG_ERROR("DeviceContext not initialized");
+        return;
+    }
+
+    ID2D1SolidColorBrush *brush = GetOrCreateBrush(color);
+    if (!brush) {
+        DEBUGLOG_ERROR("Failed to create brush");
+        return;
+    }
+
+    D2D1_RECT_F rect = D2D1::RectF(x, y, x + width, y + height);
+    d2dContext_->FillRectangle(&rect, brush);
+}
+
 void TextSystem::BeginDraw() {
     if (d2dContext_) {
         if (!targetBitmap_) {
@@ -295,7 +311,8 @@ void TextSystem::RefreshTargetBitmap() {
 }
 
 bool TextSystem::LoadBitmapFromFile(const std::wstring &filePath, Microsoft::WRL::ComPtr<ID2D1Bitmap1> &outBitmap) {
-    if (!wicFactory_ || !d2dContext_) return false;
+    if (!wicFactory_ || !d2dContext_)
+        return false;
 
     // Cache check
     auto it = bitmapCache_.find(filePath);
@@ -314,16 +331,19 @@ bool TextSystem::LoadBitmapFromFile(const std::wstring &filePath, Microsoft::WRL
 
     Microsoft::WRL::ComPtr<IWICBitmapFrameDecode> frame;
     hr = decoder->GetFrame(0, frame.GetAddressOf());
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+        return false;
 
     Microsoft::WRL::ComPtr<IWICFormatConverter> converter;
     hr = wicFactory_->CreateFormatConverter(converter.GetAddressOf());
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+        return false;
 
     hr = converter->Initialize(
         frame.Get(), GUID_WICPixelFormat32bppPBGRA, WICBitmapDitherTypeNone,
         nullptr, 0.0f, WICBitmapPaletteTypeCustom);
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+        return false;
 
     D2D1_BITMAP_PROPERTIES1 props = D2D1::BitmapProperties1(
         D2D1_BITMAP_OPTIONS_NONE,
@@ -331,7 +351,8 @@ bool TextSystem::LoadBitmapFromFile(const std::wstring &filePath, Microsoft::WRL
 
     Microsoft::WRL::ComPtr<ID2D1Bitmap1> bitmap;
     hr = d2dContext_->CreateBitmapFromWicBitmap(converter.Get(), &props, bitmap.GetAddressOf());
-    if (FAILED(hr)) return false;
+    if (FAILED(hr))
+        return false;
 
     bitmapCache_[filePath] = bitmap;
     outBitmap = bitmap;
@@ -339,9 +360,11 @@ bool TextSystem::LoadBitmapFromFile(const std::wstring &filePath, Microsoft::WRL
 }
 
 bool TextSystem::DrawImage(const ImageParams &params) {
-    if (!d2dContext_) return false;
+    if (!d2dContext_)
+        return false;
     Microsoft::WRL::ComPtr<ID2D1Bitmap1> bitmap;
-    if (!LoadBitmapFromFile(params.filePath, bitmap)) return false;
+    if (!LoadBitmapFromFile(params.filePath, bitmap))
+        return false;
 
     D2D1_SIZE_F bmpSize = bitmap->GetSize();
     float dstW = params.width;

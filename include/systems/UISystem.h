@@ -95,18 +95,7 @@ struct UIRenderSystem {
     void DrawPanel(const UITransform &transform, const UIPanel &panel) {
         DirectX::XMFLOAT2 pos = transform.GetScreenPosition(screenWidth_, screenHeight_);
         pos.x += renderOffsetX_; // Apply transition offset
-        TextSystem::TextParams p;
-        p.text = L"█";
-        p.x = pos.x;
-        p.y = pos.y;
-        p.width = transform.size.x;
-        p.height = transform.size.y;
-        p.color = panel.color;
-        p.formatId = "panel";
-        for (float y = 0; y < transform.size.y; y += 20.0f) {
-            p.y = pos.y + y;
-            textSystem_->DrawText(p);
-        }
+        textSystem_->FillRect(pos.x, pos.y, transform.size.x, transform.size.y, panel.color);
     }
     void DrawButton(const UITransform &transform, const UIButton &button) {
         DirectX::XMFLOAT2 pos = transform.GetScreenPosition(screenWidth_, screenHeight_);

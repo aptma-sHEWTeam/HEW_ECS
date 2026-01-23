@@ -87,13 +87,13 @@ class TextSystem {
 
     // 画像描画用パラメータ
     struct ImageParams {
-        float x = 0.0f;          ///< X座標
-        float y = 0.0f;          ///< Y座標
-        float width = 100.0f;    ///< 描画領域の幅
-        float height = 100.0f;   ///< 描画領域の高さ
-        float opacity = 1.0f;     ///< 透過(0..1)
-        bool keepAspect = true;   ///< アスペクト比維持
-        std::wstring filePath;    ///< 画像ファイルパス
+        float x = 0.0f;         ///< X座標
+        float y = 0.0f;         ///< Y座標
+        float width = 100.0f;   ///< 描画領域の幅
+        float height = 100.0f;  ///< 描画領域の高さ
+        float opacity = 1.0f;   ///< 透過(0..1)
+        bool keepAspect = true; ///< アスペクト比維持
+        std::wstring filePath;  ///< 画像ファイルパス
     };
 
     TextSystem() = default;
@@ -127,6 +127,19 @@ class TextSystem {
      * BeginDraw()とEndDraw()の間で呼び出す必要があります。
      */
     void DrawText(const TextParams &params);
+
+    /**
+     * @brief 矩形を塗りつぶし描画
+     * @param[in] x 左上X座標
+     * @param[in] y 左上Y座標
+     * @param[in] width 幅
+     * @param[in] height 高さ
+     * @param[in] color 塗りつぶし色(RGBA)
+     *
+     * @details
+     * BeginDraw()とEndDraw()の間で呼び出す必要があります。
+     */
+    void FillRect(float x, float y, float width, float height, const DirectX::XMFLOAT4 &color);
 
     // 画像描画API
     /**
