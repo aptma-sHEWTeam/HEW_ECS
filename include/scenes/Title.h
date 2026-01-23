@@ -71,11 +71,21 @@ class TitleScene : public IScene {
     inline static ConfigVar<std::string> cfg_SkyboxModelPath{"Title.Skybox", "ModelPath", "Assets/Textures/Skybox/skybox.fbx", "タイトル: Skybox モデルパス"};
     inline static ConfigVar<std::string> cfg_SkyboxTexturePath{"Title.Skybox", "TexturePath", "Assets/Textures/Skybox/Sky_Box.png", "タイトル: Skybox テクスチャパス"};
     inline static ConfigVar<float> cfg_SkyboxScale{"Title.Skybox", "Scale", 200.0f, "タイトル: Skybox スケール"};
+    inline static ConfigVar<float> cfg_SkyboxSpeed{"Skybox", "Speed", 0.05f, "スカイボックスの回転速度(rad/sec)"};
 
-    Camera GetCameraTitle() const {
-        return camera_;
-    }
+    // 壁見た目
+    inline static ConfigVar<float> cfg_WallPosX{"Title.Wall", "PosX", 20.0f, "壁: Window 位置X"};
+    inline static ConfigVar<float> cfg_WallPosY{"Title.Wall", "PosY", -10.0f, "壁: Window 位置Y"};
+    inline static ConfigVar<float> cfg_WallPosZ{"Title.Wall", "PosZ", -2.0f, "壁: Window 位置Z"};
+    inline static ConfigVar<float> cfg_WallScaleX{"Title.Wall", "ScaleX", 1.650000f, "壁: Wall スケールX"};
+    inline static ConfigVar<float> cfg_WallScaleY{"Title.Wall", "ScaleY", 1.650000f, "壁: Wall スケールY"};
+    inline static ConfigVar<float> cfg_WallScaleZ{"Title.Wall", "ScaleZ", 1.650000f, "壁: Wall スケールZ"};
+    inline static ConfigVar<float> cfg_WallRotX{"Title.Wall", "RotX",  0.0f, "壁: Wall 回転X"};
+    inline static ConfigVar<float> cfg_WallRotY{"Title.Wall", "RotY", 90.0f, "壁: Wall 回転Y"};
+    inline static ConfigVar<float> cfg_WallRotZ{"Title.Wall", "RotZ",  0.0f, "壁: Wall 回転Z"};
 
+    Camera GetCameraTitle() const { return camera_; }
+   
     void OnEnter(World &world) override {
         // 既存実装そのまま
         bool hasGameStatus = false;
@@ -140,14 +150,16 @@ class TitleScene : public IScene {
         ownedEntities_.push_back(dirLight);
 
         CreateWindows(world);
+        CreateWall(world);
         CreatePlayer(world);
         CreateTextNormalFormats();
         CreateTitleSelectUI(world);
-
+       
+        //カメラの詳細設定
         float aspect = static_cast<float>(gfx->Width()) / gfx->Height();
         camera_ = Camera::LookAtLH(
             DirectX::XM_PIDIV4, aspect, 0.1f, 1000.0f,
-            {0, 0, -10}, {0, 0, 0}, {0, 1, 0});
+            {0, 0, -23}, {0, 0, 0}, {0, 1, 0});
 
         CreateSkybox(world);
 
@@ -240,7 +252,32 @@ class TitleScene : public IScene {
                             .With<SceneOwnedTag>()
                             .Build();
         ownedEntities_.push_back(objectEntity_);
-    }
+      }
+
+      void CreateWall(World& world) 
+      {//壁オブジェクト
+          //DirectX::XMFLOAT3 wallPos{cfg_WallPosX.Get(), cfg_WallPosY.Get(), cfg_WallPosZ.Get()};
+          DirectX::XMFLOAT3 wallPos{1,0.0,4};
+       // Transform transform{
+       //     {wallPos}, {cfg_WallRotX.Get(), cfg_WallRotY.Get(), cfg_WallRotZ.Get()}, {cfg_WallScaleX.Get(), cfg_WallScaleY.Get(), cfg_WallScaleZ.Get()}}; 
+        Transform transform{
+              {wallPos}, {cfg_WallRotX.Get(), cfg_WallRotY.Get(), cfg_WallRotZ.Get()}, {3, 3, 3}}; 
+
+         Entity wall = world.CreateEntity();
+        world.Add<Transform>(wall, transform);
+
+        MeshRenderer mrWall;
+        mrWall.meshType = MeshType::Cube;
+        mrWall.color = DirectX::XMFLOAT3{0.5f, 0.5f, 0.5f};
+        wallEntitiy_ = world.Create()
+                                   .With<Transform>(transform)
+                                   .With<Model>("Assets/Models/StageObj/Wall/obj_wall.fbx")
+                                   .With<SceneOwnedTag>()
+                                   .Build();
+        wallEntitiy_ = wall;
+        ownedEntities_.push_back(wallEntitiy_);
+
+      }
 
     void CreateSkybox(World &world) {
         const std::string modelPath = cfg_SkyboxModelPath.Get();
@@ -249,9 +286,10 @@ class TitleScene : public IScene {
             return;
         }
         const float scale = SanitizeSkyboxScale(cfg_SkyboxScale.Get());
+        const float yawDeg = SkyboxRotationToDegrees(skyboxRotation_);
         Transform transform{
             camera_.position,
-            {0.0f, 0.0f, 0.0f},
+            {0.0f, yawDeg, 0.0f},
             {scale, scale, scale}};
         skyboxEntity_ = world.Create()
                             .With<Transform>(transform)
@@ -269,7 +307,15 @@ class TitleScene : public IScene {
         if (auto *t = world.TryGet<Transform>(skyboxEntity_)) {
             const float scale = SanitizeSkyboxScale(cfg_SkyboxScale.Get());
             t->position = camera_.position;
+            t->rotation = {0.0f, SkyboxRotationToDegrees(skyboxRotation_), 0.0f};
             t->scale = {scale, scale, scale};
+        }
+    }
+
+    void UpdateSkyboxRotation(float dt) {
+        skyboxRotation_ += cfg_SkyboxSpeed.Get() * dt;
+        if (skyboxRotation_ > DirectX::XM_2PI) {
+            skyboxRotation_ -= DirectX::XM_2PI;
         }
     }
 
@@ -352,6 +398,14 @@ class TitleScene : public IScene {
             }
         }
 
+        if (world.IsAlive(wallEntitiy_)) {
+            if (auto *t = world.TryGet<Transform>(wallEntitiy_)) {
+                t->position = {cfg_WallPosX.Get(), cfg_WallPosY.Get(), cfg_WallPosZ.Get()};
+                t->rotation = {cfg_WallRotX.Get(), cfg_WallRotY.Get(), cfg_WallRotZ.Get()};
+                t->scale = {cfg_WallScaleX.Get(), cfg_WallScaleY.Get(), cfg_WallScaleZ.Get()};
+            }
+        }
+
         if (!isTransitioning_) {
             bool trigger = input.GetKeyDown(VK_RETURN);
             
@@ -382,6 +436,7 @@ class TitleScene : public IScene {
             UpdateCameraZoom(world, deltaTime);
         }
 
+        UpdateSkyboxRotation(deltaTime);
         UpdateSkyboxTransform(world);
         UpdateSkyboxTexture(world);
 
@@ -460,8 +515,10 @@ class TitleScene : public IScene {
         DirectX::XMVECTOR target = DirectX::XMLoadFloat3(&camera_.target);
         DirectX::XMVECTOR dir = DirectX::XMVectorSubtract(target, pos);
 
-        pos = DirectX::XMVectorAdd(pos, DirectX::XMVectorScale(dir, 1.5f * deltaTime));
-        DirectX::XMStoreFloat3(&camera_.position, pos);
+         pos = DirectX::XMVectorAdd(pos, DirectX::XMVectorScale(dir, 3.5f * deltaTime)); //カメラ移動速度調整
+         DirectX::XMStoreFloat3(&camera_.position, pos );
+       /* pos = DirectX::XMVectorAdd(pos, DirectX::XMVectorScale(dir, 1.5f * deltaTime));
+        DirectX::XMStoreFloat3(&camera_.position, pos);*/
 
         camera_.Zoom(-0.1f * deltaTime);
         camera_.Update();
@@ -490,6 +547,10 @@ class TitleScene : public IScene {
         return std::max(scale, 0.1f);
     }
 
+    static float SkyboxRotationToDegrees(float rotationRad) {
+        return DirectX::XMConvertToDegrees(rotationRad);
+    }
+
 #if defined(_DEBUG)
     void RunSkyboxScaleTests() {
         assert(!IsSkyboxTexturePathValid(""));
@@ -497,6 +558,7 @@ class TitleScene : public IScene {
         assert(SanitizeSkyboxScale(1.0f) == 1.0f);
         assert(SanitizeSkyboxScale(0.0f) == 0.1f);
         assert(SanitizeSkyboxScale(-2.0f) == 0.1f);
+        assert(std::abs(SkyboxRotationToDegrees(DirectX::XM_PIDIV2) - 90.0f) < 1e-3f);
     }
 #endif
 
@@ -506,11 +568,13 @@ class TitleScene : public IScene {
 
     std::vector<Entity> ownedEntities_{};
 
+    Entity wallEntitiy_{};
     Entity playerEntity_{};
     Entity objectEntity_{};
     Entity skyboxEntity_{};
     TextureManager::TextureHandle skyboxTexture_ = TextureManager::INVALID_TEXTURE;
     bool skyboxTextureApplied_ = false;
+    float skyboxRotation_ = 0.0f;
 
     TextSystem textSystem_{};
     ImageSystem imageSystem_{};

@@ -99,7 +99,7 @@ struct App {
     // Camera設定（TOMLで編集可能）
     inline static ConfigVar<float> cfg_CamFovDeg{"Camera.Base", "FovDegrees", 20.0f, "メインカメラの垂直視野角（度）"};
     inline static ConfigVar<float> cfg_CamNear{"Camera.Base", "Near", 0.1f, "メインカメラのニアクリップ距離"};
-    inline static ConfigVar<float> cfg_CamFar{"Camera.Base", "Far", 100.0f, "メインカメラのファークリップ距離"};
+    inline static ConfigVar<float> cfg_CamFar{"Camera.Base", "Far", 10000.0f, "メインカメラのファークリップ距離"};
     inline static ConfigVar<float> cfg_CamPosX{"Camera.Base", "PosX", 0.0f, "メインカメラ位置 X"};
     inline static ConfigVar<float> cfg_CamPosY{"Camera.Base", "PosY", 50.0f, "メインカメラ位置 Y"};
     inline static ConfigVar<float> cfg_CamPosZ{"Camera.Base", "PosZ", -5.0f, "メインカメラ位置 Z"};

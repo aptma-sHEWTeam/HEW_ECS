@@ -138,9 +138,7 @@ class StageSelectScene : public IScene {
             if (stats.IsWorldBack) {
                 stats.selectStage = maxStage_;
                 stats.IsWorldBack = false;
-            } else {
-                stats.selectStage = 1;
-            }
+            } 
         });
 
         // カメラ初期化
@@ -236,6 +234,36 @@ class StageSelectScene : public IScene {
                 CreateObject(world, {x, 0.0f, z}, modelPath);
             }
         }
+
+        //2DUI
+        UITransform FadeAnimation;
+        FadeAnimation.position = {0.0f, 0.0f};
+        FadeAnimation.size = {1280.0f, 720.0f};
+        FadeAnimation.anchor = {0.0f, 0.0f};
+        FadeAnimation.pivot = {0.0f, 0.0f};
+
+        UIImage fade{L"./Assets/Textures/Fade/tex_fade.png"};
+        fade.opacity = 1.0f;
+        fade.keepAspect = false;
+        fade.overlay = true;
+
+        SpriteSheetDesc fadeDesc = SpriteSheetDesc::Grid(
+            AnimationConfig::UI::FadeFrames,
+            AnimationConfig::UI::FadeCols,
+            0.1f,
+            /*loop*/ false);
+        fadeDesc.playOnStart = false;
+
+        Entity fadeOutAnimation = world.Create()
+                                      .With<UITransform>(FadeAnimation)
+                                      .With<UIImage>(fade)
+                                      .Build();
+        AnimationTools::AddSpriteSheet(world, fadeOutAnimation, fadeDesc);
+
+        ownedEntities_.push_back(fadeOutAnimation);
+        fadeEntity_ = fadeOutAnimation;
+
+        isFading = false;
     }
 
     void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
@@ -245,12 +273,25 @@ class StageSelectScene : public IScene {
             }
         });
 
+        if (isFading) {
+            world.Tick(deltaTime);
+            if (auto *anim = world.TryGet<SpriteSheetAnimation>(fadeEntity_)) {
+                if (anim->isFinished) 
+                {
+                    if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
+                        manager->ChangeScene("Game", world);
+                    }
+                }
+            }
+            return;
+        }
+
         // ゲームシーンへの遷移 (Enter / Aボタン)
         bool trigger = input.GetKeyDown(VK_RETURN);
         GamepadSystem *padsystem = ServiceLocator::TryGet<GamepadSystem>();
         if (!isTransitioning_) {
             if (padsystem &&
-                padsystem->GetAnyButtonDown({GamepadSystem::Button_A, GamepadSystem::Button_Start, GamepadSystem::Button_X})) {
+                padsystem->GetAnyButtonDown({GamepadSystem::Button_X})) {
                 trigger = true;
                 SOUND_SYS.PlaySE(cfg_EnterMP3Pass);
             }
@@ -258,9 +299,11 @@ class StageSelectScene : public IScene {
                 isTransitioning_ = true;
                 zoomTimer_ = 0.0f;
                 DEBUGLOG("StageSelect Camera Zoom Start!");
+                //StartFadeInNormal(world);
             }
         } else {
             UpdateCameraZoom(world, deltaTime);
+           /* StartFadeInNormal(world);*/
         }
 
         UpdateSkyboxTransform(world);
@@ -272,11 +315,36 @@ class StageSelectScene : public IScene {
             bool leftPressed = input.GetKeyDown(VK_LEFT);
 
             if (padsystem) {
-                if (padsystem->GetAnyButtonDown({GamepadSystem::Button_DPad_Right, GamepadSystem::Button_B}))
+                float gx = padsystem->GetLeftStickX();
+                bool dpadRightNow = padsystem->GetButton(padsystem->Button_DPad_Right);
+                bool dpadLeftNow = padsystem->GetButton(padsystem->Button_DPad_Left);
+
+                const float STICK_THRESHOLD = 0.8f;
+                bool stickRightNow = gx > STICK_THRESHOLD;
+                bool stickLeftNow = gx < -STICK_THRESHOLD;
+
+                //スティックでの切り替え
+                if (stickRightNow && !stickRightPrev_) {
                     rightPressed = true;
-                if (padsystem->GetAnyButtonDown({GamepadSystem::Button_DPad_Left, GamepadSystem::Button_X}))
+                }
+                if (stickLeftNow && !stickLeftPrev_) {
                     leftPressed = true;
+                }
+                //ボタンでの切り替え
+                if (dpadRightNow && !dpadRightPrev_) {
+                    rightPressed = true;
+                }
+                if (dpadLeftNow && !dpadLeftPrev_) {
+                    leftPressed = true;
+                }
+
+                stickRightPrev_ = stickRightNow;
+                stickLeftPrev_ = stickLeftNow;
+                dpadRightPrev_ = dpadRightNow;
+                dpadLeftPrev_ = dpadLeftNow;
             }
+
+           
 
             if (rightPressed) {
                 if (stats.selectStage < maxStage_) {
@@ -285,6 +353,7 @@ class StageSelectScene : public IScene {
                     SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
                 } else if (stats.selectStage == maxStage_) {
                     // 次のワールドへ
+                    stats.selectStage = 1;
                     GoToNextWorld(world);
                 }
             }
@@ -312,6 +381,7 @@ class StageSelectScene : public IScene {
 
         // 回転アニメーション
         currentAngle_ += (targetAngle_ - currentAngle_) * deltaTime * rotateSpeed_;
+        skyboxYawDeg_ = DirectX::XMConvertToDegrees(currentAngle_);
         world.ForEach<Transform, ObjectPos>([&](Entity, Transform &transform, ObjectPos &pos) {
             float angle = currentAngle_;
             float x = pos.basepos.x;
@@ -456,10 +526,11 @@ class StageSelectScene : public IScene {
 
         textSystem_.Shutdown();
         imageSystem_.Shutdown();
+        isFading = false;
     }
 
     void StartFadeInNormal(World &world) {
-        StartSpriteFade(world, fadeAnimationEntity_, -1, false);
+        StartSpriteFade(world,fadeEntity_, 1, false);
     }
 
     void StartSpriteFade(World &world, Entity target, int direction, bool forceOpaque) {
@@ -489,14 +560,14 @@ class StageSelectScene : public IScene {
     int worldNumber_;
     int maxStage_;
 
-    Entity fadeAnimationEntity_{};
     Entity StageSelectEntity_{};
+    Entity fadeEntity_{};
     TextSystem textSystem_{};
     ImageSystem imageSystem_{};
     Camera camera_{};
 
     // Camera params
-    float baseFovY_ = 40.0f;
+    float baseFovY_ = 90.0f;
     float cameraNear_ = 0.1f;
     float cameraFar_ = 10000.0f;
     DirectX::XMFLOAT3 baseUp_ = {0.0f, 1.0f, 0.0f};
@@ -507,6 +578,9 @@ class StageSelectScene : public IScene {
     float currentAngle_ = 0.0f;
     float targetAngle_ = 0.0f;
     float rotateSpeed_ = 6.0f;
+    bool isFading = false;
+
+    float skyboxYawDeg_ = 0.0f;
 
     std::vector<Entity> ownedEntities_{};
     std::vector<Entity> objectOwnedEntities_;
@@ -547,10 +621,10 @@ class StageSelectScene : public IScene {
             return;
         }
         const float scale = SanitizeSkyboxScale(cfg_SkyboxScale.Get());
-        const float yawDeg = GetCameraYawDeg(camera_);
+        skyboxYawDeg_ = DirectX::XMConvertToDegrees(currentAngle_);
         Transform transform{
             {camera_.position.x, camera_.position.y, camera_.position.z},
-            {0.0f, yawDeg, 0.0f},
+            {0.0f, skyboxYawDeg_, 0.0f},
             {scale, scale, scale}};
         skyboxEntity_ = world.Create()
                             .With<Transform>(transform)
@@ -567,22 +641,9 @@ class StageSelectScene : public IScene {
         if (auto *t = world.TryGet<Transform>(skyboxEntity_)) {
             const float scale = SanitizeSkyboxScale(cfg_SkyboxScale.Get());
             t->position = camera_.position;
-            t->rotation = {0.0f, GetCameraYawDeg(camera_), 0.0f};
+            t->rotation = {0.0f, -skyboxYawDeg_, 0.0f};
             t->scale = {scale, scale, scale};
         }
-    }
-
-    static float GetCameraYawDeg(const Camera &cam) {
-        using namespace DirectX;
-        const XMVECTOR pos = XMLoadFloat3(&cam.position);
-        const XMVECTOR target = XMLoadFloat3(&cam.target);
-        XMVECTOR dir = XMVectorSubtract(target, pos);
-        dir = XMVector3Normalize(dir);
-
-        XMFLOAT3 d{};
-        XMStoreFloat3(&d, dir);
-        const float yawRad = atan2f(d.x, d.z);
-        return DirectX::XMConvertToDegrees(yawRad);
     }
 
     std::string ResolveSkyboxTexturePath() const {
@@ -744,9 +805,9 @@ class StageSelectScene : public IScene {
         camera_.Update();
         //シーン遷移
         if (progress >= 1.0f) {
-            if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
-                manager->ChangeScene("Game", world);
-            }
+            StartFadeInNormal(world);
+            isFading = true;
+            return;
         }
     }
 
@@ -770,6 +831,12 @@ class StageSelectScene : public IScene {
 
     bool isTransitioning_ = false;
     float zoomTimer_ = 0.0f;
+
+    bool stickRightPrev_ = false;
+    bool stickLeftPrev_ = false;
+    bool dpadRightPrev_ = false;
+    bool dpadLeftPrev_ = false;
+
 
     // UI creation methods defined in StageUI.cpp
     void CreateTextStageNoFormats();
