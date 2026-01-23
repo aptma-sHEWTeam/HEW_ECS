@@ -34,20 +34,37 @@ struct GameUIUpdater : Behaviour {
 
     void OnUpdate(World &w, Entity self, float dt) override {
         w.ForEach<GameStatus>([&](Entity e, GameStatus &stats) {
+            
+
             // 経過時間の更新
             if (!stats.isPaused && stats.timerRunning) {
                 stats.elapsedTime = std::max(0.0f, stats.elapsedTime - dt);
+                
+                if (stats.elapsedTime <= 0.0f) {
+                    stats.elapsedTime = 0.0f;
+                    stats.timerRunning = false; 
+                      stats.isDead = true;     
+                       stats.resetDone = false;
+                }
             }
+            if (stats.fadeFinished && !stats.resetDone) {
+                stats.elapsedTime = cfg_LimitTime; 
+                stats.timerRunning = true;
 
+                stats.isDead = false;       
+                stats.resetDone = true;     
+                stats.fadeFinished = false; 
+            }
             //スタート時間の更新
             if (stats.StartCountDown > 0.0f) {
                 stats.StartCountDown = std::max(0.0f, stats.StartCountDown - dt);
             }
+           
 
             if (!stats.StartChack ) {
                
                 stats.waitingForPlayerMove = true;
-                stats.timerRunning = false;
+               // stats.timerRunning = false;
             }
 
             //スコア表示の更新
