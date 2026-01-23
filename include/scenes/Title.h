@@ -200,7 +200,7 @@ class TitleScene : public IScene {
 
         const std::string modelPath = AnimationConfig::Paths::PlayerModel;
         std::vector<std::string> animPaths = {
-            AnimationConfig::Paths::PlayerAnimFry,
+            AnimationConfig::Paths::PlayerAnimTitle,
         };
         std::vector<std::string> animAliases = {
             AnimationConfig::Clips::PlayerIdle,
