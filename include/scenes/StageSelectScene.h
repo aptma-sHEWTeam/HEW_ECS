@@ -40,6 +40,13 @@
  */
 class StageSelectScene : public IScene {
   public:
+    // Fade state used for world-to-world transition handling
+    enum class WorldFadeState {
+        None,
+        FadeOut,
+        FadeIn,
+    };
+
     // ステージセレクト画面のカウンタUI設定
     inline static ConfigVar<float> cfg_UICountPosX{"UI.StageSelect.Counter", "CountPosX", 1000.0f, "ステージセレクトカウンタのX座標"};
     inline static ConfigVar<float> cfg_UICountPosY{"UI.StageSelect.Counter", "CountPosY", 500.0f, "ステージセレクトカウンタのY座標"};
@@ -72,7 +79,8 @@ class StageSelectScene : public IScene {
      * @brief コンストラクタ
      * @param worldNumber ワールド番号 (1-4)
      */
-    StageSelectScene(int worldNumber) : worldNumber_(worldNumber) {
+    StageSelectScene(int worldNumber)
+        : worldNumber_(worldNumber) {
         switch (worldNumber_) {
             case 1:
                 maxStage_ = MAX_STAGES_WORLD1;
@@ -138,7 +146,7 @@ class StageSelectScene : public IScene {
             if (stats.IsWorldBack) {
                 stats.selectStage = maxStage_;
                 stats.IsWorldBack = false;
-            } 
+            }
         });
 
         // カメラ初期化
@@ -273,11 +281,16 @@ class StageSelectScene : public IScene {
             }
         });
 
+        UpdateWorldTransitionFade(world);
+        if (worldFadeState_ != WorldFadeState::None) {
+            world.Tick(deltaTime);
+            return;
+        }
+
         if (isFading) {
             world.Tick(deltaTime);
             if (auto *anim = world.TryGet<SpriteSheetAnimation>(fadeEntity_)) {
-                if (anim->isFinished) 
-                {
+                if (anim->isFinished) {
                     if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
                         manager->ChangeScene("Game", world);
                     }
@@ -303,7 +316,7 @@ class StageSelectScene : public IScene {
             }
         } else {
             UpdateCameraZoom(world, deltaTime);
-           /* StartFadeInNormal(world);*/
+            /* StartFadeInNormal(world);*/
         }
 
         UpdateSkyboxTransform(world);
@@ -344,7 +357,7 @@ class StageSelectScene : public IScene {
                 dpadLeftPrev_ = dpadLeftNow;
             }
 
-          /*  if (input.GetKeyDown(VK_F5)) {
+            /*  if (input.GetKeyDown(VK_F5)) {
                     if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
                         manager->ChangeScene("Title", world);
                     }
@@ -358,7 +371,7 @@ class StageSelectScene : public IScene {
                 } else if (stats.selectStage == maxStage_) {
                     // 次のワールドへ
                     stats.selectStage = 1;
-                    GoToNextWorld(world);
+                    BeginWorldTransitionFade(world, TransitionDirection::Right);
                 }
             }
             if (leftPressed) {
@@ -368,7 +381,8 @@ class StageSelectScene : public IScene {
                     SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
                 } else {
                     // 前のワールドへ
-                    GoToPrevWorld(world, stats);
+                    stats.IsWorldBack = true;
+                    BeginWorldTransitionFade(world, TransitionDirection::Left);
                 }
             }
 
@@ -534,7 +548,7 @@ class StageSelectScene : public IScene {
     }
 
     void StartFadeInNormal(World &world) {
-        StartSpriteFade(world,fadeEntity_, 1, false);
+        StartSpriteFade(world, fadeEntity_, 1, false);
     }
 
     void StartSpriteFade(World &world, Entity target, int direction, bool forceOpaque) {
@@ -583,6 +597,8 @@ class StageSelectScene : public IScene {
     float targetAngle_ = 0.0f;
     float rotateSpeed_ = 6.0f;
     bool isFading = false;
+    WorldFadeState worldFadeState_ = WorldFadeState::None;
+    TransitionDirection pendingWorldTransitionDir_ = TransitionDirection::None;
 
     float skyboxYawDeg_ = 0.0f;
 
@@ -764,6 +780,33 @@ class StageSelectScene : public IScene {
         objectOwnedEntities_.push_back(obj);
     }
 
+    void BeginWorldTransitionFade(World &world, TransitionDirection direction) {
+        if (direction == TransitionDirection::None || worldFadeState_ != WorldFadeState::None || !world.IsAlive(fadeEntity_)) {
+            return;
+        }
+        pendingWorldTransitionDir_ = direction;
+        worldFadeState_ = WorldFadeState::FadeOut;
+        StartSpriteFade(world, fadeEntity_, 1, false);
+    }
+
+    void UpdateWorldTransitionFade(World &world) {
+        if (worldFadeState_ == WorldFadeState::None || !world.IsAlive(fadeEntity_)) {
+            return;
+        }
+        if (auto *anim = world.TryGet<SpriteSheetAnimation>(fadeEntity_)) {
+            if (!anim->isPlaying && anim->isFinished) {
+                TransitionDirection dir = pendingWorldTransitionDir_;
+                pendingWorldTransitionDir_ = TransitionDirection::None;
+                worldFadeState_ = WorldFadeState::None;
+                if (dir == TransitionDirection::Right) {
+                    GoToNextWorld(world);
+                } else if (dir == TransitionDirection::Left) {
+                    GoToPrevWorld(world);
+                }
+            }
+        }
+    }
+
     void GoToNextWorld(World &world) {
         if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
             std::string nextScene = "World" + std::to_string(worldNumber_ + 1) + "_StageSelect";
@@ -777,12 +820,11 @@ class StageSelectScene : public IScene {
         }
     }
 
-    void GoToPrevWorld(World &world, StageProgress &stats) {
+    void GoToPrevWorld(World &world) {
         if (worldNumber_ <= 1)
             return; // World1以前はない
 
         if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
-            stats.IsWorldBack = true;
             std::string prevScene = "World" + std::to_string(worldNumber_ - 1) + "_StageSelect";
             // 前のワールドへ: 左方向にスライド（戻る）
             manager->ChangeSceneWithTransition(prevScene.c_str(), world, TransitionDirection::Left);
@@ -840,7 +882,6 @@ class StageSelectScene : public IScene {
     bool stickLeftPrev_ = false;
     bool dpadRightPrev_ = false;
     bool dpadLeftPrev_ = false;
-
 
     // UI creation methods defined in StageUI.cpp
     void CreateTextStageNoFormats();

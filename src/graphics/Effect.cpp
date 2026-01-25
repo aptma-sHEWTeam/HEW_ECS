@@ -110,6 +110,9 @@ void EffekseerManager::Load()
         {"FireFirst",      "Assets/Effect/Fire/fire1.efkefc"},
         {"FireSecond",     "Assets/Effect/Fire/fire_2.efkefc"},
         {"FireThird",      "Assets/Effect/Fire/fire_3.efkefc"},
+        {"StarSmall",      "Assets/Effect/Star/Star_Effects_Small.efkefc"},
+        {"StarMedium",     "Assets/Effect/Star/Star_Effects_Medium.efkefc"},
+        {"StarBig",        "Assets/Effect/Star/Star_Effects_Big.efkefc"},
     };
 
     for (const auto& def : predefined_)
