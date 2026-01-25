@@ -5,6 +5,7 @@
 #pragma once
 
 #include "components/Component.h"
+#include<vector>
 
 /**
  * @struct GameStats
@@ -15,7 +16,7 @@ struct GameStatus : IComponent {
  int enemiesDefeated =0;
  bool StartChack = false;     //スタートできるか判定
  float StartCountDown =0.0f; //カウントダウン用
- float elapsedTime = cfg_LimitTime;
+ float elapsedTime = 0.0f;
  bool isPaused = false;
  bool timerRunning = false;   //タイマー計測中か
  bool waitingForPlayerMove = true; //動き出すまでタイマーを停止
