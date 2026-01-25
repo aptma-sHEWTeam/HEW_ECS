@@ -246,7 +246,7 @@ struct TimeLoad : IComponent{
      */
     TimeLoad(World & world) {
         world.ForEach<StageProgress>([&](Entity, StageProgress &status) {
-            m_file.open("Assets/StageData/World" + std::to_string(status.worldCount) + "StageTime/stage" + std::to_string(status.selectStage) + ".csv");
+            m_file.open("Assets/StageData/World" + std::to_string(status.worldCount) + "/StageTime/stage" + std::to_string(status.selectStage) + ".csv");
             if (!m_file.is_open())
                 cerr << "Error: Could not open Assets/StageData/StageTime/stage1.csv" << endl;
             else {
@@ -254,7 +254,6 @@ struct TimeLoad : IComponent{
             }
         });
     }
-
 
     void loadStageTime() {
         string line;
@@ -281,6 +280,8 @@ struct TimeLoad : IComponent{
     TimeLoad(const TimeLoad &) = delete;
     TimeLoad& operator=(const TimeLoad &) = delete;
 };
+
+
 
 /**
  * @struct LoadMove
@@ -534,9 +535,10 @@ struct GoalAttractor : Behaviour {
             // ゴールイン直後に制限時間をフルに戻して次ルームへ備える
             w.ForEach<GameStatus>([](Entity, GameStatus &stats) {
                 stats.elapsedTime = cfg_LimitTime;
-                stats.timerRunning = false;
+                stats.timerRunning = false;                 
                 stats.waitingForPlayerMove = true;
             });
+
             w.ForEach<StageProgress>([](Entity, StageProgress &sp) {
                 sp.requestAdvance = true;
             });
@@ -623,9 +625,3 @@ struct MovingObstacle : Behaviour {
         }
     }
 };
-
-
-
-
-
-
