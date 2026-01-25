@@ -20,6 +20,7 @@
 #include <list>
 #include <optional>
 #include <unordered_map>
+#include <string>
 
 struct LoopInfo
 {
@@ -65,6 +66,7 @@ class EffekseerManager
 
    Effekseer::ManagerRef m_pManager;
    EffekseerRendererDX11::RendererRef m_pRenderer;
+   Effekseer::FileInterfaceRef fileInterface_;
 
    Camera m_Camera;
 

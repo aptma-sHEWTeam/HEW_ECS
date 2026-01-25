@@ -12,6 +12,31 @@
 #include "config/ConfigVar.h"
 #include "animation/Animation.h"
 
+inline static ConfigVar<float> cfg_StageSelectUI_WorldPosX{"StageSelect.UI.World", "PosX", 0.0f, "ステージセレクト: WorldUI 位置X(px)"};
+inline static ConfigVar<float> cfg_StageSelectUI_WorldPosY{"StageSelect.UI.World", "PosY", 30.0f, "ステージセレクト: WorldUI 位置Y(px)"};
+inline static ConfigVar<float> cfg_StageSelectUI_WorldSizeW{"StageSelect.UI.World", "Width", 600.0f, "ステージセレクト: WorldUI 幅(px)"};
+inline static ConfigVar<float> cfg_StageSelectUI_WorldSizeH{"StageSelect.UI.World", "Height", 140.0f, "ステージセレクト: WorldUI 高さ(px)"};
+inline static ConfigVar<float> cfg_StageSelectUI_WorldAnchorX{"StageSelect.UI.World", "AnchorX", 0.5f, "ステージセレクト: WorldUI AnchorX"};
+inline static ConfigVar<float> cfg_StageSelectUI_WorldAnchorY{"StageSelect.UI.World", "AnchorY", 0.0f, "ステージセレクト: WorldUI AnchorY"};
+inline static ConfigVar<float> cfg_StageSelectUI_WorldPivotX{"StageSelect.UI.World", "PivotX", 0.5f, "ステージセレクト: WorldUI PivotX"};
+inline static ConfigVar<float> cfg_StageSelectUI_WorldPivotY{"StageSelect.UI.World", "PivotY", 0.0f, "ステージセレクト: WorldUI PivotY"};
+
+inline static ConfigVar<float> cfg_StageSelectUI_StageNamePosX{"StageSelect.UI.StageName", "PosX", 640.0f, "ステージセレクト: StageName 位置X(px)"};
+inline static ConfigVar<float> cfg_StageSelectUI_StageNamePosY{"StageSelect.UI.StageName", "PosY", 360.0f, "ステージセレクト: StageName 位置Y(px)"};
+inline static ConfigVar<float> cfg_StageSelectUI_StageNameSizeW{"StageSelect.UI.StageName", "Width", 450.0f, "ステージセレクト: StageName 幅(px)"};
+inline static ConfigVar<float> cfg_StageSelectUI_StageNameSizeH{"StageSelect.UI.StageName", "Height", 150.0f, "ステージセレクト: StageName 高さ(px)"};
+inline static ConfigVar<float> cfg_StageSelectUI_StageNameAnchorX{"StageSelect.UI.StageName", "AnchorX", 0.0f, "ステージセレクト: StageName AnchorX"};
+inline static ConfigVar<float> cfg_StageSelectUI_StageNameAnchorY{"StageSelect.UI.StageName", "AnchorY", 0.0f, "ステージセレクト: StageName AnchorY"};
+inline static ConfigVar<float> cfg_StageSelectUI_StageNamePivotX{"StageSelect.UI.StageName", "PivotX", 0.5f, "ステージセレクト: StageName PivotX"};
+inline static ConfigVar<float> cfg_StageSelectUI_StageNamePivotY{"StageSelect.UI.StageName", "PivotY", 0.5f, "ステージセレクト: StageName PivotY"};
+
+inline static ConfigVar<float> cfg_StageSelectUI_ButtonSizeW{"StageSelect.UI.Button", "Width", 252.5f, "ステージセレクト: Button 幅(px)"};
+inline static ConfigVar<float> cfg_StageSelectUI_ButtonSizeH{"StageSelect.UI.Button", "Height", 50.0f, "ステージセレクト: Button 高さ(px)"};
+inline static ConfigVar<float> cfg_StageSelectUI_EnterBtnPosX{"StageSelect.UI.Button.Enter", "PosX", 60.0f, "ステージセレクト: EnterButton 位置X(px)"};
+inline static ConfigVar<float> cfg_StageSelectUI_EnterBtnPosY{"StageSelect.UI.Button.Enter", "PosY", 560.0f, "ステージセレクト: EnterButton 位置Y(px)"};
+inline static ConfigVar<float> cfg_StageSelectUI_TitleBtnPosX{"StageSelect.UI.Button.Title", "PosX", 60.0f, "ステージセレクト: TitleButton 位置X(px)"};
+inline static ConfigVar<float> cfg_StageSelectUI_TitleBtnPosY{"StageSelect.UI.Button.Title", "PosY", 645.0f, "ステージセレクト: TitleButton 位置Y(px)"};
+
 inline static ConfigVar<float> cfg_FadeFrameTime{"Fade.Out", "FadeFrameTime", 0.01f, "フェードアウト1フレームの時間（秒）"};
 
 void StageSelectScene::CreateTextStageNoFormats() {
@@ -32,130 +57,84 @@ void StageSelectScene::CreateTextNormalFormats() {
 
 void StageSelectScene::CreateStageSelectUI(World &world) {
 
-    // StageNo
-    UITransform CountTransform;
-    CountTransform.position = {cfg_UICountPosX, cfg_UICountPosY};
-    CountTransform.size = {cfg_UICountW, cfg_UICountH};
-    CountTransform.anchor = {0.0f, 0.0f};
-    CountTransform.pivot = {0.0f, 0.0f};
-
-    UIText CountText{L""};
-    CountText.color = {cfg_UICountR, cfg_UICountG, cfg_UICountB, 1.0f};
-    CountText.formatId = "hud";
-
-    Entity e = world.Create()
-                   .With<UITransform>(CountTransform)
-                   .With<UIText>(CountText)
-                   .Build();
-
-    StageSelectEntity_ = e;
-    ownedEntities_.push_back(e);
+    int initialStage = 1;
+    world.ForEach<StageProgress>([&](Entity, StageProgress &progress) {
+        initialStage = std::clamp(progress.selectStage, 1, maxStage_);
+    });
 
     // WorldNo
-    UITransform worldnoTextTr;
-    worldnoTextTr.position = {500.0f, 100.0f};
-    worldnoTextTr.size = {300.0f, 50.0f};
-    worldnoTextTr.anchor = {0.0f, 0.0f};
-    worldnoTextTr.pivot = {0.0f, 0.0f};
+    UITransform worldImgTr;
+    worldImgTr.position = {cfg_StageSelectUI_WorldPosX.Get(), cfg_StageSelectUI_WorldPosY.Get()};
+    worldImgTr.size = {cfg_StageSelectUI_WorldSizeW.Get(), cfg_StageSelectUI_WorldSizeH.Get()};
+    worldImgTr.anchor = {cfg_StageSelectUI_WorldAnchorX.Get(), cfg_StageSelectUI_WorldAnchorY.Get()};
+    worldImgTr.pivot = {cfg_StageSelectUI_WorldPivotX.Get(), cfg_StageSelectUI_WorldPivotY.Get()};
 
-    std::wstring worldName;
-    switch (worldNumber_) {
-        case 1:
-            worldName = L"World1";
-            break;
-        case 2:
-            worldName = L"World2";
-            break;
-        case 3:
-            worldName = L"World3";
-            break;
-        case 4:
-            worldName = L"World4";
-            break;
-        default:
-            worldName = L"Unknown World";
-            break;
-    }
+    worldUIBasePos_ = worldImgTr.position;
 
-    UIText worldnoText{worldName};
-    worldnoText.color = {1.0f, 1.0f, 1.0f, 1.0f};
-    worldnoText.formatId = "hud";
+    std::wstring worldPath = L"Assets/Textures/UI/WorldUI/world";
+    worldPath += std::to_wstring(worldNumber_);
+    worldPath += L".png";
 
-    Entity worldnoTextEntity = world.Create()
-                                   .With<UITransform>(worldnoTextTr)
-                                   .With<UIText>(worldnoText)
-                                   .Build();
+    UIImage worldImg{worldPath};
+    worldImg.opacity = 1.0f;
+    worldImg.keepAspect = true;
 
-    ownedEntities_.push_back(worldnoTextEntity);
-
-    // Enter
-    UITransform circleTextTr;
-    circleTextTr.position = {120.0f, 600.0f};
-    circleTextTr.size = {300.0f, 50.0f};
-    circleTextTr.anchor = {0.0f, 0.0f};
-    circleTextTr.pivot = {0.0f, 0.0f};
-
-    UIText circleText{L"enter"};
-    circleText.color = {1.0f, 1.0f, 1.0f, 1.0f};
-    circleText.formatId = "hud";
-
-    Entity circleTextEntity = world.Create()
-                                  .With<UITransform>(circleTextTr)
-                                  .With<UIText>(circleText)
+    Entity worldImageEntity = world.Create()
+                                  .With<UITransform>(worldImgTr)
+                                  .With<UIImage>(worldImg)
                                   .Build();
+    ownedEntities_.push_back(worldImageEntity);
+    worldUIEntity_ = worldImageEntity;
 
-    ownedEntities_.push_back(circleTextEntity);
+    // StageName
+    UITransform stageNameTr;
+    stageNameTr.position = {cfg_StageSelectUI_StageNamePosX.Get(), cfg_StageSelectUI_StageNamePosY.Get()};
+    stageNameTr.size = {cfg_StageSelectUI_StageNameSizeW.Get(), cfg_StageSelectUI_StageNameSizeH.Get()};
+    stageNameTr.anchor = {cfg_StageSelectUI_StageNameAnchorX.Get(), cfg_StageSelectUI_StageNameAnchorY.Get()};
+    stageNameTr.pivot = {cfg_StageSelectUI_StageNamePivotX.Get(), cfg_StageSelectUI_StageNamePivotY.Get()};
 
-    // Title
-    UITransform crossTextTr;
-    crossTextTr.position = {120.0f, 650.0f};
-    crossTextTr.size = {300.0f, 50.0f};
-    crossTextTr.anchor = {0.0f, 0.0f};
-    crossTextTr.pivot = {0.0f, 0.0f};
+    std::wstring stageNamePath = L"Assets/Textures/UI/StageName/stagename";
+    stageNamePath += std::to_wstring(worldNumber_);
+    stageNamePath += std::to_wstring(static_cast<int>(cfg_StageNameWorldDigit.Get()));
+    stageNamePath += std::to_wstring(initialStage);
+    stageNamePath += L".png";
 
-    UIText crossText{L"title"};
-    crossText.color = {1.0f, 1.0f, 1.0f, 1.0f};
-    crossText.formatId = "hud";
+    UIImage stageNameImg{stageNamePath};
+    stageNameImg.opacity = 1.0f;
+    stageNameImg.keepAspect = true;
 
-    Entity crossTextEntity = world.Create()
-                                 .With<UITransform>(crossTextTr)
-                                 .With<UIText>(crossText)
+    Entity stageNameEntity = world.Create()
+                                 .With<UITransform>(stageNameTr)
+                                 .With<UIImage>(stageNameImg)
                                  .Build();
 
-    ownedEntities_.push_back(crossTextEntity);
+    StageSelectEntity_ = stageNameEntity;
+    ownedEntities_.push_back(stageNameEntity);
 
-    // 〇×の表示 (All Worlds)
-    UITransform circleImgTr;
-    circleImgTr.position = {-50.0f, 540.0f};
-    circleImgTr.size = {200.0f, 200.0f};
-    circleImgTr.anchor = {0.0f, 0.0f};
-    circleImgTr.pivot = {0.0f, 0.0f};
+    // Button UI
+    const DirectX::XMFLOAT2 btnSize{cfg_StageSelectUI_ButtonSizeW.Get(), cfg_StageSelectUI_ButtonSizeH.Get()};
 
-    UIImage circleImg{L"Assets/Textures/StageUI/maru.png"};
-    circleImg.opacity = 1.0f;
-    circleImg.keepAspect = true;
+    UITransform enterBtnTr;
+    enterBtnTr.position = {cfg_StageSelectUI_EnterBtnPosX.Get(), cfg_StageSelectUI_EnterBtnPosY.Get()};
+    enterBtnTr.size = btnSize;
+    enterBtnTr.anchor = {0.0f, 0.0f};
+    enterBtnTr.pivot = {0.0f, 0.0f};
 
-    Entity circleImageEntity = world.Create()
-                                   .With<UITransform>(circleImgTr)
-                                   .With<UIImage>(circleImg)
-                                   .Build();
+    UIImage enterBtnImg{L"Assets/Textures/UI/StageUI/stageui1.png"};
+    enterBtnImg.opacity = 1.0f;
+    enterBtnImg.keepAspect = true;
 
-    ownedEntities_.push_back(circleImageEntity);
+    ownedEntities_.push_back(world.Create().With<UITransform>(enterBtnTr).With<UIImage>(enterBtnImg).Build());
 
-    UITransform crossImgTr;
-    crossImgTr.position = {-50.0f, 590.0f};
-    crossImgTr.size = {200.0f, 200.0f};
-    crossImgTr.anchor = {0.0f, 0.0f};
-    crossImgTr.pivot = {0.0f, 0.0f};
+    UITransform titleBtnTr;
+    titleBtnTr.position = {cfg_StageSelectUI_TitleBtnPosX.Get(), cfg_StageSelectUI_TitleBtnPosY.Get()};
+    titleBtnTr.size = btnSize;
+    titleBtnTr.anchor = {0.0f, 0.0f};
+    titleBtnTr.pivot = {0.0f, 0.0f};
 
-    UIImage crossImg{L"Assets/Textures/StageUI/batu.png"};
-    crossImg.opacity = 1.0f;
-    crossImg.keepAspect = true;
+    UIImage titleBtnImg{L"Assets/Textures/UI/StageUI/stageui2.png"};
+    titleBtnImg.opacity = 1.0f;
+    titleBtnImg.keepAspect = true;
 
-    Entity crossImageEntity = world.Create()
-                                  .With<UITransform>(crossImgTr)
-                                  .With<UIImage>(crossImg)
-                                  .Build();
-
-    ownedEntities_.push_back(crossImageEntity);
+    ownedEntities_.push_back(world.Create().With<UITransform>(titleBtnTr).With<UIImage>(titleBtnImg).Build());
 }
