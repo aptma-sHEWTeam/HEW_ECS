@@ -14,7 +14,10 @@
 #include <filesystem>
 #include <cassert>
 #include <array>
+#include <random>
 #include <DirectXMath.h>
+
+#include <Windows.h>
 
 #include "graphics/Effect.h"
 #include "config/ConfigVar.h"
@@ -34,6 +37,35 @@
 #include "systems/RenderingSystem.h"
 #include "graphics/TextureManager.h"
 
+namespace
+{
+inline std::wstring Utf8ToWide(const std::string& src)
+{
+    if (src.empty())
+    {
+        return std::wstring();
+    }
+
+    const int len = MultiByteToWideChar(CP_UTF8, 0, src.c_str(), -1, nullptr, 0);
+    if (len <= 0)
+    {
+        return std::wstring();
+    }
+
+    std::wstring dst(static_cast<size_t>(len), L'\0');
+    const int written = MultiByteToWideChar(CP_UTF8, 0, src.c_str(), -1, &dst[0], len);
+    if (written <= 0)
+    {
+        return std::wstring();
+    }
+    if (!dst.empty() && dst.back() == L'\0')
+    {
+        dst.pop_back();
+    }
+    return dst;
+}
+}
+
 /**
  * @class StageSelectScene
  * @brief ワールドセレクトの統合シーンクラス
@@ -47,7 +79,84 @@ class StageSelectScene : public IScene {
         FadeIn,
     };
 
-    // ステージセレクト画面のカウンタUI設定
+    // StageSelect config
+    inline static ConfigVar<int> cfg_WorldCount{"StageSelect.World", "WorldCount", 4, "ステージセレクト: ワールド数"};
+
+    inline static ConfigVar<int> cfg_MaxStagesWorld1{"StageSelect.World1", "MaxStages", 3, "ステージセレクト: World1 最大ステージ数"};
+    inline static ConfigVar<int> cfg_MaxStagesWorld2{"StageSelect.World2", "MaxStages", 4, "ステージセレクト: World2 最大ステージ数"};
+    inline static ConfigVar<int> cfg_MaxStagesWorld3{"StageSelect.World3", "MaxStages", 5, "ステージセレクト: World3 最大ステージ数"};
+    inline static ConfigVar<int> cfg_MaxStagesWorld4{"StageSelect.World4", "MaxStages", 6, "ステージセレクト: World4 最大ステージ数"};
+
+    inline static ConfigVar<std::string> cfg_StationModelBasePath{"StageSelect.Station", "BasePath", "Assets/Models/SelectObj_ISS/Station/", "ステージセレクト: ステーションモデルのベースパス"};
+    inline static ConfigVar<std::string> cfg_StationModelPrefix{"StageSelect.Station", "ModelPrefix", "station", "ステージセレクト: ステーションモデル接頭辞"};
+    inline static ConfigVar<std::string> cfg_StationModelSuffix{"StageSelect.Station", "ModelSuffix", ".fbx", "ステージセレクト: ステーションモデル拡張子"};
+    inline static ConfigVar<std::string> cfg_StationFallbackModelPath{"StageSelect.Station", "FallbackModelPath", "Assets/Models/SelectObj_ISS/Station/World1/station3.fbx", "ステージセレクト: ステーションモデルのフォールバック"};
+    inline static ConfigVar<float> cfg_StationRadius{"StageSelect.Station", "Radius", 5.0f, "ステージセレクト: ステーション配置半径"};
+    inline static ConfigVar<float> cfg_StationScale{"StageSelect.Station", "Scale", 0.1f, "ステージセレクト: ステーションスケール"};
+
+    inline static ConfigVar<float> cfg_StationPointLightR{"StageSelect.Station.PointLight", "R", 1.0f, "ステージセレクト: ステーション点光源 R"};
+    inline static ConfigVar<float> cfg_StationPointLightG{"StageSelect.Station.PointLight", "G", 1.0f, "ステージセレクト: ステーション点光源 G"};
+    inline static ConfigVar<float> cfg_StationPointLightB{"StageSelect.Station.PointLight", "B", 1.0f, "ステージセレクト: ステーション点光源 B"};
+    inline static ConfigVar<float> cfg_StationPointLightIntensity{"StageSelect.Station.PointLight", "Intensity", 1.0f, "ステージセレクト: ステーション点光源 強度"};
+    inline static ConfigVar<float> cfg_StationPointLightRange{"StageSelect.Station.PointLight", "Range", 10.0f, "ステージセレクト: ステーション点光源 距離"};
+    inline static ConfigVar<float> cfg_StationPointLightAttenConstant{"StageSelect.Station.PointLight", "AttenConstant", 1.0f, "ステージセレクト: ステーション点光源 減衰(定数)"};
+    inline static ConfigVar<float> cfg_StationPointLightAttenLinear{"StageSelect.Station.PointLight", "AttenLinear", 1.0f, "ステージセレクト: ステーション点光源 減衰(一次)"};
+    inline static ConfigVar<float> cfg_StationPointLightAttenQuadratic{"StageSelect.Station.PointLight", "AttenQuadratic", 1.0f, "ステージセレクト: ステーション点光源 減衰(二次)"};
+
+    inline static ConfigVar<float> cfg_FadeSizeW{"StageSelect.Fade", "Width", 1280.0f, "ステージセレクト: フェードUIの幅"};
+    inline static ConfigVar<float> cfg_FadeSizeH{"StageSelect.Fade", "Height", 720.0f, "ステージセレクト: フェードUIの高さ"};
+    inline static ConfigVar<float> cfg_FadeSecondsPerFrame{"StageSelect.Fade", "SecondsPerFrame", 0.1f, "ステージセレクト: フェードアニメ1フレーム時間(秒)"};
+    inline static ConfigVar<std::string> cfg_FadeTexturePath{"StageSelect.Fade", "TexturePath", "./Assets/Textures/Fade/tex_fade.png", "ステージセレクト: フェードテクスチャ"};
+
+    inline static ConfigVar<float> cfg_StickThreshold{"StageSelect.Input", "StickThreshold", 0.8f, "ステージセレクト: スティック入力閾値"};
+
+    inline static ConfigVar<float> cfg_RotateSpeed{"StageSelect.Rotation", "RotateSpeed", 6.0f, "ステージセレクト: 回転追従速度"};
+
+    inline static ConfigVar<int> cfg_StarMaxCount{"StageSelect.Stars", "MaxCount", 24, "ステージセレクト: 流れ星最大数"};
+    inline static ConfigVar<float> cfg_StarSpawnMinSeconds{"StageSelect.Stars", "SpawnMinSeconds", 0.35f, "ステージセレクト: 流れ星スポーン間隔最小(秒)"};
+    inline static ConfigVar<float> cfg_StarSpawnMaxSeconds{"StageSelect.Stars", "SpawnMaxSeconds", 1.10f, "ステージセレクト: 流れ星スポーン間隔最大(秒)"};
+    inline static ConfigVar<float> cfg_StarLifeMinSeconds{"StageSelect.Stars", "LifeMinSeconds", 0.9f, "ステージセレクト: 流れ星寿命最小(秒)"};
+    inline static ConfigVar<float> cfg_StarLifeMaxSeconds{"StageSelect.Stars", "LifeMaxSeconds", 1.8f, "ステージセレクト: 流れ星寿命最大(秒)"};
+    inline static ConfigVar<float> cfg_StarPosMinX{"StageSelect.Stars", "PosMinX", -12.0f, "ステージセレクト: 流れ星初期X最小"};
+    inline static ConfigVar<float> cfg_StarPosMaxX{"StageSelect.Stars", "PosMaxX", 12.0f, "ステージセレクト: 流れ星初期X最大"};
+    inline static ConfigVar<float> cfg_StarPosMinY{"StageSelect.Stars", "PosMinY", 3.0f, "ステージセレクト: 流れ星初期Y最小"};
+    inline static ConfigVar<float> cfg_StarPosMaxY{"StageSelect.Stars", "PosMaxY", 10.0f, "ステージセレクト: 流れ星初期Y最大"};
+    inline static ConfigVar<float> cfg_StarPosMinZ{"StageSelect.Stars", "PosMinZ", -12.0f, "ステージセレクト: 流れ星初期Z最小"};
+    inline static ConfigVar<float> cfg_StarPosMaxZ{"StageSelect.Stars", "PosMaxZ", 12.0f, "ステージセレクト: 流れ星初期Z最大"};
+    inline static ConfigVar<float> cfg_StarVelMinX{"StageSelect.Stars", "VelMinX", -10.0f, "ステージセレクト: 流れ星速度X最小"};
+    inline static ConfigVar<float> cfg_StarVelMaxX{"StageSelect.Stars", "VelMaxX", -6.0f, "ステージセレクト: 流れ星速度X最大"};
+    inline static ConfigVar<float> cfg_StarVelMinY{"StageSelect.Stars", "VelMinY", -2.0f, "ステージセレクト: 流れ星速度Y最小"};
+    inline static ConfigVar<float> cfg_StarVelMaxY{"StageSelect.Stars", "VelMaxY", -0.6f, "ステージセレクト: 流れ星速度Y最大"};
+    inline static ConfigVar<float> cfg_StarVelMinZ{"StageSelect.Stars", "VelMinZ", -4.0f, "ステージセレクト: 流れ星速度Z最小"};
+    inline static ConfigVar<float> cfg_StarVelMaxZ{"StageSelect.Stars", "VelMaxZ", -1.5f, "ステージセレクト: 流れ星速度Z最大"};
+
+    inline static ConfigVar<float> cfg_StarScaleSmall{"StageSelect.Stars", "ScaleSmall", 0.7f, "ステージセレクト: 流れ星スケール小"};
+    inline static ConfigVar<float> cfg_StarScaleMedium{"StageSelect.Stars", "ScaleMedium", 0.9f, "ステージセレクト: 流れ星スケール中"};
+    inline static ConfigVar<float> cfg_StarScaleBig{"StageSelect.Stars", "ScaleBig", 1.1f, "ステージセレクト: 流れ星スケール大"};
+
+    inline static ConfigVar<float> cfg_StageNameWorldDigit{"StageSelect.UI.StageName", "WorldDigit", 0.0f, "ステージセレクト: StageNameファイル名のワールド数字（0=通常）"};
+    inline static ConfigVar<float> cfg_StageNameProjectYOffset{"StageSelect.UI.StageName", "ProjectYOffset", 0.8f, "ステージセレクト: StageName投影Yオフセット"};
+
+    inline static ConfigVar<float> cfg_CameraFovDegrees{"StageSelect.Camera", "FovDegrees", 90.0f, "ステージセレクト: カメラFOV(度)"};
+    inline static ConfigVar<float> cfg_CameraNear{"StageSelect.Camera", "Near", 0.1f, "ステージセレクト: カメラNear"};
+    inline static ConfigVar<float> cfg_CameraFar{"StageSelect.Camera", "Far", 10000.0f, "ステージセレクト: カメラFar"};
+    inline static ConfigVar<float> cfg_CameraPosX{"StageSelect.Camera", "PosX", 8.0f, "ステージセレクト: カメラ位置X"};
+    inline static ConfigVar<float> cfg_CameraPosY{"StageSelect.Camera", "PosY", 1.5f, "ステージセレクト: カメラ位置Y"};
+    inline static ConfigVar<float> cfg_CameraPosZ{"StageSelect.Camera", "PosZ", 0.0f, "ステージセレクト: カメラ位置Z"};
+
+    inline static ConfigVar<float> cfg_CameraTransitionForwardStartDist{"StageSelect.CameraTransition.Forward", "StartDist", -40.0f, "ステージセレクト: Forward遷移 開始距離"};
+    inline static ConfigVar<float> cfg_CameraTransitionForwardTargetDistRatio{"StageSelect.CameraTransition.Forward", "TargetDistRatio", 0.5f, "ステージセレクト: Forward遷移 ターゲット距離比"};
+    inline static ConfigVar<float> cfg_CameraTransitionForwardStartFovDegrees{"StageSelect.CameraTransition.Forward", "StartFovDegrees", 60.0f, "ステージセレクト: Forward遷移 開始FOV(度)"};
+    inline static ConfigVar<float> cfg_CameraTransitionForwardVerticalOffset{"StageSelect.CameraTransition.Forward", "VerticalOffset", -2.0f, "ステージセレクト: Forward遷移 垂直オフセット"};
+    inline static ConfigVar<float> cfg_CameraTransitionSideMaxAngleDegrees{"StageSelect.CameraTransition.Side", "MaxAngleDegrees", 120.0f, "ステージセレクト: Left/Right遷移 最大回転角(度)"};
+
+    inline static ConfigVar<float> cfg_CameraZoomDurationSeconds{"StageSelect.CameraZoom", "DurationSeconds", 0.3f, "ステージセレクト: ズーム遷移時間(秒)"};
+    inline static ConfigVar<float> cfg_CameraZoomMoveRatioPerSecond{"StageSelect.CameraZoom", "MoveRatioPerSecond", 0.5f, "ステージセレクト: ズーム移動係数"};
+    inline static ConfigVar<float> cfg_CameraZoomFovDeltaPerSecond{"StageSelect.CameraZoom", "FovDeltaPerSecond", -0.1f, "ステージセレクト: ズームFOV変化/秒(rad)"};
+
+    inline static ConfigVar<float> cfg_WorldUISlideParallax{"StageSelect.UI.World", "SlideParallax", 0.5f, "ステージセレクト: WorldUIスライドパララックス"};
+
+    // Existing
     inline static ConfigVar<float> cfg_UICountPosX{"UI.StageSelect.Counter", "CountPosX", 1000.0f, "ステージセレクトカウンタのX座標"};
     inline static ConfigVar<float> cfg_UICountPosY{"UI.StageSelect.Counter", "CountPosY", 500.0f, "ステージセレクトカウンタのY座標"};
     inline static ConfigVar<float> cfg_UICountW{"UI.StageSelect.Counter", "CountWidth", 200.0f, "ステージセレクトカウンタの幅"};
@@ -55,6 +164,7 @@ class StageSelectScene : public IScene {
     inline static ConfigVar<float> cfg_UICountR{"UI.StageSelect.Counter", "CountColorR", 0.0f, "ステージセレクトカウンタの色 R"};
     inline static ConfigVar<float> cfg_UICountG{"UI.StageSelect.Counter", "CountColorG", 1.0f, "ステージセレクトカウンタの色 G"};
     inline static ConfigVar<float> cfg_UICountB{"UI.StageSelect.Counter", "CountColorB", 1.0f, "ステージセレクトカウンタの色 B"};
+
     inline static ConfigVar<std::string> cfg_SkyboxModelPath{"StageSelect.Skybox", "ModelPath", "Assets/Textures/Skybox/skybox.fbx", "ステージセレクト: Skybox モデルパス"};
     inline static ConfigVar<std::string> cfg_SkyboxTexturePath{"StageSelect.Skybox", "TexturePath", "Assets/Textures/Skybox/Sky_Box.png", "ステージセレクト: Skybox テクスチャパス"};
     inline static ConfigVar<std::string> cfg_SkyboxWorld1TexturePath{"StageSelect.Skybox.World1", "TexturePath", "", "ステージセレクト: World1 Skybox テクスチャパス"};
@@ -63,17 +173,13 @@ class StageSelectScene : public IScene {
     inline static ConfigVar<std::string> cfg_SkyboxWorld4TexturePath{"StageSelect.Skybox.World4", "TexturePath", "", "ステージセレクト: World4 Skybox テクスチャパス"};
     inline static ConfigVar<float> cfg_SkyboxScale{"StageSelect.Skybox", "Scale", 200.0f, "ステージセレクト: Skybox スケール"};
 
-    // ワールドごとの最大ステージ数定義
-    static constexpr int MAX_STAGES_WORLD1 = 3;
-    static constexpr int MAX_STAGES_WORLD2 = 4;
-    static constexpr int MAX_STAGES_WORLD3 = 5;
-    static constexpr int MAX_STAGES_WORLD4 = 6;
+    // World max stages (runtime-configured)
     struct max_stages {
         int Stage_Num;
         int Serial;
     };
 
-    inline static max_stages ms[4] = {{MAX_STAGES_WORLD1, 1}, {MAX_STAGES_WORLD2, 2}, {MAX_STAGES_WORLD3, 3}, {MAX_STAGES_WORLD4, 4}};
+    inline static max_stages ms[4] = {{0, 1}, {0, 2}, {0, 3}, {0, 4}};
 
     /**
      * @brief コンストラクタ
@@ -81,22 +187,34 @@ class StageSelectScene : public IScene {
      */
     StageSelectScene(int worldNumber)
         : worldNumber_(worldNumber) {
+        RefreshMaxStage();
+    }
+
+    void RefreshMaxStage() {
+        const int maxWorld = std::clamp(cfg_WorldCount.Get(), 1, 4);
+        worldNumber_ = std::clamp(worldNumber_, 1, maxWorld);
+
+        int maxStage = 1;
         switch (worldNumber_) {
             case 1:
-                maxStage_ = MAX_STAGES_WORLD1;
+                maxStage = cfg_MaxStagesWorld1.Get();
                 break;
             case 2:
-                maxStage_ = MAX_STAGES_WORLD2;
+                maxStage = cfg_MaxStagesWorld2.Get();
                 break;
             case 3:
-                maxStage_ = MAX_STAGES_WORLD3;
+                maxStage = cfg_MaxStagesWorld3.Get();
                 break;
             case 4:
-                maxStage_ = MAX_STAGES_WORLD4;
+                maxStage = cfg_MaxStagesWorld4.Get();
                 break;
             default:
-                maxStage_ = 3;
+                maxStage = cfg_MaxStagesWorld1.Get();
                 break;
+        }
+        maxStage_ = std::max(maxStage, 1);
+        if (worldNumber_ >= 1 && worldNumber_ <= 4) {
+            ms[worldNumber_ - 1].Stage_Num = maxStage_;
         }
     }
 
@@ -127,7 +245,9 @@ class StageSelectScene : public IScene {
         }
 
         RenderingSystem::GetInstance().Initialize(gfx->Dev());
-        RenderingSystem::GetInstance().SetAmbientLight({0.15f, 0.15f, 0.2f}, 1.0f);
+        RenderingSystem::GetInstance().SetAmbientLight(
+            {cfg_AmbientR.Get(), cfg_AmbientG.Get(), cfg_AmbientB.Get()},
+            cfg_AmbientIntensity.Get());
         if (!textSystem_.Init(*gfx)) {
             DEBUGLOG_ERROR("[StageSelect] TextSystem init failed");
             return;
@@ -140,6 +260,8 @@ class StageSelectScene : public IScene {
         float screenWidth = static_cast<float>(gfx->Width());
         float screenHeight = static_cast<float>(gfx->Height());
 
+        RefreshMaxStage();
+
         // ワールド移動時のステージ番号初期化
         world.ForEach<StageProgress>([&](Entity, StageProgress &stats) {
             stats.worldCount = worldNumber_;
@@ -150,6 +272,11 @@ class StageSelectScene : public IScene {
         });
 
         // カメラ初期化
+        baseFovY_ = DirectX::XMConvertToRadians(cfg_CameraFovDegrees.Get());
+        cameraNear_ = cfg_CameraNear.Get();
+        cameraFar_ = cfg_CameraFar.Get();
+        cameraPosition_ = {cfg_CameraPosX.Get(), cfg_CameraPosY.Get(), cfg_CameraPosZ.Get()};
+
         camera_ = Camera::LookAtLH(
             baseFovY_,
             screenWidth / screenHeight,
@@ -176,12 +303,14 @@ class StageSelectScene : public IScene {
         isTransitioning_ = false;
         zoomTimer_ = 0.0f;
 
-        Entity dirLight = world.Create().With<DirectionalLight>().Build();
-        if (auto *light = world.TryGet<DirectionalLight>(dirLight)) {
-            light->direction = {0.0f, -1.0f, 0.0f};
-            light->color = {1.0f, 1.0f, 1.0f, 1.0f};
+        if (cfg_DirLightEnabled.Get()) {
+            Entity dirLight = world.Create().With<DirectionalLight>().Build();
+            if (auto *light = world.TryGet<DirectionalLight>(dirLight)) {
+                light->direction = {cfg_DirLightX.Get(), cfg_DirLightY.Get(), cfg_DirLightZ.Get()};
+                light->color = {cfg_DirLightR.Get(), cfg_DirLightG.Get(), cfg_DirLightB.Get(), std::max(0.0f, cfg_DirLightIntensity.Get())};
+            }
+            ownedEntities_.push_back(dirLight);
         }
-        ownedEntities_.push_back(dirLight);
 
         // UIシステムの構築
         Entity canvas = world.Create().With<UICanvas>().Build();
@@ -211,46 +340,39 @@ class StageSelectScene : public IScene {
         std::string worldName = "World" + std::to_string(worldNumber_);
         std::string basePath = "Assets/Models/SelectObj_ISS/Station/" + worldName + "/station";
 
-        if (worldNumber_ == 1) {
-            // World1: 3 stages
-            CreateObject(world, {5.0f, 0.0f, 0.0f}, basePath + "1.fbx");
-            CreateObject(world, {-2.5f, 0.0f, 4.33f}, basePath + "2.fbx");
-            CreateObject(world, {-2.5f, 0.0f, -4.33f}, basePath + "3.fbx");
-        } else {
-            int stageCount = maxStage_;
-            if (worldNumber_ >= 1 && worldNumber_ <= 4) {
-                int idx = worldNumber_ - 1;
-                if (ms[idx].Stage_Num > 0) {
-                    stageCount = ms[idx].Stage_Num;
-                }
+        int stageCount = maxStage_;
+        if (worldNumber_ >= 1 && worldNumber_ <= 4) {
+            int idx = worldNumber_ - 1;
+            if (ms[idx].Stage_Num > 0) {
+                stageCount = ms[idx].Stage_Num;
+            }
+        }
+
+        std::string fallbackPath = cfg_StationFallbackModelPath.Get();
+        const float radius = cfg_StationRadius.Get();
+        for (int i = 0; i < stageCount; ++i) {
+            float angle = static_cast<float>(i) * DirectX::XM_2PI / static_cast<float>(stageCount);
+            float x = cosf(angle) * radius;
+            float z = sinf(angle) * radius;
+
+            std::string modelPath = basePath + std::to_string(i + 1) + ".fbx";
+            std::error_code ec;
+            if (!std::filesystem::exists(modelPath, ec) || ec) {
+                modelPath = fallbackPath;
             }
 
-            std::string fallbackPath = "Assets/Models/SelectObj_ISS/Station/World1/station3.fbx";
-            const float radius = 5.0f;
-            for (int i = 0; i < stageCount; ++i) {
-                // place stations evenly around a circle
-                float angle = static_cast<float>(i) * DirectX::XM_2PI / static_cast<float>(stageCount);
-                float x = cosf(angle) * radius;
-                float z = sinf(angle) * radius;
-
-                std::string modelPath = basePath + std::to_string(i + 1) + ".fbx";
-                std::error_code ec;
-                if (!std::filesystem::exists(modelPath, ec) || ec) {
-                    modelPath = fallbackPath;
-                }
-
-                CreateObject(world, {x, 0.0f, z}, modelPath);
-            }
+            CreateObject(world, {x, 0.0f, z}, modelPath);
         }
 
         //2DUI
         UITransform FadeAnimation;
         FadeAnimation.position = {0.0f, 0.0f};
-        FadeAnimation.size = {1280.0f, 720.0f};
+        FadeAnimation.size = {cfg_FadeSizeW.Get(), cfg_FadeSizeH.Get()};
         FadeAnimation.anchor = {0.0f, 0.0f};
         FadeAnimation.pivot = {0.0f, 0.0f};
 
-        UIImage fade{L"./Assets/Textures/Fade/tex_fade.png"};
+        const std::wstring fadePath = Utf8ToWide(cfg_FadeTexturePath.Get());
+        UIImage fade{fadePath};
         fade.opacity = 1.0f;
         fade.keepAspect = false;
         fade.overlay = true;
@@ -258,7 +380,7 @@ class StageSelectScene : public IScene {
         SpriteSheetDesc fadeDesc = SpriteSheetDesc::Grid(
             AnimationConfig::UI::FadeFrames,
             AnimationConfig::UI::FadeCols,
-            0.1f,
+            cfg_FadeSecondsPerFrame.Get(),
             /*loop*/ false);
         fadeDesc.playOnStart = false;
 
@@ -270,6 +392,11 @@ class StageSelectScene : public IScene {
 
         ownedEntities_.push_back(fadeOutAnimation);
         fadeEntity_ = fadeOutAnimation;
+
+        shootingStars_.clear();
+        starSpawnTimer_ = 0.0f;
+        nextStarSpawn_ = RandFloat(cfg_StarSpawnMinSeconds.Get(), cfg_StarSpawnMaxSeconds.Get());
+        lastStageNameStage_ = -1;
 
         isFading = false;
     }
@@ -321,8 +448,11 @@ class StageSelectScene : public IScene {
 
         UpdateSkyboxTransform(world);
         UpdateSkyboxTexture(world);
+        UpdateShootingStars(deltaTime);
+        EffekseerManager::GetInstance().Update();
 
         // ステージ選択処理
+        TransitionDirection requestWorldTransition = TransitionDirection::None;
         world.ForEach<StageProgress>([&](Entity, StageProgress &stats) {
             bool rightPressed = input.GetKeyDown(VK_RIGHT);
             bool leftPressed = input.GetKeyDown(VK_LEFT);
@@ -332,9 +462,9 @@ class StageSelectScene : public IScene {
                 bool dpadRightNow = padsystem->GetButton(padsystem->Button_DPad_Right);
                 bool dpadLeftNow = padsystem->GetButton(padsystem->Button_DPad_Left);
 
-                const float STICK_THRESHOLD = 0.8f;
-                bool stickRightNow = gx > STICK_THRESHOLD;
-                bool stickLeftNow = gx < -STICK_THRESHOLD;
+                const float stickThreshold = cfg_StickThreshold.Get();
+                bool stickRightNow = gx > stickThreshold;
+                bool stickLeftNow = gx < -stickThreshold;
 
                 //スティックでの切り替え
                 if (stickRightNow && !stickRightPrev_) {
@@ -371,7 +501,7 @@ class StageSelectScene : public IScene {
                 } else if (stats.selectStage == maxStage_) {
                     // 次のワールドへ
                     stats.selectStage = 1;
-                    BeginWorldTransitionFade(world, TransitionDirection::Right);
+                    requestWorldTransition = TransitionDirection::Right;
                 }
             }
             if (leftPressed) {
@@ -382,22 +512,26 @@ class StageSelectScene : public IScene {
                 } else {
                     // 前のワールドへ
                     stats.IsWorldBack = true;
-                    BeginWorldTransitionFade(world, TransitionDirection::Left);
+                    requestWorldTransition = TransitionDirection::Left;
                 }
             }
 
             stats.selectStage = std::clamp(stats.selectStage, 1, maxStage_);
 
-            // UIテキスト更新
-            if (auto *StageSelectText = world.TryGet<UIText>(StageSelectEntity_)) {
-                CreateTextStageNoFormats();
-                std::wstringstream ss;
-                ss << L"PSS-00" << stats.selectStage;
-                StageSelectText->text = ss.str();
-            }
+            UpdateStageNameTexture(world, stats.selectStage);
         });
 
+        if (requestWorldTransition == TransitionDirection::Right) {
+            GoToNextWorld(world);
+            return;
+        }
+        if (requestWorldTransition == TransitionDirection::Left) {
+            GoToPrevWorld(world);
+            return;
+        }
+
         // 回転アニメーション
+        rotateSpeed_ = cfg_RotateSpeed.Get();
         currentAngle_ += (targetAngle_ - currentAngle_) * deltaTime * rotateSpeed_;
         skyboxYawDeg_ = DirectX::XMConvertToDegrees(currentAngle_);
         world.ForEach<Transform, ObjectPos>([&](Entity, Transform &transform, ObjectPos &pos) {
@@ -447,18 +581,16 @@ class StageSelectScene : public IScene {
                                               : 1.0f - powf(-2.0f * progress + 2.0f, 3.0f) / 2.0f;
 
                     // カメラ位置: 奥(-30)から通常位置(0)へ
-                    float startDist = -40.0f;
-                    float currentDist = startDist * (1.0f - easedProgress);
+                    const float startDist = cfg_CameraTransitionForwardStartDist.Get();
+                    const float currentDist = startDist * (1.0f - easedProgress);
                     renderCamera.position.z += currentDist;
-                    renderCamera.target.z += currentDist * 0.5f; // ターゲットは半分だけ動かして奥行き感を出す
+                    renderCamera.target.z += currentDist * cfg_CameraTransitionForwardTargetDistRatio.Get();
 
-                    // FOV: 広め(60度)から通常(40度)へ収束 → 膨らんで近づく感覚
-                    float startFov = DirectX::XMConvertToRadians(60.0f);
-                    float endFov = DirectX::XMConvertToRadians(baseFovY_);
+                    const float startFov = DirectX::XMConvertToRadians(cfg_CameraTransitionForwardStartFovDegrees.Get());
+                    const float endFov = baseFovY_;
                     renderCamera.fovY = startFov + (endFov - startFov) * easedProgress;
 
-                    // 軽微な上昇演出: 少し下から上がってくる
-                    float verticalOffset = -2.0f * (1.0f - easedProgress);
+                    const float verticalOffset = cfg_CameraTransitionForwardVerticalOffset.Get() * (1.0f - easedProgress);
                     renderCamera.position.y += verticalOffset;
 
                     renderCamera.Update();
@@ -473,7 +605,7 @@ class StageSelectScene : public IScene {
                                               : 1.0f - powf(-2.0f * progress + 2.0f, 3.0f) / 2.0f;
 
                     // 回転方向: Right=負方向(-120度), Left=正方向(+120度)
-                    float maxAngle = DirectX::XMConvertToRadians(120.0f);
+                    float maxAngle = DirectX::XMConvertToRadians(cfg_CameraTransitionSideMaxAngleDegrees.Get());
                     if (dir == TransitionDirection::Right) {
                         maxAngle = -maxAngle;
                     }
@@ -511,9 +643,67 @@ class StageSelectScene : public IScene {
         // UI描画時にもオフセットを適用
         auto *gfx = ServiceLocator::TryGet<GfxDevice>();
         float screenWidth = gfx ? static_cast<float>(gfx->Width()) : 1280.0f;
+        float screenHeight = gfx ? static_cast<float>(gfx->Height()) : 720.0f;
         float uiOffsetX = -transitionOffset * screenWidth;
 
+        SceneManager *manager = ServiceLocator::TryGet<SceneManager>();
+        TransitionDirection sceneTransitionDir = TransitionDirection::None;
+        TransitionPhase sceneTransitionPhase = TransitionPhase::None;
+        float sceneTransitionProgress = 0.0f;
+        float worldUISlideOffsetX = 0.0f;
+        bool isWorldSwitchTransition = false;
+        if (manager && manager->IsTransitioning()) {
+            sceneTransitionDir = manager->GetTransitionDirection();
+            sceneTransitionPhase = manager->GetTransitionPhase();
+            sceneTransitionProgress = manager->GetTransitionProgress();
+            if (sceneTransitionDir == TransitionDirection::Left || sceneTransitionDir == TransitionDirection::Right) {
+                isWorldSwitchTransition = true;
+                worldUISlideOffsetX = -manager->GetTransitionOffset() * screenWidth;
+            }
+        }
+
+        UpdateSkyboxTexture(world);
+        if (world.IsAlive(worldUIEntity_)) {
+            if (auto *tr = world.TryGet<UITransform>(worldUIEntity_)) {
+                if (isWorldSwitchTransition) {
+                    tr->position = {worldUIBasePos_.x + worldUISlideOffsetX, worldUIBasePos_.y};
+                } else {
+                    tr->position = {worldUIBasePos_.x - uiOffsetX * 0.5f, worldUIBasePos_.y};
+                }
+            }
+        }
+
+        if (isWorldSwitchTransition && world.IsAlive(fadeEntity_)) {
+            auto *img = world.TryGet<UIImage>(fadeEntity_);
+            auto *anim = world.TryGet<SpriteSheetAnimation>(fadeEntity_);
+            if (img && anim) {
+                const int maxFrame = std::max(anim->frameCount - 1, 0);
+                const float t = std::clamp(sceneTransitionProgress, 0.0f, 1.0f);
+                int frame = 0;
+                if (sceneTransitionPhase == TransitionPhase::SlideOut) {
+                    frame = static_cast<int>(t * static_cast<float>(maxFrame) + 0.5f);
+                } else {
+                    frame = static_cast<int>((1.0f - t) * static_cast<float>(maxFrame) + 0.5f);
+                }
+                frame = std::clamp(frame, 0, maxFrame);
+
+                anim->isPlaying = false;
+                anim->isFinished = false;
+                anim->currentFrame = frame;
+                if (anim->uv.size() != static_cast<size_t>(std::max(anim->frameCount, 0))) {
+                    anim->UpdateUV();
+                }
+                if (!anim->uv.empty()) {
+                    img->uvRect = anim->uv[frame];
+                }
+                img->opacity = 1.0f;
+            }
+        }
+
+        UpdateStageNameFollow(world, renderCamera, uiOffsetX, screenWidth, screenHeight);
+
         renderer.Render(world, renderCamera);
+        EffekseerManager::GetInstance().Draw(renderCamera);
         if (gfx) {
             gfx->Ctx()->OMSetDepthStencilState(nullptr, 0);
         }
@@ -527,6 +717,7 @@ class StageSelectScene : public IScene {
     }
 
     void OnExit(World &world) override {
+        StopShootingStars();
         for (const auto &e : ownedEntities_) {
             DestroyEntityHierarchy(world, e);
         }
@@ -541,6 +732,7 @@ class StageSelectScene : public IScene {
             DestroyEntityHierarchy(world, StageSelectEntity_);
             StageSelectEntity_ = {};
         }
+        worldUIEntity_ = {};
 
         textSystem_.Shutdown();
         imageSystem_.Shutdown();
@@ -579,6 +771,8 @@ class StageSelectScene : public IScene {
     int maxStage_;
 
     Entity StageSelectEntity_{};
+    Entity worldUIEntity_{};
+    DirectX::XMFLOAT2 worldUIBasePos_{0.0f, 0.0f};
     Entity fadeEntity_{};
     TextSystem textSystem_{};
     ImageSystem imageSystem_{};
@@ -607,6 +801,21 @@ class StageSelectScene : public IScene {
     Entity skyboxEntity_{};
     TextureManager::TextureHandle skyboxTexture_ = TextureManager::INVALID_TEXTURE;
     bool skyboxTextureApplied_ = false;
+
+    struct ShootingStar {
+        int handle = -1;
+        DirectX::XMFLOAT3 pos{0.0f, 0.0f, 0.0f};
+        DirectX::XMFLOAT3 vel{0.0f, 0.0f, 0.0f};
+        float age = 0.0f;
+        float life = 1.0f;
+    };
+
+    std::vector<ShootingStar> shootingStars_{};
+    float starSpawnTimer_ = 0.0f;
+    float nextStarSpawn_ = 0.6f;
+    std::mt19937 starRng_{std::random_device{}()};
+
+    int lastStageNameStage_ = -1;
 
     void DestroyEntityHierarchy(World &world, Entity root) {
         if (!world.IsAlive(root)) {
@@ -753,16 +962,179 @@ class StageSelectScene : public IScene {
         }
     }
 
+    float RandFloat(float minValue, float maxValue) {
+        std::uniform_real_distribution<float> dist(minValue, maxValue);
+        return dist(starRng_);
+    }
+
+    int RandInt(int minValue, int maxValue) {
+        std::uniform_int_distribution<int> dist(minValue, maxValue);
+        return dist(starRng_);
+    }
+
+    void SpawnShootingStar() {
+        if (shootingStars_.size() >= static_cast<size_t>(std::max(cfg_StarMaxCount.Get(), 0))) {
+            return;
+        }
+
+        const int kind = RandInt(0, 2);
+        const char *effectName = (kind == 0) ? "StarSmall" : (kind == 1) ? "StarMedium"
+                                                                     : "StarBig";
+
+        DirectX::XMFLOAT3 scale{1.0f, 1.0f, 1.0f};
+        if (kind == 0) {
+            scale = {cfg_StarScaleSmall.Get(), cfg_StarScaleSmall.Get(), cfg_StarScaleSmall.Get()};
+        } else if (kind == 1) {
+            scale = {cfg_StarScaleMedium.Get(), cfg_StarScaleMedium.Get(), cfg_StarScaleMedium.Get()};
+        } else {
+            scale = {cfg_StarScaleBig.Get(), cfg_StarScaleBig.Get(), cfg_StarScaleBig.Get()};
+        }
+
+        ShootingStar star;
+        star.pos = {RandFloat(cfg_StarPosMinX.Get(), cfg_StarPosMaxX.Get()), RandFloat(cfg_StarPosMinY.Get(), cfg_StarPosMaxY.Get()), RandFloat(cfg_StarPosMinZ.Get(), cfg_StarPosMaxZ.Get())};
+        star.vel = {RandFloat(cfg_StarVelMinX.Get(), cfg_StarVelMaxX.Get()), RandFloat(cfg_StarVelMinY.Get(), cfg_StarVelMaxY.Get()), RandFloat(cfg_StarVelMinZ.Get(), cfg_StarVelMaxZ.Get())};
+        star.life = RandFloat(cfg_StarLifeMinSeconds.Get(), cfg_StarLifeMaxSeconds.Get());
+
+        auto handleOpt = EffekseerManager::GetInstance().PlayEffectSafe(effectName, star.pos, scale, false);
+        if (!handleOpt) {
+            return;
+        }
+        star.handle = *handleOpt;
+        shootingStars_.push_back(star);
+    }
+
+    void UpdateShootingStars(float dt) {
+        if (dt <= 0.0f) {
+            return;
+        }
+
+        starSpawnTimer_ += dt;
+        while (starSpawnTimer_ >= nextStarSpawn_) {
+            starSpawnTimer_ -= nextStarSpawn_;
+            nextStarSpawn_ = RandFloat(cfg_StarSpawnMinSeconds.Get(), cfg_StarSpawnMaxSeconds.Get());
+            SpawnShootingStar();
+        }
+
+        auto &efk = EffekseerManager::GetInstance();
+        for (auto it = shootingStars_.begin(); it != shootingStars_.end();) {
+            it->age += dt;
+            it->pos.x += it->vel.x * dt;
+            it->pos.y += it->vel.y * dt;
+            it->pos.z += it->vel.z * dt;
+
+            if (it->handle >= 0) {
+                efk.SetEffectPosition(it->handle, it->pos);
+            }
+
+            if (it->age >= it->life) {
+                if (it->handle >= 0) {
+                    efk.StopEffectHandle(it->handle);
+                }
+                it = shootingStars_.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+
+    void StopShootingStars() {
+        auto &efk = EffekseerManager::GetInstance();
+        for (auto &star : shootingStars_) {
+            if (star.handle >= 0) {
+                efk.StopEffectHandle(star.handle);
+            }
+        }
+        shootingStars_.clear();
+    }
+
+    void UpdateStageNameTexture(World &world, int stage) {
+        if (stage <= 0 || lastStageNameStage_ == stage || !world.IsAlive(StageSelectEntity_)) {
+            return;
+        }
+
+        auto *img = world.TryGet<UIImage>(StageSelectEntity_);
+        if (!img) {
+            return;
+        }
+
+        std::wstring stageNamePath = L"Assets/Textures/UI/StageName/stagename";
+        stageNamePath += std::to_wstring(worldNumber_);
+        stageNamePath += std::to_wstring(static_cast<int>(cfg_StageNameWorldDigit.Get()));
+        stageNamePath += std::to_wstring(stage);
+        stageNamePath += L".png";
+
+        img->filePath = stageNamePath;
+        img->opacity = 1.0f;
+        lastStageNameStage_ = stage;
+    }
+
+    void UpdateStageNameFollow(World &world, const Camera &camera, float uiOffsetX, float screenWidth, float screenHeight) {
+        if (!world.IsAlive(StageSelectEntity_) || screenWidth <= 0.0f || screenHeight <= 0.0f) {
+            return;
+        }
+
+        int stage = 1;
+        world.ForEach<StageProgress>([&](Entity, StageProgress &stats) {
+            stage = std::clamp(stats.selectStage, 1, maxStage_);
+        });
+
+        UpdateStageNameTexture(world, stage);
+
+        const size_t idx = static_cast<size_t>(stage - 1);
+        if (idx >= objectOwnedEntities_.size()) {
+            return;
+        }
+
+        Entity station = objectOwnedEntities_[idx];
+        auto *stationTr = world.TryGet<Transform>(station);
+        if (!stationTr) {
+            return;
+        }
+
+        DirectX::XMFLOAT3 p = stationTr->position;
+        p.y += cfg_StageNameProjectYOffset.Get();
+
+        DirectX::XMVECTOR proj = DirectX::XMVector3Project(
+            DirectX::XMLoadFloat3(&p),
+            0.0f, 0.0f, screenWidth, screenHeight,
+            0.0f, 1.0f,
+            camera.GetProjectionMatrix(),
+            camera.GetViewMatrix(),
+            DirectX::XMMatrixIdentity());
+
+        float sx = DirectX::XMVectorGetX(proj);
+        float sy = DirectX::XMVectorGetY(proj);
+        float sz = DirectX::XMVectorGetZ(proj);
+
+        auto *img = world.TryGet<UIImage>(StageSelectEntity_);
+        if (img) {
+            img->opacity = (sz >= 0.0f && sz <= 1.0f) ? 1.0f : 0.0f;
+        }
+        if (sz < 0.0f || sz > 1.0f) {
+            return;
+        }
+
+        auto *uiTr = world.TryGet<UITransform>(StageSelectEntity_);
+        if (!uiTr) {
+            return;
+        }
+
+        uiTr->anchor = {0.0f, 0.0f};
+        uiTr->pivot = {0.0f, 0.0f};
+        uiTr->position = {sx - uiOffsetX, sy};
+    }
+
     void CreateObject(World &world, const DirectX::XMFLOAT3 &position, const std::string &modelPath) {
-        Transform transform{position, {0.0f, 0.0f, 0.0f}, {0.1f, 0.1f, 0.1f}};
+        const float stationScale = cfg_StationScale.Get();
+        Transform transform{position, {0.0f, 0.0f, 0.0f}, {stationScale, stationScale, stationScale}};
         ObjectPos pos;
         pos.basepos = position;
 
         PointLight light{
-            DirectX::XMFLOAT3{1.0f, 1.0f, 1.0f},
-            1.0f,
-            10.0f};
-        light.SetAttenuation(1.0f, 1.0f, 1.0f);
+            DirectX::XMFLOAT3{cfg_StationPointLightR.Get(), cfg_StationPointLightG.Get(), cfg_StationPointLightB.Get()},
+            cfg_StationPointLightIntensity.Get(),
+            cfg_StationPointLightRange.Get()};
+        light.SetAttenuation(cfg_StationPointLightAttenConstant.Get(), cfg_StationPointLightAttenLinear.Get(), cfg_StationPointLightAttenQuadratic.Get());
 
         auto builder = world.Create().With<Transform>(transform).With<ObjectPos>(pos).With<PointLight>(light);
 
@@ -811,7 +1183,8 @@ class StageSelectScene : public IScene {
         if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
             std::string nextScene = "World" + std::to_string(worldNumber_ + 1) + "_StageSelect";
 
-            if (worldNumber_ >= 4) {
+            const int maxWorld = std::clamp(cfg_WorldCount.Get(), 1, 4);
+            if (worldNumber_ >= maxWorld) {
                 // 現状維持（何もしないorループ）
             } else {
                 // 次のワールドへ: 右方向にスライド（進む）
@@ -833,7 +1206,7 @@ class StageSelectScene : public IScene {
 
     void UpdateCameraZoom(World &world, float deltaTime) {
         //遷移の時間
-        const float duration = 0.3f;
+        const float duration = std::max(cfg_CameraZoomDurationSeconds.Get(), 0.0001f);
         zoomTimer_ += deltaTime;
 
         float progress = std::min(zoomTimer_ / duration, 1.0f);
@@ -843,11 +1216,11 @@ class StageSelectScene : public IScene {
         DirectX::XMVECTOR target = DirectX::XMLoadFloat3(&camera_.target);
         DirectX::XMVECTOR dir = DirectX::XMVectorSubtract(target, pos);
 
-        pos = DirectX::XMVectorAdd(pos, DirectX::XMVectorScale(dir, 0.5f * deltaTime));
+        pos = DirectX::XMVectorAdd(pos, DirectX::XMVectorScale(dir, cfg_CameraZoomMoveRatioPerSecond.Get() * deltaTime));
         DirectX::XMStoreFloat3(&camera_.position, pos);
 
         //視野角
-        camera_.Zoom(-0.1f * deltaTime);
+        camera_.Zoom(cfg_CameraZoomFovDeltaPerSecond.Get() * deltaTime);
         camera_.Update();
         //シーン遷移
         if (progress >= 1.0f) {
