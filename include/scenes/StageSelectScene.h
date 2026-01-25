@@ -201,7 +201,7 @@ class StageSelectScene : public IScene {
 
         // 3Dオブジェクト(Station)の配置
         std::string worldName = "World" + std::to_string(worldNumber_);
-        std::string basePath = "Assets/Models/SelectObj_ISS/Station/" + worldName + "/Station";
+        std::string basePath = "Assets/Models/SelectObj_ISS/Station/" + worldName + "/station";
 
         if (worldNumber_ == 1) {
             // World1: 3 stages
@@ -217,7 +217,7 @@ class StageSelectScene : public IScene {
                 }
             }
 
-            std::string fallbackPath = "Assets/Models/SelectObj_ISS/Station/World1/Station3.fbx";
+            std::string fallbackPath = "Assets/Models/SelectObj_ISS/Station/World1/station3.fbx";
             const float radius = 5.0f;
             for (int i = 0; i < stageCount; ++i) {
                 // place stations evenly around a circle
@@ -344,7 +344,11 @@ class StageSelectScene : public IScene {
                 dpadLeftPrev_ = dpadLeftNow;
             }
 
-           
+          /*  if (input.GetKeyDown(VK_F5)) {
+                    if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
+                        manager->ChangeScene("Title", world);
+                    }
+           }*/
 
             if (rightPressed) {
                 if (stats.selectStage < maxStage_) {

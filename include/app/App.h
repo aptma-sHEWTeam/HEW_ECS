@@ -369,7 +369,7 @@ struct App {
                             gs->SetWorldRef(&world_);
                         }
                         sceneManager_.Update(world_, input_, fixedDeltaTime);
-                        world_.Tick(fixedDeltaTime);
+                        world_.Tick(fixedDeltaTime * GetGlobalTimeScale());
                     } catch (const std::exception &e) {
                         DEBUGLOG("[CRITICAL ERROR] シーン更新中に例外が発生: " + std::string(e.what()));
                         PostQuitMessage(-1);

@@ -72,6 +72,8 @@ class TitleScene : public IScene {
     inline static ConfigVar<std::string> cfg_SkyboxTexturePath{"Title.Skybox", "TexturePath", "Assets/Textures/Skybox/Sky_Box.png", "タイトル: Skybox テクスチャパス"};
     inline static ConfigVar<float> cfg_SkyboxScale{"Title.Skybox", "Scale", 200.0f, "タイトル: Skybox スケール"};
     inline static ConfigVar<float> cfg_SkyboxSpeed{"Skybox", "Speed", 0.05f, "スカイボックスの回転速度(rad/sec)"};
+    inline static ConfigVar<float> cfg_CameraBobAmplitude{"Title.Camera", "BobAmplitude", 0.2f, "Title: Camera bob amplitude"};
+    inline static ConfigVar<float> cfg_CameraBobSpeed{"Title.Camera", "BobSpeed", 1.0f, "Title: Camera bob speed (rad/sec)"};
 
     // 壁見た目
     inline static ConfigVar<float> cfg_WallPosX{"Title.Wall", "PosX", 20.0f, "壁: Window 位置X"};
@@ -158,8 +160,10 @@ class TitleScene : public IScene {
         //カメラの詳細設定
         float aspect = static_cast<float>(gfx->Width()) / gfx->Height();
         camera_ = Camera::LookAtLH(
-            DirectX::XM_PIDIV4, aspect, 0.1f, 1000.0f,
+            DirectX::XM_PIDIV4, aspect, 0.1f, 10000.0f,
             {0, 0, -23}, {0, 0, 0}, {0, 1, 0});
+        cameraBobPhase_ = 0.0f;
+        cameraBobOffsetY_ = 0.0f;
 
         CreateSkybox(world);
 
@@ -168,6 +172,11 @@ class TitleScene : public IScene {
         if (!skyboxScaleTestsRan) {
             RunSkyboxScaleTests();
             skyboxScaleTestsRan = true;
+        }
+        static bool cameraBobTestsRan = false;
+        if (!cameraBobTestsRan) {
+            RunCameraBobTests();
+            cameraBobTestsRan = true;
         }
 #endif
 
@@ -191,7 +200,7 @@ class TitleScene : public IScene {
 
         const std::string modelPath = AnimationConfig::Paths::PlayerModel;
         std::vector<std::string> animPaths = {
-            AnimationConfig::Paths::PlayerAnimFry,
+            AnimationConfig::Paths::PlayerAnimTitle,
         };
         std::vector<std::string> animAliases = {
             AnimationConfig::Clips::PlayerIdle,
@@ -236,7 +245,9 @@ class TitleScene : public IScene {
         // CreatePlayer(world);
     }
 
-    void CreateWindows(World &world) {
+
+      void CreateWindows(World& world) 
+      {
         //確認用オブジェクト
         DirectX::XMFLOAT3 objPos{cfg_WindowPosX.Get(), cfg_WindowPosY.Get(), cfg_WindowPosZ.Get()};
         Transform transform{
@@ -380,6 +391,41 @@ class TitleScene : public IScene {
             }
         });
 
+        bool upPressd = input.GetKeyDown(VK_UP);
+        bool downPressd = input.GetKeyDown(VK_DOWN);
+
+        GamepadSystem *pad = ServiceLocator::TryGet<GamepadSystem>();
+        if (pad) {
+            float pady = pad->GetLeftStickY();
+            bool dpadUp = pad->GetButton(GamepadSystem::Button_DPad_Up);
+            bool dpadDown = pad->GetButton(GamepadSystem::Button_DPad_Down);
+        
+            if (pady > 0.8f && !stickUpPrev_)upPressd = true;
+            if (pady < -0.8f && !stickDownPrev_)downPressd = true;
+            if (dpadUp && !dpadDownPrev_)upPressd = true;
+            if (dpadDown && !dpadDownPrev_)downPressd = true;
+
+            stickUpPrev_ = (pady > 0.8f);
+            stickDownPrev_ = (pady < -0.8f);
+            dpadUpPrev_ = dpadUp;
+            dpadDownPrev_ = dpadDown;
+        }
+
+        if (upPressd) {
+            currentSelect = (currentSelect - 1 + 3) % 3;
+            SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
+        }
+        if (downPressd) {
+            currentSelect = (currentSelect + 1) % 3;
+            SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
+        }
+
+        for (int i = 0; i < 3; ++i) {
+            if (auto *img = world.TryGet<UIImage>(menuEntity_[i])) {
+                img->filePath = (i == currentSelect) ? selectPaths[i] : normalPaths[i];
+            }
+        }
+
         if (world.IsAlive(objectEntity_)) {
             if (auto *t = world.TryGet<Transform>(objectEntity_)) {
                 t->position = {cfg_WindowPosX.Get(), cfg_WindowPosY.Get(), cfg_WindowPosZ.Get()};
@@ -406,12 +452,25 @@ class TitleScene : public IScene {
 
         if (!isTransitioning_) {
             bool trigger = input.GetKeyDown(VK_RETURN);
+            
             GamepadSystem *padsystem = ServiceLocator::TryGet<GamepadSystem>();
 
+
             if (padsystem && padsystem->GetAnyButtonDown({GamepadSystem::Button_A, GamepadSystem::Button_Start, GamepadSystem::Button_X})) {
-                SOUND_SYS.PlaySE(cfg_EnterMP3Pass);
-                DEBUGLOG("Enter pressed!");
-                trigger = true;
+                switch (currentSelect) {
+                    case Start:
+                        SOUND_SYS.PlaySE(cfg_EnterMP3Pass);
+                        DEBUGLOG("Enter pressed!");
+                        trigger = true;
+                        break;
+                    case Restart:
+                        break;
+                    case Exit:
+                        DEBUGLOG("Game End!");
+                        PostQuitMessage(0);
+                        break;
+
+                }
             }
             if (trigger) {
                 isTransitioning_ = true;
@@ -422,6 +481,7 @@ class TitleScene : public IScene {
             UpdateCameraZoom(world, deltaTime);
         }
 
+        UpdateCameraBob(deltaTime);
         UpdateSkyboxRotation(deltaTime);
         UpdateSkyboxTransform(world);
         UpdateSkyboxTexture(world);
@@ -516,6 +576,38 @@ class TitleScene : public IScene {
         }
     }
 
+    void UpdateCameraBob(float deltaTime) {
+        const float amplitude = std::max(0.0f, cfg_CameraBobAmplitude.Get());
+        const float speed = std::max(0.0f, cfg_CameraBobSpeed.Get());
+
+        if (amplitude <= 0.0f || speed <= 0.0f) {
+            if (cameraBobOffsetY_ != 0.0f) {
+                camera_.position.y -= cameraBobOffsetY_;
+                camera_.target.y -= cameraBobOffsetY_;
+                cameraBobOffsetY_ = 0.0f;
+                camera_.Update();
+            }
+            return;
+        }
+
+        camera_.position.y -= cameraBobOffsetY_;
+        camera_.target.y -= cameraBobOffsetY_;
+        cameraBobPhase_ += speed * deltaTime;
+        if (cameraBobPhase_ > DirectX::XM_2PI) {
+            cameraBobPhase_ -= DirectX::XM_2PI;
+        }
+        cameraBobOffsetY_ = CameraBobOffset(cameraBobPhase_, amplitude);
+        camera_.position.y += cameraBobOffsetY_;
+        camera_.target.y += cameraBobOffsetY_;
+        camera_.Update();
+    }
+
+     enum TitleSelect {
+        Start = 0,
+        Restart = 1,
+        Exit = 2
+     };
+
     void CreateTextNormalFormats();
     void CreateTitleSelectUI(World &world);
 
@@ -531,6 +623,10 @@ class TitleScene : public IScene {
         return DirectX::XMConvertToDegrees(rotationRad);
     }
 
+    static float CameraBobOffset(float phaseRad, float amplitude) {
+        return std::sin(phaseRad) * amplitude;
+    }
+
 #if defined(_DEBUG)
     void RunSkyboxScaleTests() {
         assert(!IsSkyboxTexturePathValid(""));
@@ -540,11 +636,23 @@ class TitleScene : public IScene {
         assert(SanitizeSkyboxScale(-2.0f) == 0.1f);
         assert(std::abs(SkyboxRotationToDegrees(DirectX::XM_PIDIV2) - 90.0f) < 1e-3f);
     }
+
+    void RunCameraBobTests() {
+        assert(std::abs(CameraBobOffset(0.0f, 1.0f)) < 1e-6f);
+        assert(std::abs(CameraBobOffset(DirectX::XM_PIDIV2, 2.0f) - 2.0f) < 1e-3f);
+        assert(std::abs(CameraBobOffset(DirectX::XM_PI, 2.0f)) < 1e-3f);
+    }
 #endif
 
     bool isTransitioning_ = false;
     float zoomTimer_ = 0.0f;
     bool isUiVisible_ = true;
+
+    int currentSelect = 0;
+    bool stickUpPrev_ = false;
+    bool stickDownPrev_ = false;
+    bool dpadUpPrev_ = false;
+    bool dpadDownPrev_ = false;
 
     std::vector<Entity> ownedEntities_{};
 
@@ -552,11 +660,26 @@ class TitleScene : public IScene {
     Entity playerEntity_{};
     Entity objectEntity_{};
     Entity skyboxEntity_{};
+    Entity menuEntity_[3];
     TextureManager::TextureHandle skyboxTexture_ = TextureManager::INVALID_TEXTURE;
     bool skyboxTextureApplied_ = false;
     float skyboxRotation_ = 0.0f;
+    float cameraBobPhase_ = 0.0f;
+    float cameraBobOffsetY_ = 0.0f;
 
     TextSystem textSystem_{};
     ImageSystem imageSystem_{};
     Camera camera_{};
+
+    const std::wstring normalPaths[3] = {
+        {L"./Assets/Textures/UI/TitleUI/title4.png "},
+        {L"./Assets/Textures/UI/TitleUI/title6.png"},
+        {L"./Assets/Textures/UI/TitleUI/title2.png"},
+    };
+
+    const std::wstring selectPaths[3] = {
+        {L"./Assets/Textures/UI/TitleUI/title3.png "},
+        {L"./Assets/Textures/UI/TitleUI/title5.png"},
+        {L"./Assets/Textures/UI/TitleUI/title1.png"},
+    };
 };

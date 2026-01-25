@@ -12,6 +12,7 @@ struct Paths {
     inline static const char* PlayerAnimChargeOut = "Assets/Models/Player/anm_charge_out.fbx";
     inline static const char* PlayerAnimDeath = "Assets/Models/Player/anm_death.fbx";
     inline static const char* PlayerAnimTimeup = "Assets/Models/Player/anm_timeup.fbx";
+    inline static const char *PlayerAnimTitle = "Assets/Models/Player/anm_title.fbx";
     inline static const char* PlayerAnimFallback = ""; // 必要なら設定
 };
 
@@ -23,6 +24,7 @@ struct Clips {
     inline static const char* PlayerChargeOut = "anm_charge_out";
     inline static const char* PlayerDeath = "anm_death";
     inline static const char* PlayerTimeup = "anm_timeup";
+    inline static const char *PlayerTitle = "anm_title";
     inline static const char* PlayerDefault = PlayerIdle;
 };
 

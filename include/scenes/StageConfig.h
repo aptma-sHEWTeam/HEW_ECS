@@ -62,6 +62,7 @@ inline ConfigVar<float> cfg_PointLightConst{"Lighting.Point.Default", "Constant"
 inline ConfigVar<float> cfg_PointLightLinear{"Lighting.Point.Default", "Linear", 0.04f, "ポイントライト減衰一次項"};
 inline ConfigVar<float> cfg_PointLightQuadratic{"Lighting.Point.Default", "Quadratic", 0.007f, "ポイントライト減衰二次項"};
 inline ConfigVar<float> cfg_PointLightRange{"Lighting.Point.Default", "Range", 10.0f, "ポイントライトの有効距離"};
+inline ConfigVar<float> cfg_PointLightYOffset{"Lighting.Point.Default", "YOffset", 0.5f, "ポイントライトのYオフセット"};
 inline ConfigVar<float> cfg_BakeLightSpacing{"Lighting.Bake", "Spacing", 6.0f, "ライトベイク時の配置間隔"};
 inline ConfigVar<float> cfg_BakeLightHeight{"Lighting.Bake", "Height", 2.5f, "ライトベイク時の高さ"};
 inline ConfigVar<float> cfg_BakeLightIntensity{"Lighting.Bake", "Intensity", 0.7f, "ライトベイクの強さ"};
@@ -150,7 +151,7 @@ inline ConfigVar<std::string> cfg_KeyMP3Pass{"Stage.Key.SE", "KeyMP3Pass","Asset
 inline ConfigVar<std::string> cfg_ClearMP3Pass{"Stage.Clear.BGM", "ClearMP3Pass","Assets/Sound/DemoBGM/clearBGM20260119.mp3", "クリア時のBGM"};
 inline ConfigVar<std::string> cfg_TitleMP3Pass{"Stage.Title.BGM", "TitleMP3Pass","Assets/Sound/DemoBGM/titleBGM.mp3", "タイトル画面のBGM"};
 inline ConfigVar<std::string> cfg_GameMP3Pass{"Stage.Game.BGM", "GameMP3Pass","Assets/Sound/DemoBGM/escape20260119.mp3", "ゲーム画面のBGM"};
-inline ConfigVar<float> cfg_MasterVolume{"Stage.Master.Volume", "MasterVolume", 1.0f, "マスタの大きさ"};
+inline ConfigVar<float> cfg_MasterVolume{"Stage.Master.Volume", "MasterVolume", 0.3f, "マスタの大きさ"};
 inline ConfigVar<float> cfg_BGMVolume{"Stage.BGM.Volume", "BGMVolume", 1.0f, "BGMの大きさ"};
 inline ConfigVar<float> cfg_SEVolume{"Stage.SE.Volume", "SEVolume", 0.6f, "SEの大きさ"};
 // プレイヤー移動設定

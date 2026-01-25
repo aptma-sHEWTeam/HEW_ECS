@@ -49,7 +49,7 @@ void LightSystem::Update(World& world, const DirectX::XMFLOAT3& cameraPos) {
         if (lightData_.activePointLights >= MAX_POINT_LIGHTS) return;
 
         int idx = lightData_.activePointLights;
-        lightData_.pointLights[idx].position = t.position;
+        lightData_.pointLights[idx].position = ApplyPointLightOffset(t.position, pl);
         lightData_.pointLights[idx].range = pl.range;
         lightData_.pointLights[idx].color = pl.color;
         lightData_.pointLights[idx].intensity = pl.intensity;

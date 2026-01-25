@@ -5,7 +5,7 @@
 #pragma once
 
 #include "components/Component.h"
-#include<vector>
+#include "scenes/StageConfig.h"
 
 /**
  * @struct GameStats
@@ -20,4 +20,8 @@ struct GameStatus : IComponent {
  bool isPaused = false;
  bool timerRunning = false;   //タイマー計測中か
  bool waitingForPlayerMove = true; //動き出すまでタイマーを停止
+
+ bool isDead = false;
+ bool fadeFinished = false;
+ bool resetDone = false;
 };

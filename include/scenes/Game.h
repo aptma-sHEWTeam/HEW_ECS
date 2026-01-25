@@ -40,6 +40,7 @@
 #include "components/Collision.h"
 #include "components/GameStats.h"
 #include "components/StageComponents.h"
+#include "components/TimeScaleComponents.h"
 #include "components/EmissiveMaterial.h"
 #include "components/EmissivePulse.h"
 #include "components/TransformHierarchy.h"
@@ -101,6 +102,19 @@ class GameScene : public IScene {
         DEBUGLOG("GameWithUIScene::OnEnter() 開始");
 
         StageSave::Load();
+        auto *mgr = ServiceLocator::TryGet<SceneManager>();
+        if (!mgr)
+            return;
+
+        world.ForEach<GameStatus>([&](Entity, GameStatus &stats) {
+           
+            if (stats.isDead &&
+                !mgr->IsTransitioning() &&
+                !stats.resetDone) {
+                stats.elapsedTime = cfg_LimitTime; 
+                stats.resetDone = true;            
+            }
+        });
 
         world.ForEach<StageProgress>([](Entity, StageProgress &sp) {
             sp.clearedThisStage = false;
@@ -256,6 +270,8 @@ class GameScene : public IScene {
         static bool skyboxScaleTestsRan = false;
         if (!skyboxScaleTestsRan) {
             RunSkyboxScaleTests();
+            RunPointLightOffsetTests();
+            assert(cfg_LimitTime.Get() > 0.0f);
             skyboxScaleTestsRan = true;
         }
 #endif
@@ -334,11 +350,16 @@ class GameScene : public IScene {
             }
         });
 
+        // Debug: force goal processing with Ctrl+Z+X+C+V
+        if (IsGoalCheatTriggered(input)) {
+            TriggerGoalCheat(world);
+        }
+
         // ステージクリア待機中の処理
         if (stageClearActive_) {
             stageClearTimer_ += deltaTime;
             if (auto *txt = world.TryGet<UIText>(stageClearTextEntity_)) {
-                txt->text = L"ステージクリア！";
+                //txt->text = L"ステージクリア！";
             }
             // 一定時間経過でクリア動画へ
             if (stageClearTimer_ >= cfg_StageClearWait.Get()) {
@@ -367,6 +388,7 @@ class GameScene : public IScene {
                 }
             }
         }
+        SetGlobalTimeScale(timeScale);
 
         // ステージ進行リクエストの処理
         HandleStageAdvance(world);
@@ -640,7 +662,117 @@ class GameScene : public IScene {
         }
     }
 
-    /** @brief カメラオブジェクトへのconst参照を取得 */
+    static constexpr bool IsGoalCheatCombo(
+        bool ctrlHeld,
+        bool zHeld,
+        bool xHeld,
+        bool cHeld,
+        bool vHeld,
+        bool ctrlDown,
+        bool zDown,
+        bool xDown,
+        bool cDown,
+        bool vDown) {
+        const bool comboHeld = ctrlHeld && zHeld && xHeld && cHeld && vHeld;
+        if (!comboHeld) {
+            return false;
+        }
+        return ctrlDown || zDown || xDown || cDown || vDown;
+    }
+
+    /** @brief Detect goal cheat key combo. */
+    bool IsGoalCheatTriggered(const InputSystem &input) const {
+        return IsGoalCheatCombo(
+            input.GetKey(VK_CONTROL),
+            input.GetKey('Z'),
+            input.GetKey('X'),
+            input.GetKey('C'),
+            input.GetKey('V'),
+            input.GetKeyDown(VK_CONTROL),
+            input.GetKeyDown('Z'),
+            input.GetKeyDown('X'),
+            input.GetKeyDown('C'),
+            input.GetKeyDown('V'));
+    }
+
+    void TriggerGoalCheat(World &world) {
+        if (stageClearActive_ || pendingStageAdvance_.active) {
+            return;
+        }
+
+        bool isGoalTransitioning = false;
+        world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+            if (sp.goalTransitioning || sp.requestAdvance) {
+                isGoalTransitioning = true;
+            }
+        });
+        if (isGoalTransitioning) {
+            return;
+        }
+
+        if (!world.IsAlive(playerEntity_)) {
+            DEBUGLOG_WARNING("Goal cheat ignored: player not alive");
+            return;
+        }
+
+        DirectX::XMFLOAT3 goalCenter{};
+        bool hasGoalTarget = false;
+        if (world.IsAlive(goalEntity_)) {
+            if (auto *tGoal = world.TryGet<Transform>(goalEntity_)) {
+                goalCenter = ResolvePlacementCenter(world, goalEntity_, *tGoal);
+                hasGoalTarget = true;
+                if (auto *goalTag = world.TryGet<GoalTag>(goalEntity_)) {
+                    goalTag->consumed = true;
+                }
+            }
+        }
+
+        world.ForEach<StageProgress>([](Entity, StageProgress &sp) {
+            sp.goalTransitioning = true;
+        });
+
+        GameScene_ResetChargeState();
+
+        if (auto *v = world.TryGet<PlayerVelocity>(playerEntity_)) {
+            v->velocity = {0.0f, 0.0f};
+            v->isBoosting = false;
+            v->isDecelerating = false;
+            v->boostSpeed = 0.0f;
+            v->boostDir = {0.0f, 0.0f};
+        }
+
+        if (hasGoalTarget) {
+            if (world.Has<GoalAttractor>(playerEntity_)) {
+                if (auto *attractor = world.TryGet<GoalAttractor>(playerEntity_)) {
+                    attractor->target = goalCenter;
+                    attractor->elapsed = 0.0f;
+                }
+            } else {
+                GoalAttractor attract;
+                attract.target = goalCenter;
+                world.Add<GoalAttractor>(playerEntity_, attract);
+            }
+            DEBUGLOG("Goal cheat: started goal transition");
+            return;
+        }
+
+        world.ForEach<StageProgress>([](Entity, StageProgress &sp) {
+            if (sp.clearedThisStage) {
+                return;
+            }
+            sp.clearedThisStage = true;
+            StageSave::MarkStageCleared(sp.currentStage);
+            sp.requestAdvance = true;
+        });
+        world.ForEach<GameStatus>([](Entity, GameStatus &stats) {
+            stats.elapsedTime = cfg_LimitTime;
+            stats.timerRunning = false;
+            stats.waitingForPlayerMove = true;
+        });
+        DEBUGLOG_WARNING("Goal cheat: goal entity missing, advanced stage directly");
+    }
+
+    /** @brief Get camera reference. */
     const Camera &GetCamera() const {
         return camera_;
     }
@@ -939,7 +1071,7 @@ class GameScene : public IScene {
 
                     if (world.IsAlive(stageClearTextEntity_)) {
                         if (auto *txt = world.TryGet<UIText>(stageClearTextEntity_)) {
-                            txt->text = L"ステージクリア！";
+                            //txt->text = L"ステージクリア！";
                         }
                     }
                     ClearGoalTransitionFlag(world);
@@ -1498,6 +1630,7 @@ class GameScene : public IScene {
             cfg_GoalEmissiveIntensity.Get(),
             cfg_GoalLightRange.Get()};
         ApplyDefaultPointLightParams(light);
+        light.offset = {0.0f, std::max(0.0f, cfg_PointLightYOffset.Get()), 0.0f};
 
         StopGoalEffect();
 
@@ -1609,6 +1742,7 @@ class GameScene : public IScene {
         wallLight.range = 1.0f;
         wallLight.intensity = 1.0f;
         wallLight.constantAttenuation = 0.1f;
+        wallLight.offset = {0.0f, std::max(0.0f, cfg_PointLightYOffset.Get()), 0.0f};
 
         Entity walllightEntity = world.Create()
                                      .With<Transform>(transform)
@@ -2252,6 +2386,16 @@ class GameScene : public IScene {
         testCam.target = {1.0f, 0.0f, 0.0f};
         assert(std::abs(BuildSkyboxYawDeg(testCam, DirectX::XM_PIDIV2) - 180.0f) < 1e-3f);
     }
+
+    void RunPointLightOffsetTests() {
+        PointLight light;
+        light.offset = {0.0f, 1.0f, 0.0f};
+        DirectX::XMFLOAT3 base{1.0f, 2.0f, 3.0f};
+        DirectX::XMFLOAT3 pos = ApplyPointLightOffset(base, light);
+        assert(std::abs(pos.x - 1.0f) < 1e-6f);
+        assert(std::abs(pos.y - 3.0f) < 1e-6f);
+        assert(std::abs(pos.z - 3.0f) < 1e-6f);
+    }
 #endif
 
     void UpdateCameraReaction(float dt, World &world) {
@@ -2730,3 +2874,4 @@ inline void FloorWallCollisionHandler::OnCollisionEnter(World &w, Entity self, E
         }
     }
 }
+
