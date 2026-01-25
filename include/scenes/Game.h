@@ -416,7 +416,7 @@ class GameScene : public IScene {
 
         // 時間切れチェック
         if (world.IsAlive(playerEntity_)) {
-            CheckTimeLimit(world, playerEntity_, cfg_LimitTime);
+            CheckTimeLimit(world, playerEntity_,cfg_LimitTime);
         }
 
         EffekseerManager::GetInstance().Update();
