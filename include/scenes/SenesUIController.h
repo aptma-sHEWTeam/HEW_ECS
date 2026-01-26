@@ -33,6 +33,14 @@ struct GameUIUpdater : Behaviour {
     Entity warningTextEntity_;
     float warningBlinkTimer_ = 0.0f;
 
+    Entity pauseMenuPanelEntity_;
+    Entity pauseResumeButtonEntity_;
+    Entity pauseRetryButtonEntity_;
+    Entity pauseTitleButtonEntity_;
+    Entity pauseQuitButtonEntity_;
+
+    DirectX::XMFLOAT2 pauseMenuButtonSize_{360.0f, 60.0f};
+
     void OnUpdate(World &w, Entity self, float dt) override {
         w.ForEach<GameStatus>([&](Entity e, GameStatus &stats) {
             // 経過時間の更新
@@ -148,6 +156,25 @@ struct GameUIUpdater : Behaviour {
                     }
                 }
             }
+
+            const bool showPauseMenu = stats.isPaused;
+            if (auto *panel = w.TryGet<UIPanel>(pauseMenuPanelEntity_)) {
+                panel->visible = showPauseMenu;
+            }
+
+            auto setButtonVisible = [&](Entity buttonEntity, bool visible) {
+                if (auto *tr = w.TryGet<UITransform>(buttonEntity)) {
+                    tr->size = visible ? pauseMenuButtonSize_ : DirectX::XMFLOAT2{0.0f, 0.0f};
+                }
+                if (auto *btn = w.TryGet<UIButton>(buttonEntity)) {
+                    btn->enabled = visible;
+                }
+            };
+
+            setButtonVisible(pauseResumeButtonEntity_, showPauseMenu);
+            setButtonVisible(pauseRetryButtonEntity_, showPauseMenu);
+            setButtonVisible(pauseTitleButtonEntity_, showPauseMenu);
+            setButtonVisible(pauseQuitButtonEntity_, showPauseMenu);
         });
 
         // ステージの更新

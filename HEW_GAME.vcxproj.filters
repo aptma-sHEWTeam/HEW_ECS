@@ -339,9 +339,6 @@
     <ClInclude Include="include\scenes\StageConfig.h">
       <Filter>Header Files\scenes</Filter>
     </ClInclude>
-    <ClInclude Include="include\scenes\World1_StageSelect.h">
-      <Filter>Header Files\scenes</Filter>
-    </ClInclude>
     <ClInclude Include="include\scenes\Tags.h">
       <Filter>Header Files\scenes</Filter>
     </ClInclude>
@@ -398,15 +395,6 @@
     </ClInclude>
     <ClInclude Include="include\systems\SoundSystem.h">
       <Filter>Header Files\systems</Filter>
-    </ClInclude>
-    <ClInclude Include="include\scenes\World2_StageSelect.h">
-      <Filter>Header Files\scenes</Filter>
-    </ClInclude>
-    <ClInclude Include="include\scenes\World3_StageSelect.h">
-      <Filter>Header Files\scenes</Filter>
-    </ClInclude>
-    <ClInclude Include="include\scenes\World4_StageSelect.h">
-      <Filter>Header Files\scenes</Filter>
     </ClInclude>
     <ClInclude Include="include\scenes\VideoScene.h">
       <Filter>Header Files\scenes</Filter>

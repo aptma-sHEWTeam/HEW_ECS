@@ -3,7 +3,7 @@
 #include <functional>
 #include "ConfigManager.h"
 
-// Base interface for ConfigVars to allow storage in a generic list
+// ConfigVar を汎用リストに格納するためのベースインターフェース
 class IConfigVar {
 public:
     virtual ~IConfigVar() = default;
@@ -14,7 +14,7 @@ public:
     virtual void SetValueFromBinary(const void* data) = 0;
     virtual void GetValueAsBinary(void* data) const = 0;
     virtual size_t GetBinarySize() const = 0;
-    // Optional: short description used when emitting TOML comments
+    // オプション: TOML コメントを出力する際に使用される短い説明
     virtual std::string GetComment() const = 0;
 };
 
@@ -27,10 +27,10 @@ public:
         ConfigManager::Instance().Register(this);
     }
 
-    // Implicit conversion to T
+    // T への暗黙変換
     operator T() const { return m_Value; }
 
-    // Assignment operator
+    // 代入演算子
     ConfigVar<T>& operator=(const T& value) {
         m_Value = value;
         return *this;
@@ -38,17 +38,12 @@ public:
 
     T Get() const { return m_Value; }
 
-    // IConfigVar implementation
+    // IConfigVar の実装
     std::string GetSection() const override { return m_Section; }
     std::string GetName() const override { return m_Name; }
     std::string GetComment() const override { return m_Comment; }
 
     void SetValueFromString(const std::string& value) override {
-        // Specializations or standard conversions would go here
-        // For now, we'll handle basic types in the cpp or via specializations if needed
-        // But since this is a header-only template part, we need to be careful.
-        // Actually, it's better to delegate the string parsing to the Manager or helper
-        // to avoid cluttering this header, but for simplicity in this task:
         if constexpr (std::is_same_v<T, int>) {
             m_Value = std::stoi(value);
         } else if constexpr (std::is_same_v<T, float>) {
@@ -72,7 +67,7 @@ public:
 
     void SetValueFromBinary(const void* data) override {
         if constexpr (std::is_same_v<T, std::string>) {
-            // Not supported in binary for now
+            // 現在バイナリではサポートされていない
         } else {
             m_Value = *static_cast<const T*>(data);
         }

@@ -49,10 +49,18 @@ class VideoScene : public IScene {
     }
     void SetLoopVideoPath(const std::string &path) {
         loopVideoPath_ = path;
+        loopVideoPathSet_ = true;
+    }
+
+    void SetBgmPath(const std::string &path) {
+        bgmPath_ = path;
+        bgmPathSet_ = true;
     }
 
     void OnEnter(World &world) override {
         DEBUGLOG("VideoScene::OnEnter() start");
+
+        SOUND_SYS.StopBGM();
 
         auto *gfx = ServiceLocator::TryGet<GfxDevice>();
         if (!gfx) {
@@ -90,7 +98,7 @@ class VideoScene : public IScene {
             return;
         }
 
-        if (loopVideoPath_.empty()) {
+        if (!loopVideoPathSet_ && loopVideoPath_.empty()) {
             loopVideoPath_ = cfg_VideoLoopPath.Get();
         }
 
@@ -193,7 +201,13 @@ class VideoScene : public IScene {
             }
         }
 
-        SOUND_SYS.PlayBGM(cfg_ClearMP3Pass);
+        if (bgmPathSet_) {
+            if (!bgmPath_.empty()) {
+                SOUND_SYS.PlayBGM(bgmPath_);
+            }
+        } else {
+            SOUND_SYS.PlayBGM(cfg_ClearMP3Pass);
+        }
 
         world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
             sys.Render(world);
@@ -505,6 +519,10 @@ class VideoScene : public IScene {
     std::vector<Entity> uiOwnedEntities_;
 
     std::string loopVideoPath_;
+    bool loopVideoPathSet_ = false;
+
+    std::string bgmPath_;
+    bool bgmPathSet_ = false;
 
     Entity fadeEntity_;
 };

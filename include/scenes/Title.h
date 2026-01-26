@@ -518,10 +518,13 @@ class TitleScene : public IScene {
                 switch (currentSelect) {
                     case Start:
                         SOUND_SYS.PlaySE(cfg_EnterMP3Pass);
+                        StageSave::Load(); 
                         DEBUGLOG("Enter pressed!");
                         trigger = true;
                         break;
                     case Restart:
+                        StageSave::Delete(); 
+                        StageSave::Load();   
                         break;
                     case Exit:
                         DEBUGLOG("Game End!");

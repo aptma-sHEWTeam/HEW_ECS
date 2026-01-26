@@ -15,6 +15,117 @@
 #include<Windows.h>
 #include <algorithm>
 #include <string>
+#include <filesystem>
+#include "app/DebugLog.h"
+
+namespace { std::string WideToUtf8(const std::wstring& src); }
+
+namespace
+{
+class RelativeFileInterface final : public Effekseer::FileInterface
+{
+public:
+    explicit RelativeFileInterface(std::u16string baseDir)
+        : baseDir_(std::move(baseDir))
+    {
+    }
+
+    void SetBaseDir(std::u16string baseDir)
+    {
+        baseDir_ = std::move(baseDir);
+    }
+
+    Effekseer::FileReaderRef OpenRead(const char16_t* path) override
+    {
+        auto resolved = ResolvePath(path);
+        std::u16string orig = path ? std::u16string(path) : std::u16string();
+        std::string reqs;
+        std::string rps;
+        try { reqs = orig.empty() ? std::string() : WideToUtf8(std::wstring(orig.begin(), orig.end())); } catch (...) { reqs = "<conv-error>"; }
+        try { rps = resolved.empty() ? std::string() : WideToUtf8(std::wstring(resolved.begin(), resolved.end())); } catch (...) { rps = "<conv-error>"; }
+        DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, std::string("Effekseer File OpenRead request: original='") + reqs + "' -> resolved='" + rps + "'");
+        auto reader = underlying_.OpenRead(resolved.c_str());
+        if (reader == nullptr) {
+            DEBUGLOG_WARNING(std::string("Effekseer OpenRead failed for '") + rps + "'");
+        } else {
+            DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, std::string("Effekseer OpenRead succeeded for '") + rps + "'");
+        }
+        return reader;
+    }
+
+    Effekseer::FileReaderRef TryOpenRead(const char16_t* path) override
+    {
+        auto resolved = ResolvePath(path);
+        std::string rps;
+        try { rps = resolved.empty() ? std::string() : WideToUtf8(std::wstring(resolved.begin(), resolved.end())); } catch (...) { rps = "<conv-error>"; }
+        DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, std::string("Effekseer File TryOpenRead -> resolved='") + rps + "'");
+        auto reader = underlying_.TryOpenRead(resolved.c_str());
+        if (reader == nullptr) {
+            DEBUGLOG_WARNING(std::string("Effekseer TryOpenRead failed for '") + rps + "'");
+        } else {
+            DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, std::string("Effekseer TryOpenRead succeeded for '") + rps + "'");
+        }
+        return reader;
+    }
+
+    Effekseer::FileWriterRef OpenWrite(const char16_t* path) override
+    {
+        auto resolved = ResolvePath(path);
+        std::string rps;
+        try { rps = resolved.empty() ? std::string() : WideToUtf8(std::wstring(resolved.begin(), resolved.end())); } catch (...) { rps = "<conv-error>"; }
+        DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, std::string("Effekseer File OpenWrite -> resolved='") + rps + "'");
+        auto writer = underlying_.OpenWrite(resolved.c_str());
+        if (writer == nullptr) {
+            DEBUGLOG_WARNING(std::string("Effekseer OpenWrite failed for '") + rps + "'");
+        } else {
+            DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, std::string("Effekseer OpenWrite succeeded for '") + rps + "'");
+        }
+        return writer;
+    }
+
+private:
+    std::u16string ResolvePath(const char16_t* path) const
+    {
+        if (path == nullptr)
+        {
+            return std::u16string();
+        }
+
+        std::u16string p(path);
+        if (p.empty())
+        {
+            return p;
+        }
+
+        if (baseDir_.empty())
+        {
+            return p;
+        }
+
+        std::filesystem::path req(p.begin(), p.end());
+        if (req.is_absolute())
+        {
+            return p;
+        }
+
+        auto filename = req.filename();
+        if (filename.empty())
+        {
+            return p;
+        }
+
+        std::filesystem::path base(baseDir_.begin(), baseDir_.end());
+        std::filesystem::path resolved = (base / filename).lexically_normal();
+        std::u16string out;
+        auto s = resolved.u16string();
+        out.assign(s.begin(), s.end());
+        return out;
+    }
+
+    std::u16string baseDir_;
+    Effekseer::DefaultFileInterface underlying_;
+};
+}
 
 namespace
 {
@@ -35,6 +146,16 @@ std::wstring Utf8ToWide(const std::string& src)
     MultiByteToWideChar(CP_UTF8, 0, src.c_str(), -1, &dst[0], len);
     return dst;
 }
+
+std::string WideToUtf8(const std::wstring& src)
+{
+    if (src.empty()) return std::string();
+    int len = WideCharToMultiByte(CP_UTF8, 0, src.c_str(), -1, nullptr, 0, nullptr, nullptr);
+    if (len <= 0) return std::string();
+    std::string dst(static_cast<size_t>(len - 1), '\0');
+    WideCharToMultiByte(CP_UTF8, 0, src.c_str(), -1, &dst[0], len, nullptr, nullptr);
+    return dst;
+}
 }
 
 //=====================
@@ -43,6 +164,10 @@ std::wstring Utf8ToWide(const std::string& src)
 void EffekseerManager::Init(GfxDevice device, Camera camera)
 {
     m_Camera = camera;
+
+    fileInterface_ = Effekseer::MakeRefPtr<RelativeFileInterface>(std::u16string());
+
+    DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, std::string("EffekseerManager: installed RelativeFileInterface"));
 
     m_pManager = ::Effekseer::Manager::Create(8000);
     m_pRenderer = ::EffekseerRendererDX11::Renderer::Create(device.Dev(), device.Ctx(), 8000);
@@ -60,9 +185,11 @@ void EffekseerManager::Init(GfxDevice device, Camera camera)
     m_pManager->SetTrackRenderer(m_pRenderer->CreateTrackRenderer());
     m_pManager->SetModelRenderer(m_pRenderer->CreateModelRenderer());
 
-    m_pManager->SetTextureLoader(m_pRenderer->CreateTextureLoader());
+    m_pManager->SetTextureLoader(EffekseerRenderer::CreateTextureLoader(m_pRenderer->GetGraphicsDevice(), fileInterface_));
+    DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, std::string("EffekseerManager: SetTextureLoader with custom FileInterface"));
     m_pManager->SetModelLoader(m_pRenderer->CreateModelLoader());
-    m_pManager->SetMaterialLoader(m_pRenderer->CreateMaterialLoader());
+    m_pManager->SetMaterialLoader(EffekseerRendererDX11::CreateMaterialLoader(m_pRenderer->GetGraphicsDevice(), fileInterface_));
+    DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, std::string("EffekseerManager: SetMaterialLoader with custom FileInterface"));
     m_pManager->SetCurveLoader(Effekseer::MakeRefPtr<Effekseer::CurveLoader>());
 
     m_pManager->SetCoordinateSystem(Effekseer::CoordinateSystem::LH);
@@ -110,6 +237,9 @@ void EffekseerManager::Load()
         {"FireFirst",      "Assets/Effect/Fire/fire1.efkefc"},
         {"FireSecond",     "Assets/Effect/Fire/fire_2.efkefc"},
         {"FireThird",      "Assets/Effect/Fire/fire_3.efkefc"},
+        {"StarSmall",      "Assets/Effect/Star/Star_Effects_Small.efkefc"},
+        {"StarMedium",     "Assets/Effect/Star/Star_Effects_Medium.efkefc"},
+        {"StarBig",        "Assets/Effect/Star/Star_Effects_Big.efkefc"},
     };
 
     for (const auto& def : predefined_)
@@ -120,10 +250,30 @@ void EffekseerManager::Load()
             continue;
         }
 
+        if (fileInterface_ != nullptr)
+        {
+            std::filesystem::path effectPath(wpath);
+            auto baseDir16 = effectPath.parent_path().u16string();
+            if (auto* rel = dynamic_cast<RelativeFileInterface*>(fileInterface_.Get()))
+            {
+                rel->SetBaseDir(baseDir16);
+                std::string bep;
+                try { bep = effectPath.parent_path().wstring().empty() ? std::string() : WideToUtf8(effectPath.parent_path().wstring()); } catch(...) { bep = "<conv-error>"; }
+                DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, std::string("Effekseer Load: set effect base dir to '") + bep + "' for effect '" + def.path + "'");
+            }
+        }
+
+        std::string wpath_s = WideToUtf8(wpath);
+        DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, std::string("EffekseerManager: creating effect from '") + wpath_s + "'");
         auto effect = Effekseer::Effect::Create(m_pManager, reinterpret_cast<const char16_t*>(wpath.c_str()));
         if (effect != nullptr)
         {
             m_effects[def.name] = effect;
+            DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, std::string("EffekseerManager: effect loaded '") + wpath_s + "' as '" + def.name + "'");
+        }
+        else
+        {
+            DEBUGLOG_WARNING(std::string("EffekseerManager: failed to load effect '") + wpath_s + "'");
         }
     }
 }
@@ -155,11 +305,31 @@ int EffekseerManager::PlayEffect(const std::string& effectName, DirectX::XMFLOAT
             std::wstring wpath = Utf8ToWide(defIt->path);
             if (!wpath.empty())
             {
+                if (fileInterface_ != nullptr)
+                {
+                    std::filesystem::path effectPath(wpath);
+                    auto baseDir16 = effectPath.parent_path().u16string();
+                    if (auto* rel = dynamic_cast<RelativeFileInterface*>(fileInterface_.Get()))
+                    {
+                        rel->SetBaseDir(baseDir16);
+                        std::string bep;
+                        try { bep = effectPath.parent_path().wstring().empty() ? std::string() : WideToUtf8(effectPath.parent_path().wstring()); } catch(...) { bep = "<conv-error>"; }
+                        DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, std::string("Effekseer PlayEffect: set effect base dir to '") + bep + "' for effect '" + effectName + "'");
+                    }
+                }
+
+                std::string wpath_s = WideToUtf8(wpath);
+                DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, std::string("EffekseerManager: PlayEffect creating effect from '") + wpath_s + "' for '" + effectName + "'");
                 auto eff = Effekseer::Effect::Create(m_pManager, reinterpret_cast<const char16_t*>(wpath.c_str()));
                 if (eff != nullptr)
                 {
                     m_effects[effectName] = eff;
                     it = m_effects.find(effectName);
+                    DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, std::string("EffekseerManager: PlayEffect loaded effect '") + wpath_s + "' for '" + effectName + "'");
+                }
+                else
+                {
+                    DEBUGLOG_WARNING(std::string("EffekseerManager: PlayEffect failed to load effect '") + wpath_s + "' for '" + effectName + "'");
                 }
             }
         }
@@ -172,7 +342,12 @@ int EffekseerManager::PlayEffect(const std::string& effectName, DirectX::XMFLOAT
     int handle = m_pManager->Play(it->second, pos.x, pos.y, pos.z);
     if (!m_pManager->Exists(handle))
     {
+        DEBUGLOG_WARNING(std::string("EffekseerManager: Play returned invalid handle for effect '") + effectName + "'");
         return -1;
+    }
+    else
+    {
+        DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, std::string("EffekseerManager: Play succeeded handle=") + std::to_string(handle) + " for '" + effectName + "'");
     }
 
     m_pManager->SetScale(handle, scale.x, scale.y, scale.z);

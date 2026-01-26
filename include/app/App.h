@@ -170,6 +170,17 @@ struct App {
 
         sceneManager_.RegisterScene("ClearVideo", std::move(clearVideoScene));
         DEBUGLOG("ClearVideo registered to SceneManager");
+
+        auto stage1IntroVideoScene = std::make_unique<VideoScene>();
+        stage1IntroVideoScene->SetVideoPath("Assets/Textures/Still/intro.mp4");
+        stage1IntroVideoScene->SetNextScene("Game");
+        stage1IntroVideoScene->SetSkipEnabled(true);
+        stage1IntroVideoScene->SetLoopVideoPath("");
+        stage1IntroVideoScene->SetBgmPath("");
+        DEBUGLOG("Stage1IntroVideo scene instance created");
+
+        sceneManager_.RegisterScene("Stage1IntroVideo", std::move(stage1IntroVideoScene));
+        DEBUGLOG("Stage1IntroVideo registered to SceneManager");
     }
 
     // ========================================================
