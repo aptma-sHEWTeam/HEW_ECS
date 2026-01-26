@@ -76,15 +76,26 @@ class TitleScene : public IScene {
     inline static ConfigVar<float> cfg_CameraBobSpeed{"Title.Camera", "BobSpeed", 1.0f, "Title: Camera bob speed (rad/sec)"};
 
     // 壁見た目
-    inline static ConfigVar<float> cfg_WallPosX{"Title.Wall", "PosX", 20.0f, "壁: Window 位置X"};
-    inline static ConfigVar<float> cfg_WallPosY{"Title.Wall", "PosY", -10.0f, "壁: Window 位置Y"};
-    inline static ConfigVar<float> cfg_WallPosZ{"Title.Wall", "PosZ", -2.0f, "壁: Window 位置Z"};
-    inline static ConfigVar<float> cfg_WallScaleX{"Title.Wall", "ScaleX", 1.650000f, "壁: Wall スケールX"};
-    inline static ConfigVar<float> cfg_WallScaleY{"Title.Wall", "ScaleY", 1.650000f, "壁: Wall スケールY"};
-    inline static ConfigVar<float> cfg_WallScaleZ{"Title.Wall", "ScaleZ", 1.650000f, "壁: Wall スケールZ"};
+    inline static ConfigVar<float> cfg_WallPosX{"Title.Wall", "PosX", 0.0f, "壁: Window 位置X"};
+    inline static ConfigVar<float> cfg_WallPosY{"Title.Wall", "PosY", 0.0f, "壁: Window 位置Y"};
+    inline static ConfigVar<float> cfg_WallPosZ{"Title.Wall", "PosZ", 0.0f, "壁: Window 位置Z"};
+    inline static ConfigVar<float> cfg_WallScaleX{"Title.Wall", "ScaleX", 10.650000f, "壁: Wall スケールX"};
+    inline static ConfigVar<float> cfg_WallScaleY{"Title.Wall", "ScaleY", 10.650000f, "壁: Wall スケールY"};
+    inline static ConfigVar<float> cfg_WallScaleZ{"Title.Wall", "ScaleZ", 10.650000f, "壁: Wall スケールZ"};
     inline static ConfigVar<float> cfg_WallRotX{"Title.Wall", "RotX",  0.0f, "壁: Wall 回転X"};
     inline static ConfigVar<float> cfg_WallRotY{"Title.Wall", "RotY", 90.0f, "壁: Wall 回転Y"};
     inline static ConfigVar<float> cfg_WallRotZ{"Title.Wall", "RotZ",  0.0f, "壁: Wall 回転Z"};
+    // 中央の空間を開けるためのギャップ（隣接するブロックの間に入る余白）
+    inline static ConfigVar<float> cfg_WallCenterGap{"Title.Wall", "CenterGap", 3.5f, "壁: 中央を空けるためのギャップ（ワールド単位）"};
+
+    //壁の複数化の設定
+    //inline static ConfigVar<int> cfg_WallCount{"Title.Wall", "Count", 5, "壁: Wall 数量"};
+    //inline static ConfigVar<float> cfg_WallSpacingX{"Title.Wall", "SpacingX", 1.0f, "壁: Wall 間隔X"};
+    //inline static ConfigVar<float> cfg_WallSpacingY{"Title.Wall", "SpacingY", cfg_WallScaleY, "壁: Wall 間隔Y"};
+    //inline static ConfigVar<float> cfg_WallSpacingZ{"Title.Wall", "SpacingZ", 1.0f, "壁: Wall 間隔Z"};
+    //inline static ConfigVar<int> cfg_WallColumns{"Title.Wall", "Columns", 7, "壁: 横に並べる個数（列数）"};
+    //// vertical spacing: Y方向の距離
+    //inline static ConfigVar<float> cfg_WallRowSpacingY{"Title.Wall", "RowSpacingY", 1.650000f, "壁: 行間隔（Y方向）"};
 
     Camera GetCameraTitle() const { return camera_; }
    
@@ -152,7 +163,13 @@ class TitleScene : public IScene {
         ownedEntities_.push_back(dirLight);
 
         CreateWindows(world);
-        CreateWall(world);
+        //CreateWall(world);
+       // GenerateWallGridTransforms(cfg_WallColumns.Get());
+        //CreateWalls(world); // 壁の複数化
+        
+        // 最初に載せた cfg の値を利用して、上下左右をそれぞれ生成する（4 回呼び出し）
+        CreateFourWallsFromCfg(world);
+
         CreatePlayer(world);
         CreateTextNormalFormats();
         CreateTitleSelectUI(world);
@@ -242,7 +259,7 @@ class TitleScene : public IScene {
         playerEntity_ = player;
         ownedEntities_.push_back(player);
 
-        // CreatePlayer(world);
+        
     }
 
 
@@ -263,31 +280,41 @@ class TitleScene : public IScene {
         ownedEntities_.push_back(objectEntity_);
       }
 
-      void CreateWall(World& world) 
-      {//壁オブジェクト
-          //DirectX::XMFLOAT3 wallPos{cfg_WallPosX.Get(), cfg_WallPosY.Get(), cfg_WallPosZ.Get()};
-          DirectX::XMFLOAT3 wallPos{1,0.0,4};
-       // Transform transform{
-       //     {wallPos}, {cfg_WallRotX.Get(), cfg_WallRotY.Get(), cfg_WallRotZ.Get()}, {cfg_WallScaleX.Get(), cfg_WallScaleY.Get(), cfg_WallScaleZ.Get()}}; 
-        Transform transform{
-              {wallPos}, {cfg_WallRotX.Get(), cfg_WallRotY.Get(), cfg_WallRotZ.Get()}, {3, 3, 3}}; 
-
-         Entity wall = world.CreateEntity();
-        world.Add<Transform>(wall, transform);
-
-        MeshRenderer mrWall;
-        mrWall.meshType = MeshType::Cube;
-        mrWall.color = DirectX::XMFLOAT3{0.5f, 0.5f, 0.5f};
-        wallEntitiy_ = world.Create()
-                                   .With<Transform>(transform)
-                                   .With<Model>("Assets/Models/StageObj/Wall/obj_wall.fbx")
-                                   .With<SceneOwnedTag>()
-                                   .Build();
-        wallEntitiy_ = wall;
-        ownedEntities_.push_back(wallEntitiy_);
-
+      Entity CreateWallAt(World& world, const DirectX::XMFLOAT3& pos) {
+          Transform transform{
+              {pos}, {cfg_WallRotX.Get(), cfg_WallRotY.Get(), cfg_WallRotZ.Get()}, {cfg_WallScaleX.Get(), cfg_WallScaleY.Get(), cfg_WallScaleZ.Get()}};
+          Entity e = world.Create()
+                         .With<Transform>(transform)
+                         .With<Model>("Assets/Models/StageObj/Wall/obj_wall.fbx")
+                         .With<SceneOwnedTag>()
+                         .Build();
+          ownedEntities_.push_back(e);
+          return e;
       }
+      // 最初に載せた cfg の値（cfg_WallPosX/Y/Z, cfg_WallScaleX/Y/Z, cfg_WallRot*）を基準に、
+      // 上下左右それぞれ1つずつ壁を生成して保持する。
+      void CreateFourWallsFromCfg(World &world) {
+          // 基準点 (cfg が表す「中心/基準位置」)
+          DirectX::XMFLOAT3 base{
+              cfg_WallPosX.Get(),
+              cfg_WallPosY.Get(),
+              cfg_WallPosZ.Get()};
 
+          const float halfGap = cfg_WallCenterGap.Get() * 20.0f;
+          const float offX = cfg_WallScaleX.Get() + halfGap; // 隣接が離れないように幅分オフセット
+          const float offY = cfg_WallScaleY.Get() + halfGap;
+
+          DirectX::XMFLOAT3 posTop{base.x, base.y + offY, base.z};
+          DirectX::XMFLOAT3 posBottom{base.x, base.y - offY, base.z};
+          DirectX::XMFLOAT3 posLeft{base.x - offX, base.y, base.z};
+          DirectX::XMFLOAT3 posRight{base.x + offX, base.y, base.z};
+
+          wallTopEntity_ = CreateWallAt(world, posTop);
+          wallBottomEntity_ = CreateWallAt(world, posBottom);
+          wallLeftEntity_ = CreateWallAt(world, posLeft);
+          wallRightEntity_ = CreateWallAt(world, posRight);
+      }
+      
     void CreateSkybox(World &world) {
         const std::string modelPath = cfg_SkyboxModelPath.Get();
         if (modelPath.empty()) {
@@ -442,11 +469,42 @@ class TitleScene : public IScene {
             }
         }
 
-        if (world.IsAlive(wallEntitiy_)) {
-            if (auto *t = world.TryGet<Transform>(wallEntitiy_)) {
-                t->position = {cfg_WallPosX.Get(), cfg_WallPosY.Get(), cfg_WallPosZ.Get()};
+        // cfg をいじれば下左右の壁位置が変わる
+        DirectX::XMFLOAT3 base{
+            cfg_WallPosX.Get(),
+            cfg_WallPosY.Get(),
+            cfg_WallPosZ.Get() + 10.0f};
+
+        const float halfGap = cfg_WallCenterGap.Get() * 20.0f;
+        const float offX = cfg_WallScaleX.Get() + halfGap;
+        const float offY = cfg_WallScaleY.Get() + halfGap;
+
+        if (world.IsAlive(wallTopEntity_)) {
+            if (auto *t = world.TryGet<Transform>(wallTopEntity_)) {
+                t->position = {base.x, base.y + offY - 5.0f, base.z+10.0f};
                 t->rotation = {cfg_WallRotX.Get(), cfg_WallRotY.Get(), cfg_WallRotZ.Get()};
-                t->scale = {cfg_WallScaleX.Get(), cfg_WallScaleY.Get(), cfg_WallScaleZ.Get()};
+                t->scale = {cfg_WallScaleX.Get() * 20.0f , cfg_WallScaleY.Get() * 5.0f, cfg_WallScaleZ.Get() * 38.0f};
+            }
+        }
+        if (world.IsAlive(wallBottomEntity_)) {
+            if (auto *t = world.TryGet<Transform>(wallBottomEntity_)) {
+                t->position = {base.x, base.y - offY - 3.0f, base.z};
+                t->rotation = {cfg_WallRotX.Get() , cfg_WallRotY.Get(), cfg_WallRotZ.Get()};
+                t->scale = {cfg_WallScaleX.Get() * 1.0f , cfg_WallScaleY.Get() * 5.0f, cfg_WallScaleZ.Get() * 38.0f};
+            }
+        }
+        if (world.IsAlive(wallLeftEntity_)) {
+            if (auto *t = world.TryGet<Transform>(wallLeftEntity_)) {
+                t->position = {base.x - offX - 5.0f, base.y - 15.0f, base.z-6.0f};
+                t->rotation = {cfg_WallRotX.Get(), cfg_WallRotY.Get(), cfg_WallRotZ.Get()};
+                t->scale = {cfg_WallScaleX.Get() , cfg_WallScaleY.Get() * 20.0f, cfg_WallScaleZ.Get() * 20.0f};
+            }
+        }
+        if (world.IsAlive(wallRightEntity_)) {
+            if (auto *t = world.TryGet<Transform>(wallRightEntity_)) {
+                t->position = {base.x + offX +5.0f, base.y- 15.0f, base.z -6.0f};
+                t->rotation = {cfg_WallRotX.Get(), cfg_WallRotY.Get() , cfg_WallRotZ.Get() };
+                t->scale = {cfg_WallScaleX.Get() , cfg_WallScaleY.Get() * 20.0f, cfg_WallScaleZ.Get() * 20.0f};
             }
         }
 
@@ -656,7 +714,18 @@ class TitleScene : public IScene {
 
     std::vector<Entity> ownedEntities_{};
 
-    Entity wallEntitiy_{};
+    // 複数壁を保持する配列
+    std::vector<Entity> wallEntities_{};
+    // 配置を渡したい場合にセットする配列
+    std::vector<Transform> wallTransforms_{};
+    // 上下左右それぞれの壁を個別に保持
+    Entity wallTopEntity_{};
+    Entity wallBottomEntity_{};
+    Entity wallLeftEntity_{};
+    Entity wallRightEntity_{};
+
+
+    //Entity wallEntitiy_{};
     Entity playerEntity_{};
     Entity objectEntity_{};
     Entity skyboxEntity_{};
