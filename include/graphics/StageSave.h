@@ -22,6 +22,12 @@ class StageSave {
             Save();
         }
     }
+    static inline void Delete() {
+        s_data.maxClearedStage = 0;
+        if (std::filesystem::exists("Save/stage.dat")) {
+            std::filesystem::remove("Save/stage.dat");
+        }
+    }
 
 
     static inline int GetMaxClearedStage() {

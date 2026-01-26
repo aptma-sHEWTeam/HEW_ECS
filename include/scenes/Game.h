@@ -335,7 +335,8 @@ class GameScene : public IScene {
      * @param input 入力システムへの参照
      * @param deltaTime 前フレームからの経過時間
      */
-    void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
+   
+ void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
         // ゲームの一時停止/再開処理
         world.ForEach<GameStatus>([&](Entity, GameStatus &stats) {
             // ESCキーまたはPキーでポーズ状態を切り替え
@@ -418,7 +419,6 @@ class GameScene : public IScene {
         if (world.IsAlive(playerEntity_)) {
             CheckTimeLimit(world, playerEntity_,cfg_LimitTime);
         }
-
         EffekseerManager::GetInstance().Update();
 
 
