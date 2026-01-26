@@ -267,9 +267,21 @@ class StageSelectScene : public IScene {
             stats.worldCount = worldNumber_;
             if (stats.IsWorldBack) {
                 stats.selectStage = maxStage_;
+                stats.currentStage = stats.selectStage;
                 stats.IsWorldBack = false;
+            } else if (stats.IsWorldNext) {
+                stats.selectStage = 1;
+                stats.currentStage = stats.selectStage;
+                stats.IsWorldNext = false;
             }
+            stats.selectStage = std::clamp(stats.selectStage, 1, maxStage_);
+            stats.currentStage = std::clamp(stats.currentStage, 1, maxStage_);
         });
+
+        stickRightPrev_ = false;
+        stickLeftPrev_ = false;
+        dpadRightPrev_ = false;
+        dpadLeftPrev_ = false;
 
         // カメラ初期化
         baseFovY_ = DirectX::XMConvertToRadians(cfg_CameraFovDegrees.Get());
@@ -302,6 +314,14 @@ class StageSelectScene : public IScene {
 
         isTransitioning_ = false;
         zoomTimer_ = 0.0f;
+
+        world.ForEach<StageProgress>([&](Entity, StageProgress &stats) {
+            const int stage = std::clamp(stats.selectStage, 1, maxStage_);
+            const float step = DirectX::XM_2PI / static_cast<float>(std::max(maxStage_, 1));
+            targetAngle_ = -step * static_cast<float>(stage - 1);
+            currentAngle_ = targetAngle_;
+            skyboxYawDeg_ = DirectX::XMConvertToDegrees(currentAngle_);
+        });
 
         if (cfg_DirLightEnabled.Get()) {
             Entity dirLight = world.Create().With<DirectionalLight>().Build();
@@ -502,7 +522,7 @@ class StageSelectScene : public IScene {
                     if (stats.worldCount != cfg_WorldCount.Get()) {
                         SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
                         // 次のワールドへ
-                        stats.selectStage = 1;
+                        stats.IsWorldNext = true;
                         requestWorldTransition = TransitionDirection::Right;
                     }
                 }
@@ -514,6 +534,7 @@ class StageSelectScene : public IScene {
                     SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
                 } else {
                     // 前のワールドへ
+                    stats.IsWorldNext = false;
                     stats.IsWorldBack = true;
                     requestWorldTransition = TransitionDirection::Left;
                 }
