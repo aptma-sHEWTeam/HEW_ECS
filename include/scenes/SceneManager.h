@@ -1,6 +1,6 @@
 /**
  * @file SceneManager.h
- * @brief Scene management utilities.
+ * @brief シーン管理ユーティリティ。
  */
 #pragma once
 
@@ -14,28 +14,28 @@
 
 /**
  * @enum TransitionDirection
- * @brief Slide transition direction for scene changes
+ * @brief シーン変更時のスライド遷移方向
  */
 enum class TransitionDirection {
-    None,   // No transition (instant)
-    Left,   // Slide left (going to previous)
-    Right,  // Slide right (going to next)
-    Forward // Zoom in / Move forward (going deeper)
+    None,   // 遷移なし（即時）
+    Left,   // 左へスライド（前のシーンへ）
+    Right,  // 右へスライド（次のシーンへ）
+    Forward // 前進 / ズームイン（より深いシーンへ）
 };
 
 /**
  * @enum TransitionPhase
- * @brief Current phase of the transition animation
+ * @brief 遷移アニメーションの現在のフェーズ
  */
 enum class TransitionPhase {
-    None,     // No transition active
-    SlideOut, // Current scene sliding out
-    SlideIn   // New scene sliding in
+    None,     // 遷移なし
+    SlideOut, // 現在のシーンがスライドアウト
+    SlideIn   // 新しいシーンがスライドイン
 };
 
 /**
  * @class IScene
- * @brief Interface all scenes must implement.
+ * @brief すべてのシーンが実装する必要のあるインターフェース。
  */
 class IScene {
   public:
@@ -43,7 +43,7 @@ class IScene {
 
     virtual void OnEnter(World &world) = 0;
     virtual void OnUpdate(World &world, InputSystem &input, float deltaTime) = 0;
-    virtual void OnRender(World &world) {} // Default empty implementation
+    virtual void OnRender(World &world) {} // デフォルト空実装
     virtual void OnExit(World &world) = 0;
 
     virtual bool ShouldChangeScene() const {
@@ -56,17 +56,17 @@ class IScene {
 
 /**
  * @class SceneManager
- * @brief Owns scene instances and orchestrates transitions.
+ * @brief シーンインスタンスを所有し、遷移をオーケストレート。
  */
 class SceneManager {
   public:
-    // Transition configuration
-    static constexpr float TRANSITION_DURATION = 0.8f; // Total duration for slide out/in (演出確認用に長め)
-    static constexpr float SCREEN_WIDTH_FACTOR = 1.2f; // How far to slide (1.0 = full screen width)
+    // 遷移設定
+    static constexpr float TRANSITION_DURATION = 0.8f; // スライドアウト/インの合計時間（演出確認用に長め）
+    static constexpr float SCREEN_WIDTH_FACTOR = 1.2f; // スライドする距離（1.0 = 画面幅）
     /**
-     * @brief Initialise manager and enter the first scene.
-     * @param startSceneName Name of the scene to activate. May be nullptr.
-     * @param world ECS world reference.
+     * @brief マネージャを初期化し、最初のシーンをアクティブ化。
+     * @param startSceneName アクティブ化するシーンの名前。nullptrの場合あり。
+     * @param world ECSワールド参照。
      */
     void Init(const char *startSceneName, World &world) {
         isShutdown_ = false;
@@ -80,9 +80,9 @@ class SceneManager {
     }
 
     /**
-     * @brief Register a scene instance.
-     * @param name Scene identifier.
-     * @param scene Scene instance (ownership is transferred).
+     * @brief シーンインスタンスを登録。
+     * @param name シーン識別子。
+     * @param scene シーンインスタンス（所有権が移転）。
      */
     void RegisterScene(const char *name, std::unique_ptr<IScene> scene) {
         if (!name || !scene) {
@@ -93,18 +93,18 @@ class SceneManager {
     }
 
     /**
-     * @brief Update active scene and perform transitions when requested.
+     * @brief アクティブシーンを更新し、リクエストされた場合に遷移を実行。
      */
     void Update(World &world, InputSystem &input, float deltaTime) {
         if (!currentScene_) {
             return;
         }
 
-        // Handle transition animation
+        // 遷移アニメーションを処理
         if (transitionPhase_ != TransitionPhase::None) {
             UpdateTransition(world, deltaTime);
-            // During transition, still update scene but input is effectively blocked
-            // by the transition state check in scenes
+            // 遷移中はシーンを更新するが、遷移状態チェックにより入力は効果的にブロックされる
+            // シーン内のシーン
             return;
         }
 
@@ -116,7 +116,7 @@ class SceneManager {
     }
 
     /**
-     * @brief Render active scene.
+     * @brief アクティブシーンをレンダリング。
      */
     void Render(World &world) {
         if (!currentScene_) {
@@ -127,7 +127,7 @@ class SceneManager {
     }
 
     /**
-     * @brief Transition to a different scene.
+     * @brief 異なるシーンへ遷移。
      */
     void ChangeScene(const char *sceneName, World &world) {
         if (!sceneName) {
@@ -151,14 +151,14 @@ class SceneManager {
     }
 
     /**
-     * @brief Transition to a different scene with slide animation.
-     * @param sceneName Target scene name
-     * @param world ECS world reference
-     * @param direction Slide direction (Left = going to previous, Right = going to next)
+     * @brief スライドアニメーションで異なるシーンへ遷移。
+     * @param sceneName ターゲットシーン名
+     * @param world ECSワールド参照
+     * @param direction スライド方向（Left = 前のシーンへ、Right = 次のシーンへ）
      */
     void ChangeSceneWithTransition(const char *sceneName, World &world, TransitionDirection direction) {
         if (!sceneName || direction == TransitionDirection::None) {
-            // Fall back to instant transition
+            // 即時遷移にフォールバック
             ChangeScene(sceneName, world);
             return;
         }
@@ -168,7 +168,7 @@ class SceneManager {
             return;
         }
 
-        // Store transition state
+        // 遷移状態を保存
         pendingSceneName_ = sceneName;
         transitionDirection_ = direction;
         transitionPhase_ = TransitionPhase::SlideOut;
@@ -180,68 +180,68 @@ class SceneManager {
     }
 
     /**
-     * @brief Get the current transition offset for rendering.
-     * @return Normalized offset (-1.0 to 1.0) where negative = left, positive = right
+     * @brief レンダリング用の現在の遷移オフセットを取得。
+     * @return 正規化オフセット（-1.0 to 1.0）負 = 左、正 = 右
      * 
-     * Scenes should multiply this by their screen width to offset all rendering.
+     * シーンはこれを画面幅で乗算してすべてのレンダリングをオフセットすべき。
      */
     float GetTransitionOffset() const {
         if (transitionPhase_ == TransitionPhase::None || transitionDirection_ == TransitionDirection::Forward) {
             return 0.0f;
         }
 
-        // Apply easing for smooth animation
+        // スムーズなアニメーションのためにイージングを適用
         float easedProgress = EaseInOutCubic(transitionProgress_);
 
-        // Direction multiplier: Right means content moves right (positive), Left means left (negative)
+        // 方向乗数: Right はコンテンツが右へ移動（正）、Left は左へ（負）
         float dirMult = (transitionDirection_ == TransitionDirection::Right) ? 1.0f : -1.0f;
 
         if (transitionPhase_ == TransitionPhase::SlideOut) {
-            // Slide out: 0 -> full offset in direction
+            // スライドアウト: 0 -> フルオフセット方向へ
             return dirMult * easedProgress * SCREEN_WIDTH_FACTOR;
         } else {
-            // Slide in: full offset from opposite direction -> 0
+            // スライドイン: 反対方向からのフルオフセット -> 0
             return -dirMult * (1.0f - easedProgress) * SCREEN_WIDTH_FACTOR;
         }
     }
 
     /**
-     * @brief Check if a transition is currently in progress.
+     * @brief 遷移が現在進行中かどうかをチェック。
      */
     bool IsTransitioning() const {
         return transitionPhase_ != TransitionPhase::None;
     }
 
     /**
-     * @brief Get the current transition phase.
+     * @brief 現在の遷移フェーズを取得。
      */
     TransitionPhase GetTransitionPhase() const {
         return transitionPhase_;
     }
 
     /**
-     * @brief Get the current transition direction.
+     * @brief 現在の遷移方向を取得。
      */
     TransitionDirection GetTransitionDirection() const {
         return transitionDirection_;
     }
 
     /**
-     * @brief Get the current transition progress (0.0 to 1.0).
+     * @brief 現在の遷移進捗（0.0 to 1.0）を取得。
      */
     float GetTransitionProgress() const {
         return transitionProgress_;
     }
 
     /**
-     * @brief Accessor for the currently active scene.
+     * @brief 現在アクティブなシーンへのアクセサ。
      */
     IScene *GetCurrentScene() const {
         return currentScene_;
     }
 
     /**
-     * @brief Destructor performs sanity logging.
+     * @brief デストラクタはサニティログを実行。
      */
     ~SceneManager() {
         DEBUGLOG("SceneManager::~SceneManager()");
@@ -251,7 +251,7 @@ class SceneManager {
     }
 
     /**
-     * @brief Explicit shutdown. Safe to call multiple times.
+     * @brief 明示的シャットダウン。複数回呼び出し可能。
      */
     void Shutdown(World &world) {
         if (isShutdown_) {
@@ -272,7 +272,7 @@ class SceneManager {
 
   private:
     /**
-     * @brief Update transition animation state.
+     * @brief 遷移アニメーション状態を更新。
      */
     void UpdateTransition(World &world, float deltaTime) {
         // シーン切り替え直後はロード時間による長いdeltaTimeが発生する可能性があるため、
@@ -288,17 +288,17 @@ class SceneManager {
             transitionProgress_ = 1.0f;
 
             if (transitionPhase_ == TransitionPhase::SlideOut) {
-                // Complete slide out, perform actual scene change
+                // スライドアウト完了、実際のシーン変更を実行
                 PerformSceneSwitch(world);
 
-                // Start slide in phase
+                // スライドインフェーズを開始
                 transitionPhase_ = TransitionPhase::SlideIn;
                 transitionProgress_ = 0.0f;
 
                 // 次のフレームのdeltaTime（ロード時間含む）を無視するためにフラグを立てる
                 justSwitchedScene_ = true;
             } else {
-                // Slide in complete, transition finished
+                // スライドイン完了、遷移終了
                 transitionPhase_ = TransitionPhase::None;
                 transitionDirection_ = TransitionDirection::None;
                 pendingSceneName_.clear();
@@ -309,7 +309,7 @@ class SceneManager {
     }
 
     /**
-     * @brief Perform the actual scene switch (called mid-transition).
+     * @brief 遷移中に行われる実際のシーン切り替え。
      */
     void PerformSceneSwitch(World &world) {
         if (pendingSceneName_.empty()) {
@@ -334,14 +334,14 @@ class SceneManager {
     }
 
     /**
-     * @brief Cubic ease-in-out function for smooth animation.
+     * @brief アニメーションのためのキュービックイーズインアウト関数。
      */
     static float EaseInOutCubic(float t) {
         if (t < 0.5f) {
             return 4.0f * t * t * t;
         }
         float p = 2.0f * t - 2.0f;
-        return 0.5f * p * p * p + 1.0f;
+        return 0.5 * p * p * p + 1.0f;
     }
 
     IScene *FindScene(const char *name) {
@@ -360,7 +360,7 @@ class SceneManager {
     std::unordered_map<std::string, std::unique_ptr<IScene>> scenes_;
     bool isShutdown_ = false;
 
-    // Transition state
+    // 遷移状態
     TransitionPhase transitionPhase_ = TransitionPhase::None;
     TransitionDirection transitionDirection_ = TransitionDirection::None;
     float transitionProgress_ = 0.0f;

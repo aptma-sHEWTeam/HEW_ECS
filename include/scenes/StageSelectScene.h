@@ -499,9 +499,12 @@ class StageSelectScene : public IScene {
                     targetAngle_ -= DirectX::XM_2PI / maxStage_;
                     SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
                 } else if (stats.selectStage == maxStage_) {
-                    // 次のワールドへ
-                    stats.selectStage = 1;
-                    requestWorldTransition = TransitionDirection::Right;
+                    if (stats.worldCount != cfg_WorldCount.Get()) {
+                        SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
+                        // 次のワールドへ
+                        stats.selectStage = 1;
+                        requestWorldTransition = TransitionDirection::Right;
+                    }
                 }
             }
             if (leftPressed) {
