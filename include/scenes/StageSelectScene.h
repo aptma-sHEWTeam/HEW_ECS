@@ -439,7 +439,13 @@ class StageSelectScene : public IScene {
             if (auto *anim = world.TryGet<SpriteSheetAnimation>(fadeEntity_)) {
                 if (anim->isFinished) {
                     if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
-                        manager->ChangeScene("Game", world);
+                        std::string nextScene = "Game";
+                        world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+                            if (sp.selectStage == 1) {
+                                nextScene = "Stage1IntroVideo";
+                            }
+                        });
+                        manager->ChangeScene(nextScene.c_str(), world);
                     }
                 }
             }
@@ -522,6 +528,7 @@ class StageSelectScene : public IScene {
                     if (stats.worldCount != cfg_WorldCount.Get()) {
                         SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
                         // 次のワールドへ
+                        stats.IsWorldBack = false;
                         stats.IsWorldNext = true;
                         requestWorldTransition = TransitionDirection::Right;
                     }
@@ -534,9 +541,11 @@ class StageSelectScene : public IScene {
                     SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
                 } else {
                     // 前のワールドへ
-                    stats.IsWorldNext = false;
-                    stats.IsWorldBack = true;
-                    requestWorldTransition = TransitionDirection::Left;
+                    if (worldNumber_ > 1) {
+                        stats.IsWorldNext = false;
+                        stats.IsWorldBack = true;
+                        requestWorldTransition = TransitionDirection::Left;
+                    }
                 }
             }
 

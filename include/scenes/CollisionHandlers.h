@@ -156,8 +156,10 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
 inline void CheckTimeLimit(World &w, Entity player, float timeLimitSeconds) {
     // GameStatusコンポーネントを持つエンティティを検索
     w.ForEach<GameStatus>([&](Entity e, GameStatus &stats) {
-        
         if (stats.resetDone) {
+            return;
+        }
+        if (!stats.timerRunning || stats.isPaused) {
             return;
         }
         // 経過時間が制限時間を超えたかチェック
