@@ -112,6 +112,7 @@ class StageSelectScene : public IScene {
 
     inline static ConfigVar<float> cfg_RotateSpeed{"StageSelect.Rotation", "RotateSpeed", 6.0f, "ステージセレクト: 回転追従速度"};
 
+
     inline static ConfigVar<int> cfg_StarMaxCount{"StageSelect.Stars", "MaxCount", 24, "ステージセレクト: 流れ星最大数"};
     inline static ConfigVar<float> cfg_StarSpawnMinSeconds{"StageSelect.Stars", "SpawnMinSeconds", 0.35f, "ステージセレクト: 流れ星スポーン間隔最小(秒)"};
     inline static ConfigVar<float> cfg_StarSpawnMaxSeconds{"StageSelect.Stars", "SpawnMaxSeconds", 1.10f, "ステージセレクト: 流れ星スポーン間隔最大(秒)"};
