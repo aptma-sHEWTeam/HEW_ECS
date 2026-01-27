@@ -176,6 +176,17 @@ public:
         if (!createVideoTexture()) return false;
 
         isOpen_ = true;
+
+        // ループ切替時の一瞬のブラックアウト抑止のため、先頭フレームを1回だけデコードしてテクスチャへ反映
+        {
+            const bool prevPlaying = isPlaying_;
+            isPlaying_ = true;
+            frameTimer_ = 0.0;
+            const float primeDt = static_cast<float>((frameIntervalSec_ > 0.0) ? frameIntervalSec_ : (1.0 / 30.0));
+            (void)Update(primeDt);
+            isPlaying_ = prevPlaying;
+        }
+
         return true;
     }
 

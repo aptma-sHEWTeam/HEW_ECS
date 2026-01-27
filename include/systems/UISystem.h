@@ -10,9 +10,12 @@
 #include "graphics/ImageSystem.h"
 #include "graphics/TextureManager.h"
 #include "input/InputSystem.h"
+#include "input/GamepadSystem.h"
 #include "ecs/World.h"
 #include <DirectXMath.h>
 #include "app/ServiceLocator.h"
+#include <algorithm>
+#include <vector>
 
 /**
  * @struct UIRenderSystem
@@ -59,14 +62,24 @@ struct UIRenderSystem {
                 });
 
                 w.ForEach<UITransform, UIButton>([&](Entity e, UITransform &t, UIButton &b) {
+                    if (!b.enabled || t.size.x <= 0.0f || t.size.y <= 0.0f)
+                        return;
                     DrawButton(t, b);
-                    if (auto *txt = w.TryGet<UIText>(e))
-                        DrawButtonText(t, *txt);
+                    if (auto *txt = w.TryGet<UIText>(e)) {
+                        if (!txt->text.empty()) {
+                            DrawButtonText(t, b, *txt);
+                        }
+                    }
                 });
 
                 w.ForEach<UITransform, UIText>([&](Entity e, UITransform &t, UIText &txt) {
-                    if (!w.Has<UIButton>(e))
-                        DrawText(t, txt);
+                    if (w.Has<UIButton>(e))
+                        return;
+                    if (t.size.x <= 0.0f || t.size.y <= 0.0f)
+                        return;
+                    if (txt.text.empty())
+                        return;
+                    DrawText(t, txt);
                 });
             });
             textSystem_->EndDraw();
@@ -99,23 +112,52 @@ struct UIRenderSystem {
     }
     void DrawButton(const UITransform &transform, const UIButton &button) {
         DirectX::XMFLOAT2 pos = transform.GetScreenPosition(screenWidth_, screenHeight_);
-        pos.x += renderOffsetX_; // Apply transition offset
+        pos.x += renderOffsetX_;
+
+        float pad = 0.0f;
+        float pressOffsetY = 0.0f;
+        if (button.enabled) {
+            if (button.state == UIButton::State::Hovered) {
+                pad = 6.0f;
+            } else if (button.state == UIButton::State::Pressed) {
+                pad = 4.0f;
+                pressOffsetY = 2.0f;
+            }
+        }
+
+        const float drawX = pos.x - pad;
+        const float drawY = pos.y - pad + pressOffsetY;
+        const float drawW = transform.size.x + pad * 2.0f;
+        const float drawH = transform.size.y + pad * 2.0f;
+
+        if (button.enabled) {
+            const DirectX::XMFLOAT4 shadow{0.0f, 0.0f, 0.0f, 0.25f};
+            textSystem_->FillRect(drawX + 2.0f, drawY + 2.0f, drawW, drawH, shadow);
+        }
+
         DirectX::XMFLOAT4 color = button.GetCurrentColor();
+        textSystem_->FillRect(drawX, drawY, drawW, drawH, color);
+    }
+
+    void DrawButtonText(const UITransform &transform, const UIButton &button, const UIText &text) {
+        float pressOffsetY = (button.enabled && button.state == UIButton::State::Pressed) ? 2.0f : 0.0f;
+
+        DirectX::XMFLOAT2 pos = transform.GetScreenPosition(screenWidth_, screenHeight_);
+        pos.x += renderOffsetX_;
+
         TextSystem::TextParams p;
-        p.text = L"█";
+        p.text = text.text;
         p.x = pos.x;
-        p.y = pos.y;
+        p.y = pos.y + pressOffsetY;
         p.width = transform.size.x;
         p.height = transform.size.y;
-        p.color = color;
-        p.formatId = "panel";
-        for (float y = 0; y < transform.size.y; y += 20.0f) {
-            p.y = pos.y + y;
-            textSystem_->DrawText(p);
-        }
-    }
-    void DrawButtonText(const UITransform &transform, const UIText &text) {
-        DrawText(transform, text);
+        p.color = text.color;
+        p.outlineColor = text.outlineColor;
+        p.outlineThickness = text.outlineThickness;
+        p.fillTexturePath = text.fillTexturePath;
+        p.formatId = text.formatId;
+        p.fontSize = text.fontSize;
+        textSystem_->DrawText(p);
     }
     void DrawText(const UITransform &transform, const UIText &text) {
         DirectX::XMFLOAT2 pos = transform.GetScreenPosition(screenWidth_, screenHeight_);
@@ -182,31 +224,150 @@ struct UIInteractionSystem : Behaviour {
     float screenWidth_ = 1280.0f;
     float screenHeight_ = 720.0f;
 
+    int selectedIndex_ = -1;
+    bool stickUpPrev_ = false;
+    bool stickDownPrev_ = false;
+    bool dpadUpPrev_ = false;
+    bool dpadDownPrev_ = false;
+
     void OnUpdate(World &w, Entity self, float dt) override {
         if (!input_)
             return;
-        float mx = static_cast<float>(input_->GetMouseX());
-        float my = static_cast<float>(input_->GetMouseY());
-        bool leftClick = input_->GetMouseButtonDown(InputSystem::Left);
-        bool leftHeld = input_->GetMouseButton(InputSystem::Left);
-        w.ForEach<UITransform, UIButton>([&](Entity e, UITransform &t, UIButton &b) {
+
+        w.ForEach<UIButton>([&](Entity, UIButton &b) {
             if (!b.enabled) {
                 b.state = UIButton::State::Disabled;
-                return;
             }
-            boolean hover = t.Contains(mx, my, screenWidth_, screenHeight_);
-            if (hover) {
-                if (leftHeld)
-                    b.state = UIButton::State::Pressed;
-                else {
-                    b.state = UIButton::State::Hovered;
-                    if (leftClick && b.onClick)
-                        b.onClick();
-                }
-            } else
-                b.state = UIButton::State::Normal;
         });
+
+        struct ButtonEntry {
+            Entity e;
+            float screenY;
+        };
+
+        std::vector<ButtonEntry> buttons;
+        buttons.reserve(32);
+        w.ForEach<UITransform, UIButton>([&](Entity e, UITransform &t, UIButton &b) {
+            if (!b.enabled)
+                return;
+            DirectX::XMFLOAT2 pos = t.GetScreenPosition(screenWidth_, screenHeight_);
+            buttons.push_back({e, pos.y});
+        });
+
+        if (buttons.empty()) {
+            selectedIndex_ = -1;
+            stickUpPrev_ = stickDownPrev_ = false;
+            dpadUpPrev_ = dpadDownPrev_ = false;
+            return;
+        }
+
+        std::sort(buttons.begin(), buttons.end(), [](const ButtonEntry &a, const ButtonEntry &b) {
+            return a.screenY < b.screenY;
+        });
+
+        float mx = static_cast<float>(input_->GetMouseX());
+        float my = static_cast<float>(input_->GetMouseY());
+        const bool mouseClick = input_->GetMouseButtonDown(InputSystem::Left);
+        const bool mouseHeld = input_->GetMouseButton(InputSystem::Left);
+
+        int hoverIndex = -1;
+        for (size_t i = 0; i < buttons.size(); ++i) {
+            auto *t = w.TryGet<UITransform>(buttons[i].e);
+            if (!t)
+                continue;
+            if (t->Contains(mx, my, screenWidth_, screenHeight_)) {
+                hoverIndex = static_cast<int>(i);
+                break;
+            }
+        }
+
+        bool submitDown = false;
+        bool submitHeld = false;
+
+        if (hoverIndex >= 0) {
+            selectedIndex_ = hoverIndex;
+            submitDown = mouseClick;
+            submitHeld = mouseHeld;
+        } else {
+            bool up = false;
+            bool down = false;
+
+            auto *pad = ServiceLocator::TryGet<GamepadSystem>();
+            if (pad) {
+                const float threshold = 0.8f;
+                const float ay = pad->GetLeftStickY();
+
+                const bool stickUpNow = ay > threshold;
+                const bool stickDownNow = ay < -threshold;
+                const bool dpadUpNow = pad->GetButton(GamepadSystem::Button_DPad_Up);
+                const bool dpadDownNow = pad->GetButton(GamepadSystem::Button_DPad_Down);
+
+                if (stickUpNow && !stickUpPrev_)
+                    up = true;
+                if (stickDownNow && !stickDownPrev_)
+                    down = true;
+                if (dpadUpNow && !dpadUpPrev_)
+                    up = true;
+                if (dpadDownNow && !dpadDownPrev_)
+                    down = true;
+
+                stickUpPrev_ = stickUpNow;
+                stickDownPrev_ = stickDownNow;
+                dpadUpPrev_ = dpadUpNow;
+                dpadDownPrev_ = dpadDownNow;
+
+                submitDown = pad->GetButtonDown(GamepadSystem::Button_A);
+                submitHeld = pad->GetButton(GamepadSystem::Button_A);
+            } else {
+                stickUpPrev_ = stickDownPrev_ = false;
+                dpadUpPrev_ = dpadDownPrev_ = false;
+            }
+
+            const int buttonCount = static_cast<int>(buttons.size());
+            if (selectedIndex_ < -1 || selectedIndex_ >= buttonCount) {
+                selectedIndex_ = -1;
+            }
+
+            if (up) {
+                if (selectedIndex_ < 0) {
+                    selectedIndex_ = buttonCount - 1;
+                } else {
+                    selectedIndex_ = (selectedIndex_ - 1 + buttonCount) % buttonCount;
+                }
+            }
+            if (down) {
+                if (selectedIndex_ < 0) {
+                    selectedIndex_ = 0;
+                } else {
+                    selectedIndex_ = (selectedIndex_ + 1) % buttonCount;
+                }
+            }
+
+            if ((submitDown || submitHeld) && selectedIndex_ < 0) {
+                selectedIndex_ = 0;
+            }
+        }
+
+        for (size_t i = 0; i < buttons.size(); ++i) {
+            auto *b = w.TryGet<UIButton>(buttons[i].e);
+            if (!b || !b->enabled)
+                continue;
+
+            if (static_cast<int>(i) == selectedIndex_) {
+                b->state = submitHeld ? UIButton::State::Pressed : UIButton::State::Hovered;
+            } else {
+                b->state = UIButton::State::Normal;
+            }
+        }
+
+        if (submitDown && selectedIndex_ >= 0 && selectedIndex_ < static_cast<int>(buttons.size())) {
+            auto *b = w.TryGet<UIButton>(buttons[static_cast<size_t>(selectedIndex_)].e);
+            if (b && b->enabled && b->onClick) {
+                b->onClick();
+            }
+        }
     }
+
     void SetInputSystem(InputSystem *input) {
         input_ = input;
     }

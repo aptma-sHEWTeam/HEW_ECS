@@ -94,7 +94,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     ownedEntities_.push_back(scoreEntity);*/
 
     UITransform timeTransform;
-    timeTransform.position = {65.0f, 70.0f};
+    timeTransform.position = {78.0f, 68.0f};
     timeTransform.size = {1000.0f, 80.0f};
     timeTransform.anchor = {0.0f, 0.0f};
     timeTransform.pivot = {0.0f, 0.0f};
@@ -205,7 +205,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 #endif // !_DEBUG
 
     UITransform roomImgTr;
-    roomImgTr.position = {1030.0f, 60.0f};
+    roomImgTr.position = {1030.0f, 42.0f};
     roomImgTr.size = {200.0f, 80.0f};
     roomImgTr.anchor = {0.0f, 0.0f};
     roomImgTr.pivot = {0.0f, 0.0f};
@@ -239,7 +239,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     stageText[1].fillTexturePath = L"./Assets/Textures/RoomNo/UI-2-color.png";
 
     UITransform stageTransform[2];
-    stageTransform[0].position = {1450.0f, 65.0};
+    stageTransform[0].position = {1455.0f, 65.0};
     stageTransform[0].size = {210.0f, 100.0f};
     stageTransform[0].anchor = {0.0f, 0.0f};
     stageTransform[0].pivot = {1.0f, 0.0f};
@@ -260,7 +260,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     }
 
     UITransform pauseTransform;
-    pauseTransform.position = {0.0f, 0.0f};
+    pauseTransform.position = {0.0f, -180.0f};
     pauseTransform.size = {0.0f, 0.0f};
     pauseTransform.anchor = {0.5f, 0.5f};
     pauseTransform.pivot = {0.5f, 0.5f};
@@ -274,6 +274,46 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                              .With<UIText>(pauseText)
                              .Build();
     ownedEntities_.push_back(pauseEntity);
+
+    UITransform pauseMenuPanelTr;
+    pauseMenuPanelTr.position = {0.0f, 0.0f};
+    pauseMenuPanelTr.size = {screenWidth, screenHeight};
+    pauseMenuPanelTr.anchor = {0.5f, 0.5f};
+    pauseMenuPanelTr.pivot = {0.5f, 0.5f};
+
+    UIPanel pauseMenuPanel;
+    pauseMenuPanel.color = {0.0f, 0.0f, 0.0f, 0.55f};
+    pauseMenuPanel.visible = false;
+
+    Entity pauseMenuPanelEntity = world.Create()
+                                     .With<UITransform>(pauseMenuPanelTr)
+                                     .With<UIPanel>(pauseMenuPanel)
+                                     .Build();
+    ownedEntities_.push_back(pauseMenuPanelEntity);
+
+    auto createPauseButton = [&](const std::wstring &label, float yOffset) {
+        UITransform tr;
+        tr.position = {0.0f, yOffset};
+        tr.size = {0.0f, 0.0f};
+        tr.anchor = {0.5f, 0.5f};
+        tr.pivot = {0.5f, 0.5f};
+
+        UIText txt{label};
+        txt.color = {1.0f, 1.0f, 1.0f, 1.0f};
+        txt.formatId = "button";
+
+        UIButton btn;
+        btn.enabled = false;
+
+        Entity e = world.Create().With<UITransform>(tr).With<UIButton>(btn).With<UIText>(txt).Build();
+        ownedEntities_.push_back(e);
+        return e;
+    };
+
+    Entity pauseResumeBtn = createPauseButton(L"再開", 40.0f);
+    Entity pauseRetryBtn = createPauseButton(L"リトライ", 110.0f);
+    Entity pauseTitleBtn = createPauseButton(L"タイトルへ", 180.0f);
+    Entity pauseQuitBtn = createPauseButton(L"終了", 250.0f);
 
     // 追加: ステージクリア表示（最初は非表示＝空文字）
     UITransform clearTransform;
@@ -310,8 +350,52 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         updater->startplayer_ = starttime;
         updater->warningOverlayEntity_ = warningOverlayEntity;
         updater->warningTextEntity_ = warningTextEntity;
+
+        updater->pauseMenuPanelEntity_ = pauseMenuPanelEntity;
+        updater->pauseResumeButtonEntity_ = pauseResumeBtn;
+        updater->pauseRetryButtonEntity_ = pauseRetryBtn;
+        updater->pauseTitleButtonEntity_ = pauseTitleBtn;
+        updater->pauseQuitButtonEntity_ = pauseQuitBtn;
+        updater->pauseMenuButtonSize_ = {360.0f, 60.0f};
     }
     ownedEntities_.push_back(uiUpdater);
+
+    {
+        World *wptr = &world;
+
+        if (auto *b = world.TryGet<UIButton>(pauseResumeBtn)) {
+            b->onClick = [this, wptr]() {
+                wptr->ForEach<GameStatus>([](Entity, GameStatus &s) { s.isPaused = false; });
+            };
+        }
+        if (auto *b = world.TryGet<UIButton>(pauseRetryBtn)) {
+            b->onClick = [this, wptr]() {
+                wptr->ForEach<GameStatus>([](Entity, GameStatus &s) { s.isPaused = false; s.resetDone = false; });
+                if (wptr->IsAlive(playerEntity_)) {
+                    ResetPlayerToStart(*wptr, playerEntity_, true);
+                }
+                pendingRespawn_ = false;
+                g_respawnPending = false;
+                respawnTimer_ = 0.0f;
+                deathFadeVisible_ = false;
+                StartFadeInNormal(*wptr);
+            };
+        }
+        if (auto *b = world.TryGet<UIButton>(pauseTitleBtn)) {
+            b->onClick = [this, wptr]() {
+                wptr->ForEach<GameStatus>([](Entity, GameStatus &s) { s.isPaused = false; });
+                if (auto *mgr = ServiceLocator::TryGet<SceneManager>()) {
+                    mgr->ChangeScene("Title", *wptr);
+                }
+            };
+        }
+        if (auto *b = world.TryGet<UIButton>(pauseQuitBtn)) {
+            b->onClick = [this, wptr]() {
+                wptr->ForEach<GameStatus>([](Entity, GameStatus &s) { s.isPaused = false; });
+                PostQuitMessage(0);
+            };
+        }
+    }
 
     /* UITransform UIanimation;
     UIanimation.position = {0.0f, -280.0f};

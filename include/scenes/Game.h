@@ -101,18 +101,21 @@ class GameScene : public IScene {
         DEBUGLOG("<<<<< GameScene::OnEnter CALLED! >>>>>");
         DEBUGLOG("GameWithUIScene::OnEnter() 開始");
 
+        pauseInputLock_ = 0.35f;
+
         StageSave::Load();
         auto *mgr = ServiceLocator::TryGet<SceneManager>();
         if (!mgr)
             return;
 
         world.ForEach<GameStatus>([&](Entity, GameStatus &stats) {
-           
+            stats.isPaused = false;
+
             if (stats.isDead &&
                 !mgr->IsTransitioning() &&
                 !stats.resetDone) {
-                stats.elapsedTime = cfg_LimitTime; 
-                stats.resetDone = true;            
+                stats.elapsedTime = cfg_LimitTime;
+                stats.resetDone = true;
             }
         });
 
@@ -338,16 +341,16 @@ class GameScene : public IScene {
    
  void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
         // ゲームの一時停止/再開処理
+        GamepadSystem *pad = ServiceLocator::TryGet<GamepadSystem>();
         world.ForEach<GameStatus>([&](Entity, GameStatus &stats) {
-            // ESCキーまたはPキーでポーズ状態を切り替え
-            if (input.GetKeyDown(VK_ESCAPE) || input.GetKeyDown('P')) {
+            bool togglePause = input.GetKeyDown('P');
+            if (togglePause) {
                 stats.isPaused = !stats.isPaused;
                 DEBUGLOG(stats.isPaused ? "ゲームが一時停止されました" : "ゲームが再開されました");
             }
-
-            // ポーズ中なら、このフレームのdeltaTimeを0にして、ゲームの時間を止める
-            if (stats.isPaused) {
-                deltaTime = 0.0f;
+            if (stats.isPaused && pad && pad->GetButtonDown(GamepadSystem::Button_B)) {
+                stats.isPaused = false;
+                DEBUGLOG("ゲームが再開されました");
             }
         });
 
@@ -2582,16 +2585,13 @@ class GameScene : public IScene {
         if (auto *t = world.TryGet<Transform>(skyboxEntity_)) {
             const float scale = SanitizeSkyboxScale(cfg_GameSkyboxScale.Get());
             t->position = camera_.position;
-            t->rotation = {0.0f, BuildSkyboxYawDeg(camera_, skyboxRotation_), 0.0f};
+            t->rotation = {0.0f, SkyboxRotationToDegrees(0.0f), 0.0f};
             t->scale = {scale, scale, scale};
         }
     }
 
     void UpdateSkyboxRotation(float dt) {
-        skyboxRotation_ += cfg_SkyboxSpeed.Get() * dt;
-        if (skyboxRotation_ > DirectX::XM_2PI) {
-            skyboxRotation_ -= DirectX::XM_2PI;
-        }
+        (void)dt;
     }
 
     bool EnsureSkyboxTextureLoaded() {
@@ -2818,6 +2818,8 @@ class GameScene : public IScene {
     Entity stageClearTextEntity_{};
     bool stageClearActive_ = false;
     float stageClearTimer_ = 0.0f;
+
+    float pauseInputLock_ = 0.0f;
 
     DirectX::XMFLOAT3 cameraPosition_ = {0.0f, 30.0f, -7.0f};
     DirectX::XMFLOAT3 currentTarget_ = {0.0f, 0.0f, 0.0f};
