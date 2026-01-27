@@ -7,7 +7,7 @@ struct StageClearData {
 class StageSave {
   public:
     static inline void Load() {
-        std::ifstream ifs("Save/stage.dat", std::ios::binary);
+        std::ifstream ifs("Assets/Save/stage.dat", std::ios::binary);
         if (ifs) {
             ifs.read(reinterpret_cast<char *>(&s_data), sizeof(StageClearData));
         }
@@ -24,8 +24,8 @@ class StageSave {
     }
     static inline void Delete() {
         s_data.maxClearedStage = 0;
-        if (std::filesystem::exists("Save/stage.dat")) {
-            std::filesystem::remove("Save/stage.dat");
+        if (std::filesystem::exists("Assets/Save/stage.dat")) {
+            std::filesystem::remove("Assets/Save/stage.dat");
         }
     }
 
@@ -38,8 +38,8 @@ class StageSave {
     static inline StageClearData s_data{};
 
     static inline void Save() {
-        std::filesystem::create_directories("Save");
-        std::ofstream ofs("Save/stage.dat", std::ios::binary);
+        std::filesystem::create_directories("Assets/Save");
+        std::ofstream ofs("Assets/Save/stage.dat", std::ios::binary);
         ofs.write(reinterpret_cast<const char *>(&s_data),
                   sizeof(StageClearData));
     }
