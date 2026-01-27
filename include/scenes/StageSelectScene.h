@@ -30,6 +30,8 @@
 #include "input/GamepadSystem.h"
 #include "systems/UISystem.h"
 #include "app/ServiceLocator.h"
+#include "app/ResourceManager.h"
+#include "graphics/TextureManager.h"
 #include "systems/ModelLoadingSystem.h"
 #include "components/Light.h"
 #include "components/ModelComponent.h"
@@ -761,6 +763,14 @@ class StageSelectScene : public IScene {
 
     void OnExit(World &world) override {
         StopShootingStars();
+        if (auto *resMgr = ServiceLocator::TryGet<ResourceManager>()) {
+            resMgr->Clear();
+        }
+        if (auto *texMgr = ServiceLocator::TryGet<TextureManager>()) {
+            texMgr->Shutdown();
+            texMgr->Init(ServiceLocator::Get<GfxDevice>());
+        }
+        ModelLoader::ClearTextureCache();
         for (const auto &e : ownedEntities_) {
             DestroyEntityHierarchy(world, e);
         }

@@ -844,13 +844,18 @@ std::vector<ModelComponent::AnimationClip> ModelLoader::LoadAnimation(const std:
     return clips;
 }
 
+namespace {
+// 解決済みテクスチャパスの静的キャッシュ
+static std::map<std::string, TextureManager::TextureHandle> gTextureCache;
+}
+
 TextureManager::TextureHandle ModelLoader::LoadMaterialTextures(
     aiMaterial *mat,
     aiTextureType type,
     const std::string &directory,
     const std::string &modelFilePath) {
     // 静的キャッシュ: 解決済みパス -> テクスチャハンドル
-    static std::map<std::string, TextureManager::TextureHandle> textureCache;
+    auto &textureCache = gTextureCache;
 
     TextureManager::TextureHandle handle = TextureManager::INVALID_TEXTURE;
 
@@ -900,4 +905,8 @@ TextureManager::TextureHandle ModelLoader::LoadMaterialTextures(
     }
 
     return handle;
+}
+
+void ModelLoader::ClearTextureCache() {
+    gTextureCache.clear();
 }

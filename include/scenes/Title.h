@@ -33,6 +33,7 @@
 #include "input/GamepadSystem.h"
 #include "systems/UISystem.h"
 #include "app/ServiceLocator.h"
+#include "app/ResourceManager.h"
 //#include "Game.h"
 #include "scenes/StageConfig.h"
 #include "animation/AnimationTools.h"
@@ -637,6 +638,14 @@ class TitleScene : public IScene {
             world.DestroyEntityWithCause(e, World::Cause::SceneUnload);
         });
         world.DestroyAllEntitiesImmediate(World::Cause::SceneUnload);
+        if (auto *resMgr = ServiceLocator::TryGet<ResourceManager>()) {
+            resMgr->Clear();
+        }
+        if (auto *texMgr = ServiceLocator::TryGet<TextureManager>()) {
+            texMgr->Shutdown();
+            texMgr->Init(ServiceLocator::Get<GfxDevice>());
+        }
+        ModelLoader::ClearTextureCache();
         for (const auto &e : ownedEntities_) {
             if (world.IsAlive(e)) {
                 world.DestroyEntityWithCause(e, World::Cause::SceneUnload);
