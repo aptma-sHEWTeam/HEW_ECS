@@ -465,7 +465,7 @@ class StageSelectScene : public IScene {
         GamepadSystem *padsystem = ServiceLocator::TryGet<GamepadSystem>();
         if (!isTransitioning_) {
             if (padsystem &&
-                padsystem->GetAnyButtonDown({GamepadSystem::Button_X})) {
+                padsystem->GetAnyButtonDown({GamepadSystem::Button_A})) {
                 trigger = true;
                 SOUND_SYS.PlaySE(cfg_EnterMP3Pass);
             }
@@ -521,11 +521,14 @@ class StageSelectScene : public IScene {
                 dpadLeftPrev_ = dpadLeftNow;
             }
 
-            /*  if (input.GetKeyDown(VK_F5)) {
+            World *wptr = &world;
+            bool dpadStartNow = padsystem->GetButton(padsystem->Button_B);
+            if (dpadStartNow) {
+                SOUND_SYS.PlaySE(cfg_EnterMP3Pass);
                     if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
-                        manager->ChangeScene("Title", world);
+                        manager->ChangeScene("Title", *wptr);
                     }
-           }*/
+           }
 
             if (rightPressed) {
                 if (stats.selectStage < maxStage_) {

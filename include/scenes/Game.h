@@ -1557,24 +1557,24 @@ class GameScene : public IScene {
                 CreateObjectC(world, position, blockType);
                 break;
             case 60: //右向き
-                lightpos.x += 0.15f;
+                lightpos.x += 0.0f;
                 CreateWallLight(world, position, lightangle, lightpos);
                 CreateWall(world, position);
                 break;
             case 61: //上向き
-                lightpos.z += 0.15f;
+                lightpos.z += 0.0f;
                 lightangle = 270.0f;
                 CreateWallLight(world, position, lightangle, lightpos);
                 CreateWall(world, position);
                 break;
             case 62: //左向き
-                lightpos.x += -0.15f;
+                lightpos.x += 0.0f;
                 lightangle = 180.0f;
                 CreateWallLight(world, position, lightangle, lightpos);
                 CreateWall(world, position);
                 break;
             case 63: //下向き
-                lightpos.z += -0.15f;
+                lightpos.z += 0.0f;
                 lightangle = 90.0f;
                 CreateWallLight(world, position, lightangle, lightpos);
                 CreateWall(world, position);
