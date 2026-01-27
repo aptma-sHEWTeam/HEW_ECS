@@ -321,7 +321,6 @@ class VideoScene : public IScene {
         auto *gamepad = ServiceLocator::TryGet<GamepadSystem>();
         if (gamepad) {
             if (gamepad->GetAnyButtonDown({GamepadSystem::Button_A,
-                                           GamepadSystem::Button_B,
                                            GamepadSystem::Button_Start})) {
                 return true;
             }

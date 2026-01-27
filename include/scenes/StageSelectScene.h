@@ -453,12 +453,12 @@ class StageSelectScene : public IScene {
             return;
         }
 
-        // ゲームシーンへの遷移 (Enter / Aボタン)
+        // ゲームシーンへの遷移 (Enter / ×ボタン)
         bool trigger = input.GetKeyDown(VK_RETURN);
         GamepadSystem *padsystem = ServiceLocator::TryGet<GamepadSystem>();
         if (!isTransitioning_) {
             if (padsystem &&
-                padsystem->GetAnyButtonDown({GamepadSystem::Button_X})) {
+                padsystem->GetAnyButtonDown({GamepadSystem::Button_A})) {
                 trigger = true;
                 SOUND_SYS.PlaySE(cfg_EnterMP3Pass);
             }

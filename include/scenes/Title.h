@@ -514,7 +514,7 @@ class TitleScene : public IScene {
             GamepadSystem *padsystem = ServiceLocator::TryGet<GamepadSystem>();
 
 
-            if (padsystem && padsystem->GetAnyButtonDown({GamepadSystem::Button_A, GamepadSystem::Button_Start, GamepadSystem::Button_X})) {
+            if (padsystem && padsystem->GetAnyButtonDown({GamepadSystem::Button_A, GamepadSystem::Button_Start})) {
                 switch (currentSelect) {
                     case Start:
                         SOUND_SYS.PlaySE(cfg_EnterMP3Pass);
@@ -559,7 +559,7 @@ class TitleScene : public IScene {
 
         
         if (padsystem) {
-            if (padsystem->GetAnyButtonDown({GamepadSystem::Button_A, GamepadSystem::Button_Start, GamepadSystem::Button_X})) {
+            if (padsystem->GetAnyButtonDown({GamepadSystem::Button_A, GamepadSystem::Button_Start})) {
                 DEBUGLOG("Enter pressed!");
                 if (auto *maneger = ServiceLocator::TryGet<SceneManager>()) {
                     maneger->ChangeSceneWithTransition("World1_StageSelect", world, TransitionDirection::Forward);
