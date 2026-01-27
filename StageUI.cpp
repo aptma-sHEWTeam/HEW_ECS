@@ -23,8 +23,8 @@ inline static ConfigVar<float> cfg_StageSelectUI_WorldPivotY{"StageSelect.UI.Wor
 
 inline static ConfigVar<float> cfg_StageSelectUI_StageNamePosX{"StageSelect.UI.StageName", "PosX", 640.0f, "ステージセレクト: StageName 位置X(px)"};
 inline static ConfigVar<float> cfg_StageSelectUI_StageNamePosY{"StageSelect.UI.StageName", "PosY", 360.0f, "ステージセレクト: StageName 位置Y(px)"};
-inline static ConfigVar<float> cfg_StageSelectUI_StageNameSizeW{"StageSelect.UI.StageName", "Width", 450.0f, "ステージセレクト: StageName 幅(px)"};
-inline static ConfigVar<float> cfg_StageSelectUI_StageNameSizeH{"StageSelect.UI.StageName", "Height", 150.0f, "ステージセレクト: StageName 高さ(px)"};
+inline static ConfigVar<float> cfg_StageSelectUI_StageNameSizeW{"StageSelect.UI.StageName", "Width", 690.0f, "ステージセレクト: StageName 幅(px)"};
+inline static ConfigVar<float> cfg_StageSelectUI_StageNameSizeH{"StageSelect.UI.StageName", "Height", 230.0f, "ステージセレクト: StageName 高さ(px)"};
 inline static ConfigVar<float> cfg_StageSelectUI_StageNameAnchorX{"StageSelect.UI.StageName", "AnchorX", 0.0f, "ステージセレクト: StageName AnchorX"};
 inline static ConfigVar<float> cfg_StageSelectUI_StageNameAnchorY{"StageSelect.UI.StageName", "AnchorY", 0.0f, "ステージセレクト: StageName AnchorY"};
 inline static ConfigVar<float> cfg_StageSelectUI_StageNamePivotX{"StageSelect.UI.StageName", "PivotX", 0.5f, "ステージセレクト: StageName PivotX"};

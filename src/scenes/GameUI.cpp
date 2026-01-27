@@ -94,7 +94,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     ownedEntities_.push_back(scoreEntity);*/
 
     UITransform timeTransform;
-    timeTransform.position = {65.0f, 70.0f};
+    timeTransform.position = {78.0f, 68.0f};
     timeTransform.size = {1000.0f, 80.0f};
     timeTransform.anchor = {0.0f, 0.0f};
     timeTransform.pivot = {0.0f, 0.0f};
@@ -205,7 +205,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 #endif // !_DEBUG
 
     UITransform roomImgTr;
-    roomImgTr.position = {1030.0f, 60.0f};
+    roomImgTr.position = {1030.0f, 42.0f};
     roomImgTr.size = {200.0f, 80.0f};
     roomImgTr.anchor = {0.0f, 0.0f};
     roomImgTr.pivot = {0.0f, 0.0f};
@@ -239,7 +239,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     stageText[1].fillTexturePath = L"./Assets/Textures/RoomNo/UI-2-color.png";
 
     UITransform stageTransform[2];
-    stageTransform[0].position = {1450.0f, 65.0};
+    stageTransform[0].position = {1455.0f, 65.0};
     stageTransform[0].size = {210.0f, 100.0f};
     stageTransform[0].anchor = {0.0f, 0.0f};
     stageTransform[0].pivot = {1.0f, 0.0f};

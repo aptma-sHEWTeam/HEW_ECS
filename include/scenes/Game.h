@@ -1221,7 +1221,7 @@ class GameScene : public IScene {
         return speedUpPath.string();
     }
 
-    std::optional<std::string> ResolveMovingObstacleCsvPath(World &world, const std::string &stageCollisionCsvPath) {
+    std::optional<std::string> ResolveMovingObstacleCsvPath(World& world,const std::string &stageCollisionCsvPath) {
         namespace fs = std::filesystem;
         fs::path collisionPath(stageCollisionCsvPath);
 
@@ -1242,6 +1242,35 @@ class GameScene : public IScene {
         }
 
         return movePath.string();
+    }
+
+    std::optional<std::string> ResolveLimitTimePath(World &world, const std::string &limitTimeCsvPath) {
+        namespace fs = std::filesystem;
+        fs::path timePath(limitTimeCsvPath);
+
+        fs::path worldcount = ("World");
+        world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+            worldcount += (std::to_string(sp.worldCount));
+        });
+
+        fs::path stagecount = ("stage");
+        world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+            stagecount += (std::to_string(sp.currentStage));    
+        });
+        stagecount += (".csv");
+
+       /* const fs::path stageDir = timePath.parent_path().filename();
+        if (stageDir.empty()) {
+            return std::nullopt;
+        }*/
+
+        fs::path limitTimePath = fs::path("Assets/StageData") / worldcount / ("StageTime") / stagecount;
+        std::error_code ec;
+        if (!fs::exists(limitTimePath, ec) || ec) {
+            return std::nullopt;
+        }
+
+        return limitTimePath.string();
     }
 
     std::vector<std::vector<int>> LoadAngleCsv(const std::string &csvPath) {
@@ -1342,6 +1371,37 @@ class GameScene : public IScene {
         }
 
         return patterns;
+    }
+
+    std::vector<std::vector<int>> LoadTimeCsv(const std::string &csvPath) {
+        std::vector<std::vector<int>> limitTime;
+        std::ifstream file(csvPath);
+        if (!file.is_open()) {
+            DEBUGLOG("[Time] 角度CSVが開けません(仕様によりスキップ): " + csvPath);
+            return limitTime;
+        }
+
+        std::string line;
+        while (std::getline(file, line)) {
+            if (line.empty()) {
+                continue;
+            }
+            std::vector<int> row;
+            std::stringstream ss(line);
+            std::string cell;
+            while (std::getline(ss, cell, ',')) {
+                try {
+                    row.push_back(std::stoi(cell));
+                } catch (const std::exception &ex) {
+                    DEBUGLOG_WARNING(std::string("[Time] CSVパース失敗: ") + cell + " (" + ex.what() + ")");
+                }
+            }
+            if (!row.empty()) {
+                limitTime.push_back(row);
+            }
+        }
+
+        return limitTime;
     }
 
     // =========================================
@@ -2175,6 +2235,27 @@ class GameScene : public IScene {
                                         .Build();
                 stageOwnedEntities_.push_back(moveEntity);
             }
+
+            auto timeCsvPath = ResolveLimitTimePath(world, activeStagePtr->csvPath);
+            std::vector<vector<int>> stagetime;
+            float roomtime = 0.0f;
+
+            if (timeCsvPath) {
+                stagetime = LoadTimeCsv(*timeCsvPath);
+
+                if (stagetime.empty()) {
+                    DEBUGLOG("[Time] 制限時間CSVが空、または読み込みに失敗しました(仕様によりスキップ): " + *timeCsvPath);
+                }
+            } else {
+                DEBUGLOG("[Time] 制限時間CSVパスを解決できません(仕様によりスキップ): " + activeStagePtr->csvPath);
+            }
+            
+            world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+                cfg_LimitTime = static_cast<float>(stagetime[0][sp.currentRoom - 1]);
+                world.ForEach<GameStatus>([&](Entity, GameStatus &gs) {
+                    gs.elapsedTime = cfg_LimitTime;
+                });
+                });
         }
 
         CreateStageMap(world, *activeStagePtr, stage);
