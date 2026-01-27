@@ -96,8 +96,8 @@ class StageSelectScene : public IScene {
     inline static ConfigVar<float> cfg_StationScale{"StageSelect.Station", "Scale", 0.1f, "ステージセレクト: ステーションスケール"};
 
     inline static ConfigVar<float> cfg_StationPointLightR{"StageSelect.Station.PointLight", "R", 1.0f, "ステージセレクト: ステーション点光源 R"};
-    inline static ConfigVar<float> cfg_StationPointLightG{"StageSelect.Station.PointLight", "G", 1.0f, "ステージセレクト: ステーション点光源 G"};
-    inline static ConfigVar<float> cfg_StationPointLightB{"StageSelect.Station.PointLight", "B", 0.5f, "ステージセレクト: ステーション点光源 B"};
+    inline static ConfigVar<float> cfg_StationPointLightG{"StageSelect.Station.PointLight", "G", 0.9f, "ステージセレクト: ステーション点光源 G"};
+    inline static ConfigVar<float> cfg_StationPointLightB{"StageSelect.Station.PointLight", "B", 0.9f, "ステージセレクト: ステーション点光源 B"};
     inline static ConfigVar<float> cfg_StationPointLightIntensity{"StageSelect.Station.PointLight", "Intensity", 150.0f, "ステージセレクト: ステーション点光源 強度"};
     inline static ConfigVar<float> cfg_StationPointLightRange{"StageSelect.Station.PointLight", "Range", 100.0f, "ステージセレクト: ステーション点光源 距離"};
     inline static ConfigVar<float> cfg_StationPointLightAttenConstant{"StageSelect.Station.PointLight", "AttenConstant", 1.0f, "ステージセレクト: ステーション点光源 減衰(定数)"};
