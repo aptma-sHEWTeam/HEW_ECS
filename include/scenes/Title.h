@@ -548,7 +548,7 @@ class TitleScene : public IScene {
         
             if (pady > 0.8f && !stickUpPrev_)upPressd = true;
             if (pady < -0.8f && !stickDownPrev_)downPressd = true;
-            if (dpadUp && !dpadDownPrev_)upPressd = true;
+            if (dpadUp && !dpadUpPrev_)upPressd = true;
             if (dpadDown && !dpadDownPrev_)downPressd = true;
 
             stickUpPrev_ = (pady > 0.8f);

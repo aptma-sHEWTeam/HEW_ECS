@@ -523,11 +523,14 @@ class StageSelectScene : public IScene {
                 dpadLeftPrev_ = dpadLeftNow;
             }
 
-            /*  if (input.GetKeyDown(VK_F5)) {
+            World *wptr = &world;
+            bool dpadStartNow = padsystem->GetButton(padsystem->Button_B);
+            if (dpadStartNow) {
+                SOUND_SYS.PlaySE(cfg_EnterMP3Pass);
                     if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
-                        manager->ChangeScene("Title", world);
+                        manager->ChangeScene("Title", *wptr);
                     }
-           }*/
+           }
 
             if (rightPressed) {
                 if (stats.selectStage < maxStage_) {
