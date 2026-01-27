@@ -273,6 +273,9 @@ class StageSelectScene : public IScene {
                 stats.selectStage = 1;
                 stats.currentStage = stats.selectStage;
                 stats.IsWorldNext = false;
+            } else if (stats.IsClearBack) {
+                stats.currentStage = stats.selectStage;
+                stats.IsClearBack = false;
             }
             stats.selectStage = std::clamp(stats.selectStage, 1, maxStage_);
             stats.currentStage = std::clamp(stats.currentStage, 1, maxStage_);
