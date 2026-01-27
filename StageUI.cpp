@@ -21,19 +21,19 @@ inline static ConfigVar<float> cfg_StageSelectUI_WorldAnchorY{"StageSelect.UI.Wo
 inline static ConfigVar<float> cfg_StageSelectUI_WorldPivotX{"StageSelect.UI.World", "PivotX", 0.5f, "ステージセレクト: WorldUI PivotX"};
 inline static ConfigVar<float> cfg_StageSelectUI_WorldPivotY{"StageSelect.UI.World", "PivotY", 0.0f, "ステージセレクト: WorldUI PivotY"};
 
-inline static ConfigVar<float> cfg_StageSelectUI_StageNamePosX{"StageSelect.UI.StageName", "PosX", 640.0f, "ステージセレクト: StageName 位置X(px)"};
-inline static ConfigVar<float> cfg_StageSelectUI_StageNamePosY{"StageSelect.UI.StageName", "PosY", 360.0f, "ステージセレクト: StageName 位置Y(px)"};
-inline static ConfigVar<float> cfg_StageSelectUI_StageNameSizeW{"StageSelect.UI.StageName", "Width", 450.0f, "ステージセレクト: StageName 幅(px)"};
-inline static ConfigVar<float> cfg_StageSelectUI_StageNameSizeH{"StageSelect.UI.StageName", "Height", 150.0f, "ステージセレクト: StageName 高さ(px)"};
+inline static ConfigVar<float> cfg_StageSelectUI_StageNamePosX{"StageSelect.UI.StageName", "PosX", 480.0f, "ステージセレクト: StageName 位置X(px)"};
+inline static ConfigVar<float> cfg_StageSelectUI_StageNamePosY{"StageSelect.UI.StageName", "PosY", 270.0f, "ステージセレクト: StageName 位置Y(px)"};
+inline static ConfigVar<float> cfg_StageSelectUI_StageNameSizeW{"StageSelect.UI.StageName", "Width", 621.0f, "ステージセレクト: StageName 幅(px)"};
+inline static ConfigVar<float> cfg_StageSelectUI_StageNameSizeH{"StageSelect.UI.StageName", "Height", 207.0f, "ステージセレクト: StageName 高さ(px)"};
 inline static ConfigVar<float> cfg_StageSelectUI_StageNameAnchorX{"StageSelect.UI.StageName", "AnchorX", 0.0f, "ステージセレクト: StageName AnchorX"};
 inline static ConfigVar<float> cfg_StageSelectUI_StageNameAnchorY{"StageSelect.UI.StageName", "AnchorY", 0.0f, "ステージセレクト: StageName AnchorY"};
 inline static ConfigVar<float> cfg_StageSelectUI_StageNamePivotX{"StageSelect.UI.StageName", "PivotX", 0.5f, "ステージセレクト: StageName PivotX"};
 inline static ConfigVar<float> cfg_StageSelectUI_StageNamePivotY{"StageSelect.UI.StageName", "PivotY", 0.5f, "ステージセレクト: StageName PivotY"};
 
-inline static ConfigVar<float> cfg_StageSelectUI_ButtonSizeW{"StageSelect.UI.Button", "Width", 252.5f, "ステージセレクト: Button 幅(px)"};
-inline static ConfigVar<float> cfg_StageSelectUI_ButtonSizeH{"StageSelect.UI.Button", "Height", 50.0f, "ステージセレクト: Button 高さ(px)"};
+inline static ConfigVar<float> cfg_StageSelectUI_ButtonSizeW{"StageSelect.UI.Button", "Width", 303.0f, "ステージセレクト: Button 幅(px)"};
+inline static ConfigVar<float> cfg_StageSelectUI_ButtonSizeH{"StageSelect.UI.Button", "Height", 60.0f, "ステージセレクト: Button 高さ(px)"};
 inline static ConfigVar<float> cfg_StageSelectUI_EnterBtnPosX{"StageSelect.UI.Button.Enter", "PosX", 60.0f, "ステージセレクト: EnterButton 位置X(px)"};
-inline static ConfigVar<float> cfg_StageSelectUI_EnterBtnPosY{"StageSelect.UI.Button.Enter", "PosY", 560.0f, "ステージセレクト: EnterButton 位置Y(px)"};
+inline static ConfigVar<float> cfg_StageSelectUI_EnterBtnPosY{"StageSelect.UI.Button.Enter", "PosY", 570.0f, "ステージセレクト: EnterButton 位置Y(px)"};
 inline static ConfigVar<float> cfg_StageSelectUI_TitleBtnPosX{"StageSelect.UI.Button.Title", "PosX", 60.0f, "ステージセレクト: TitleButton 位置X(px)"};
 inline static ConfigVar<float> cfg_StageSelectUI_TitleBtnPosY{"StageSelect.UI.Button.Title", "PosY", 645.0f, "ステージセレクト: TitleButton 位置Y(px)"};
 

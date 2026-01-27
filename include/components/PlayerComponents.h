@@ -207,10 +207,14 @@ struct PlayerMovement : Behaviour {
     // 新規: ブースト直後に入力をブロックするためのタイマー
     float postBoostInputBlockTimer_ = 0.0f;
 
-    void SwitchEffect(World& w, Entity self,EffectState newState)
+    void SwitchEffect(World& w, Entity self,EffectState newState,bool stopOtherEffect = true)
     {
         auto *t = w.TryGet<Transform>(self);
-
+        if (!t)
+        {
+            return;
+        }
+            
         //角度をラジアンに変換
         float rad = t->rotation.y * (DirectX::XM_PI / 180.0f);
     
@@ -222,23 +226,23 @@ struct PlayerMovement : Behaviour {
         float rightX = std::cosf(rad);
         float rightZ = -std::sinf(rad);
 
-        //今あるエフェクトの全停止
-        for (int i = 0;i < 2; i++)
+        if (stopOtherEffect) 
         {
-            if (chargeEffectHandle[i] != -1) 
+            //今あるエフェクトの全停止
+            for (int i = 0; i < 2; i++) 
             {
-                EffekseerManager::GetInstance().StopEffectHandle(chargeEffectHandle[i]);
-                chargeEffectHandle[i] = -1;
-            }
-            if (releaseEffectHandle[i] != -1) 
-            {
-                EffekseerManager::GetInstance().StopEffectHandle(releaseEffectHandle[i]);
-                releaseEffectHandle[i] = -1;
-            }
-            if (maxChargeEffectHandle[i] != -1)
-            {
-                EffekseerManager::GetInstance().StopEffectHandle(maxChargeEffectHandle[i]);
-               maxChargeEffectHandle[i] = -1;
+                if (chargeEffectHandle[i] != -1) {
+                    EffekseerManager::GetInstance().StopEffectHandle(chargeEffectHandle[i]);
+                    chargeEffectHandle[i] = -1;
+                }
+                if (releaseEffectHandle[i] != -1) {
+                    EffekseerManager::GetInstance().StopEffectHandle(releaseEffectHandle[i]);
+                    releaseEffectHandle[i] = -1;
+                }
+                if (maxChargeEffectHandle[i] != -1) {
+                    EffekseerManager::GetInstance().StopEffectHandle(maxChargeEffectHandle[i]);
+                    maxChargeEffectHandle[i] = -1;
+                }
             }
         }
 
@@ -490,8 +494,6 @@ struct PlayerMovement : Behaviour {
             bool effectiveCharging = chargingSys && chargingNowLocal;
             frame++;
 
-            
-
             if (effectiveCharging && !wasChargingPrev_) ResetAngleHistory();
             if (effectiveCharging && !wasCharging_) {
                 chargeTimer = 0.0f;
@@ -527,10 +529,7 @@ struct PlayerMovement : Behaviour {
 
                 //SOUND_SYS.PlaySE(cfg_DriftMP3Pass);
             }
-            else
-            {
-                releaseTimer += dt;
-            }
+            
             bool releasedSys = gamepad_->IsLeftStickReleased();
             bool releasedLocal = (wasCharging_ && !chargingNowLocal);
             if (releasedSys || releasedLocal) {
@@ -555,14 +554,12 @@ struct PlayerMovement : Behaviour {
                     }
                 }
                 chargeTimer = 0.0f;
+                releaseTimer = 0.0f;
 
-                //0.1秒以上でリリースエフェクトに切り替え 
-                if (releaseTimer > 0.1f && currentEffectState == EffectState::MaxCharge) {
-                    if (currentEffectState != EffectState::Relesing) {
-                        SwitchEffect(w, self, EffectState::Relesing);
-                    }
-                }
-            
+                SwitchEffect(w, self, EffectState::Relesing, true);
+                SwitchEffect(w, self, EffectState::MaxCharge, false);
+                currentEffectState = EffectState::Relesing;
+
                 GameScene_OnChargeRelease(w, chargeAmount);
                 restoreCollisionRadius();
                 ResetAngleHistory();
@@ -575,7 +572,24 @@ struct PlayerMovement : Behaviour {
                 restoreCollisionRadius();
                 v->isRotate = false;
                 isCharging_ = false;
-                chargeTimer = 0.0f;
+                chargeTimer = 0.0f; 
+            }
+
+            if (wasCharging_ && !isCharging_)
+            {
+                releaseTimer += dt;
+
+                if (releaseTimer >= 0.1f)
+                {
+                    for (int i = 0; i < 2; i++)
+                    {
+                        if (maxChargeEffectHandle[i] != -1)
+                        {
+                            EffekseerManager::GetInstance().StopEffectHandle(maxChargeEffectHandle[i]);
+                            maxChargeEffectHandle[i] = -1;
+                        }
+                    }
+                }
             }
 
             //角度をラジアンに変換
@@ -618,7 +632,7 @@ struct PlayerMovement : Behaviour {
                 
             };
 
-            if (currentEffectState == EffectState::Charging)
+            /*if (currentEffectState == EffectState::Charging)
             {
                 updateHandle(chargeEffectHandle,true);
             }
@@ -629,8 +643,18 @@ struct PlayerMovement : Behaviour {
             if (currentEffectState == EffectState::Relesing)
             {
                 updateHandle(releaseEffectHandle,true);
-            }
+            }*/
 
+            if (chargeEffectHandle[0] != -1)
+            {
+                updateHandle(chargeEffectHandle, true);
+            }
+            if (releaseEffectHandle[0] != -1) {
+                updateHandle(releaseEffectHandle, true);
+            }
+            if (maxChargeEffectHandle[0] != -1) {
+                updateHandle(maxChargeEffectHandle, true);
+            }
 
             // 減速をまず反映してから移動
             v->UpdateVelocity(inputDir, dt);

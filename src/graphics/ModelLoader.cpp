@@ -267,6 +267,8 @@ void ModelLoader::ProcessNode(
                  std::to_string(dbgGlobal._43) + ")");
     }
 
+    int thisNodeIndex = parentIndex;
+
     // メッシュを持つノードのみ出力
     if (node->mNumMeshes > 0) {
         ModelPrefabNode baseNode;
@@ -274,7 +276,7 @@ void ModelLoader::ProcessNode(
         baseNode.translation = {0.0f, 0.0f, 0.0f};
         baseNode.rotationDeg = {0.0f, 0.0f, 0.0f};
         baseNode.scale = {1.0f, 1.0f, 1.0f};
-        baseNode.parentIndex = -1; // ModelLoadingSystemでルートエンティティの子として設定される
+        baseNode.parentIndex = parentIndex; // 親ノードのインデックスを保持
 
         // 最初のメッシュを処理
         aiMesh *mesh = scene->mMeshes[node->mMeshes[0]];
@@ -282,13 +284,14 @@ void ModelLoader::ProcessNode(
         baseNode.hasMesh = baseNode.component.indexCount > 0;
 
         if (baseNode.hasMesh) {
+            thisNodeIndex = static_cast<int>(outNodes.size());
             outNodes.push_back(baseNode);
         }
 
         // 追加のメッシュを持つ場合は同じグローバル変換で個別ノードとして生成
         for (unsigned int i = 1; i < node->mNumMeshes; ++i) {
             ModelPrefabNode extra = baseNode;
-            extra.parentIndex = -1;
+            extra.parentIndex = parentIndex;
             aiMesh *extraMesh = scene->mMeshes[node->mMeshes[i]];
             extra.component = ProcessMesh(extraMesh, currentGlobal, scene, directory, modelFilePath, gfx);
             extra.hasMesh = extra.component.indexCount > 0;
@@ -298,9 +301,9 @@ void ModelLoader::ProcessNode(
         }
     }
 
-    // 子ノードを再帰処理（グローバル変換を渡す、parentIndexは使わない）
+    // 子ノードを再帰処理（グローバル変換を渡す）
     for (unsigned int i = 0; i < node->mNumChildren; ++i) {
-        ProcessNode(node->mChildren[i], currentGlobal, -1, scene, directory, modelFilePath, outNodes, gfx);
+        ProcessNode(node->mChildren[i], currentGlobal, thisNodeIndex, scene, directory, modelFilePath, outNodes, gfx);
     }
 }
 
@@ -721,34 +724,18 @@ static std::vector<ModelComponent::AnimationClip> BuildClipsFromAssimp(const aiS
                 float dx = a.x - b.x, dy = a.y - b.y, dz = a.z - b.z;
                 return dx * dx + dy * dy + dz * dz;
             };
-            
+
             const float rotThreshold = 0.3f;
             const float posThreshold = 100.0f;
 
-            // 先頭キーフレームが2番目と大きく異なる場合は削除
-            if (boneAnim.keyframes.size() >= 3) {
-                const auto& first = boneAnim.keyframes[0];
-                const auto& second = boneAnim.keyframes[1];
-                
-                float rotDiff = 1.0f - std::abs(quatDot(first.rotation, second.rotation));
-                float posDiff = vecDistSq(first.position, second.position);
-                
-                if (rotDiff > rotThreshold || posDiff > posThreshold) {
-                    boneAnim.keyframes.erase(boneAnim.keyframes.begin());
-                }
+            // 先頭2フレームを無条件でスキップ（バインドポーズ混入を除去）
+            if (boneAnim.keyframes.size() >= 2) {
+                boneAnim.keyframes.erase(boneAnim.keyframes.begin(), boneAnim.keyframes.begin() + 2);
             }
-            
-            // 終端キーフレームがその前と大きく異なる場合は削除
-            if (boneAnim.keyframes.size() >= 3) {
-                const auto& last = boneAnim.keyframes.back();
-                const auto& secondLast = boneAnim.keyframes[boneAnim.keyframes.size() - 2];
-                
-                float rotDiff = 1.0f - std::abs(quatDot(last.rotation, secondLast.rotation));
-                float posDiff = vecDistSq(last.position, secondLast.position);
-                
-                if (rotDiff > rotThreshold || posDiff > posThreshold) {
-                    boneAnim.keyframes.pop_back();
-                }
+
+            // 終端2フレームを無条件でスキップ
+            if (boneAnim.keyframes.size() >= 2) {
+                boneAnim.keyframes.erase(boneAnim.keyframes.end() - 2, boneAnim.keyframes.end());
             }
             
             if (!boneAnim.keyframes.empty()) {

@@ -65,6 +65,7 @@ struct StageProgress : IComponent {
     bool hasSwitch = false;         //ステージにスイッチがあるか
     bool IsWorldBack = false;
     bool IsWorldNext = false;
+    bool IsClearBack = false;
 };
 
 /**

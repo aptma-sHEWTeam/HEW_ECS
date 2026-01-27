@@ -321,7 +321,6 @@ class VideoScene : public IScene {
         auto *gamepad = ServiceLocator::TryGet<GamepadSystem>();
         if (gamepad) {
             if (gamepad->GetAnyButtonDown({GamepadSystem::Button_A,
-                                           GamepadSystem::Button_B,
                                            GamepadSystem::Button_Start})) {
                 return true;
             }
@@ -470,6 +469,9 @@ class VideoScene : public IScene {
 
     void TransitionToNextScene(World &world) {
         if (auto *mgr = ServiceLocator::TryGet<SceneManager>()) {
+            world.ForEach<StageProgress>([&](Entity, StageProgress &stats) {
+              stats.IsClearBack = true;
+            });
             std::string target = nextSceneName_.empty() ? cfg_VideoNextScene.Get() : nextSceneName_;
             DEBUGLOG(std::string("VideoScene: ChangeScene -> ") + target);
             mgr->ChangeScene(target.c_str(), world);
