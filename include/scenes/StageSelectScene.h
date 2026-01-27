@@ -15,6 +15,7 @@
 #include <cassert>
 #include <array>
 #include <random>
+#include <cmath>
 #include <DirectXMath.h>
 
 #include <Windows.h>
@@ -127,14 +128,15 @@ class StageSelectScene : public IScene {
     inline static ConfigVar<float> cfg_StarPosMaxZ{"StageSelect.Stars", "PosMaxZ", 12.0f, "ステージセレクト: 流れ星初期Z最大"};
     inline static ConfigVar<float> cfg_StarVelMinX{"StageSelect.Stars", "VelMinX", -10.0f, "ステージセレクト: 流れ星速度X最小"};
     inline static ConfigVar<float> cfg_StarVelMaxX{"StageSelect.Stars", "VelMaxX", -6.0f, "ステージセレクト: 流れ星速度X最大"};
-    inline static ConfigVar<float> cfg_StarVelMinY{"StageSelect.Stars", "VelMinY", -2.0f, "ステージセレクト: 流れ星速度Y最小"};
-    inline static ConfigVar<float> cfg_StarVelMaxY{"StageSelect.Stars", "VelMaxY", -20.0f, "ステージセレクト: 流れ星速度Y最大"};
+    inline static ConfigVar<float> cfg_StarVelMinY{"StageSelect.Stars", "VelMinY", -20.0f, "ステージセレクト: 流れ星速度Y最小"};
+    inline static ConfigVar<float> cfg_StarVelMaxY{"StageSelect.Stars", "VelMaxY", -2.0f, "ステージセレクト: 流れ星速度Y最大"};
     inline static ConfigVar<float> cfg_StarVelMinZ{"StageSelect.Stars", "VelMinZ", -4.0f, "ステージセレクト: 流れ星速度Z最小"};
     inline static ConfigVar<float> cfg_StarVelMaxZ{"StageSelect.Stars", "VelMaxZ", -1.5f, "ステージセレクト: 流れ星速度Z最大"};
 
     inline static ConfigVar<float> cfg_StarScaleSmall{"StageSelect.Stars", "ScaleSmall", 0.7f, "ステージセレクト: 流れ星スケール小"};
     inline static ConfigVar<float> cfg_StarScaleMedium{"StageSelect.Stars", "ScaleMedium", 0.9f, "ステージセレクト: 流れ星スケール中"};
     inline static ConfigVar<float> cfg_StarScaleBig{"StageSelect.Stars", "ScaleBig", 1.1f, "ステージセレクト: 流れ星スケール大"};
+    inline static ConfigVar<int> cfg_StarMaxSpawnPerFrame{"StageSelect.Stars", "MaxSpawnPerFrame", 2, "ステージセレクト: 1フレームの流れ星生成上限"};
 
     inline static ConfigVar<float> cfg_StageNameWorldDigit{"StageSelect.UI.StageName", "WorldDigit", 0.0f, "ステージセレクト: StageNameファイル名のワールド数字（0=通常）"};
     inline static ConfigVar<float> cfg_StageNameProjectYOffset{"StageSelect.UI.StageName", "ProjectYOffset", 0.8f, "ステージセレクト: StageName投影Yオフセット"};
@@ -1004,6 +1006,12 @@ class StageSelectScene : public IScene {
     }
 
     float RandFloat(float minValue, float maxValue) {
+        if (!std::isfinite(minValue) || !std::isfinite(maxValue)) {
+            return 0.0f;
+        }
+        if (minValue > maxValue) {
+            std::swap(minValue, maxValue);
+        }
         std::uniform_real_distribution<float> dist(minValue, maxValue);
         return dist(starRng_);
     }
@@ -1050,10 +1058,13 @@ class StageSelectScene : public IScene {
         }
 
         starSpawnTimer_ += dt;
-        while (starSpawnTimer_ >= nextStarSpawn_) {
+        int spawnCountThisFrame = 0;
+        const int spawnLimit = std::max(cfg_StarMaxSpawnPerFrame.Get(), 0);
+        while (starSpawnTimer_ >= nextStarSpawn_ && spawnCountThisFrame < spawnLimit) {
             starSpawnTimer_ -= nextStarSpawn_;
             nextStarSpawn_ = RandFloat(cfg_StarSpawnMinSeconds.Get(), cfg_StarSpawnMaxSeconds.Get());
             SpawnShootingStar();
+            ++spawnCountThisFrame;
         }
 
         auto &efk = EffekseerManager::GetInstance();

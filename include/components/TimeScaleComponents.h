@@ -1,7 +1,7 @@
-/**
+ï»¿/**
  * @file TimeScaleComponents.h
- * @brief ƒQ[ƒ€‘S‘Ì/‰‰o—p‚ÌŠÔ”{—¦ƒRƒ“ƒ|[ƒlƒ“ƒg
- * @author R“à—z
+ * @brief ã‚²ãƒ¼ãƒ å…¨ä½“/æ¼”å‡ºç”¨ã®æ™‚é–“å€ç‡ã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆ
+ * @author å±±å†…é™½
  * @date 2025
  * @version 1.0
  */
@@ -21,7 +21,7 @@ inline float GetGlobalTimeScale() {
 
 /**
  * @struct TimeScale
- * @brief World“à‚Å‹¤—L‚·‚éŠÔ”{—¦
+ * @brief Worldå†…ã§å…±æœ‰ã™ã‚‹æ™‚é–“å€ç‡
  */
 struct TimeScale : IComponent {
     float value = 1.0f;
