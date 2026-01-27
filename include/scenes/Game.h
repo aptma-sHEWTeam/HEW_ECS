@@ -1011,14 +1011,18 @@ class GameScene : public IScene {
         Entity player = world.CreateEntity();
 
         world.Add<Transform>(player, transform);
+        world.Add<TransformHierarchy>(player);
 
         // ModelComponent (Mesh & Skeleton)
+        int targetIndex = -1;
+        if (targetNode) {
+            targetIndex = static_cast<int>(targetNode - &nodes[0]);
+        }
         if (targetNode && targetNode->hasMesh) {
             world.Add<ModelComponent>(player, targetNode->component);
 
-            // Animator
+            std::string defaultClip = AnimationConfig::Clips::PlayerDefault;
             if (targetNode->component.isSkinned) {
-                std::string defaultClip = AnimationConfig::Clips::PlayerDefault;
                 const bool defaultExists = std::any_of(clips.begin(), clips.end(), [&](const auto &c) { return c.name == defaultClip; });
                 if (!defaultExists && !clips.empty()) {
                     defaultClip = clips.front().name;
@@ -1028,6 +1032,42 @@ class GameScene : public IScene {
                     DEBUGLOG_WARNING("No animation clips loaded for player.");
                 } else {
                     DEBUGLOG("Playing animation: " + defaultClip);
+                }
+            }
+
+            // 追加ノードを生成（ローカルTRSと親子関係を維持）
+            std::vector<Entity> created(nodes.size());
+            if (targetIndex >= 0 && static_cast<size_t>(targetIndex) < created.size()) {
+                created[targetIndex] = player;
+            }
+            for (size_t i = 0; i < nodes.size(); ++i) {
+                if (static_cast<int>(i) == targetIndex) continue;
+                const auto &node = nodes[i];
+                Entity child = world.CreateEntity();
+                world.Add<Transform>(child, Transform{node.translation, node.rotationDeg, node.scale});
+                world.Add<TransformHierarchy>(child);
+                if (node.hasMesh && node.component.indexCount > 0) {
+                    world.Add<ModelComponent>(child, node.component);
+                    if (node.component.isSkinned && !clips.empty()) {
+                        AnimationTools::InitAnimator(world, child, clips, defaultClip);
+                    }
+                }
+                created[i] = child;
+            }
+
+            for (size_t i = 0; i < nodes.size(); ++i) {
+                Entity child = (static_cast<int>(i) == targetIndex) ? player : created[i];
+                if (!world.IsAlive(child)) continue;
+                int pIdx = nodes[i].parentIndex;
+                Entity parent = player;
+                if (pIdx >= 0 && static_cast<size_t>(pIdx) < created.size()) {
+                    parent = (pIdx == targetIndex) ? player : created[pIdx];
+                }
+                auto *ch = world.TryGet<TransformHierarchy>(child);
+                auto *ph = world.TryGet<TransformHierarchy>(parent);
+                if (ch && ph && child != parent) {
+                    ch->SetParent(parent);
+                    ph->AddChild(child);
                 }
             }
         } else {

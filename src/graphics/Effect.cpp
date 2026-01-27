@@ -129,6 +129,15 @@ private:
 
 namespace
 {
+bool ShouldLogPlay(const std::string& effectName)
+{
+    if (effectName == "StarSmall" || effectName == "StarMedium" || effectName == "StarBig")
+    {
+        return false;
+    }
+    return true;
+}
+
 std::wstring Utf8ToWide(const std::string& src)
 {
     if (src.empty())
@@ -347,7 +356,10 @@ int EffekseerManager::PlayEffect(const std::string& effectName, DirectX::XMFLOAT
     }
     else
     {
-        DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, std::string("EffekseerManager: Play succeeded handle=") + std::to_string(handle) + " for '" + effectName + "'");
+        if (ShouldLogPlay(effectName))
+        {
+            DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, std::string("EffekseerManager: Play succeeded handle=") + std::to_string(handle) + " for '" + effectName + "'");
+        }
     }
 
     m_pManager->SetScale(handle, scale.x, scale.y, scale.z);
