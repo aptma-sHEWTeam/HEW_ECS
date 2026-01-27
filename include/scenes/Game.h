@@ -2504,16 +2504,13 @@ class GameScene : public IScene {
         if (auto *t = world.TryGet<Transform>(skyboxEntity_)) {
             const float scale = SanitizeSkyboxScale(cfg_GameSkyboxScale.Get());
             t->position = camera_.position;
-            t->rotation = {0.0f, BuildSkyboxYawDeg(camera_, skyboxRotation_), 0.0f};
+            t->rotation = {0.0f, SkyboxRotationToDegrees(0.0f), 0.0f};
             t->scale = {scale, scale, scale};
         }
     }
 
     void UpdateSkyboxRotation(float dt) {
-        skyboxRotation_ += cfg_SkyboxSpeed.Get() * dt;
-        if (skyboxRotation_ > DirectX::XM_2PI) {
-            skyboxRotation_ -= DirectX::XM_2PI;
-        }
+        (void)dt;
     }
 
     bool EnsureSkyboxTextureLoaded() {
