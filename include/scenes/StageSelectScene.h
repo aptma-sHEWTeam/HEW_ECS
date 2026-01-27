@@ -108,6 +108,7 @@ class StageSelectScene : public IScene {
     inline static ConfigVar<float> cfg_FadeSecondsPerFrame{"StageSelect.Fade", "SecondsPerFrame", 0.1f, "ステージセレクト: フェードアニメ1フレーム時間(秒)"};
     inline static ConfigVar<std::string> cfg_FadeTexturePath{"StageSelect.Fade", "TexturePath", "./Assets/Textures/Fade/tex_fade.png", "ステージセレクト: フェードテクスチャ"};
 
+
     inline static ConfigVar<float> cfg_StickThreshold{"StageSelect.Input", "StickThreshold", 0.8f, "ステージセレクト: スティック入力閾値"};
 
     inline static ConfigVar<float> cfg_RotateSpeed{"StageSelect.Rotation", "RotateSpeed", 6.0f, "ステージセレクト: 回転追従速度"};
