@@ -96,9 +96,9 @@ class StageSelectScene : public IScene {
 
     inline static ConfigVar<float> cfg_StationPointLightR{"StageSelect.Station.PointLight", "R", 1.0f, "ステージセレクト: ステーション点光源 R"};
     inline static ConfigVar<float> cfg_StationPointLightG{"StageSelect.Station.PointLight", "G", 1.0f, "ステージセレクト: ステーション点光源 G"};
-    inline static ConfigVar<float> cfg_StationPointLightB{"StageSelect.Station.PointLight", "B", 1.0f, "ステージセレクト: ステーション点光源 B"};
-    inline static ConfigVar<float> cfg_StationPointLightIntensity{"StageSelect.Station.PointLight", "Intensity", 1.0f, "ステージセレクト: ステーション点光源 強度"};
-    inline static ConfigVar<float> cfg_StationPointLightRange{"StageSelect.Station.PointLight", "Range", 10.0f, "ステージセレクト: ステーション点光源 距離"};
+    inline static ConfigVar<float> cfg_StationPointLightB{"StageSelect.Station.PointLight", "B", 0.5f, "ステージセレクト: ステーション点光源 B"};
+    inline static ConfigVar<float> cfg_StationPointLightIntensity{"StageSelect.Station.PointLight", "Intensity", 150.0f, "ステージセレクト: ステーション点光源 強度"};
+    inline static ConfigVar<float> cfg_StationPointLightRange{"StageSelect.Station.PointLight", "Range", 100.0f, "ステージセレクト: ステーション点光源 距離"};
     inline static ConfigVar<float> cfg_StationPointLightAttenConstant{"StageSelect.Station.PointLight", "AttenConstant", 1.0f, "ステージセレクト: ステーション点光源 減衰(定数)"};
     inline static ConfigVar<float> cfg_StationPointLightAttenLinear{"StageSelect.Station.PointLight", "AttenLinear", 1.0f, "ステージセレクト: ステーション点光源 減衰(一次)"};
     inline static ConfigVar<float> cfg_StationPointLightAttenQuadratic{"StageSelect.Station.PointLight", "AttenQuadratic", 1.0f, "ステージセレクト: ステーション点光源 減衰(二次)"};
@@ -117,8 +117,8 @@ class StageSelectScene : public IScene {
     inline static ConfigVar<int> cfg_StarMaxCount{"StageSelect.Stars", "MaxCount", 24, "ステージセレクト: 流れ星最大数"};
     inline static ConfigVar<float> cfg_StarSpawnMinSeconds{"StageSelect.Stars", "SpawnMinSeconds", 0.35f, "ステージセレクト: 流れ星スポーン間隔最小(秒)"};
     inline static ConfigVar<float> cfg_StarSpawnMaxSeconds{"StageSelect.Stars", "SpawnMaxSeconds", 1.10f, "ステージセレクト: 流れ星スポーン間隔最大(秒)"};
-    inline static ConfigVar<float> cfg_StarLifeMinSeconds{"StageSelect.Stars", "LifeMinSeconds", 0.9f, "ステージセレクト: 流れ星寿命最小(秒)"};
-    inline static ConfigVar<float> cfg_StarLifeMaxSeconds{"StageSelect.Stars", "LifeMaxSeconds", 1.8f, "ステージセレクト: 流れ星寿命最大(秒)"};
+    inline static ConfigVar<float> cfg_StarLifeMinSeconds{"StageSelect.Stars", "LifeMinSeconds", 2.0f, "ステージセレクト: 流れ星寿命最小(秒)"};
+    inline static ConfigVar<float> cfg_StarLifeMaxSeconds{"StageSelect.Stars", "LifeMaxSeconds", 4.0f, "ステージセレクト: 流れ星寿命最大(秒)"};
     inline static ConfigVar<float> cfg_StarPosMinX{"StageSelect.Stars", "PosMinX", -12.0f, "ステージセレクト: 流れ星初期X最小"};
     inline static ConfigVar<float> cfg_StarPosMaxX{"StageSelect.Stars", "PosMaxX", 12.0f, "ステージセレクト: 流れ星初期X最大"};
     inline static ConfigVar<float> cfg_StarPosMinY{"StageSelect.Stars", "PosMinY", 3.0f, "ステージセレクト: 流れ星初期Y最小"};
@@ -128,7 +128,7 @@ class StageSelectScene : public IScene {
     inline static ConfigVar<float> cfg_StarVelMinX{"StageSelect.Stars", "VelMinX", -10.0f, "ステージセレクト: 流れ星速度X最小"};
     inline static ConfigVar<float> cfg_StarVelMaxX{"StageSelect.Stars", "VelMaxX", -6.0f, "ステージセレクト: 流れ星速度X最大"};
     inline static ConfigVar<float> cfg_StarVelMinY{"StageSelect.Stars", "VelMinY", -2.0f, "ステージセレクト: 流れ星速度Y最小"};
-    inline static ConfigVar<float> cfg_StarVelMaxY{"StageSelect.Stars", "VelMaxY", -0.6f, "ステージセレクト: 流れ星速度Y最大"};
+    inline static ConfigVar<float> cfg_StarVelMaxY{"StageSelect.Stars", "VelMaxY", -20.0f, "ステージセレクト: 流れ星速度Y最大"};
     inline static ConfigVar<float> cfg_StarVelMinZ{"StageSelect.Stars", "VelMinZ", -4.0f, "ステージセレクト: 流れ星速度Z最小"};
     inline static ConfigVar<float> cfg_StarVelMaxZ{"StageSelect.Stars", "VelMaxZ", -1.5f, "ステージセレクト: 流れ星速度Z最大"};
 
@@ -138,7 +138,7 @@ class StageSelectScene : public IScene {
 
     inline static ConfigVar<float> cfg_StageNameWorldDigit{"StageSelect.UI.StageName", "WorldDigit", 0.0f, "ステージセレクト: StageNameファイル名のワールド数字（0=通常）"};
     inline static ConfigVar<float> cfg_StageNameProjectYOffset{"StageSelect.UI.StageName", "ProjectYOffset", 0.8f, "ステージセレクト: StageName投影Yオフセット"};
-    inline static ConfigVar<float> cfg_StageNameProjectXOffset{"StageSelect.UI.StageName", "ProjectXOffset", 1.5f, "ステージセレクト: StageName投影Xオフセット"};
+    inline static ConfigVar<float> cfg_StageNameProjectXOffset{"StageSelect.UI.StageName", "ProjectXOffset", 1.0f, "ステージセレクト: StageName投影Xオフセット"};
 
     inline static ConfigVar<float> cfg_CameraFovDegrees{"StageSelect.Camera", "FovDegrees", 90.0f, "ステージセレクト: カメラFOV(度)"};
     inline static ConfigVar<float> cfg_CameraNear{"StageSelect.Camera", "Near", 0.1f, "ステージセレクト: カメラNear"};
@@ -222,6 +222,8 @@ class StageSelectScene : public IScene {
     }
 
     void OnEnter(World &world) override {
+        Entity dirLightEntity = world.Create().With<DirectionalLight>().Build();
+        ownedEntities_.push_back(dirLightEntity);
         // GameStatusの確認と生成
         bool hasGameStatus = false;
         world.ForEach<GameStatus>([&](Entity, GameStatus &) { hasGameStatus = true; });
@@ -1166,6 +1168,9 @@ class StageSelectScene : public IScene {
 
     void CreateObject(World &world, const DirectX::XMFLOAT3 &position, const std::string &modelPath) {
         const float stationScale = cfg_StationScale.Get();
+        DirectX::XMFLOAT3 diffPos = position;
+        diffPos.y += 10;
+        diffPos.z += 10;
         Transform transform{position, {0.0f, 0.0f, 0.0f}, {stationScale, stationScale, stationScale}};
         ObjectPos pos;
         pos.basepos = position;
@@ -1176,7 +1181,9 @@ class StageSelectScene : public IScene {
             cfg_StationPointLightRange.Get()};
         light.SetAttenuation(cfg_StationPointLightAttenConstant.Get(), cfg_StationPointLightAttenLinear.Get(), cfg_StationPointLightAttenQuadratic.Get());
 
-        auto builder = world.Create().With<Transform>(transform).With<ObjectPos>(pos).With<PointLight>(light);
+        auto builder = world.Create().With<Transform>(transform).With<ObjectPos>(pos);
+        Entity e_light = world.Create().With<Transform>(diffPos).With<PointLight>(light);
+        ownedEntities_.push_back(e_light);
 
         if (!modelPath.empty()) {
             builder.With<Model>(modelPath);
