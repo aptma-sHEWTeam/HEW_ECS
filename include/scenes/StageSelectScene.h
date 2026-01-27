@@ -136,6 +136,7 @@ class StageSelectScene : public IScene {
 
     inline static ConfigVar<float> cfg_StageNameWorldDigit{"StageSelect.UI.StageName", "WorldDigit", 0.0f, "ステージセレクト: StageNameファイル名のワールド数字（0=通常）"};
     inline static ConfigVar<float> cfg_StageNameProjectYOffset{"StageSelect.UI.StageName", "ProjectYOffset", 0.8f, "ステージセレクト: StageName投影Yオフセット"};
+    inline static ConfigVar<float> cfg_StageNameProjectXOffset{"StageSelect.UI.StageName", "ProjectXOffset", 1.5f, "ステージセレクト: StageName投影Xオフセット"};
 
     inline static ConfigVar<float> cfg_CameraFovDegrees{"StageSelect.Camera", "FovDegrees", 90.0f, "ステージセレクト: カメラFOV(度)"};
     inline static ConfigVar<float> cfg_CameraNear{"StageSelect.Camera", "Near", 0.1f, "ステージセレクト: カメラNear"};
@@ -1126,6 +1127,7 @@ class StageSelectScene : public IScene {
 
         DirectX::XMFLOAT3 p = stationTr->position;
         p.y += cfg_StageNameProjectYOffset.Get();
+        p.x += cfg_StageNameProjectXOffset.Get();
 
         DirectX::XMVECTOR proj = DirectX::XMVector3Project(
             DirectX::XMLoadFloat3(&p),
