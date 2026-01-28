@@ -188,6 +188,7 @@ void SoundSystem::PlaySE(const std::string &path, bool multiple) {
 
 		//バッファがまだ残っているなら処理を中断する
         if (state.BuffersQueued > 0) {
+			//multipleがtrueなら多重再生される
             if (!multiple) {
                 return;
             }

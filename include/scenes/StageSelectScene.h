@@ -566,7 +566,6 @@ class StageSelectScene : public IScene {
                     stats.selectStage++;
                     targetAngle_ -= DirectX::XM_2PI / maxStage_;
                     SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
-                    SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
                     if (worldNumber_ >= 1 && worldNumber_ <= 4) {
                         s_lastSelected[worldNumber_ - 1] = stats.selectStage;
                     }
@@ -585,7 +584,6 @@ class StageSelectScene : public IScene {
                     stats.selectStage--;
                     targetAngle_ += DirectX::XM_2PI / maxStage_;
                     SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
-                    SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
                     if (worldNumber_ >= 1 && worldNumber_ <= 4) {
                         s_lastSelected[worldNumber_ - 1] = stats.selectStage;
                     }
