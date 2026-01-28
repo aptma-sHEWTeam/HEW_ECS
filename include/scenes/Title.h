@@ -76,9 +76,9 @@ class TitleScene : public IScene {
     inline static ConfigVar<float> cfg_CameraBobSpeed{"Title.Camera", "BobSpeed", 1.0f, "Title: Camera bob speed (rad/sec)"};
 
     // 壁見た目
-    inline static ConfigVar<float> cfg_WallPosX{"Title.Wall", "PosX", -50.0f, "壁: Window 位置X"};
+    inline static ConfigVar<float> cfg_WallPosX{"Title.Wall", "PosX", 0.0f, "壁: Window 位置X"};
     inline static ConfigVar<float> cfg_WallPosY{"Title.Wall", "PosY", 1.0f, "壁: Window 位置Y"};
-    inline static ConfigVar<float> cfg_WallPosZ{"Title.Wall", "PosZ", 50.0f, "壁: Window 位置Z"};
+    inline static ConfigVar<float> cfg_WallPosZ{"Title.Wall", "PosZ", 0.0f, "壁: Window 位置Z"};
     inline static ConfigVar<float> cfg_WallScaleX{"Title.Wall", "ScaleX", 0.650000f, "壁: Wall スケールX"};
     inline static ConfigVar<float> cfg_WallScaleY{"Title.Wall", "ScaleY", 0.650000f, "壁: Wall スケールY"};
     inline static ConfigVar<float> cfg_WallScaleZ{"Title.Wall", "ScaleZ", 0.650000f, "壁: Wall スケールZ"};
@@ -91,9 +91,10 @@ class TitleScene : public IScene {
    // inline static ConfigVar<float> cfg_WallSpacingX{"Title.Wall", "SpacingX", 1.0f, "壁: Wall 間隔X"};
    // inline static ConfigVar<float> cfg_WallSpacingY{"Title.Wall", "SpacingY", cfg_WallScaleY, "壁: Wall 間隔Y"};
    // inline static ConfigVar<float> cfg_WallSpacingZ{"Title.Wall", "SpacingZ", 1.0f, "壁: Wall 間隔Z"};
-    inline static ConfigVar<int> cfg_WallColumns{"Title.Wall", "Columns", 30, "壁: 横に並べる個数（列数）"};
-    inline static ConfigVar<int> cfg_WallRows{"Title.Wall", "Rows", 10, "壁: 縦に並べる個数（行数）"};
-    inline static ConfigVar<int> cfg_WallThickness{"Title.Wall", "Thickness", 3, "壁: 枠の太さ(ブロック単位）"};
+    inline static ConfigVar<int> cfg_WallColumns{"Title.Wall", "Columns", 52, "壁: 横に並べる個数（列数）"};
+    inline static ConfigVar<int> cfg_WallRows{"Title.Wall", "Rows", 17, "壁: 縦に並べる個数（行数）"};
+    inline static ConfigVar<int> cfg_WallThicknessRows{"Title.Wall", "ThicknessRows", 6, "壁: 枠(上下)の太さ(ブロック単位）"};
+    inline static ConfigVar<int> cfg_WallThicknessCols{"Title.Wall", "ThicknessCols", 14, "壁: 枠(左右)の太さ(ブロック単位）"};
     inline static ConfigVar<float> cfg_WallSpacingX{"Title.Wall", "SpacingX", 0.650000f, "壁: 行間隔（X方向）"};
     inline static ConfigVar<float> cfg_WallRowSpacingZ{"Title.Wall", "RowSpacingZ",1.8f, "壁: 行間隔（Z方向）"};
 
@@ -400,6 +401,9 @@ class TitleScene : public IScene {
           if (columns <= 0 || rows <= 0) {
               return;
           }
+          if (rows <= 0) {
+              rows = cfg_WallRows.Get();
+          }
 
           const float spacingX = cfg_WallSpacingX.Get();         //幅
           const float rowSpacingZ = cfg_WallRowSpacingZ.Get();   //高さ
@@ -407,22 +411,33 @@ class TitleScene : public IScene {
           const float baseX = cfg_WallPosX.Get();
           const float baseY = cfg_WallPosY.Get() ;
           const float baseZ = cfg_WallPosZ.Get();
-          const int thickness = std::max(1, cfg_WallThickness.Get());
+          const int thicknessRows = std::max(1, cfg_WallThicknessRows.Get());//上下
+          const int thicknessCols = std::max(1, cfg_WallThicknessCols.Get());//左右
           const int dirX = std::clamp(cfg_WallDirX.Get(), -1, 1);
           const int dirZ = std::clamp(cfg_WallDirZ.Get(), -1, 1);
+          const float halfCols = (static_cast<float>(columns) - 1.0f) * 0.5f;
+          const float halfRows = (static_cast<float>(rows) - 1.0f) * 0.5f;
 
-          for (int r = 0; r < rows; ++r) {
-              for (int c = 0; c < columns; ++c) {
-                  const bool isEdge =
-                      (r < thickness) || (r >= rows - thickness) ||
-                      (c < thickness) || (c >= columns - thickness);
+
+          for (int r = 0; r < rows; ++r) {//縦
+              for (int c =0; c < columns; ++c) {//横
+
+                  const bool isTop    = (r < thicknessRows + 1.0f);
+                  const bool isBottom = (r >= rows - thicknessRows);
+                  const bool isLeft   = (c < thicknessCols); 
+                  const bool isRight  = (c >= columns - thicknessCols);
+
+                  const bool isEdge = isTop || isBottom || isLeft || isRight;
                   if (!isEdge) {//空白用
                       continue;
                   }
                      
-                  const float x = baseX + static_cast<float>(c) * spacingX * static_cast<float>(dirX);
+                 /* const float x = baseX + static_cast<float>(c) * spacingX * static_cast<float>(dirX);
                   const float y = baseY + static_cast<float>(r) * rowSpacingZ * static_cast<float>(dirZ);
-                  const float z = baseZ ; 
+                  const float z = baseZ - 0.3f; */
+                  const float x = baseX + ((static_cast<float>(c) - halfCols) * spacingX * static_cast<float>(dirX) );
+                  const float y = baseY + ((static_cast<float>(r)  - halfRows)* rowSpacingZ * static_cast<float>(dirZ));
+                  const float z = baseZ - 0.4f; 
                       DirectX::XMFLOAT3 pos{x,y,z };
                       Transform t{
                           {pos}, {cfg_WallRotX.Get(), cfg_WallRotY.Get(), cfg_WallRotZ.Get()}, {cfg_WallScaleX.Get(), cfg_WallScaleY.Get(), cfg_WallScaleZ.Get()}};
