@@ -428,10 +428,10 @@ void GamepadSystem::UpdateDInput(int index) {
     };
 
     // 一般的なボタンマッピング(Xbox配置を想定)
-    updateButton(Button_A, 0);
-    updateButton(Button_B, 1);
-    updateButton(Button_X, 2);
-    updateButton(Button_Y, 3);
+    updateButton(Button_X, 0);  // Square → X
+    updateButton(Button_B, 1);  // Cross  → B
+    updateButton(Button_A, 2);  // Circle → A
+    updateButton(Button_Y, 3);  // Triangle → Y
     updateButton(Button_LB, 4);
     updateButton(Button_RB, 5);
     updateButton(Button_Back, 6);

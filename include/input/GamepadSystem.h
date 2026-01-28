@@ -66,10 +66,10 @@ class GamepadSystem {
      * @brief ゲームパッドボタンの識別子(Xbox配置)
      */
     enum GamepadButton {
-        Button_A = 0,           ///< Aボタン(下)
-        Button_B = 1,           ///< Bボタン(右)
-        Button_X = 2,           ///< Xボタン(左)
-        Button_Y = 3,           ///< Yボタン(上)
+        Button_A = 0,           ///< Aボタン(下) / ○
+        Button_B = 1,           ///< Bボタン(右) / ×
+        Button_X = 2,           ///< Xボタン(左) / □
+        Button_Y = 3,           ///< Yボタン(上) / △
         Button_LB = 4,          ///< 左バンパー
         Button_RB = 5,          ///< 右バンパー
         Button_Back = 6,        ///< Backボタン
