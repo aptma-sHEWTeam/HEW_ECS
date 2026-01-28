@@ -61,7 +61,7 @@ public:
     IXAudio2SourceVoice *PlaySound(XAUDIO2_BUFFER *pSound);
 
     //パスを指定してSEを再生
-    void PlaySE(const std::string& path);
+    void PlaySE(const std::string& path, bool multiple);
 
     //パスを指定してBGMを再生
     void PlayBGM(const std::string &path);

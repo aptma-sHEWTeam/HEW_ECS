@@ -606,7 +606,7 @@ class GameScene : public IScene {
         SetStickZoomActive(true);
         PlayPlayerAnimation(world, AnimationConfig::Clips::PlayerCharge, true);
 
-        SOUND_SYS.PlaySE(cfg_DriftMP3Pass.Get());
+        SOUND_SYS.PlaySE(cfg_DriftMP3Pass.Get(),false);
     }
     void OnChargeRelease(World &world, float chargeAmount01) {
         SetStickZoomActive(false);
@@ -616,7 +616,7 @@ class GameScene : public IScene {
         TriggerCameraShake(0.03f + impulse, 0.25f);
         PlayPlayerAnimation(world, AnimationConfig::Clips::PlayerChargeOut, false);
 
-        SOUND_SYS.PlaySE(cfg_Fire1MP3Pass.Get());
+        SOUND_SYS.PlaySE(cfg_Fire1MP3Pass.Get(),true);
     }
 
     void UpdateDeathFade(World &world, float dt /*dt*/) {
@@ -900,7 +900,7 @@ class GameScene : public IScene {
             }
         }
 
-        SOUND_SYS.PlaySE(cfg_DeathMP3Pass.Get());
+        SOUND_SYS.PlaySE(cfg_DeathMP3Pass.Get(),false);
         SOUND_SYS.StopSE(cfg_DriftMP3Pass.Get());
 
         pendingRespawn_ = true;
@@ -1169,7 +1169,7 @@ class GameScene : public IScene {
                     return;
                 }
 
-                SOUND_SYS.PlaySE(cfg_SpeedUpMP3Pass.Get());
+                SOUND_SYS.PlaySE(cfg_SpeedUpMP3Pass.Get(),false);
 
                 Entity newStageEntity = world.Create().With<StageCreate>(pendingStageAdvance_.nextRoomPath).Build();
                 ownedEntities_.push_back(newStageEntity);
@@ -2931,7 +2931,7 @@ inline void GameScene_OnTimeUp(World &w, Entity player) {
     if (g_GameScene) {
         g_GameScene->OnTimeUp(player, w);
     } else {
-        SOUND_SYS.PlaySE(cfg_DeathMP3Pass);
+        SOUND_SYS.PlaySE(cfg_DeathMP3Pass,false);
         SOUND_SYS.StopSE(cfg_DriftMP3Pass);
         ResetPlayerToStart(w, player, true);
     }
@@ -2961,7 +2961,7 @@ inline void WallCollisionHandler::OnCollisionEnter(World &w, Entity self, Entity
         if (info.normal.y > 0.5f)
             return;
 
-        SOUND_SYS.PlaySE(cfg_CollideMP3Pass.Get());
+        SOUND_SYS.PlaySE(cfg_CollideMP3Pass.Get(),false);
 
         DEBUGLOG("壁がプレイヤーと衝突 - カメラシェイク＋遅延リスポーン");
         if (g_GameScene) {
@@ -2987,7 +2987,7 @@ inline void FloorWallCollisionHandler::OnCollisionEnter(World &w, Entity self, E
         if (info.normal.y > 0.5f)
             return;
 
-        SOUND_SYS.PlaySE(cfg_CollideMP3Pass.Get());
+        SOUND_SYS.PlaySE(cfg_CollideMP3Pass.Get(),false);
 
         DEBUGLOG("ステージ壁がプレイヤーと衝突 - カメラシェイク＋遅延リスポーン");
         if (g_GameScene) {

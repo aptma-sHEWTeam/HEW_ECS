@@ -471,7 +471,7 @@ class StageSelectScene : public IScene {
             if (padsystem &&
                 padsystem->GetAnyButtonDown({GamepadSystem::Button_A})) {
                 trigger = true;
-                SOUND_SYS.PlaySE(cfg_EnterMP3Pass);
+                SOUND_SYS.PlaySE(cfg_EnterMP3Pass,false);
             }
             if (trigger) {
                 isTransitioning_ = true;
@@ -528,7 +528,7 @@ class StageSelectScene : public IScene {
             World *wptr = &world;
             bool dpadStartNow = padsystem->GetButton(padsystem->Button_B);
             if (dpadStartNow) {
-                SOUND_SYS.PlaySE(cfg_EnterMP3Pass);
+                SOUND_SYS.PlaySE(cfg_EnterMP3Pass,false);
                     if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
                         manager->ChangeScene("Title", *wptr);
                     }
@@ -538,10 +538,10 @@ class StageSelectScene : public IScene {
                 if (stats.selectStage < maxStage_) {
                     stats.selectStage++;
                     targetAngle_ -= DirectX::XM_2PI / maxStage_;
-                    SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
+                    SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
                 } else if (stats.selectStage == maxStage_) {
                     if (stats.worldCount != cfg_WorldCount.Get()) {
-                        SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
+                        SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
                         // 次のワールドへ
                         stats.IsWorldBack = false;
                         stats.IsWorldNext = true;
@@ -553,7 +553,7 @@ class StageSelectScene : public IScene {
                 if (stats.selectStage > 1) {
                     stats.selectStage--;
                     targetAngle_ += DirectX::XM_2PI / maxStage_;
-                    SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
+                    SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
                 } else {
                     // 前のワールドへ
                     if (worldNumber_ > 1) {

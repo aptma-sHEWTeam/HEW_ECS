@@ -283,20 +283,20 @@ class VideoScene : public IScene {
         crossTextTr.anchor = {0.0f, 0.0f};
         crossTextTr.pivot = {0.0f, 0.0f};
 
-        UIText crossText{L"title"};
+       /* UIText crossText{L"title"};
         crossText.color = {1.0f, 1.0f, 1.0f, 1.0f};
-        crossText.formatId = "hud";
+        crossText.formatId = "hud";*/
 
-        Entity crossTextEntity = world.Create().With<UITransform>(crossTextTr).With<UIText>(crossText).Build();
-        uiOwnedEntities_.push_back(crossTextEntity);
+      /*  Entity crossTextEntity = world.Create().With<UITransform>(crossTextTr).With<UIText>(crossText).Build();
+        uiOwnedEntities_.push_back(crossTextEntity);*/
 
         UITransform crossImgTr;
-        crossImgTr.position = {-50.0f, 590.0f};
-        crossImgTr.size = {200.0f, 200.0f};
+        crossImgTr.position = {0.0f, 480.0f};
+        crossImgTr.size = {400.0f, 400.0f};
         crossImgTr.anchor = {0.0f, 0.0f};
         crossImgTr.pivot = {0.0f, 0.0f};
 
-        UIImage crossImg{L"./Assets/Textures/StageUI/maru.png"};
+        UIImage crossImg{L"./Assets/Textures/UI/StageUI/stageui3.png"};
         crossImg.opacity = 1.0f;
         crossImg.keepAspect = true;
 

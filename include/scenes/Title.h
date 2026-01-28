@@ -575,11 +575,11 @@ class TitleScene : public IScene {
 
         if (upPressd) {
             currentSelect = (currentSelect - 1 + 3) % 3;
-            SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
+            SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
         }
         if (downPressd) {
             currentSelect = (currentSelect + 1) % 3;
-            SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
+            SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
         }
 
         for (int i = 0; i < 3; ++i) {
@@ -638,7 +638,7 @@ class TitleScene : public IScene {
             if (padsystem && padsystem->GetAnyButtonDown({GamepadSystem::Button_A, GamepadSystem::Button_Start})) {
                 switch (currentSelect) {
                     case Start:
-                        SOUND_SYS.PlaySE(cfg_EnterMP3Pass);
+                        SOUND_SYS.PlaySE(cfg_EnterMP3Pass,false);
                         StageSave::Load(); 
                         DEBUGLOG("Enter pressed!");
                         trigger = true;
