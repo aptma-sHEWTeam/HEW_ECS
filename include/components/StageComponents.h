@@ -25,6 +25,7 @@
 #include "components/GameStats.h"
 #include "graphics/StageSave.h"
 #include "graphics/Effect.h"
+#include <algorithm>
 
 using namespace std;
 
@@ -66,7 +67,16 @@ struct StageProgress : IComponent {
     bool IsWorldBack = false;
     bool IsWorldNext = false;
     bool IsClearBack = false;
+    void Normalize(const int maxStage, const int world) {
+        const int safeWorld = std::max(1, world);
+        worldCount = std::clamp(worldCount, 1, safeWorld);
+        selectStage = std::clamp(selectStage, 1, maxStage);
+        currentStage = std::clamp(currentStage, 1, maxStage);
+        currentRoom = std::max(1, currentRoom);
+    }
 };
+
+inline StageProgress g_LastStageProgress{};
 
 /**
  * @brief 利用可能なステージ数を探索する

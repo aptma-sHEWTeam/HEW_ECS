@@ -187,6 +187,7 @@ class StageSelectScene : public IScene {
     };
 
     inline static max_stages ms[4] = {{0, 1}, {0, 2}, {0, 3}, {0, 4}};
+    inline static int s_lastSelected[4] = {1, 1, 1, 1};
 
     /**
      * @brief コンストラクタ
@@ -274,6 +275,11 @@ class StageSelectScene : public IScene {
         // ワールド移動時のステージ番号初期化
         world.ForEach<StageProgress>([&](Entity, StageProgress &stats) {
             stats.worldCount = worldNumber_;
+            stats.Normalize(maxStage_, worldNumber_);
+            DEBUGLOG("[StageSelect] Before flags world=" + std::to_string(stats.worldCount) +
+                     " select=" + std::to_string(stats.selectStage) +
+                     " current=" + std::to_string(stats.currentStage) +
+                     " IsClearBack=" + std::to_string(stats.IsClearBack));
             if (stats.IsWorldBack) {
                 stats.selectStage = maxStage_;
                 stats.currentStage = stats.selectStage;
@@ -283,11 +289,26 @@ class StageSelectScene : public IScene {
                 stats.currentStage = stats.selectStage;
                 stats.IsWorldNext = false;
             } else if (stats.IsClearBack) {
-                stats.currentStage = stats.selectStage;
+                if (stats.worldCount != worldNumber_) {
+                    stats.selectStage = std::clamp(stats.selectStage, 1, maxStage_);
+                    stats.currentStage = stats.selectStage;
+                }
                 stats.IsClearBack = false;
+                stats.clearedThisStage = false;
+                stats.goalTransitioning = false;
+                stats.requestAdvance = false;
+            }
+            if (worldNumber_ >= 1 && worldNumber_ <= 4) {
+                s_lastSelected[worldNumber_ - 1] = std::clamp(stats.currentStage, 1, maxStage_);
             }
             stats.selectStage = std::clamp(stats.selectStage, 1, maxStage_);
             stats.currentStage = std::clamp(stats.currentStage, 1, maxStage_);
+            g_LastStageProgress = stats;
+            DEBUGLOG("[StageSelect] After init world=" + std::to_string(stats.worldCount) +
+                     " select=" + std::to_string(stats.selectStage) +
+                     " current=" + std::to_string(stats.currentStage) +
+                     " g_Last world=" + std::to_string(g_LastStageProgress.worldCount) +
+                     " g_Last select=" + std::to_string(g_LastStageProgress.selectStage));
         });
 
         stickRightPrev_ = false;
@@ -333,6 +354,12 @@ class StageSelectScene : public IScene {
             targetAngle_ = -step * static_cast<float>(stage - 1);
             currentAngle_ = targetAngle_;
             skyboxYawDeg_ = DirectX::XMConvertToDegrees(currentAngle_);
+            if (worldNumber_ >= 1 && worldNumber_ <= 4) {
+                s_lastSelected[worldNumber_ - 1] = stage;
+            }
+            DEBUGLOG("[StageSelect] Init camera angle world=" + std::to_string(worldNumber_) +
+                     " stage=" + std::to_string(stage) +
+                     " angle=" + std::to_string(currentAngle_));
         });
 
         if (cfg_DirLightEnabled.Get()) {
@@ -539,6 +566,9 @@ class StageSelectScene : public IScene {
                     stats.selectStage++;
                     targetAngle_ -= DirectX::XM_2PI / maxStage_;
                     SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
+                    if (worldNumber_ >= 1 && worldNumber_ <= 4) {
+                        s_lastSelected[worldNumber_ - 1] = stats.selectStage;
+                    }
                 } else if (stats.selectStage == maxStage_) {
                     if (stats.worldCount != cfg_WorldCount.Get()) {
                         SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
@@ -554,6 +584,9 @@ class StageSelectScene : public IScene {
                     stats.selectStage--;
                     targetAngle_ += DirectX::XM_2PI / maxStage_;
                     SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
+                    if (worldNumber_ >= 1 && worldNumber_ <= 4) {
+                        s_lastSelected[worldNumber_ - 1] = stats.selectStage;
+                    }
                 } else {
                     // 前のワールドへ
                     if (worldNumber_ > 1) {
