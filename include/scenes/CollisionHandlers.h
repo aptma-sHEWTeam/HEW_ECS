@@ -308,7 +308,7 @@ struct PlayerCollisionHandler : ICollisionHandler {
                 attract.effectHandle = handle;
 
                 w.Add<GoalAttractor>(self, attract);
-                SOUND_SYS.PlaySE(cfg_WarpUpMP3Pass.Get());
+                SOUND_SYS.PlaySE(cfg_WarpUpMP3Pass.Get(),false);
             }
         }
     }
@@ -324,7 +324,7 @@ struct EnemyCollisionHandler : ICollisionHandler {
         if (w.Has<PlayerTag>(other)) {
             DEBUGLOG("Enemy collided with player");
         }
-        SOUND_SYS.PlaySE(cfg_CollideMP3Pass);
+        SOUND_SYS.PlaySE(cfg_CollideMP3Pass,false);
     }
 };
 REGISTER_COLLISION_HANDLER_TYPE(EnemyCollisionHandler)
@@ -378,7 +378,7 @@ struct DashBordCollisionHandler : ICollisionHandler {
         v->isBoosting = true;
         v->isDecelerating = false;
 
-        SOUND_SYS.PlaySE(cfg_SpeedUpMP3Pass);
+        SOUND_SYS.PlaySE(cfg_SpeedUpMP3Pass,true);
 
         DEBUGLOG("プレイヤーが加速板と接触 - 速度付与");
     }
@@ -394,7 +394,7 @@ struct SwitchCollisionHandler : ICollisionHandler {
                     sp.goalUnlocked = true;
                     DEBUGLOG("スイッチが押されました");
                     //以下SEなど
-                    SOUND_SYS.PlaySE(cfg_KeyMP3Pass.Get());
+                    SOUND_SYS.PlaySE(cfg_KeyMP3Pass.Get(),false);
                 }
             });
             //見た目変更系の処理
