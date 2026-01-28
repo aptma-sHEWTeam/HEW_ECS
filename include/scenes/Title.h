@@ -33,6 +33,7 @@
 #include "input/GamepadSystem.h"
 #include "systems/UISystem.h"
 #include "app/ServiceLocator.h"
+#include "app/ResourceManager.h"
 //#include "Game.h"
 #include "scenes/StageConfig.h"
 #include "animation/AnimationTools.h"
@@ -563,7 +564,7 @@ class TitleScene : public IScene {
         
             if (pady > 0.8f && !stickUpPrev_)upPressd = true;
             if (pady < -0.8f && !stickDownPrev_)downPressd = true;
-            if (dpadUp && !dpadDownPrev_)upPressd = true;
+            if (dpadUp && !dpadUpPrev_)upPressd = true;
             if (dpadDown && !dpadDownPrev_)downPressd = true;
 
             stickUpPrev_ = (pady > 0.8f);
@@ -716,6 +717,14 @@ class TitleScene : public IScene {
             world.DestroyEntityWithCause(e, World::Cause::SceneUnload);
         });
         world.DestroyAllEntitiesImmediate(World::Cause::SceneUnload);
+        if (auto *resMgr = ServiceLocator::TryGet<ResourceManager>()) {
+            resMgr->Clear();
+        }
+        if (auto *texMgr = ServiceLocator::TryGet<TextureManager>()) {
+            texMgr->Shutdown();
+            texMgr->Init(ServiceLocator::Get<GfxDevice>());
+        }
+        ModelLoader::ClearTextureCache();
         for (const auto &e : ownedEntities_) {
             if (world.IsAlive(e)) {
                 world.DestroyEntityWithCause(e, World::Cause::SceneUnload);

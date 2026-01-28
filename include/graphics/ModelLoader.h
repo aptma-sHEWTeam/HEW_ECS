@@ -16,8 +16,7 @@ public:
 
     // アニメーションのみをロードする
     static std::vector<ModelComponent::AnimationClip> LoadAnimation(const std::string& filePath);
-
-private:
+public:
     static void ProcessNode(
         const aiNode* node,
         const DirectX::XMMATRIX& parentTransform,
@@ -42,4 +41,10 @@ private:
         const std::string& directory,
         const std::string& modelFilePath
     );
+
+    // テクスチャ静的キャッシュをクリア
+    static void ClearTextureCache();
+private:
+    // internal helpers
+    
 };
