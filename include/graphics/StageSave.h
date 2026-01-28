@@ -1,5 +1,8 @@
 #pragma once
 
+#include <filesystem>
+#include <fstream>
+
 struct StageClearData {
     int maxClearedStage = 0;
 };
@@ -9,7 +12,11 @@ class StageSave {
     static inline void Load() {
         std::ifstream ifs("Assets/Save/stage.dat", std::ios::binary);
         if (ifs) {
-            ifs.read(reinterpret_cast<char *>(&s_data), sizeof(StageClearData));
+            StageClearData tmp{};
+            ifs.read(reinterpret_cast<char *>(&tmp), sizeof(StageClearData));
+            if (ifs.gcount() == static_cast<std::streamsize>(sizeof(StageClearData))) {
+                s_data = tmp;
+            }
         }
     }
 
@@ -40,7 +47,9 @@ class StageSave {
     static inline void Save() {
         std::filesystem::create_directories("Assets/Save");
         std::ofstream ofs("Assets/Save/stage.dat", std::ios::binary);
-        ofs.write(reinterpret_cast<const char *>(&s_data),
-                  sizeof(StageClearData));
+        if (!ofs) {
+            return;
+        }
+        ofs.write(reinterpret_cast<const char *>(&s_data), sizeof(StageClearData));
     }
 };

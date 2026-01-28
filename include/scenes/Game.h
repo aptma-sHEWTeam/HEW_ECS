@@ -117,17 +117,40 @@ class GameScene : public IScene {
                 stats.elapsedTime = cfg_LimitTime;
                 stats.resetDone = true;
             }
+            // Ensure entry grace: wait for player to make first move before accepting goal collisions
+            stats.waitingForPlayerMove = true;
         });
 
         world.ForEach<StageProgress>([](Entity, StageProgress &sp) {
             sp.clearedThisStage = false;
+            sp.requestAdvance = false;
+            sp.goalTransitioning = false;
+            sp.pressedSwitch = false;
+            sp.goalUnlocked = false;
+            sp.currentRoom = 1;
+            sp.hasSwitch = false;
+            sp.IsWorldBack = false;
+            sp.IsWorldNext = false;
+            sp.IsClearBack = false;
         });
+
+        world.ForEach<GoalTag>([](Entity, GoalTag &goal) {
+            goal.consumed = false;
+        });
+
 
         world.ForEach<StageProgress>([](Entity, StageProgress &sp) {
             DEBUGLOG("[Game::OnEnter] StageProgress enter world=" + std::to_string(sp.worldCount) +
                      " select=" + std::to_string(sp.selectStage) +
-                     " current=" + std::to_string(sp.currentStage));
+                     " current=" + std::to_string(sp.currentStage) +
+                     " clearedThisStage(before)=" + std::to_string(sp.clearedThisStage));
+            sp.clearedThisStage = false;
+            sp.goalTransitioning = false;
+            sp.requestAdvance = false;
+            sp.pressedSwitch = false;
+            sp.goalUnlocked = false;
             g_LastStageProgress = sp;
+            DEBUGLOG("[Game::OnEnter] clearedThisStage reset to false, g_Last=" + std::to_string(g_LastStageProgress.clearedThisStage));
         });
 
         // このシーンインスタンスへのグローバルポインタを設定
@@ -139,6 +162,8 @@ class GameScene : public IScene {
         stageClearTextEntity_ = {};
         stageOwnedEntities_.clear();
         goalEffectHandle_ = -1;
+        pendingStageAdvance_ = {};
+        stageAdvanceTimer_ = 0.0f;
         StopGoalEffect();
 
         // 入り直し時に残存ステージエンティティがあれば除去（原点残留や重複生成を防ぐ）
@@ -300,9 +325,15 @@ class GameScene : public IScene {
             status.selectStage = desiredStage;
             status.currentStage = desiredStage;
             status.currentRoom = 1; // ステージ開始時は常にroom1から
+            status.clearedThisStage = false;
+            status.goalTransitioning = false;
+            status.requestAdvance = false;
+            status.pressedSwitch = false;
+            status.goalUnlocked = false;
             DEBUGLOG("[StageCreate] Load stage world=" + std::to_string(status.worldCount) +
                      " stage=" + std::to_string(status.currentStage) +
-                     " room=" + std::to_string(status.currentRoom));
+                     " room=" + std::to_string(status.currentRoom) +
+                     " clearedThisStage=" + std::to_string(status.clearedThisStage));
 
             auto stagePath = ResolveStageRoomCsvPath(status.worldCount, desiredStage, status.currentRoom);
             if (!stagePath) {
@@ -322,6 +353,7 @@ class GameScene : public IScene {
 
             initialStage = status.currentStage;
             g_LastStageProgress = status;
+            DEBUGLOG("[StageCreate] g_LastStageProgress synced: clearedThisStage=" + std::to_string(g_LastStageProgress.clearedThisStage));
         });
 
         // 平行光源をエンティティとして生成
@@ -356,6 +388,9 @@ class GameScene : public IScene {
         GamepadSystem *pad = ServiceLocator::TryGet<GamepadSystem>();
         world.ForEach<GameStatus>([&](Entity, GameStatus &stats) {
             bool togglePause = input.GetKeyDown('P');
+            if (pad && pad->GetButtonDown(GamepadSystem::Button_Y)) {
+                togglePause = true;
+            }
             if (togglePause) {
                 stats.isPaused = !stats.isPaused;
                 DEBUGLOG(stats.isPaused ? "ゲームが一時停止されました" : "ゲームが再開されました");
@@ -366,13 +401,11 @@ class GameScene : public IScene {
             }
         });
 
-        // Debug: force goal processing with Ctrl+Z+X+C+V
-        if (IsGoalCheatTriggered(input)) {
-            TriggerGoalCheat(world);
-        }
+        // Debug cheatを無効化（誤爆による即クリア防止）
 
         // ステージクリア待機中の処理
         if (stageClearActive_) {
+            DEBUGLOG("[Game::OnUpdate] stageClearActive is TRUE! timer=" + std::to_string(stageClearTimer_));
             stageClearTimer_ += deltaTime;
             if (auto *txt = world.TryGet<UIText>(stageClearTextEntity_)) {
                 //txt->text = L"ステージクリア！";
@@ -538,6 +571,8 @@ class GameScene : public IScene {
             savedStageProgress.push_back(sp);
         });
 
+        const int maxStage = GetAvailableStageCount(world);
+
         world.DestroyAllEntitiesImmediate(World::Cause::SceneUnload);
 
         if (savedStageProgress.empty()) {
@@ -547,8 +582,17 @@ class GameScene : public IScene {
             savedStageProgress.push_back(g_LastStageProgress);
         }
         for (auto &sp : savedStageProgress) {
-            const int maxStage = GetAvailableStageCount(world);
             sp.Normalize(maxStage, sp.worldCount);
+            sp.currentRoom = 1;
+            sp.clearedThisStage = false;
+            sp.requestAdvance = false;
+            sp.goalTransitioning = false;
+            sp.pressedSwitch = false;
+            sp.goalUnlocked = false;
+            sp.hasSwitch = false;
+            sp.IsWorldBack = false;
+            sp.IsWorldNext = false;
+            sp.IsClearBack = false;
             DEBUGLOG("[Game::OnExit] restore StageProgress world=" + std::to_string(sp.worldCount) +
                      " select=" + std::to_string(sp.selectStage) +
                      " current=" + std::to_string(sp.currentStage));
@@ -1016,6 +1060,13 @@ class GameScene : public IScene {
     void CreateUI(World &world, float screenWidth, float screenHeight);
 
     void CreatePlayer(World &world) {
+        if (world.IsAlive(playerEntity_)) {
+            if (world.Has<GoalAttractor>(playerEntity_)) {
+                world.Remove<GoalAttractor>(playerEntity_);
+                DEBUGLOG("[CreatePlayer] Removed GoalAttractor from existing player");
+            }
+        }
+
         float s = cfg_PlayerScale;
         Transform transform{{0.0f, cfg_PlayerStartY, 0.0f}, {0.0f, 0.0f, 0.0f}, {s, s, s}};
 
@@ -1138,6 +1189,9 @@ class GameScene : public IScene {
 
     void HandleStageAdvance(World &world) {
         world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+            DEBUGLOG("[HandleStageAdvance] requestAdvance=" + std::to_string(sp.requestAdvance) +
+                     " clearedThisStage=" + std::to_string(sp.clearedThisStage) +
+                     " goalTransitioning=" + std::to_string(sp.goalTransitioning));
             if (sp.requestAdvance) {
                 sp.requestAdvance = false;
 
@@ -1147,19 +1201,18 @@ class GameScene : public IScene {
                 if (!nextRoomPath) {
                     DEBUGLOG_WARNING("[StageCreate] Stage" + std::to_string(sp.currentStage) + "/room" + std::to_string(nextRoomIndex) + ".csv が見つかりません。ステージクリア扱いにします");
 
-                    // ステージクリア演出: テキスト表示して一定時間後にステージセレクトへ
-                    //SOUND_SYS.PlayBGM(cfg_ClearMP3Pass);
+                    DEBUGLOG("[HandleStageAdvance] stageClearActive set to true! currentStage=" + std::to_string(sp.currentStage) +
+                             " currentRoom=" + std::to_string(sp.currentRoom) +
+                             " nextRoom=" + std::to_string(nextRoomIndex));
                     stageClearActive_ = true;
                     stageClearTimer_ = 0.0f;
 
-                    // タイマー停止（ゲーム進行用）
                     world.ForEach<GameStatus>([](Entity, GameStatus &stats) {
                         stats.timerRunning = false;
                     });
 
                     if (world.IsAlive(stageClearTextEntity_)) {
                         if (auto *txt = world.TryGet<UIText>(stageClearTextEntity_)) {
-                            //txt->text = L"ステージクリア！";
                         }
                     }
                     ClearGoalTransitionFlag(world);
@@ -1848,12 +1901,12 @@ class GameScene : public IScene {
             if (!world.Has<PlayerTag>(other))
                 return;
 
-            world.ForEach<StageProgress>([](Entity, StageProgress &sp) {
-                if (sp.clearedThisStage)
-                    return;
-                sp.clearedThisStage = true;
-                StageSave::MarkStageCleared(sp.currentStage);
-            });
+        world.ForEach<StageProgress>([](Entity, StageProgress &sp) {
+            if (sp.clearedThisStage)
+                return;
+            sp.clearedThisStage = true;
+            StageSave::MarkStageCleared(sp.currentStage);
+        });
         }
     };
 
@@ -2236,6 +2289,20 @@ class GameScene : public IScene {
         startEntity_ = {};
         goalEntity_ = {};
         goalEffectHandle_ = -1;
+
+        stageClearActive_ = false;
+        stageClearTimer_ = 0.0f;
+
+        world.ForEach<StageProgress>([](Entity, StageProgress &sp) {
+            sp.requestAdvance = false;
+            sp.goalTransitioning = false;
+            sp.clearedThisStage = false;
+            sp.pressedSwitch = false;
+            sp.goalUnlocked = false;
+            DEBUGLOG("[SetupStage] StageProgress reset: clearedThisStage=" + std::to_string(sp.clearedThisStage) +
+                     " goalTransitioning=" + std::to_string(sp.goalTransitioning) +
+                     " pressedSwitch=" + std::to_string(sp.pressedSwitch));
+        });
 
         // 最新のStageCreateのみを利用し、それ以外は破棄して重複生成を防ぐ
         Entity activeStageCreate{};
