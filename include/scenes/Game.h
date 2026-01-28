@@ -379,7 +379,16 @@ class GameScene : public IScene {
         float timeScale = 1.0f;
         float GoalDistance = cfg_GoalDistance;
         float SlowDirection = cfg_SlowDirection;
-        if (world.IsAlive(playerEntity_) && world.IsAlive(goalEntity_)) {
+        bool goalSequenceActive = false;
+        if (world.IsAlive(playerEntity_)) {
+            goalSequenceActive = world.Has<GoalAttractor>(playerEntity_);
+        }
+        world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+            if (sp.goalTransitioning) {
+                goalSequenceActive = true;
+            }
+        });
+        if (goalSequenceActive && world.IsAlive(playerEntity_) && world.IsAlive(goalEntity_)) {
             auto *tPlayer = world.TryGet<Transform>(playerEntity_);
             auto *tGoal = world.TryGet<Transform>(goalEntity_);
             if (tPlayer && tGoal) {
