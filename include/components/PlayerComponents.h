@@ -671,16 +671,17 @@ struct PlayerMovement : Behaviour {
 // PlayerGuide（そのまま）
 // ===============================
 struct PlayerGuide : Behaviour {
-    inline static ConfigVar<float> cfg_GuideScaleX{"Player.Guide", "GuideScaleX", 0.4f};
-    inline static ConfigVar<float> cfg_GuideScaleY{"Player.Guide", "GuideScaleY", 0.4f};
-    inline static ConfigVar<float> cfg_GuideScaleZ{"Player.Guide", "GuideScaleZ", 0.4f};
-    inline static ConfigVar<float> cfg_GuideOffsetDistance{"Player.Guide", "GuideOffsetDistance", 0.5f};
+    inline static ConfigVar<float> cfg_GuideScaleX{"Player.Guide", "GuideScaleX", 0.2f};
+    inline static ConfigVar<float> cfg_GuideScaleY{"Player.Guide", "GuideScaleY", 0.2f};
+    inline static ConfigVar<float> cfg_GuideScaleZ{"Player.Guide", "GuideScaleZ", 0.2f};
+    inline static ConfigVar<float> cfg_GuideOffsetDistance{"Player.Guide", "GuideOffsetDistance", 0.8f};
     inline static ConfigVar<int> cfg_GuideQuantity{"Player.Guide", "GuideQuantity", 3};
 
     PlayerMovement *playerMove{}; Transform *selfTransform{}; std::vector<Transform*> guidTransforms; std::vector<Entity> guidEntities;
 
     void Create(World &world, const DirectX::XMFLOAT3 &position) {
         MeshRenderer renderer; renderer.meshType = MeshType::Sphere; renderer.color = DirectX::XMFLOAT3{1, 0, 0};
+        renderer.useLighting = 0.0f; renderer.specularAttenuation = 0.0f; renderer.reflectance = 0.0f; renderer.specularColor = DirectX::XMFLOAT3{0.0f, 0.0f, 0.0f}; renderer.reflectionColor = DirectX::XMFLOAT3{0.0f, 0.0f, 0.0f};
         int guideQuantity = cfg_GuideQuantity.Get(); guidEntities.clear(); guidTransforms.clear();
         guidEntities.reserve(static_cast<size_t>(guideQuantity)); guidTransforms.reserve(static_cast<size_t>(guideQuantity));
         for (int i = 0; i < guideQuantity; i++) {
@@ -706,9 +707,12 @@ struct PlayerGuide : Behaviour {
             else {
                 currentGuide->scale = {cfg_GuideScaleX.Get(), cfg_GuideScaleY.Get(), cfg_GuideScaleZ.Get()};
                 currentGuide->position = selfTransform->position; currentGuide->rotation.y = -rad * (180.0f / DirectX::XM_PI);
-                float offsetDistance = cfg_GuideOffsetDistance.Get() * (i + 1);
-                currentGuide->position.x += std::cosf(rad) * offsetDistance;
-                currentGuide->position.z += std::sinf(rad) * offsetDistance;
+                const float offsetDistance = cfg_GuideOffsetDistance.Get() * (i + 1);
+                float collisionPadding = 0.0f;
+                if (playerMove->collision_) { collisionPadding = playerMove->collision_->radius; }
+                else if (playerMove->hasCollisionBackup_) { collisionPadding = playerMove->collisionRadiusBackup_; }
+                currentGuide->position.x += std::cosf(rad) * (offsetDistance + collisionPadding);
+                currentGuide->position.z += std::sinf(rad) * (offsetDistance + collisionPadding);
             }
         }
     }
