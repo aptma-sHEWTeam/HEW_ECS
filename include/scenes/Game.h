@@ -123,6 +123,13 @@ class GameScene : public IScene {
             sp.clearedThisStage = false;
         });
 
+        world.ForEach<StageProgress>([](Entity, StageProgress &sp) {
+            DEBUGLOG("[Game::OnEnter] StageProgress enter world=" + std::to_string(sp.worldCount) +
+                     " select=" + std::to_string(sp.selectStage) +
+                     " current=" + std::to_string(sp.currentStage));
+            g_LastStageProgress = sp;
+        });
+
         // このシーンインスタンスへのグローバルポインタを設定
         g_GameScene = this;
 
@@ -283,6 +290,7 @@ class GameScene : public IScene {
         int initialStage = 1;
         const int maxStage = GetAvailableStageCount(world);
         world.ForEach<StageProgress>([&](Entity e, StageProgress &status) {
+            status.Normalize(maxStage, status.worldCount);
             int desiredStage = status.selectStage > 0 ? status.selectStage : 1;
             desiredStage = std::min(desiredStage, maxStage);
             if (desiredStage != status.selectStage) {
@@ -292,6 +300,9 @@ class GameScene : public IScene {
             status.selectStage = desiredStage;
             status.currentStage = desiredStage;
             status.currentRoom = 1; // ステージ開始時は常にroom1から
+            DEBUGLOG("[StageCreate] Load stage world=" + std::to_string(status.worldCount) +
+                     " stage=" + std::to_string(status.currentStage) +
+                     " room=" + std::to_string(status.currentRoom));
 
             auto stagePath = ResolveStageRoomCsvPath(status.worldCount, desiredStage, status.currentRoom);
             if (!stagePath) {
@@ -310,6 +321,7 @@ class GameScene : public IScene {
             }
 
             initialStage = status.currentStage;
+            g_LastStageProgress = status;
         });
 
         // 平行光源をエンティティとして生成
@@ -379,7 +391,16 @@ class GameScene : public IScene {
         float timeScale = 1.0f;
         float GoalDistance = cfg_GoalDistance;
         float SlowDirection = cfg_SlowDirection;
-        if (world.IsAlive(playerEntity_) && world.IsAlive(goalEntity_)) {
+        bool goalSequenceActive = false;
+        if (world.IsAlive(playerEntity_)) {
+            goalSequenceActive = world.Has<GoalAttractor>(playerEntity_);
+        }
+        world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+            if (sp.goalTransitioning) {
+                goalSequenceActive = true;
+            }
+        });
+        if (goalSequenceActive && world.IsAlive(playerEntity_) && world.IsAlive(goalEntity_)) {
             auto *tPlayer = world.TryGet<Transform>(playerEntity_);
             auto *tGoal = world.TryGet<Transform>(goalEntity_);
             if (tPlayer && tGoal) {
@@ -511,7 +532,31 @@ class GameScene : public IScene {
                 world.DestroyEntityWithCause(e, World::Cause::SceneUnload);
             }
         }
+
+        std::vector<StageProgress> savedStageProgress;
+        world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+            savedStageProgress.push_back(sp);
+        });
+
         world.DestroyAllEntitiesImmediate(World::Cause::SceneUnload);
+
+        if (savedStageProgress.empty()) {
+            DEBUGLOG("[Game::OnExit] savedStageProgress empty, using g_LastStageProgress world=" +
+                     std::to_string(g_LastStageProgress.worldCount) +
+                     " select=" + std::to_string(g_LastStageProgress.selectStage));
+            savedStageProgress.push_back(g_LastStageProgress);
+        }
+        for (auto &sp : savedStageProgress) {
+            const int maxStage = GetAvailableStageCount(world);
+            sp.Normalize(maxStage, sp.worldCount);
+            DEBUGLOG("[Game::OnExit] restore StageProgress world=" + std::to_string(sp.worldCount) +
+                     " select=" + std::to_string(sp.selectStage) +
+                     " current=" + std::to_string(sp.currentStage));
+        }
+
+        for (const auto &sp : savedStageProgress) {
+            world.Create().With<StageProgress>(sp).Build();
+        }
 
         for (const auto &entity : ownedEntities_) {
             if (world.IsAlive(entity)) {

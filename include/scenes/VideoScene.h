@@ -19,6 +19,8 @@
 #include "graphics/TextSystem.h"
 #include "graphics/ImageSystem.h"
 #include "systems/UISystem.h"
+#include <algorithm>
+#include "components/StageComponents.h"
 
 #include <d3d11.h>
 #include <wrl/client.h>
@@ -469,11 +471,23 @@ class VideoScene : public IScene {
 
     void TransitionToNextScene(World &world) {
         if (auto *mgr = ServiceLocator::TryGet<SceneManager>()) {
+            int targetWorld = 1;
+            bool hasStageProgress = false;
             world.ForEach<StageProgress>([&](Entity, StageProgress &stats) {
-              stats.IsClearBack = true;
+                hasStageProgress = true;
+                stats.IsClearBack = true;
+                targetWorld = std::clamp(stats.worldCount, 1, 4);
+                g_LastStageProgress = stats;
             });
-            std::string target = nextSceneName_.empty() ? cfg_VideoNextScene.Get() : nextSceneName_;
-            DEBUGLOG(std::string("VideoScene: ChangeScene -> ") + target);
+            std::string target = "World" + std::to_string(targetWorld) + "_StageSelect";
+            if (!nextSceneName_.empty()) {
+                if (nextSceneName_ != cfg_VideoNextScene.Get() || !hasStageProgress) {
+                    target = nextSceneName_;
+                }
+            }
+            DEBUGLOG(std::string("VideoScene: ChangeScene -> ") + target +
+                     " world=" + std::to_string(targetWorld) +
+                     " hasStageProgress=" + std::to_string(hasStageProgress));
             mgr->ChangeScene(target.c_str(), world);
         }
     }
