@@ -226,10 +226,9 @@ class VideoScene : public IScene {
         imageSystem_.Shutdown();
 
         SOUND_SYS.StopBGM();
-
-        videoPath_.clear();
-        loopVideoPath_.clear();
-        nextSceneName_.clear();
+        // Do NOT clear videoPath_ or nextSceneName_ here.
+        // They are part of the scene configuration (set in App.h) and should persist.
+        
         isPlaying_ = false;
         shouldExit_ = false;
         loopPlaying_ = false;

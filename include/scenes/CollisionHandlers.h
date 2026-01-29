@@ -144,6 +144,11 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
         w.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
             sp.goalTransitioning = false;
         });
+
+        // 以前のゴールのアトラクターが残っていれば削除（再入場時の即クリア防止）
+        if(w.Has<GoalAttractor>(player)){
+            w.Remove<GoalAttractor>(player);
+        }
     }
 }
 

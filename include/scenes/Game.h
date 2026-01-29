@@ -166,6 +166,13 @@ class GameScene : public IScene {
         stageAdvanceTimer_ = 0.0f;
         StopGoalEffect();
 
+        // 以前のゴールのアトラクターが残っていれば削除（再入場時の即クリア防止）
+        if (world.IsAlive(playerEntity_)) {
+            if (world.Has<GoalAttractor>(playerEntity_)) {
+                world.Remove<GoalAttractor>(playerEntity_);
+            }
+        }
+
         // 入り直し時に残存ステージエンティティがあれば除去（原点残留や重複生成を防ぐ）
         {
             std::vector<Entity> toDestroy;
