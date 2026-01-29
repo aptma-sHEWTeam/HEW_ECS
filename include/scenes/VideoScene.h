@@ -476,6 +476,9 @@ class VideoScene : public IScene {
             world.ForEach<StageProgress>([&](Entity, StageProgress &stats) {
                 hasStageProgress = true;
                 stats.IsClearBack = true;
+                stats.clearedThisStage = false;
+                stats.goalTransitioning = false;
+                stats.requestAdvance = false;
                 targetWorld = std::clamp(stats.worldCount, 1, 4);
                 g_LastStageProgress = stats;
             });

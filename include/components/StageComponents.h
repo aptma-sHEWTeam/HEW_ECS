@@ -540,9 +540,7 @@ struct GoalAttractor : Behaviour {
             w.ForEach<StageProgress>([](Entity, StageProgress &sp) {
                 if (sp.clearedThisStage)
                     return;
-
                 sp.clearedThisStage = true;
-                StageSave::MarkStageCleared(sp.currentStage);
             });
 
 

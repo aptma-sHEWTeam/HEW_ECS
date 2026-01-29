@@ -182,6 +182,15 @@ inline void CheckTimeLimit(World &w, Entity player, float timeLimitSeconds) {
 struct PlayerCollisionHandler : ICollisionHandler {
     void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override {
         if (w.Has<GoalTag>(other)) {
+            // If the game is waiting for player movement (entry grace), ignore goal collisions.
+            bool waitingForMove = false;
+            w.ForEach<GameStatus>([&](Entity, GameStatus &gs) {
+                if (gs.waitingForPlayerMove) waitingForMove = true;
+            });
+            if (waitingForMove) {
+                DEBUGLOG("Goal collision ignored: waiting for player to start moving");
+                return;
+            }
             StageProgress *progress = nullptr;
             w.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
                 if (!progress)
