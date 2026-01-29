@@ -144,6 +144,11 @@ inline void ResetPlayerToStart(World &w, Entity player, bool resetTimer = false)
         w.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
             sp.goalTransitioning = false;
         });
+
+        // 以前のゴールのアトラクターが残っていれば削除（再入場時の即クリア防止）
+        if(w.Has<GoalAttractor>(player)){
+            w.Remove<GoalAttractor>(player);
+        }
     }
 }
 
@@ -182,6 +187,15 @@ inline void CheckTimeLimit(World &w, Entity player, float timeLimitSeconds) {
 struct PlayerCollisionHandler : ICollisionHandler {
     void OnCollisionEnter(World &w, Entity self, Entity other, const CollisionInfo &info) override {
         if (w.Has<GoalTag>(other)) {
+            // If the game is waiting for player movement (entry grace), ignore goal collisions.
+            bool waitingForMove = false;
+            w.ForEach<GameStatus>([&](Entity, GameStatus &gs) {
+                if (gs.waitingForPlayerMove) waitingForMove = true;
+            });
+            if (waitingForMove) {
+                DEBUGLOG("Goal collision ignored: waiting for player to start moving");
+                return;
+            }
             StageProgress *progress = nullptr;
             w.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
                 if (!progress)
@@ -295,11 +309,11 @@ struct PlayerCollisionHandler : ICollisionHandler {
                 // 吸い込み用のBehaviourを付与（ステージ進行は吸い込み完了後に行う）
                 GoalAttractor attract;
                 attract.target = goalCenter;
-                attract.duration = 0.15f; // よりゆっくり(秒)
+                attract.duration = GoalAttractor::cfg_GoalAttractDuration.Get();
                 attract.effectHandle = handle;
 
                 w.Add<GoalAttractor>(self, attract);
-                SOUND_SYS.PlaySE(cfg_WarpUpMP3Pass.Get());
+                SOUND_SYS.PlaySE(cfg_WarpUpMP3Pass.Get(),false);
             }
         }
     }
@@ -315,7 +329,7 @@ struct EnemyCollisionHandler : ICollisionHandler {
         if (w.Has<PlayerTag>(other)) {
             DEBUGLOG("Enemy collided with player");
         }
-        SOUND_SYS.PlaySE(cfg_CollideMP3Pass);
+        SOUND_SYS.PlaySE(cfg_CollideMP3Pass,false);
     }
 };
 REGISTER_COLLISION_HANDLER_TYPE(EnemyCollisionHandler)
@@ -369,7 +383,7 @@ struct DashBordCollisionHandler : ICollisionHandler {
         v->isBoosting = true;
         v->isDecelerating = false;
 
-        SOUND_SYS.PlaySE(cfg_SpeedUpMP3Pass);
+        SOUND_SYS.PlaySE(cfg_SpeedUpMP3Pass,true);
 
         DEBUGLOG("プレイヤーが加速板と接触 - 速度付与");
     }
@@ -385,7 +399,7 @@ struct SwitchCollisionHandler : ICollisionHandler {
                     sp.goalUnlocked = true;
                     DEBUGLOG("スイッチが押されました");
                     //以下SEなど
-                    SOUND_SYS.PlaySE(cfg_KeyMP3Pass.Get());
+                    SOUND_SYS.PlaySE(cfg_KeyMP3Pass.Get(),false);
                 }
             });
             //見た目変更系の処理

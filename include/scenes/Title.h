@@ -575,16 +575,19 @@ class TitleScene : public IScene {
 
         if (upPressd) {
             currentSelect = (currentSelect - 1 + 3) % 3;
-            SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
+            SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
         }
         if (downPressd) {
             currentSelect = (currentSelect + 1) % 3;
-            SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
+            SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
         }
 
         for (int i = 0; i < 3; ++i) {
-            if (auto *img = world.TryGet<UIImage>(menuEntity_[i])) {
-                img->filePath = (i == currentSelect) ? selectPaths[i] : normalPaths[i];
+            if (auto *hoverImg = world.TryGet<UIImage>(menuEntity_[i])) {
+                hoverImg->opacity = (i == currentSelect) ? 1.0f : 0.0f;
+            }
+            if (auto *baseImg = world.TryGet<UIImage>(baseMenuEntity_[i])) {
+                baseImg->opacity = (i == currentSelect) ? 0.0f : 1.0f;
             }
         }
 
@@ -638,7 +641,7 @@ class TitleScene : public IScene {
             if (padsystem && padsystem->GetAnyButtonDown({GamepadSystem::Button_A, GamepadSystem::Button_Start})) {
                 switch (currentSelect) {
                     case Start:
-                        SOUND_SYS.PlaySE(cfg_EnterMP3Pass);
+                        SOUND_SYS.PlaySE(cfg_EnterMP3Pass,false);
                         StageSave::Load(); 
                         DEBUGLOG("Enter pressed!");
                         trigger = true;
@@ -736,6 +739,9 @@ class TitleScene : public IScene {
 
         textSystem_.Shutdown();
         imageSystem_.Shutdown();
+
+        skyboxTexture_ = TextureManager::INVALID_TEXTURE;
+        skyboxTextureApplied_ = false;
     }
 
   private:
@@ -855,7 +861,8 @@ class TitleScene : public IScene {
     Entity playerEntity_{};
     Entity objectEntity_{};
     Entity skyboxEntity_{};
-    Entity menuEntity_[3];
+    Entity menuEntity_[3]{};
+    Entity baseMenuEntity_[3]{};
     TextureManager::TextureHandle skyboxTexture_ = TextureManager::INVALID_TEXTURE;
     bool skyboxTextureApplied_ = false;
     float skyboxRotation_ = 0.0f;
