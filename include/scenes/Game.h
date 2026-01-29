@@ -166,6 +166,13 @@ class GameScene : public IScene {
         stageAdvanceTimer_ = 0.0f;
         StopGoalEffect();
 
+        // 以前のゴールのアトラクターが残っていれば削除（再入場時の即クリア防止）
+        if (world.IsAlive(playerEntity_)) {
+            if (world.Has<GoalAttractor>(playerEntity_)) {
+                world.Remove<GoalAttractor>(playerEntity_);
+            }
+        }
+
         // 入り直し時に残存ステージエンティティがあれば除去（原点残留や重複生成を防ぐ）
         {
             std::vector<Entity> toDestroy;
@@ -387,6 +394,9 @@ class GameScene : public IScene {
         // ゲームの一時停止/再開処理
         GamepadSystem *pad = ServiceLocator::TryGet<GamepadSystem>();
         world.ForEach<GameStatus>([&](Entity, GameStatus &stats) {
+            auto *v = world.TryGet<PlayerVelocity>(playerEntity_);
+            auto *movement = world.TryGet<PlayerMovement>(playerEntity_);
+
             bool togglePause = input.GetKeyDown('P');
             if (pad && pad->GetButtonDown(GamepadSystem::Button_Y)) {
                 togglePause = true;
@@ -536,6 +546,7 @@ class GameScene : public IScene {
         g_GameScene = nullptr;
         RenderingSystem::GetInstance().Shutdown();
         StopGoalEffect();
+        EffekseerManager::GetInstance().StopEffect(); // エフェクトを全停止
 
         // ステージ生成物を優先的に破棄（シーン間で漏れないようにする）
         for (const auto &entity : stageOwnedEntities_) {
@@ -2303,6 +2314,17 @@ class GameScene : public IScene {
                      " goalTransitioning=" + std::to_string(sp.goalTransitioning) +
                      " pressedSwitch=" + std::to_string(sp.pressedSwitch));
         });
+
+        // エフェクトを全停止（前のステージのエフェクトが残らないように）
+        EffekseerManager::GetInstance().StopEffect();
+
+        // プレイヤーからGoalAttractorを削除（前のステージの状態が残らないように）
+        if (world.IsAlive(playerEntity_)) {
+            if (world.Has<GoalAttractor>(playerEntity_)) {
+                world.Remove<GoalAttractor>(playerEntity_);
+                DEBUGLOG("[SetupStage] GoalAttractor removed from player");
+            }
+        }
 
         // 最新のStageCreateのみを利用し、それ以外は破棄して重複生成を防ぐ
         Entity activeStageCreate{};

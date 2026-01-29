@@ -100,30 +100,34 @@ void StageSelectScene::CreateStageSelectUI(World &world) {
     ownedEntities_.push_back(worldImageEntity);
     worldUIEntity_ = worldImageEntity;
 
-    // StageName
-    UITransform stageNameTr;
-    stageNameTr.position = {cfg_StageSelectUI_StageNamePosX.Get(), cfg_StageSelectUI_StageNamePosY.Get()};
-    stageNameTr.size = {cfg_StageSelectUI_StageNameSizeW.Get(), cfg_StageSelectUI_StageNameSizeH.Get()};
-    stageNameTr.anchor = {cfg_StageSelectUI_StageNameAnchorX.Get(), cfg_StageSelectUI_StageNameAnchorY.Get()};
-    stageNameTr.pivot = {cfg_StageSelectUI_StageNamePivotX.Get(), cfg_StageSelectUI_StageNamePivotY.Get()};
+    // StageName (Create for all stages)
+    stageNameEntities_.clear();
+    stageNameBaseSize_ = {cfg_StageSelectUI_StageNameSizeW.Get(), cfg_StageSelectUI_StageNameSizeH.Get()};
 
-    std::wstring stageNamePath = L"Assets/Textures/UI/StageName/stagename";
-    stageNamePath += std::to_wstring(worldNumber_);
-    stageNamePath += std::to_wstring(static_cast<int>(cfg_StageNameWorldDigit.Get()));
-    stageNamePath += std::to_wstring(initialStage);
-    stageNamePath += L".png";
+    for (int i = 1; i <= maxStage_; ++i) {
+        UITransform stageNameTr;
+        stageNameTr.position = {cfg_StageSelectUI_StageNamePosX.Get(), cfg_StageSelectUI_StageNamePosY.Get()};
+        stageNameTr.size = stageNameBaseSize_;
+        stageNameTr.anchor = {cfg_StageSelectUI_StageNameAnchorX.Get(), cfg_StageSelectUI_StageNameAnchorY.Get()};
+        stageNameTr.pivot = {cfg_StageSelectUI_StageNamePivotX.Get(), cfg_StageSelectUI_StageNamePivotY.Get()};
 
-    UIImage stageNameImg{stageNamePath};
-    stageNameImg.opacity = 1.0f;
-    stageNameImg.keepAspect = true;
+        std::wstring path = L"Assets/Textures/UI/StageName/stagename";
+        path += std::to_wstring(worldNumber_);
+        path += std::to_wstring(static_cast<int>(cfg_StageNameWorldDigit.Get()));
+        path += std::to_wstring(i);
+        path += L".png";
 
-    Entity stageNameEntity = world.Create()
-                                 .With<UITransform>(stageNameTr)
-                                 .With<UIImage>(stageNameImg)
-                                 .Build();
+        UIImage stageNameImg{path};
+        stageNameImg.opacity = 1.0f; 
+        stageNameImg.keepAspect = true;
 
-    StageSelectEntity_ = stageNameEntity;
-    ownedEntities_.push_back(stageNameEntity);
+        Entity e = world.Create()
+                       .With<UITransform>(stageNameTr)
+                       .With<UIImage>(stageNameImg)
+                       .Build();
+
+        stageNameEntities_.push_back(e);
+    }
 
     // Button UI
     const DirectX::XMFLOAT2 btnSize{cfg_StageSelectUI_ButtonSizeW.Get(), cfg_StageSelectUI_ButtonSizeH.Get()};
@@ -139,6 +143,9 @@ void StageSelectScene::CreateStageSelectUI(World &world) {
     enterBtnImg.keepAspect = true;
 
     ownedEntities_.push_back(world.Create().With<UITransform>(enterBtnTr).With<UIImage>(enterBtnImg).Build());
+    
+    // Store base size for scaling (Already set in loop above)
+    // stageNameBaseSize_ = stageNameTr.size; 
 
     UITransform titleBtnTr;
     titleBtnTr.position = {cfg_StageSelectUI_TitleBtnPosX.Get(), cfg_StageSelectUI_TitleBtnPosY.Get()};

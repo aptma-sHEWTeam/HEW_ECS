@@ -41,6 +41,35 @@
 #include "components/Animator.h"
 #include "components/TransformHierarchy.h"
 
+namespace
+{
+inline std::wstring Utf8toWide(const std::string& src)
+{
+    if (src.empty())
+    {
+        return std::wstring();
+    }
+
+    const int len = MultiByteToWideChar(CP_UTF8, 0, src.c_str(), -1, nullptr, 0);
+    if (len <= 0)
+    {
+        return std::wstring();
+    }
+
+    std::wstring dst(static_cast<size_t>(len), L'\0');
+    const int written = MultiByteToWideChar(CP_UTF8, 0, src.c_str(), -1, &dst[0], len);
+    if (written <= 0)
+    {
+        return std::wstring();
+    }
+    if (!dst.empty() && dst.back() == L'\0')
+    {
+        dst.pop_back();
+    }
+    return dst;
+}
+}
+
 /**
  * @class TitleScene
  * @brief ワールドセレクト2のシーン
@@ -80,28 +109,29 @@ class TitleScene : public IScene {
     inline static ConfigVar<float> cfg_WallPosX{"Title.Wall", "PosX", 0.0f, "壁: Window 位置X"};
     inline static ConfigVar<float> cfg_WallPosY{"Title.Wall", "PosY", 1.0f, "壁: Window 位置Y"};
     inline static ConfigVar<float> cfg_WallPosZ{"Title.Wall", "PosZ", 0.0f, "壁: Window 位置Z"};
-    inline static ConfigVar<float> cfg_WallScaleX{"Title.Wall", "ScaleX", 0.650000f, "壁: Wall スケールX"};
-    inline static ConfigVar<float> cfg_WallScaleY{"Title.Wall", "ScaleY", 0.650000f, "壁: Wall スケールY"};
-    inline static ConfigVar<float> cfg_WallScaleZ{"Title.Wall", "ScaleZ", 0.650000f, "壁: Wall スケールZ"};
+    inline static ConfigVar<float> cfg_WallScaleX{"Title.Wall", "ScaleX", 5.0000f, "壁: Wall スケールX"};
+    inline static ConfigVar<float> cfg_WallScaleY{"Title.Wall", "ScaleY", 5.0000f, "壁: Wall スケールY"};
+    inline static ConfigVar<float> cfg_WallScaleZ{"Title.Wall", "ScaleZ", 5.0000f, "壁: Wall スケールZ"};
     inline static ConfigVar<float> cfg_WallRotX{"Title.Wall", "RotX",  0.0f, "壁: Wall 回転X"};
     inline static ConfigVar<float> cfg_WallRotY{"Title.Wall", "RotY", 90.0f, "壁: Wall 回転Y"};
     inline static ConfigVar<float> cfg_WallRotZ{"Title.Wall", "RotZ",  0.0f, "壁: Wall 回転Z"};
    
     //壁の複数化の設定
-   // inline static ConfigVar<int> cfg_WallCount{"Title.Wall", "Count", 5, "壁: Wall 数量"};
-   // inline static ConfigVar<float> cfg_WallSpacingX{"Title.Wall", "SpacingX", 1.0f, "壁: Wall 間隔X"};
-   // inline static ConfigVar<float> cfg_WallSpacingY{"Title.Wall", "SpacingY", cfg_WallScaleY, "壁: Wall 間隔Y"};
-   // inline static ConfigVar<float> cfg_WallSpacingZ{"Title.Wall", "SpacingZ", 1.0f, "壁: Wall 間隔Z"};
-    inline static ConfigVar<int> cfg_WallColumns{"Title.Wall", "Columns", 52, "壁: 横に並べる個数（列数）"};
-    inline static ConfigVar<int> cfg_WallRows{"Title.Wall", "Rows", 17, "壁: 縦に並べる個数（行数）"};
-    inline static ConfigVar<int> cfg_WallThicknessRows{"Title.Wall", "ThicknessRows", 6, "壁: 枠(上下)の太さ(ブロック単位）"};
-    inline static ConfigVar<int> cfg_WallThicknessCols{"Title.Wall", "ThicknessCols", 14, "壁: 枠(左右)の太さ(ブロック単位）"};
-    inline static ConfigVar<float> cfg_WallSpacingX{"Title.Wall", "SpacingX", 0.650000f, "壁: 行間隔（X方向）"};
-    inline static ConfigVar<float> cfg_WallRowSpacingZ{"Title.Wall", "RowSpacingZ",1.8f, "壁: 行間隔（Z方向）"};
+    inline static ConfigVar<int> cfg_WallColumns{"Title.Wall", "Columns",11, "壁: 横に並べる個数（列数）"};
+    inline static ConfigVar<int> cfg_WallRows{"Title.Wall", "Rows", 6, "壁: 縦に並べる個数（行数）"};
+    inline static ConfigVar<int> cfg_WallThicknessRows{"Title.Wall", "ThicknessRows", 2, "壁: 枠(上下)の太さ(ブロック単位）"};
+    inline static ConfigVar<int> cfg_WallThicknessCols{"Title.Wall", "ThicknessCols", 4, "壁: 枠(左右)の太さ(ブロック単位）"};
+    inline static ConfigVar<float> cfg_WallSpacingX{"Title.Wall", "SpacingX", 0.6500f, "壁: 行間隔（X方向）"};//ブロックのサイズに合わせて変更
+    inline static ConfigVar<float> cfg_WallRowSpacingZ{"Title.Wall", "RowSpacingZ",2.0f, "壁: 列間隔（Z方向）"};//ブロックのサイズに合わせて変更
 
     inline static ConfigVar<int> cfg_WallDirX{"Title.Wall", "DirX", 1, "壁: 列方向の増加向き (1 または -1)"};
     inline static ConfigVar<int> cfg_WallDirZ{"Title.Wall", "DirZ", -1, "壁: 行方向の増加向き (1 または -1)"};
 
+    //フェード関連
+    inline static ConfigVar<float> cfg_FadeSizeW{"Title.Fade", "Width", 1280.0f, "タイトル: フェードUIの幅"};
+    inline static ConfigVar<float> cfg_FadeSizeH{"Title.Fade", "Height", 720.0f, "タイトル: フェードUIの高さ"};
+    inline static ConfigVar<float> cfg_FadeSecondsPerFrame{"Title.Fade", "SecondsPerFrame", 0.1f, "タイトル: フェードアニメ1フレーム時間(秒)"};
+    inline static ConfigVar<std::string> cfg_FadeTexturePath{"Title.Fade", "TexturePath", "./Assets/Textures/Fade/tex_fade.png", "タイトル: フェードテクスチャ"};
 
     Camera GetCameraTitle() const { return camera_; }
    
@@ -170,7 +200,7 @@ class TitleScene : public IScene {
 
         CreateWindows(world);
         GenerateWallGridTransforms(cfg_WallColumns.Get(),cfg_WallRows.Get());
-        CreateWalls(world);
+       CreateWalls(world);
 
         CreatePlayer(world);
         CreateTextNormalFormats();
@@ -180,7 +210,7 @@ class TitleScene : public IScene {
         float aspect = static_cast<float>(gfx->Width()) / gfx->Height();
         camera_ = Camera::LookAtLH(
             DirectX::XM_PIDIV4, aspect, 0.1f, 10000.0f,
-            {0, 0, -23}, {0, 0, 0}, {0, 1, 0});
+            {0, 0, -5}, {0, 0, 1}, {0, 1, 0});
         cameraBobPhase_ = 0.0f;
         cameraBobOffsetY_ = 0.0f;
 
@@ -303,7 +333,35 @@ class TitleScene : public IScene {
         playerEntity_ = player;
         ownedEntities_.push_back(player);
 
-        
+        UITransform FadeAnimation;
+        FadeAnimation.position = {0.0f, 0.0f};
+        FadeAnimation.size = {cfg_FadeSizeW.Get(), cfg_FadeSizeH.Get()};
+        FadeAnimation.anchor = {0.0f, 0.0f};
+        FadeAnimation.pivot = {0.0f, 0.0f};
+
+        const std::wstring fadePath = Utf8toWide(cfg_FadeTexturePath.Get());
+        UIImage fade{fadePath};
+        fade.opacity = 1.0f;
+        fade.keepAspect = false;
+        fade.overlay = true;
+
+        SpriteSheetDesc fadeDesc = SpriteSheetDesc::Grid(
+            AnimationConfig::UI::FadeFrames,
+            AnimationConfig::UI::FadeCols,
+            cfg_FadeSecondsPerFrame.Get(),
+            /*loop*/ false);
+        fadeDesc.playOnStart = false;
+
+        Entity fadeOutAnimation = world.Create()
+                                      .With<UITransform>(FadeAnimation)
+                                      .With<UIImage>(fade)
+                                      .Build();
+        AnimationTools::AddSpriteSheet(world, fadeOutAnimation, fadeDesc);
+
+        ownedEntities_.push_back(fadeOutAnimation);
+        fadeEntity_ = fadeOutAnimation;
+  
+        isFading = false;
     }
 
 
@@ -419,11 +477,14 @@ class TitleScene : public IScene {
           const float halfCols = (static_cast<float>(columns) - 1.0f) * 0.5f;
           const float halfRows = (static_cast<float>(rows) - 1.0f) * 0.5f;
 
+          //const float scaleUpWall = 5.0f;
+
+
 
           for (int r = 0; r < rows; ++r) {//縦
               for (int c =0; c < columns; ++c) {//横
 
-                  const bool isTop    = (r < thicknessRows + 1.0f);
+                  const bool isTop    = (r < thicknessRows + 1.0f);//微調整したいときに数値を変更
                   const bool isBottom = (r >= rows - thicknessRows);
                   const bool isLeft   = (c < thicknessCols); 
                   const bool isRight  = (c >= columns - thicknessCols);
@@ -438,7 +499,7 @@ class TitleScene : public IScene {
                   const float z = baseZ - 0.3f; */
                   const float x = baseX + ((static_cast<float>(c) - halfCols) * spacingX * static_cast<float>(dirX) );
                   const float y = baseY + ((static_cast<float>(r)  - halfRows)* rowSpacingZ * static_cast<float>(dirZ));
-                  const float z = baseZ - 0.4f; 
+                  const float z = baseZ - 0.3f; //微調整(奥行き)したいときに数値を変更
                       DirectX::XMFLOAT3 pos{x,y,z };
                       Transform t{
                           {pos}, {cfg_WallRotX.Get(), cfg_WallRotY.Get(), cfg_WallRotZ.Get()}, {cfg_WallScaleX.Get(), cfg_WallScaleY.Get(), cfg_WallScaleZ.Get()}};
@@ -556,6 +617,20 @@ class TitleScene : public IScene {
         bool upPressd = input.GetKeyDown(VK_UP);
         bool downPressd = input.GetKeyDown(VK_DOWN);
 
+        if (isFading) {
+            world.Tick(deltaTime);
+            if (auto *anim = world.TryGet<SpriteSheetAnimation>(fadeEntity_)) {
+                if (anim->isFinished) 
+                {
+                    if (auto *manager = ServiceLocator::TryGet<SceneManager>()) 
+                    {
+                        manager->ChangeSceneWithTransition("World1_StageSelect", world, TransitionDirection::Forward);
+                    }
+                }
+            }
+            return;
+        }
+
         GamepadSystem *pad = ServiceLocator::TryGet<GamepadSystem>();
         if (pad) {
             float pady = pad->GetLeftStickY();
@@ -616,7 +691,10 @@ class TitleScene : public IScene {
                 if (i < wallTransforms_.size()) {
                     t->position = wallTransforms_[i].position;
                     t->rotation = wallTransforms_[i].rotation;
-                    t->scale = wallTransforms_[i].scale;
+                 //   t->scale = wallTransforms_[i].scale;
+                    t->scale = {cfg_WallScaleX.Get(),
+                                cfg_WallScaleY.Get(),
+                                cfg_WallScaleZ.Get()};
                 } else {
                     int colIndex = static_cast<int>(i % std::max(1, cfg_WallColumns.Get()));
                     int rowIndex = static_cast<int>(i / std::max(1, cfg_WallColumns.Get()));
@@ -658,6 +736,7 @@ class TitleScene : public IScene {
                 }
             }
             if (trigger) {
+               
                 isTransitioning_ = true;
                 isUiVisible_ = false;
                 DEBUGLOG("Camera Zoom Start!");
@@ -670,6 +749,8 @@ class TitleScene : public IScene {
         UpdateSkyboxRotation(deltaTime);
         UpdateSkyboxTransform(world);
         UpdateSkyboxTexture(world);
+
+         world.Tick(deltaTime);
 
         //サウンドの音量設定の更新
         SOUND_SYS.UpdateVolume();
@@ -735,11 +816,18 @@ class TitleScene : public IScene {
         }
         ownedEntities_.clear();
 
+        isFading = false;
+
         RenderingSystem::GetInstance().Shutdown(); //3Dレンダリング
 
         textSystem_.Shutdown();
         imageSystem_.Shutdown();
+
+        skyboxTexture_ = TextureManager::INVALID_TEXTURE;
+        skyboxTextureApplied_ = false;
     }
+
+
 
   private:
     struct SceneOwnedTag : IComponent {};
@@ -759,13 +847,14 @@ class TitleScene : public IScene {
        /* pos = DirectX::XMVectorAdd(pos, DirectX::XMVectorScale(dir, 1.5f * deltaTime));
         DirectX::XMStoreFloat3(&camera_.position, pos);*/
 
+         //カメラズーム
         camera_.Zoom(-0.1f * deltaTime);
         camera_.Update();
 
         if (progress >= 1.0f) {
-            if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
-                manager->ChangeSceneWithTransition("World1_StageSelect", world, TransitionDirection::Forward);
-            }
+            StartFadeInNormal(world);
+            isFading = true;
+            return;
         }
     }
 
@@ -793,6 +882,22 @@ class TitleScene : public IScene {
         camera_.position.y += cameraBobOffsetY_;
         camera_.target.y += cameraBobOffsetY_;
         camera_.Update();
+    }
+
+    void StartFadeInNormal(World &world) {
+        StartSpriteFade(world, fadeEntity_, 1, false);
+    }
+
+    void StartSpriteFade(World &world, Entity target, int direction, bool forceOpaque) {
+        if (!world.IsAlive(target))
+            return;
+        AnimationTools::PlaySpriteSheet(world, target, direction, /*loop*/ false, /*reset*/ true);
+        if (auto *img = world.TryGet<UIImage>(target)) {
+            img->opacity = 1.0f;
+        }
+        if (auto *anim = world.TryGet<SpriteSheetAnimation>(target)) {
+            anim->isFinished = false;
+        }
     }
 
      enum TitleSelect {
@@ -847,6 +952,8 @@ class TitleScene : public IScene {
     bool dpadUpPrev_ = false;
     bool dpadDownPrev_ = false;
 
+    bool fadeStart = false;
+    bool isFading = false;
     std::vector<Entity> ownedEntities_{};
 
     // 複数壁を保持する配列
@@ -855,6 +962,7 @@ class TitleScene : public IScene {
     std::vector<Transform> wallTransforms_{};
  
     //Entity wallEntitiy_{};
+    Entity fadeEntity_{};
     Entity playerEntity_{};
     Entity objectEntity_{};
     Entity skyboxEntity_{};
