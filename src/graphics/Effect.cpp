@@ -228,6 +228,16 @@ void EffekseerManager::UnInit()
 }
 
 //=====================
+//リセット（強制再初期化）
+//=====================
+void EffekseerManager::Reset(GfxDevice& device, const Camera& camera)
+{
+    UnInit();
+    Init(device, camera);
+    Load();
+}
+
+//=====================
 //エフェクト読み込み
 //=====================
 void EffekseerManager::Load()
