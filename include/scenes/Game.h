@@ -102,6 +102,8 @@ class GameScene : public IScene {
         DEBUGLOG("GameWithUIScene::OnEnter() 開始");
 
         pauseInputLock_ = 0.35f;
+        pendingStageSelectScene_.clear();
+        isStageSelectFadeActive_ = false;
 
         StageSave::Load();
         auto *mgr = ServiceLocator::TryGet<SceneManager>();
@@ -397,6 +399,19 @@ class GameScene : public IScene {
      */
    
  void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
+        if (isStageSelectFadeActive_) {
+            if (auto *anim = world.TryGet<SpriteSheetAnimation>(fadeAnimationEntity_)) {
+                if (anim->isFinished && !anim->isPlaying) {
+                    if (auto *mgr = ServiceLocator::TryGet<SceneManager>()) {
+                        mgr->ChangeScene(pendingStageSelectScene_.c_str(), world);
+                    }
+                    return;
+                }
+            } else if (auto *mgr = ServiceLocator::TryGet<SceneManager>()) {
+                mgr->ChangeScene(pendingStageSelectScene_.c_str(), world);
+                return;
+            }
+        }
         // ゲームの一時停止/再開処理
         GamepadSystem *pad = ServiceLocator::TryGet<GamepadSystem>();
         world.ForEach<GameStatus>([&](Entity, GameStatus &stats) {
@@ -1047,6 +1062,14 @@ class GameScene : public IScene {
     /** @brief ワールドへのポインタを設定 */
     void SetWorldRef(World *w) {
         world_ = w;
+    }
+
+    void BeginStageSelectFade(const std::string &sceneName, World &world) {
+        pendingStageSelectScene_ = sceneName;
+        if (!pendingStageSelectScene_.empty()) {
+            StartFadeOutNormal(world);
+            isStageSelectFadeActive_ = true;
+        }
     }
 
     /** @brief リスポーン待機中かを取得 */
@@ -3070,6 +3093,8 @@ class GameScene : public IScene {
     bool chargeOverlayVisible_ = false;
     bool deathFadeVisible_ = false;
     bool startFadeVisible_ = false;
+    bool isStageSelectFadeActive_ = false;
+    std::string pendingStageSelectScene_;
     float stickZoomTarget_ = 0.0f;
     float stickZoomCurrent_ = 0.0f;
     float stickZoomRatioCurrent_ = 0.0f; ///< スティックズーム時の現在の寄り率（0〜1）

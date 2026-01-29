@@ -417,7 +417,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                         wptr->ForEach<StageProgress>([&](Entity, StageProgress &sp) { worldIndex = sp.worldCount; });
                         worldIndex = std::clamp(worldIndex, 1, 4);
                         std::string sceneName = "World" + std::to_string(worldIndex) + "_StageSelect";
-                        mgr->ChangeScene(sceneName.c_str(), *wptr);
+                        BeginStageSelectFade(sceneName, *wptr);
                     }
             };
         }

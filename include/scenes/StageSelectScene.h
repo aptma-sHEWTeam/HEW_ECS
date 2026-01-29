@@ -534,35 +534,18 @@ class StageSelectScene : public IScene {
             return;
         }
 
+        bool fadeFinished = false;
+        bool worldTicked = false;
         if (isFading) {
             world.Tick(deltaTime);
+            worldTicked = true;
             if (auto *anim = world.TryGet<SpriteSheetAnimation>(fadeEntity_)) {
                 if (anim->isFinished) {
-                        if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
-                            std::string nextScene = "Game";
-                            world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
-                                if (worldNumber_ == 1 && sp.selectStage == 1) {
-                                    nextScene = "Stage1IntroVideo";
-                                }
-
-                            sp.currentStage = sp.selectStage;
-                            sp.currentRoom = 1;
-                            sp.requestAdvance = false;
-                            sp.goalTransitioning = false;
-                            sp.clearedThisStage = false;
-                            sp.pressedSwitch = false;
-                            sp.goalUnlocked = false;
-                            DEBUGLOG("[StageSelect] Transition to Game: world=" + std::to_string(sp.worldCount) +
-                                     " currentStage=" + std::to_string(sp.currentStage) +
-                                     " currentRoom=" + std::to_string(sp.currentRoom) +
-                                     " clearedThisStage=" + std::to_string(sp.clearedThisStage) +
-                                     " goalTransitioning=" + std::to_string(sp.goalTransitioning));
-                        });
-                        manager->ChangeScene(nextScene.c_str(), world);
-                    }
+                    fadeFinished = true;
                 }
+            } else {
+                fadeFinished = true;
             }
-            return;
         }
 
         // ゲームシーンへの遷移 (Enter / ×ボタン)
@@ -577,12 +560,37 @@ class StageSelectScene : public IScene {
             if (trigger) {
                 isTransitioning_ = true;
                 zoomTimer_ = 0.0f;
+                StartFadeInNormal(world);
+                isFading = true;
                 DEBUGLOG("StageSelect Camera Zoom Start!");
-                //StartFadeInNormal(world);
             }
         } else {
-            UpdateCameraZoom(world, deltaTime);
-            /* StartFadeInNormal(world);*/
+            bool zoomFinished = UpdateCameraZoom(world, deltaTime);
+            if (zoomFinished && (!isFading || fadeFinished)) {
+                if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
+                    std::string nextScene = "Game";
+                    world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+                        if (worldNumber_ == 1 && sp.selectStage == 1) {
+                            nextScene = "Stage1IntroVideo";
+                        }
+
+                        sp.currentStage = sp.selectStage;
+                        sp.currentRoom = 1;
+                        sp.requestAdvance = false;
+                        sp.goalTransitioning = false;
+                        sp.clearedThisStage = false;
+                        sp.pressedSwitch = false;
+                        sp.goalUnlocked = false;
+                        DEBUGLOG("[StageSelect] Transition to Game: world=" + std::to_string(sp.worldCount) +
+                                 " currentStage=" + std::to_string(sp.currentStage) +
+                                 " currentRoom=" + std::to_string(sp.currentRoom) +
+                                 " clearedThisStage=" + std::to_string(sp.clearedThisStage) +
+                                 " goalTransitioning=" + std::to_string(sp.goalTransitioning));
+                    });
+                    manager->ChangeScene(nextScene.c_str(), world);
+                }
+                return;
+            }
         }
 
         UpdateSkyboxTransform(world);
@@ -726,7 +734,9 @@ class StageSelectScene : public IScene {
             sp.worldCount = worldNumber_;
         });
 
-        world.Tick(deltaTime);
+        if (!worldTicked) {
+            world.Tick(deltaTime);
+        }
     }
 
     void OnRender(World &world) override {
@@ -1530,7 +1540,7 @@ class StageSelectScene : public IScene {
         }
     }
 
-    void UpdateCameraZoom(World &world, float deltaTime) {
+    bool UpdateCameraZoom(World &world, float deltaTime) {
         //遷移の時間
         const float duration = std::max(cfg_CameraZoomDurationSeconds.Get(), 0.0001f);
         zoomTimer_ += deltaTime;
@@ -1548,12 +1558,7 @@ class StageSelectScene : public IScene {
         //視野角
         camera_.Zoom(cfg_CameraZoomFovDeltaPerSecond.Get() * deltaTime);
         camera_.Update();
-        //シーン遷移
-        if (progress >= 1.0f) {
-            StartFadeInNormal(world);
-            isFading = true;
-            return;
-        }
+        return progress >= 1.0f;
     }
 
     static bool IsSkyboxTexturePathValid(const std::string &path) {
