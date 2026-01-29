@@ -489,9 +489,9 @@ class GameScene : public IScene {
         RenderingSystem::GetInstance().UpdateLights(world, camera_.position);
 
         // 時間切れチェック
-        if (world.IsAlive(playerEntity_)) {
-            CheckTimeLimit(world, playerEntity_,cfg_LimitTime);
-        }
+            if (world.IsAlive(playerEntity_)) {
+                CheckTimeLimit(world, playerEntity_,cfg_LimitTime);
+            }
         EffekseerManager::GetInstance().Update();
 
 
@@ -552,7 +552,15 @@ class GameScene : public IScene {
         g_GameScene = nullptr;
         RenderingSystem::GetInstance().Shutdown();
         StopGoalEffect();
-        EffekseerManager::GetInstance().StopEffect(); // エフェクトを全停止
+        StopGoalEffect();
+        //EffekseerManager::GetInstance().StopEffect(); // エフェクトを全停止
+        
+        // エフェクトが次のシーンに残らないよう、マネージャごと強制リセットする
+        if (auto* gfx = ServiceLocator::TryGet<GfxDevice>()) {
+            EffekseerManager::GetInstance().Reset(*gfx, camera_);
+        } else {
+            EffekseerManager::GetInstance().StopEffect();
+        }
 
         // ステージ生成物を優先的に破棄（シーン間で漏れないようにする）
         for (const auto &entity : stageOwnedEntities_) {
@@ -625,6 +633,11 @@ class GameScene : public IScene {
             }
         }
         ownedEntities_.clear();
+
+        // シャドウマップを破棄する前にRenderSystemから参照を切る
+        if (auto *renderer = ServiceLocator::TryGet<RenderSystem>()) {
+            renderer->SetShadowMap(nullptr);
+        }
 
         shadowSystem_.Shutdown();
         shadowMap_.Shutdown();
@@ -749,7 +762,7 @@ class GameScene : public IScene {
                 if (img)
                     img->opacity = 0.0f;
             }
-            SOUND_SYS.StopSE(cfg_DriftMP3Pass);
+            //SOUND_SYS.StopSE(cfg_DriftMP3Pass);
         } else {
             if (img)
                 img->opacity = 0.0f;
@@ -3117,6 +3130,7 @@ inline void WallCollisionHandler::OnCollisionEnter(World &w, Entity self, Entity
             return;
 
         SOUND_SYS.PlaySE(cfg_CollideMP3Pass.Get(),false);
+        SOUND_SYS.StopSE(cfg_DriftMP3Pass);
 
         DEBUGLOG("壁がプレイヤーと衝突 - カメラシェイク＋遅延リスポーン");
         if (g_GameScene) {
@@ -3143,6 +3157,7 @@ inline void FloorWallCollisionHandler::OnCollisionEnter(World &w, Entity self, E
             return;
 
         SOUND_SYS.PlaySE(cfg_CollideMP3Pass.Get(),false);
+        SOUND_SYS.StopSE(cfg_DriftMP3Pass);
 
         DEBUGLOG("ステージ壁がプレイヤーと衝突 - カメラシェイク＋遅延リスポーン");
         if (g_GameScene) {

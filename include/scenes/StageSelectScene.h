@@ -166,6 +166,7 @@ class StageSelectScene : public IScene {
     inline static ConfigVar<float> cfg_StageUiTiltFactor{"StageSelect.UI.Shared", "TiltFactor", 2.0f, "ステージセレクト: UI回転(慣性)係数"};
     inline static ConfigVar<float> cfg_StageUiSpinAmount{"StageSelect.UI.Shared", "SpinAmount", 1080.0f, "ステージセレクト: 遷移時の回転量(度)"}; 
     inline static ConfigVar<float> cfg_StageUiSpinEase{"StageSelect.UI.Shared", "SpinEase", 3.0f, "ステージセレクト: 回転減衰速度(大きいほど早く止まる)"};
+    inline static ConfigVar<float> cfg_StageUiIdleSpinSpeed{"StageSelect.UI.Shared", "IdleSpinSpeed", 10.0f, "ステージセレクト: アイドリング回転速度(度/秒)"};
     inline static ConfigVar<float> cfg_StageSterSize1{"StageSelect.UI.StageSter", "Size1", 50.0f, "ステージセレクト: StageSter1(最前面) サイズ"};
     inline static ConfigVar<float> cfg_StageSterSize2{"StageSelect.UI.StageSter", "Size2", 100.0f, "ステージセレクト: StageSter2(中前) サイズ"};
     inline static ConfigVar<float> cfg_StageSterSize3{"StageSelect.UI.StageSter", "Size3", 150.0f, "ステージセレクト: StageSter3(中奥) サイズ"};
@@ -175,6 +176,12 @@ class StageSelectScene : public IScene {
     inline static ConfigVar<std::string> cfg_StageSterPath2{"StageSelect.UI.StageSter", "Path2", "Assets/Textures/UI/StageSter/stagester2.png", "ステージセレクト: StageSter2 画像パス"};
     inline static ConfigVar<std::string> cfg_StageSterPath3{"StageSelect.UI.StageSter", "Path3", "Assets/Textures/UI/StageSter/stagester3.png", "ステージセレクト: StageSter3 画像パス"};
     inline static ConfigVar<std::string> cfg_StageSterPath4{"StageSelect.UI.StageSter", "Path4", "Assets/Textures/UI/StageSter/stagester4.png", "ステージセレクト: StageSter4 画像パス"};
+    
+    // Idle Spin Multipliers (1=Front/Small -> 4=Back/Big)
+    inline static ConfigVar<float> cfg_StageSterIdleMult1{"StageSelect.UI.StageSter", "IdleMult1", 3.0f, "ステージセレクト: StageSter1(最前面) 回転倍率"};
+    inline static ConfigVar<float> cfg_StageSterIdleMult2{"StageSelect.UI.StageSter", "IdleMult2", 2.5f, "ステージセレクト: StageSter2(中前) 回転倍率"};
+    inline static ConfigVar<float> cfg_StageSterIdleMult3{"StageSelect.UI.StageSter", "IdleMult3", 2.0f, "ステージセレクト: StageSter3(中奥) 回転倍率"};
+    inline static ConfigVar<float> cfg_StageSterIdleMult4{"StageSelect.UI.StageSter", "IdleMult4", 1.0f, "ステージセレクト: StageSter4(最奥) 回転倍率"};
 
     // Reverting to Shared
     inline static ConfigVar<float> cfg_StageSterOffsetX{"StageSelect.UI.StageSter", "OffsetX", -475.0f, "ステージセレクト: StageSter 位置Xオフセット(共通)"};
@@ -637,6 +644,7 @@ class StageSelectScene : public IScene {
                         s_lastSelected[worldNumber_ - 1] = stats.selectStage;
                     }
                     uiRotationTarget_ -= cfg_StageUiSpinAmount.Get(); // Spin (Stage++)
+                    idleSpinDir_ = -1.0f;
                 } else if (stats.selectStage == maxStage_) {
                     if (stats.worldCount != cfg_WorldCount.Get()) {
                         SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
@@ -656,6 +664,7 @@ class StageSelectScene : public IScene {
                         s_lastSelected[worldNumber_ - 1] = stats.selectStage;
                     }
                     uiRotationTarget_ += cfg_StageUiSpinAmount.Get(); // Spin (Stage--)
+                    idleSpinDir_ = 1.0f;
                 } else {
                     // 前のワールドへ
                     if (worldNumber_ > 1) {
@@ -675,11 +684,18 @@ class StageSelectScene : public IScene {
 
         if (requestWorldTransition == TransitionDirection::Right) {
             uiRotationTarget_ += cfg_StageUiSpinAmount.Get(); // Spin Right (CW)
+            idleSpinDir_ = 1.0f; // Note: World transition might have different rotation direction logic? 
+            // Checking logic: Right transition -> GoToNextWorld -> Slide Right. 
+            // In line 646 (Stage++), target decreases (-=). 
+            // But here line 684 says +=. 
+            // Let's trust the existing code for Spin and just sync idleSpinDir.
+            // If +=, then dir is 1.0f.
             GoToNextWorld(world);
             return;
         }
         if (requestWorldTransition == TransitionDirection::Left) {
             uiRotationTarget_ -= cfg_StageUiSpinAmount.Get(); // Spin Left (CCW)
+            idleSpinDir_ = -1.0f;
             GoToPrevWorld(world);
             return;
         }
@@ -687,6 +703,11 @@ class StageSelectScene : public IScene {
         // Spin Animation (Lerp to Target)
         float spinEase = cfg_StageUiSpinEase.Get();
         uiRotationCurrent_ += (uiRotationTarget_ - uiRotationCurrent_) * deltaTime * spinEase;
+        
+        // Idle Spin (Wrap to 360 to avoid overflow)
+        uiIdleRotationCurrent_ += cfg_StageUiIdleSpinSpeed.Get() * deltaTime * idleSpinDir_;
+        if (uiIdleRotationCurrent_ >= 360.0f) uiIdleRotationCurrent_ -= 360.0f;
+        else if (uiIdleRotationCurrent_ <= -360.0f) uiIdleRotationCurrent_ += 360.0f;
 
         // 回転アニメーション
         rotateSpeed_ = cfg_RotateSpeed.Get();
@@ -980,6 +1001,8 @@ class StageSelectScene : public IScene {
     // Spin State
     float uiRotationCurrent_ = 0.0f;
     float uiRotationTarget_ = 0.0f;
+    float uiIdleRotationCurrent_ = 0.0f;
+    float idleSpinDir_ = -1.0f;
 
     std::vector<Entity> ownedEntities_{};
     std::vector<Entity> objectOwnedEntities_;
@@ -1307,7 +1330,12 @@ class StageSelectScene : public IScene {
             uiTr->position = {sx - uiOffsetX, sy};
 
             // 距離によるスケール計算
-            DirectX::XMVECTOR camPos = DirectX::XMLoadFloat3(&camera.position);
+            DirectX::XMVECTOR camPos;
+            if (isTransitioning_) {
+                camPos = DirectX::XMLoadFloat3(&cameraPosition_);
+            } else {
+                camPos = DirectX::XMLoadFloat3(&camera.position);
+            }
             DirectX::XMVECTOR targetPos = DirectX::XMLoadFloat3(&p);
             float dist = DirectX::XMVectorGetX(DirectX::XMVector3Length(DirectX::XMVectorSubtract(camPos, targetPos)));
 
@@ -1342,8 +1370,8 @@ class StageSelectScene : public IScene {
             }
 
             // --- Update StageSter & StageName Rotation ---
-            // Use calculated Spin Rotation
-            float tiltDegrees = uiRotationCurrent_;
+            // Base Spin from Transition
+            float baseTilt = uiRotationCurrent_;
 
             // Apply to StageName (Selected)
             // User requested NO rotation for StageName
@@ -1361,8 +1389,16 @@ class StageSelectScene : public IScene {
                       float offX = cfg_StageSterOffsetX.Get();
                       float offY = cfg_StageSterOffsetY.Get();
 
-                      // Restore Rotation (Synced with UI)
-                      sterTr->rotation = tiltDegrees;
+                      // Restore Rotation (Synced with UI + Idle Multiplier)
+                      float mult = 1.0f;
+                      switch (s) {
+                          case 0: mult = cfg_StageSterIdleMult4.Get(); break; // Back
+                          case 1: mult = cfg_StageSterIdleMult3.Get(); break;
+                          case 2: mult = cfg_StageSterIdleMult2.Get(); break;
+                          case 3: mult = cfg_StageSterIdleMult1.Get(); break; // Front
+                          default: mult = 1.0f; break;
+                      }
+                      sterTr->rotation = baseTilt + (uiIdleRotationCurrent_ * mult);
                       
                       // Restore Visibility
                       sterImg->opacity = 1.0f;

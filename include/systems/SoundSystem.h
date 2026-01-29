@@ -75,6 +75,9 @@ public:
     //音量を更新
     void UpdateVolume();
 
+    //音量を更新
+    void UpdateSEVolume(const std::string& path);
+
   private:
      //メンバ変数
     IXAudio2 *m_pXAudio;
