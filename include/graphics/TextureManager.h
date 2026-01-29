@@ -221,46 +221,66 @@ public:
      * auto texture = texManager.CreateTextureFromMemory(pixels, 2, 2, 4);
      * @endcode
      */
+    /**
+     * @brief メモリからテクスチャを作成
+     * @param[in] data ピクセルデータ
+     * @param[in] width 幅(ピクセル)
+     * @param[in] height 高さ(ピクセル)
+     * @param[in] channels チャンネル数(通常4: RGBA)
+     * @return TextureHandle テクスチャハンドル(失敗時は INVALID_TEXTURE)
+     */
     TextureHandle CreateTextureFromMemory(const uint8_t* data, uint32_t width, uint32_t height, uint32_t channels) {
         D3D11_TEXTURE2D_DESC texDesc{};
         texDesc.Width = width;
         texDesc.Height = height;
-        texDesc.MipLevels = 1;
+        texDesc.MipLevels = 0; // 全ミップレベルを作成
         texDesc.ArraySize = 1;
-        texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;  // sRGB対応に変更
+        texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
         texDesc.SampleDesc.Count = 1;
+        texDesc.SampleDesc.Quality = 0;
         texDesc.Usage = D3D11_USAGE_DEFAULT;
-        texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-
-        D3D11_SUBRESOURCE_DATA initData{};
-        initData.pSysMem = data;
-        initData.SysMemPitch = width * channels;
+        texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET; // GenerateMipsにはRTが必要
+        texDesc.CPUAccessFlags = 0;
+        texDesc.MiscFlags = D3D11_RESOURCE_MISC_GENERATE_MIPS;
 
         Microsoft::WRL::ComPtr<ID3D11Texture2D> texture;
-        HRESULT hr = gfx_->Dev()->CreateTexture2D(&texDesc, &initData, &texture);
+        // InitDataを渡さずに作成
+        HRESULT hr = gfx_->Dev()->CreateTexture2D(&texDesc, nullptr, &texture);
         if (FAILED(hr)) {
-            DEBUGLOG_ERROR("Failed to create texture2D");
+            DEBUGLOG_ERROR("Failed to create texture2D (Mipmap enabled)");
 #ifdef _DEBUG
             MessageBoxA(nullptr, "Failed to create texture2D", "Texture Error", MB_OK | MB_ICONERROR);
 #endif
             return INVALID_TEXTURE;
         }
 
+        // 初期データ転送 (Mip Level 0)
+        // UpdateSubresourceを使用 (D3D11_USAGE_DEFAULTなので)
+        gfx_->Ctx()->UpdateSubresource(
+            texture.Get(),
+            0, 
+            nullptr, 
+            data, 
+            width * channels, 
+            0
+        );
+
         // シェーダーリソースビューを作成
         D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc{};
         srvDesc.Format = texDesc.Format;
         srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-        srvDesc.Texture2D.MipLevels = 1;
+        srvDesc.Texture2D.MipLevels = -1; // 全レベルを使用
+        srvDesc.Texture2D.MostDetailedMip = 0;
 
         Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv;
         hr = gfx_->Dev()->CreateShaderResourceView(texture.Get(), &srvDesc, &srv);
         if (FAILED(hr)) {
             DEBUGLOG_ERROR("Failed to create SRV");
-#ifdef _DEBUG
-            MessageBoxA(nullptr, "Failed to create SRV", "Texture Error", MB_OK | MB_ICONERROR);
-#endif
             return INVALID_TEXTURE;
         }
+
+        // ミップマップ生成
+        gfx_->Ctx()->GenerateMips(srv.Get());
 
         // テクスチャを登録
         TextureHandle handle = nextHandle_++;
@@ -416,32 +436,54 @@ public:
         D3D11_TEXTURE2D_DESC texDesc = {};
         texDesc.Width = width;
         texDesc.Height = height;
-        texDesc.MipLevels = 1;
+        texDesc.MipLevels = 0; // Mipmap有効化
         texDesc.ArraySize = 6;
         texDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
         texDesc.SampleDesc.Count = 1;
         texDesc.Usage = D3D11_USAGE_DEFAULT;
-        texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-        texDesc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE;
+        texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+        texDesc.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE | D3D11_RESOURCE_MISC_GENERATE_MIPS;
 
-        D3D11_SUBRESOURCE_DATA initData[6];
-        for (int i = 0; i < 6; ++i) {
-            initData[i].pSysMem = facePixels[i].data();
-            initData[i].SysMemPitch = width * 4;
-            initData[i].SysMemSlicePitch = 0;
-        }
-
+        // InitDataは使わずCreate
         Microsoft::WRL::ComPtr<ID3D11Texture2D> texture;
-        HRESULT hr = gfx_->Dev()->CreateTexture2D(&texDesc, initData, &texture);
+        HRESULT hr = gfx_->Dev()->CreateTexture2D(&texDesc, nullptr, &texture);
         if (FAILED(hr)) {
             DEBUGLOG_ERROR("LoadCubemap: Texture2Dの作成に失敗");
             return INVALID_TEXTURE;
         }
 
+        // 各面のデータを転送
+        for (int i = 0; i < 6; ++i) {
+            UINT subresource = D3D11CalcSubresource(0, i, texDesc.MipLevels); // Mip 0, Slice i (MipLevelsが0の場合、API的には全レベル数が必要だが、0指定で初期化されてるので...実レベル数を取得する必要あり？)
+            // 実際は MipLevels=0で作成した場合、D3Dが完全なミップチェーンを作成する。
+            // D3D11_TEXTURE2D_DESCを確認しても実際のレベル数はわからないが、GetDescする必要があるかも？
+            // ただし UpdateSubresource の subresource index は  MipSlice + (ArraySlice * MipLevels)
+            // ここで MipLevels=0 なので計算がややこしい。
+            // 正しくは、作成後のテクスチャからMipLevelsを取得するのが安全。
+            
+            // 下記で取得
+        }
+        
+        // 正確なMipLevelsを取得
+        D3D11_TEXTURE2D_DESC descCreated;
+        texture->GetDesc(&descCreated);
+        
+        for (int i = 0; i < 6; ++i) {
+            UINT subresource = D3D11CalcSubresource(0, i, descCreated.MipLevels);
+            gfx_->Ctx()->UpdateSubresource(
+                texture.Get(),
+                subresource,
+                nullptr,
+                facePixels[i].data(),
+                width * 4,
+                0
+            );
+        }
+
         D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
         srvDesc.Format = texDesc.Format;
         srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURECUBE;
-        srvDesc.TextureCube.MipLevels = 1;
+        srvDesc.TextureCube.MipLevels = -1;
         srvDesc.TextureCube.MostDetailedMip = 0;
 
         Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv;
@@ -450,6 +492,9 @@ public:
             DEBUGLOG_ERROR("LoadCubemap: SRVの作成に失敗");
             return INVALID_TEXTURE;
         }
+
+        // ミップマップ生成
+        gfx_->Ctx()->GenerateMips(srv.Get());
 
         TextureHandle handle = nextHandle_++;
         TextureData texData;

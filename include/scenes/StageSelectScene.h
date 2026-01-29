@@ -170,6 +170,12 @@ class StageSelectScene : public IScene {
     inline static ConfigVar<float> cfg_StageSterSize2{"StageSelect.UI.StageSter", "Size2", 100.0f, "ステージセレクト: StageSter2(中前) サイズ"};
     inline static ConfigVar<float> cfg_StageSterSize3{"StageSelect.UI.StageSter", "Size3", 150.0f, "ステージセレクト: StageSter3(中奥) サイズ"};
     inline static ConfigVar<float> cfg_StageSterSize4{"StageSelect.UI.StageSter", "Size4", 200.0f, "ステージセレクト: StageSter4(最奥) サイズ"};
+    
+    inline static ConfigVar<std::string> cfg_StageSterPath1{"StageSelect.UI.StageSter", "Path1", "Assets/Textures/UI/StageSter/stagester1.png", "ステージセレクト: StageSter1 画像パス"};
+    inline static ConfigVar<std::string> cfg_StageSterPath2{"StageSelect.UI.StageSter", "Path2", "Assets/Textures/UI/StageSter/stagester2.png", "ステージセレクト: StageSter2 画像パス"};
+    inline static ConfigVar<std::string> cfg_StageSterPath3{"StageSelect.UI.StageSter", "Path3", "Assets/Textures/UI/StageSter/stagester3.png", "ステージセレクト: StageSter3 画像パス"};
+    inline static ConfigVar<std::string> cfg_StageSterPath4{"StageSelect.UI.StageSter", "Path4", "Assets/Textures/UI/StageSter/stagester4.png", "ステージセレクト: StageSter4 画像パス"};
+
     // Reverting to Shared
     inline static ConfigVar<float> cfg_StageSterOffsetX{"StageSelect.UI.StageSter", "OffsetX", -475.0f, "ステージセレクト: StageSter 位置Xオフセット(共通)"};
     inline static ConfigVar<float> cfg_StageSterOffsetY{"StageSelect.UI.StageSter", "OffsetY", -260.0f, "ステージセレクト: StageSter 位置Yオフセット(共通)"};

@@ -110,9 +110,15 @@ void StageSelectScene::CreateStageSelectUI(World &world) {
         sterTr.anchor = {0.5f, 0.5f}; // Center aligned
         sterTr.pivot = {0.5f, 0.5f};
 
-        std::wstring path = L"Assets/Textures/UI/StageSter/stagester";
-        path += std::to_wstring(i);
-        path += L".png";
+        std::string pathStr;
+        switch(i) {
+            case 1: pathStr = StageSelectScene::cfg_StageSterPath1.Get(); break;
+            case 2: pathStr = StageSelectScene::cfg_StageSterPath2.Get(); break;
+            case 3: pathStr = StageSelectScene::cfg_StageSterPath3.Get(); break;
+            case 4: pathStr = StageSelectScene::cfg_StageSterPath4.Get(); break;
+            default: pathStr = StageSelectScene::cfg_StageSterPath4.Get(); break;
+        }
+        std::wstring path(pathStr.begin(), pathStr.end());
 
         UIImage sterImg{path};
         sterImg.opacity = 0.0f; // Start hidden, updated in OnUpdate

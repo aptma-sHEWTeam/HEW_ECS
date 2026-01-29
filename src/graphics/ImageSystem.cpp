@@ -49,6 +49,8 @@ bool ImageSystem::Init(GfxDevice &gfx) {
 }
 
 void ImageSystem::BeginDraw() {
+    if (gfx_) gfx_->Resolve();
+
     if (d2dContext_) {
         if (!targetBitmap_) RefreshTargetBitmap();
         d2dContext_->BeginDraw();
