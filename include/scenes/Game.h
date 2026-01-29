@@ -308,7 +308,11 @@ class GameScene : public IScene {
         Entity modelLoaderSystem = world.Create().With<ModelLoadingSystem>().Build();
         ownedEntities_.push_back(modelLoaderSystem);
 
+
+        skyboxTexture_ = TextureManager::INVALID_TEXTURE;
+        skyboxTextureApplied_ = false;
         CreateSkybox(world);
+
 
 #if defined(_DEBUG)
         static bool skyboxScaleTestsRan = false;
