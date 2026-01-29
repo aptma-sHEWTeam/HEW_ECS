@@ -184,8 +184,8 @@ class StageSelectScene : public IScene {
     inline static ConfigVar<float> cfg_StageSterIdleMult4{"StageSelect.UI.StageSter", "IdleMult4", 1.0f, "ステージセレクト: StageSter4(最奥) 回転倍率"};
 
     // Reverting to Shared
-    inline static ConfigVar<float> cfg_StageSterOffsetX{"StageSelect.UI.StageSter", "OffsetX", -475.0f, "ステージセレクト: StageSter 位置Xオフセット(共通)"};
-    inline static ConfigVar<float> cfg_StageSterOffsetY{"StageSelect.UI.StageSter", "OffsetY", -260.0f, "ステージセレクト: StageSter 位置Yオフセット(共通)"};
+    inline static ConfigVar<float> cfg_StageSterOffsetX{"StageSelect.UI.StageSter", "OffsetX", -425.0f, "ステージセレクト: StageSter 位置Xオフセット(共通)"};
+    inline static ConfigVar<float> cfg_StageSterOffsetY{"StageSelect.UI.StageSter", "OffsetY", -240.0f, "ステージセレクト: StageSter 位置Yオフセット(共通)"};
 
     inline static ConfigVar<float> cfg_CameraFovDegrees{"StageSelect.Camera", "FovDegrees", 90.0f, "ステージセレクト: カメラFOV(度)"};
     inline static ConfigVar<float> cfg_CameraNear{"StageSelect.Camera", "Near", 0.1f, "ステージセレクト: カメラNear"};
