@@ -180,7 +180,7 @@ void SoundSystem::UpdateVolume() {
 	}
 }
 
-void SoundSystem::PlaySE(const std::string &path) {
+void SoundSystem::PlaySE(const std::string &path, bool multiple) {
 	//SE音声が存在するか確認
 	if (m_seVoices.count(path) && m_seVoices[path] != nullptr) {
         XAUDIO2_VOICE_STATE state;
@@ -188,7 +188,10 @@ void SoundSystem::PlaySE(const std::string &path) {
 
 		//バッファがまだ残っているなら処理を中断する
         if (state.BuffersQueued > 0) {
-            return;
+			//multipleがtrueなら多重再生される
+            if (!multiple) {
+                return;
+            }
 		}
 
 		m_seVoices[path]->DestroyVoice();

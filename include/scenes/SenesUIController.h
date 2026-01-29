@@ -37,6 +37,7 @@ struct GameUIUpdater : Behaviour {
     Entity pauseResumeButtonEntity_;
     Entity pauseRetryButtonEntity_;
     Entity pauseTitleButtonEntity_;
+    Entity pauseStageSelectButtonEntity_;
     Entity pauseQuitButtonEntity_;
 
     DirectX::XMFLOAT2 pauseMenuButtonSize_{360.0f, 60.0f};
@@ -118,7 +119,7 @@ struct GameUIUpdater : Behaviour {
             }
 
             if (auto *warningText = w.TryGet<UIText>(warningTextEntity_)) {
-                warningText->text = shouldWarn ? L"WARNING!" : L"";
+                warningText->text = L"";
             }
 
             //スタートのカウントダウン時間の更新
@@ -174,6 +175,7 @@ struct GameUIUpdater : Behaviour {
             setButtonVisible(pauseResumeButtonEntity_, showPauseMenu);
             setButtonVisible(pauseRetryButtonEntity_, showPauseMenu);
             setButtonVisible(pauseTitleButtonEntity_, showPauseMenu);
+            setButtonVisible(pauseStageSelectButtonEntity_, showPauseMenu);
             setButtonVisible(pauseQuitButtonEntity_, showPauseMenu);
         });
 

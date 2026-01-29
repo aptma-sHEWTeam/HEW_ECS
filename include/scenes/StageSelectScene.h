@@ -187,6 +187,7 @@ class StageSelectScene : public IScene {
     };
 
     inline static max_stages ms[4] = {{0, 1}, {0, 2}, {0, 3}, {0, 4}};
+    inline static int s_lastSelected[4] = {1, 1, 1, 1};
 
     /**
      * @brief コンストラクタ
@@ -274,6 +275,12 @@ class StageSelectScene : public IScene {
         // ワールド移動時のステージ番号初期化
         world.ForEach<StageProgress>([&](Entity, StageProgress &stats) {
             stats.worldCount = worldNumber_;
+            stats.Normalize(maxStage_, worldNumber_);
+            DEBUGLOG("[StageSelect] Before flags world=" + std::to_string(stats.worldCount) +
+                     " select=" + std::to_string(stats.selectStage) +
+                     " current=" + std::to_string(stats.currentStage) +
+                     " IsClearBack=" + std::to_string(stats.IsClearBack) +
+                     " clearedThisStage=" + std::to_string(stats.clearedThisStage));
             if (stats.IsWorldBack) {
                 stats.selectStage = maxStage_;
                 stats.currentStage = stats.selectStage;
@@ -283,11 +290,31 @@ class StageSelectScene : public IScene {
                 stats.currentStage = stats.selectStage;
                 stats.IsWorldNext = false;
             } else if (stats.IsClearBack) {
-                stats.currentStage = stats.selectStage;
+                if (stats.worldCount != worldNumber_) {
+                    stats.selectStage = std::clamp(stats.selectStage, 1, maxStage_);
+                    stats.currentStage = stats.selectStage;
+                }
                 stats.IsClearBack = false;
+            }
+            stats.currentRoom = 1;
+            stats.clearedThisStage = false;
+            stats.goalTransitioning = false;
+            stats.requestAdvance = false;
+            stats.pressedSwitch = false;
+            stats.goalUnlocked = false;
+            if (worldNumber_ >= 1 && worldNumber_ <= 4) {
+                s_lastSelected[worldNumber_ - 1] = std::clamp(stats.currentStage, 1, maxStage_);
             }
             stats.selectStage = std::clamp(stats.selectStage, 1, maxStage_);
             stats.currentStage = std::clamp(stats.currentStage, 1, maxStage_);
+            g_LastStageProgress = stats;
+            DEBUGLOG("[StageSelect] After init world=" + std::to_string(stats.worldCount) +
+                     " select=" + std::to_string(stats.selectStage) +
+                     " current=" + std::to_string(stats.currentStage) +
+                     " clearedThisStage=" + std::to_string(stats.clearedThisStage) +
+                     " g_Last world=" + std::to_string(g_LastStageProgress.worldCount) +
+                     " g_Last select=" + std::to_string(g_LastStageProgress.selectStage) +
+                     " g_Last clearedThisStage=" + std::to_string(g_LastStageProgress.clearedThisStage));
         });
 
         stickRightPrev_ = false;
@@ -326,6 +353,7 @@ class StageSelectScene : public IScene {
 
         isTransitioning_ = false;
         zoomTimer_ = 0.0f;
+        inputProtectionTimer_ = 0.5f;
 
         world.ForEach<StageProgress>([&](Entity, StageProgress &stats) {
             const int stage = std::clamp(stats.selectStage, 1, maxStage_);
@@ -333,6 +361,12 @@ class StageSelectScene : public IScene {
             targetAngle_ = -step * static_cast<float>(stage - 1);
             currentAngle_ = targetAngle_;
             skyboxYawDeg_ = DirectX::XMConvertToDegrees(currentAngle_);
+            if (worldNumber_ >= 1 && worldNumber_ <= 4) {
+                s_lastSelected[worldNumber_ - 1] = stage;
+            }
+            DEBUGLOG("[StageSelect] Init camera angle world=" + std::to_string(worldNumber_) +
+                     " stage=" + std::to_string(stage) +
+                     " angle=" + std::to_string(currentAngle_));
         });
 
         if (cfg_DirLightEnabled.Get()) {
@@ -434,6 +468,15 @@ class StageSelectScene : public IScene {
     }
 
     void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
+        if (inputProtectionTimer_ > 0.0f) {
+            inputProtectionTimer_ -= deltaTime;
+            if (inputProtectionTimer_ < 0.0f) {
+                inputProtectionTimer_ = 0.0f;
+            }
+            world.Tick(deltaTime);
+            return;
+        }
+
         world.ForEach<UIInteractionSystem>([&](Entity, UIInteractionSystem &sys) {
             if (!sys.input_) {
                 sys.input_ = &input;
@@ -456,6 +499,19 @@ class StageSelectScene : public IScene {
                             if (sp.selectStage == 1) {
                                 nextScene = "Stage1IntroVideo";
                             }
+
+                            sp.currentStage = sp.selectStage;
+                            sp.currentRoom = 1;
+                            sp.requestAdvance = false;
+                            sp.goalTransitioning = false;
+                            sp.clearedThisStage = false;
+                            sp.pressedSwitch = false;
+                            sp.goalUnlocked = false;
+                            DEBUGLOG("[StageSelect] Transition to Game: world=" + std::to_string(sp.worldCount) +
+                                     " currentStage=" + std::to_string(sp.currentStage) +
+                                     " currentRoom=" + std::to_string(sp.currentRoom) +
+                                     " clearedThisStage=" + std::to_string(sp.clearedThisStage) +
+                                     " goalTransitioning=" + std::to_string(sp.goalTransitioning));
                         });
                         manager->ChangeScene(nextScene.c_str(), world);
                     }
@@ -471,7 +527,7 @@ class StageSelectScene : public IScene {
             if (padsystem &&
                 padsystem->GetAnyButtonDown({GamepadSystem::Button_A})) {
                 trigger = true;
-                SOUND_SYS.PlaySE(cfg_EnterMP3Pass);
+                SOUND_SYS.PlaySE(cfg_EnterMP3Pass,false);
             }
             if (trigger) {
                 isTransitioning_ = true;
@@ -528,7 +584,7 @@ class StageSelectScene : public IScene {
             World *wptr = &world;
             bool dpadStartNow = padsystem->GetButton(padsystem->Button_B);
             if (dpadStartNow) {
-                SOUND_SYS.PlaySE(cfg_EnterMP3Pass);
+                SOUND_SYS.PlaySE(cfg_EnterMP3Pass,false);
                     if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
                         manager->ChangeScene("Title", *wptr);
                     }
@@ -538,10 +594,13 @@ class StageSelectScene : public IScene {
                 if (stats.selectStage < maxStage_) {
                     stats.selectStage++;
                     targetAngle_ -= DirectX::XM_2PI / maxStage_;
-                    SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
+                    SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
+                    if (worldNumber_ >= 1 && worldNumber_ <= 4) {
+                        s_lastSelected[worldNumber_ - 1] = stats.selectStage;
+                    }
                 } else if (stats.selectStage == maxStage_) {
                     if (stats.worldCount != cfg_WorldCount.Get()) {
-                        SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
+                        SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
                         // 次のワールドへ
                         stats.IsWorldBack = false;
                         stats.IsWorldNext = true;
@@ -553,7 +612,10 @@ class StageSelectScene : public IScene {
                 if (stats.selectStage > 1) {
                     stats.selectStage--;
                     targetAngle_ += DirectX::XM_2PI / maxStage_;
-                    SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
+                    SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
+                    if (worldNumber_ >= 1 && worldNumber_ <= 4) {
+                        s_lastSelected[worldNumber_ - 1] = stats.selectStage;
+                    }
                 } else {
                     // 前のワールドへ
                     if (worldNumber_ > 1) {
@@ -1321,6 +1383,7 @@ class StageSelectScene : public IScene {
 
     bool isTransitioning_ = false;
     float zoomTimer_ = 0.0f;
+    float inputProtectionTimer_ = 0.0f;
 
     bool stickRightPrev_ = false;
     bool stickLeftPrev_ = false;
