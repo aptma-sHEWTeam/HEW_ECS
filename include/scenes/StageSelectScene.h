@@ -97,6 +97,21 @@ class StageSelectScene : public IScene {
     inline static ConfigVar<float> cfg_StationRadius{"StageSelect.Station", "Radius", 5.0f, "ステージセレクト: ステーション配置半径"};
     inline static ConfigVar<float> cfg_StationScale{"StageSelect.Station", "Scale", 0.1f, "ステージセレクト: ステーションスケール"};
 
+    inline static ConfigVar<float> cfg_PlanetPosX{"StageSelect.Planet", "PosX", 5000.0f, "ステージセレクト: Planet 位置X"};
+    inline static ConfigVar<float> cfg_PlanetPosY{"StageSelect.Planet", "PosY", 0.0f, "ステージセレクト: Planet 位置Y"};
+    inline static ConfigVar<float> cfg_PlanetPosZ{"StageSelect.Planet", "PosZ", 500.0f, "ステージセレクト: Planet 位置Z"};
+    inline static ConfigVar<float> cfg_PlanetScaleX{"StageSelect.Planet", "ScaleX", 0.650000f, "ステージセレクト: Planet スケールX"};
+    inline static ConfigVar<float> cfg_PlanetScaleY{"StageSelect.Planet", "ScaleY", 0.650000f, "ステージセレクト: Planet スケールY"};
+    inline static ConfigVar<float> cfg_PlanetScaleZ{"StageSelect.Planet", "ScaleZ", 0.650000f, "ステージセレクト: Planet スケールZ"};
+    inline static ConfigVar<float> cfg_PlanetRotX{"StageSelect.Planet", "RotX", 0.0f, "ステージセレクト: Planet 回転X"};
+    inline static ConfigVar<float> cfg_PlanetRotY{"StageSelect.Planet", "RotY", 90.0f, "ステージセレクト: Planet 回転Y"};
+    inline static ConfigVar<float> cfg_PlanetRotZ{"StageSelect.Planet", "RotZ", 0.0f, "ステージセレクト: Planet 回転Z"};
+    inline static ConfigVar<std::string> cfg_PlanetModelPath{"StageSelect.Planet", "Path", "Assets/Textures/Skybox/World.fbx", "ステージセレクト: Planetモデルのパス"};
+    inline static ConfigVar<std::string> cfg_PlanetWorld1TexturePath{"StageSelect.Planet", "TexturePath","Assets/Textures/Skybox/W1.png", "ステージセレクト: Planet テクスチャパス"};
+    inline static ConfigVar<std::string> cfg_PlanetWorld2TexturePath{"StageSelect.Planet", "TexturePath", "Assets/Textures/Skybox/W2.png", "ステージセレクト: Planet テクスチャパス"};
+    inline static ConfigVar<std::string> cfg_PlanetWorld3TexturePath{"StageSelect.Planet", "TexturePath", "Assets/Textures/Skybox/W3.png", "ステージセレクト: Planet テクスチャパス"};
+    inline static ConfigVar<std::string> cfg_PlanetWorld4TexturePath{"StageSelect.Planet", "TexturePath", "Assets/Textures/Skybox/W4.png", "ステージセレクト: Planet テクスチャパス"};
+
     inline static ConfigVar<float> cfg_StationPointLightR{"StageSelect.Station.PointLight", "R", 1.0f, "ステージセレクト: ステーション点光源 R"};
     inline static ConfigVar<float> cfg_StationPointLightG{"StageSelect.Station.PointLight", "G", 0.9f, "ステージセレクト: ステーション点光源 G"};
     inline static ConfigVar<float> cfg_StationPointLightB{"StageSelect.Station.PointLight", "B", 0.9f, "ステージセレクト: ステーション点光源 B"};
@@ -465,6 +480,8 @@ class StageSelectScene : public IScene {
         lastStageNameStage_ = -1;
 
         isFading = false;
+
+         CreatePlanet(world);
     }
 
     void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
@@ -1285,6 +1302,39 @@ class StageSelectScene : public IScene {
         objectOwnedEntities_.push_back(obj);
     }
 
+      std::string GetPlanetTexturePath() const {
+        switch (worldNumber_) {
+            case 1:
+                return cfg_PlanetWorld1TexturePath.Get();
+            case 2:
+                return cfg_PlanetWorld2TexturePath.Get();
+            case 3:
+                return cfg_PlanetWorld3TexturePath.Get();
+            case 4:
+                return cfg_PlanetWorld4TexturePath.Get();
+            default:
+                break;
+        }
+    }
+    void CreatePlanet(World &world) {
+        const std::string modelPath = cfg_PlanetModelPath.Get();
+        const std::string texturePath = GetPlanetTexturePath();
+
+        DirectX::XMFLOAT3 objPos{cfg_PlanetPosX.Get(), cfg_PlanetPosY.Get(), cfg_PlanetPosZ.Get()};
+        Transform transform{
+            {objPos}, {cfg_PlanetRotX.Get(), cfg_PlanetRotY.Get(), cfg_PlanetRotZ.Get()}, {cfg_PlanetScaleX.Get(), cfg_PlanetScaleY.Get(), cfg_PlanetScaleZ.Get()}};
+        MeshRenderer meshrenderer;
+        meshrenderer.meshType = MeshType::Cube;
+        meshrenderer.color = DirectX::XMFLOAT3{0.0f, 0.0f, 0.0f};
+        planetEntity_ = world.Create()
+                            .With<Transform>(transform)
+                            .With<Model>(modelPath)
+                            .Build();
+
+        ownedEntities_.push_back(planetEntity_);
+    }
+  
+
     void BeginWorldTransitionFade(World &world, TransitionDirection direction) {
         if (direction == TransitionDirection::None || worldFadeState_ != WorldFadeState::None || !world.IsAlive(fadeEntity_)) {
             return;
@@ -1389,6 +1439,9 @@ class StageSelectScene : public IScene {
     bool stickLeftPrev_ = false;
     bool dpadRightPrev_ = false;
     bool dpadLeftPrev_ = false;
+
+     Entity planetEntity_{};
+    TextureManager::TextureHandle planetTexture_ = TextureManager::INVALID_TEXTURE;
 
     // UI creation methods defined in StageUI.cpp
     void CreateTextStageNoFormats();
