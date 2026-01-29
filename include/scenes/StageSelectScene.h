@@ -144,6 +144,11 @@ class StageSelectScene : public IScene {
     inline static ConfigVar<float> cfg_StageNameProjectYOffset{"StageSelect.UI.StageName", "ProjectYOffset", 0.8f, "ステージセレクト: StageName投影Yオフセット"};
     inline static ConfigVar<float> cfg_StageNameProjectXOffset{"StageSelect.UI.StageName", "ProjectXOffset", 1.0f, "ステージセレクト: StageName投影Xオフセット"};
 
+    inline static ConfigVar<float> cfg_StageNameRefDist{"StageSelect.UI.StageName", "RefDist_v2", 2.0f, "ステージセレクト: StageName 基準距離 (スケール1.0になる距離)"};
+    inline static ConfigVar<float> cfg_StageNameScaleMax{"StageSelect.UI.StageName", "ScaleMax_v2", 3.0f, "ステージセレクト: StageName 最大スケール制限"};
+    inline static ConfigVar<float> cfg_StageNameScaleMin{"StageSelect.UI.StageName", "ScaleMin_v2", 0.0f, "ステージセレクト: StageName 最小スケール制限"};
+    inline static ConfigVar<float> cfg_StageNameScalePower{"StageSelect.UI.StageName", "ScalePower", 5.0f, "ステージセレクト: StageName スケール変化の乗数 (大きいほど急に変化)"};
+
     inline static ConfigVar<float> cfg_CameraFovDegrees{"StageSelect.Camera", "FovDegrees", 90.0f, "ステージセレクト: カメラFOV(度)"};
     inline static ConfigVar<float> cfg_CameraNear{"StageSelect.Camera", "Near", 0.1f, "ステージセレクト: カメラNear"};
     inline static ConfigVar<float> cfg_CameraFar{"StageSelect.Camera", "Far", 10000.0f, "ステージセレクト: カメラFar"};
@@ -493,12 +498,12 @@ class StageSelectScene : public IScene {
             world.Tick(deltaTime);
             if (auto *anim = world.TryGet<SpriteSheetAnimation>(fadeEntity_)) {
                 if (anim->isFinished) {
-                    if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
-                        std::string nextScene = "Game";
-                        world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
-                            if (sp.selectStage == 1) {
-                                nextScene = "Stage1IntroVideo";
-                            }
+                        if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
+                            std::string nextScene = "Game";
+                            world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+                                if (worldNumber_ == 1 && sp.selectStage == 1) {
+                                    nextScene = "Stage1IntroVideo";
+                                }
 
                             sp.currentStage = sp.selectStage;
                             sp.currentRoom = 1;
@@ -628,7 +633,9 @@ class StageSelectScene : public IScene {
 
             stats.selectStage = std::clamp(stats.selectStage, 1, maxStage_);
 
-            UpdateStageNameTexture(world, stats.selectStage);
+            stats.selectStage = std::clamp(stats.selectStage, 1, maxStage_);
+            
+            // UpdateStageNameTexture removed (now handled at init/static strings)
         });
 
         if (requestWorldTransition == TransitionDirection::Right) {
@@ -846,11 +853,17 @@ class StageSelectScene : public IScene {
         }
         objectOwnedEntities_.clear();
 
-        if (world.IsAlive(StageSelectEntity_)) {
-            DestroyEntityHierarchy(world, StageSelectEntity_);
-            StageSelectEntity_ = {};
+        if (world.IsAlive(worldUIEntity_)) {
+             DestroyEntityHierarchy(world, worldUIEntity_);
+             worldUIEntity_ = {};
         }
-        worldUIEntity_ = {};
+        
+        for (const auto &e : stageNameEntities_) {
+            if (world.IsAlive(e)) {
+                DestroyEntityHierarchy(world, e);
+            }
+        }
+        stageNameEntities_.clear();
 
         textSystem_.Shutdown();
         imageSystem_.Shutdown();
@@ -888,7 +901,7 @@ class StageSelectScene : public IScene {
     int worldNumber_;
     int maxStage_;
 
-    Entity StageSelectEntity_{};
+    std::vector<Entity> stageNameEntities_{};
     Entity worldUIEntity_{};
     DirectX::XMFLOAT2 worldUIBasePos_{0.0f, 0.0f};
     Entity fadeEntity_{};
@@ -934,6 +947,7 @@ class StageSelectScene : public IScene {
     std::mt19937 starRng_{std::random_device{}()};
 
     int lastStageNameStage_ = -1;
+    DirectX::XMFLOAT2 stageNameBaseSize_{0.0f, 0.0f};
 
     void DestroyEntityHierarchy(World &world, Entity root) {
         if (!world.IsAlive(root)) {
@@ -1174,82 +1188,113 @@ class StageSelectScene : public IScene {
         shootingStars_.clear();
     }
 
-    void UpdateStageNameTexture(World &world, int stage) {
-        if (stage <= 0 || lastStageNameStage_ == stage || !world.IsAlive(StageSelectEntity_)) {
-            return;
-        }
-
-        auto *img = world.TryGet<UIImage>(StageSelectEntity_);
-        if (!img) {
-            return;
-        }
-
-        std::wstring stageNamePath = L"Assets/Textures/UI/StageName/stagename";
-        stageNamePath += std::to_wstring(worldNumber_);
-        stageNamePath += std::to_wstring(static_cast<int>(cfg_StageNameWorldDigit.Get()));
-        stageNamePath += std::to_wstring(stage);
-        stageNamePath += L".png";
-
-        img->filePath = stageNamePath;
-        img->opacity = 1.0f;
-        lastStageNameStage_ = stage;
-    }
 
     void UpdateStageNameFollow(World &world, const Camera &camera, float uiOffsetX, float screenWidth, float screenHeight) {
-        if (!world.IsAlive(StageSelectEntity_) || screenWidth <= 0.0f || screenHeight <= 0.0f) {
+        if (stageNameEntities_.empty() || objectOwnedEntities_.empty() || screenWidth <= 0.0f || screenHeight <= 0.0f) {
             return;
         }
 
-        int stage = 1;
-        world.ForEach<StageProgress>([&](Entity, StageProgress &stats) {
-            stage = std::clamp(stats.selectStage, 1, maxStage_);
+        // 全ステージ分のUI位置・スケール更新
+        int currSelectStage = 1;
+        world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+             if (sp.worldCount == worldNumber_) {
+                 currSelectStage = sp.selectStage;
+             }
         });
 
-        UpdateStageNameTexture(world, stage);
+        for (size_t i = 0; i < stageNameEntities_.size(); ++i) {
+            Entity uiEntity = stageNameEntities_[i];
+            
+            // Visibility Check: Only show selected stage
+            // i is 0-based index, stage is 1-based.
+            if ((static_cast<int>(i) + 1) != currSelectStage) {
+                if (auto *img = world.TryGet<UIImage>(uiEntity)) {
+                    img->opacity = 0.0f; // Hide
+                }
+                continue;
+            }
+            if (!world.IsAlive(uiEntity)) continue;
 
-        const size_t idx = static_cast<size_t>(stage - 1);
-        if (idx >= objectOwnedEntities_.size()) {
-            return;
+            // 対応するStationオブジェクトを取得
+            // objectOwnedEntities_ の構造に依存するが、Stationは最初の方に追加されているため、
+            // ステージ数とインデックスが一致していると仮定する。
+            // CreateObjectで追加された順序がステージ順であればOK。
+            // (CreateObjectはLoadでi=0から順に呼ばれていることを確認済み)
+            if (i >= objectOwnedEntities_.size()) break;
+
+            Entity station = objectOwnedEntities_[i];
+            auto *stationTr = world.TryGet<Transform>(station);
+            if (!stationTr) continue;
+
+            DirectX::XMFLOAT3 p = stationTr->position;
+            p.y += cfg_StageNameProjectYOffset.Get();
+            p.x += cfg_StageNameProjectXOffset.Get();
+
+            DirectX::XMVECTOR proj = DirectX::XMVector3Project(
+                DirectX::XMLoadFloat3(&p),
+                0.0f, 0.0f, screenWidth, screenHeight,
+                0.0f, 1.0f,
+                camera.GetProjectionMatrix(),
+                camera.GetViewMatrix(),
+                DirectX::XMMatrixIdentity());
+
+            float sx = DirectX::XMVectorGetX(proj);
+            float sy = DirectX::XMVectorGetY(proj);
+            float sz = DirectX::XMVectorGetZ(proj);
+
+            auto *img = world.TryGet<UIImage>(uiEntity);
+            if (img) {
+                img->opacity = (sz >= 0.0f && sz <= 1.0f) ? 1.0f : 0.0f;
+            }
+            if (sz < 0.0f || sz > 1.0f) {
+                continue;
+            }
+
+            auto *uiTr = world.TryGet<UITransform>(uiEntity);
+            if (!uiTr) continue;
+
+            uiTr->anchor = {0.0f, 0.0f};
+            uiTr->pivot = {0.0f, 0.0f};
+            uiTr->position = {sx - uiOffsetX, sy};
+
+            // 距離によるスケール計算
+            DirectX::XMVECTOR camPos = DirectX::XMLoadFloat3(&camera.position);
+            DirectX::XMVECTOR targetPos = DirectX::XMLoadFloat3(&p);
+            float dist = DirectX::XMVectorGetX(DirectX::XMVector3Length(DirectX::XMVectorSubtract(camPos, targetPos)));
+
+            const float refDist = cfg_StageNameRefDist.Get();
+            const float scaleMax = cfg_StageNameScaleMax.Get();
+            const float scaleMin = cfg_StageNameScaleMin.Get();
+            const float scalePower = cfg_StageNameScalePower.Get();
+
+            float currentScale = 1.0f;
+            if (dist > 0.001f) {
+                // Easing: Scale = pow(Ref / Dist, Power)
+                float ratio = refDist / dist;
+                currentScale = std::pow(ratio, scalePower);
+            }
+            currentScale = std::clamp(currentScale, scaleMin, scaleMax);
+
+            // BaseSize init check (per entity logic ideally, but sharing member for now since they are same texture usually)
+            // But texture might differ? Size should be from texture.
+            // If we use same base size for all, it's fine.
+            if (stageNameBaseSize_.x <= 0.0f || stageNameBaseSize_.y <= 0.0f) {
+                 stageNameBaseSize_ = uiTr->size;
+                 if (stageNameBaseSize_.x <= 0.0f) stageNameBaseSize_ = {621.0f, 207.0f}; 
+            }
+
+            if (stageNameBaseSize_.x > 0.0f && stageNameBaseSize_.y > 0.0f) {
+                uiTr->size = {stageNameBaseSize_.x * currentScale, stageNameBaseSize_.y * currentScale};
+            }
+            
+            // Log only for the first stage (selected or not, just index 0) to avoid spam
+            if (i == 0) {
+                 static int logCounter = 0;
+                 if (logCounter++ % 60 == 0) {
+                      DEBUGLOG("UI Scale Debug(Stg1): Dist=" + std::to_string(dist) + " Scale=" + std::to_string(currentScale) + " Size=" + std::to_string(uiTr->size.x));
+                 }
+            }
         }
-
-        Entity station = objectOwnedEntities_[idx];
-        auto *stationTr = world.TryGet<Transform>(station);
-        if (!stationTr) {
-            return;
-        }
-
-        DirectX::XMFLOAT3 p = stationTr->position;
-        p.y += cfg_StageNameProjectYOffset.Get();
-        p.x += cfg_StageNameProjectXOffset.Get();
-
-        DirectX::XMVECTOR proj = DirectX::XMVector3Project(
-            DirectX::XMLoadFloat3(&p),
-            0.0f, 0.0f, screenWidth, screenHeight,
-            0.0f, 1.0f,
-            camera.GetProjectionMatrix(),
-            camera.GetViewMatrix(),
-            DirectX::XMMatrixIdentity());
-
-        float sx = DirectX::XMVectorGetX(proj);
-        float sy = DirectX::XMVectorGetY(proj);
-        float sz = DirectX::XMVectorGetZ(proj);
-
-        auto *img = world.TryGet<UIImage>(StageSelectEntity_);
-        if (img) {
-            img->opacity = (sz >= 0.0f && sz <= 1.0f) ? 1.0f : 0.0f;
-        }
-        if (sz < 0.0f || sz > 1.0f) {
-            return;
-        }
-
-        auto *uiTr = world.TryGet<UITransform>(StageSelectEntity_);
-        if (!uiTr) {
-            return;
-        }
-
-        uiTr->anchor = {0.0f, 0.0f};
-        uiTr->pivot = {0.0f, 0.0f};
-        uiTr->position = {sx - uiOffsetX, sy};
     }
 
     void CreateObject(World &world, const DirectX::XMFLOAT3 &position, const std::string &modelPath) {
