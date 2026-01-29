@@ -368,8 +368,7 @@ class TitleScene : public IScene {
         isFading = false;
     }
 
-
-      void CreateWindows(World& world) 
+    void CreateWindows(World& world) 
       {
         //確認用オブジェクト
         DirectX::XMFLOAT3 objPos{cfg_WindowPosX.Get(), cfg_WindowPosY.Get(), cfg_WindowPosZ.Get()};
@@ -386,9 +385,7 @@ class TitleScene : public IScene {
         ownedEntities_.push_back(objectEntity_);
       }
 
-
-      
-      void CreateWalls(World &world) {
+    void CreateWalls(World &world) {
 
          //既に作成されている場合は何もしない
          if (!wallEntities_.empty())
@@ -454,12 +451,11 @@ class TitleScene : public IScene {
       
       }
       
-     
-      void SetWallTransforms(const std::vector<Transform> &transforms){
+    void SetWallTransforms(const std::vector<Transform> &transforms){
              wallTransforms_ = transforms;
          }
 
-      void GenerateWallGridTransforms(int columns , int rows = -1) {
+    void GenerateWallGridTransforms(int columns , int rows = -1) {
           wallTransforms_.clear();
           if (columns <= 0 || rows <= 0) {
               return;
@@ -509,6 +505,7 @@ class TitleScene : public IScene {
               }
           }
       }
+
     void CreateSkybox(World &world) {
         const std::string modelPath = cfg_SkyboxModelPath.Get();
         if (modelPath.empty()) {
@@ -825,8 +822,6 @@ class TitleScene : public IScene {
         skyboxTextureApplied_ = false;
     }
 
-
-
   private:
     struct SceneOwnedTag : IComponent {};
 
@@ -987,7 +982,3 @@ class TitleScene : public IScene {
         {L"./Assets/Textures/UI/TitleUI/title1.png"},
     };
 };
-
-//X横
-//Y奥行き
-//Z縦
