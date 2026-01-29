@@ -229,6 +229,8 @@ class VideoScene : public IScene {
         // Do NOT clear videoPath_ or nextSceneName_ here.
         // They are part of the scene configuration (set in App.h) and should persist.
         
+        player_.Close();
+        
         isPlaying_ = false;
         shouldExit_ = false;
         loopPlaying_ = false;
