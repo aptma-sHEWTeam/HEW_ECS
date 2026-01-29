@@ -117,10 +117,40 @@ class GameScene : public IScene {
                 stats.elapsedTime = cfg_LimitTime;
                 stats.resetDone = true;
             }
+            // Ensure entry grace: wait for player to make first move before accepting goal collisions
+            stats.waitingForPlayerMove = true;
         });
 
         world.ForEach<StageProgress>([](Entity, StageProgress &sp) {
             sp.clearedThisStage = false;
+            sp.requestAdvance = false;
+            sp.goalTransitioning = false;
+            sp.pressedSwitch = false;
+            sp.goalUnlocked = false;
+            sp.currentRoom = 1;
+            sp.hasSwitch = false;
+            sp.IsWorldBack = false;
+            sp.IsWorldNext = false;
+            sp.IsClearBack = false;
+        });
+
+        world.ForEach<GoalTag>([](Entity, GoalTag &goal) {
+            goal.consumed = false;
+        });
+
+
+        world.ForEach<StageProgress>([](Entity, StageProgress &sp) {
+            DEBUGLOG("[Game::OnEnter] StageProgress enter world=" + std::to_string(sp.worldCount) +
+                     " select=" + std::to_string(sp.selectStage) +
+                     " current=" + std::to_string(sp.currentStage) +
+                     " clearedThisStage(before)=" + std::to_string(sp.clearedThisStage));
+            sp.clearedThisStage = false;
+            sp.goalTransitioning = false;
+            sp.requestAdvance = false;
+            sp.pressedSwitch = false;
+            sp.goalUnlocked = false;
+            g_LastStageProgress = sp;
+            DEBUGLOG("[Game::OnEnter] clearedThisStage reset to false, g_Last=" + std::to_string(g_LastStageProgress.clearedThisStage));
         });
 
         // このシーンインスタンスへのグローバルポインタを設定
@@ -132,7 +162,16 @@ class GameScene : public IScene {
         stageClearTextEntity_ = {};
         stageOwnedEntities_.clear();
         goalEffectHandle_ = -1;
+        pendingStageAdvance_ = {};
+        stageAdvanceTimer_ = 0.0f;
         StopGoalEffect();
+
+        // 以前のゴールのアトラクターが残っていれば削除（再入場時の即クリア防止）
+        if (world.IsAlive(playerEntity_)) {
+            if (world.Has<GoalAttractor>(playerEntity_)) {
+                world.Remove<GoalAttractor>(playerEntity_);
+            }
+        }
 
         // 入り直し時に残存ステージエンティティがあれば除去（原点残留や重複生成を防ぐ）
         {
@@ -283,6 +322,7 @@ class GameScene : public IScene {
         int initialStage = 1;
         const int maxStage = GetAvailableStageCount(world);
         world.ForEach<StageProgress>([&](Entity e, StageProgress &status) {
+            status.Normalize(maxStage, status.worldCount);
             int desiredStage = status.selectStage > 0 ? status.selectStage : 1;
             desiredStage = std::min(desiredStage, maxStage);
             if (desiredStage != status.selectStage) {
@@ -292,6 +332,15 @@ class GameScene : public IScene {
             status.selectStage = desiredStage;
             status.currentStage = desiredStage;
             status.currentRoom = 1; // ステージ開始時は常にroom1から
+            status.clearedThisStage = false;
+            status.goalTransitioning = false;
+            status.requestAdvance = false;
+            status.pressedSwitch = false;
+            status.goalUnlocked = false;
+            DEBUGLOG("[StageCreate] Load stage world=" + std::to_string(status.worldCount) +
+                     " stage=" + std::to_string(status.currentStage) +
+                     " room=" + std::to_string(status.currentRoom) +
+                     " clearedThisStage=" + std::to_string(status.clearedThisStage));
 
             auto stagePath = ResolveStageRoomCsvPath(status.worldCount, desiredStage, status.currentRoom);
             if (!stagePath) {
@@ -310,6 +359,8 @@ class GameScene : public IScene {
             }
 
             initialStage = status.currentStage;
+            g_LastStageProgress = status;
+            DEBUGLOG("[StageCreate] g_LastStageProgress synced: clearedThisStage=" + std::to_string(g_LastStageProgress.clearedThisStage));
         });
 
         // 平行光源をエンティティとして生成
@@ -343,7 +394,13 @@ class GameScene : public IScene {
         // ゲームの一時停止/再開処理
         GamepadSystem *pad = ServiceLocator::TryGet<GamepadSystem>();
         world.ForEach<GameStatus>([&](Entity, GameStatus &stats) {
+            auto *v = world.TryGet<PlayerVelocity>(playerEntity_);
+            auto *movement = world.TryGet<PlayerMovement>(playerEntity_);
+
             bool togglePause = input.GetKeyDown('P');
+            if (pad && pad->GetButtonDown(GamepadSystem::Button_Y)) {
+                togglePause = true;
+            }
             if (togglePause) {
                 stats.isPaused = !stats.isPaused;
                 DEBUGLOG(stats.isPaused ? "ゲームが一時停止されました" : "ゲームが再開されました");
@@ -354,13 +411,11 @@ class GameScene : public IScene {
             }
         });
 
-        // Debug: force goal processing with Ctrl+Z+X+C+V
-        if (IsGoalCheatTriggered(input)) {
-            TriggerGoalCheat(world);
-        }
+        // Debug cheatを無効化（誤爆による即クリア防止）
 
         // ステージクリア待機中の処理
         if (stageClearActive_) {
+            DEBUGLOG("[Game::OnUpdate] stageClearActive is TRUE! timer=" + std::to_string(stageClearTimer_));
             stageClearTimer_ += deltaTime;
             if (auto *txt = world.TryGet<UIText>(stageClearTextEntity_)) {
                 //txt->text = L"ステージクリア！";
@@ -379,7 +434,16 @@ class GameScene : public IScene {
         float timeScale = 1.0f;
         float GoalDistance = cfg_GoalDistance;
         float SlowDirection = cfg_SlowDirection;
-        if (world.IsAlive(playerEntity_) && world.IsAlive(goalEntity_)) {
+        bool goalSequenceActive = false;
+        if (world.IsAlive(playerEntity_)) {
+            goalSequenceActive = world.Has<GoalAttractor>(playerEntity_);
+        }
+        world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+            if (sp.goalTransitioning) {
+                goalSequenceActive = true;
+            }
+        });
+        if (goalSequenceActive && world.IsAlive(playerEntity_) && world.IsAlive(goalEntity_)) {
             auto *tPlayer = world.TryGet<Transform>(playerEntity_);
             auto *tGoal = world.TryGet<Transform>(goalEntity_);
             if (tPlayer && tGoal) {
@@ -482,6 +546,7 @@ class GameScene : public IScene {
         g_GameScene = nullptr;
         RenderingSystem::GetInstance().Shutdown();
         StopGoalEffect();
+        EffekseerManager::GetInstance().StopEffect(); // エフェクトを全停止
 
         // ステージ生成物を優先的に破棄（シーン間で漏れないようにする）
         for (const auto &entity : stageOwnedEntities_) {
@@ -511,7 +576,42 @@ class GameScene : public IScene {
                 world.DestroyEntityWithCause(e, World::Cause::SceneUnload);
             }
         }
+
+        std::vector<StageProgress> savedStageProgress;
+        world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+            savedStageProgress.push_back(sp);
+        });
+
+        const int maxStage = GetAvailableStageCount(world);
+
         world.DestroyAllEntitiesImmediate(World::Cause::SceneUnload);
+
+        if (savedStageProgress.empty()) {
+            DEBUGLOG("[Game::OnExit] savedStageProgress empty, using g_LastStageProgress world=" +
+                     std::to_string(g_LastStageProgress.worldCount) +
+                     " select=" + std::to_string(g_LastStageProgress.selectStage));
+            savedStageProgress.push_back(g_LastStageProgress);
+        }
+        for (auto &sp : savedStageProgress) {
+            sp.Normalize(maxStage, sp.worldCount);
+            sp.currentRoom = 1;
+            sp.clearedThisStage = false;
+            sp.requestAdvance = false;
+            sp.goalTransitioning = false;
+            sp.pressedSwitch = false;
+            sp.goalUnlocked = false;
+            sp.hasSwitch = false;
+            sp.IsWorldBack = false;
+            sp.IsWorldNext = false;
+            sp.IsClearBack = false;
+            DEBUGLOG("[Game::OnExit] restore StageProgress world=" + std::to_string(sp.worldCount) +
+                     " select=" + std::to_string(sp.selectStage) +
+                     " current=" + std::to_string(sp.currentStage));
+        }
+
+        for (const auto &sp : savedStageProgress) {
+            world.Create().With<StageProgress>(sp).Build();
+        }
 
         for (const auto &entity : ownedEntities_) {
             if (world.IsAlive(entity)) {
@@ -606,7 +706,7 @@ class GameScene : public IScene {
         SetStickZoomActive(true);
         PlayPlayerAnimation(world, AnimationConfig::Clips::PlayerCharge, true);
 
-        SOUND_SYS.PlaySE(cfg_DriftMP3Pass.Get());
+        SOUND_SYS.PlaySE(cfg_DriftMP3Pass.Get(),false);
     }
     void OnChargeRelease(World &world, float chargeAmount01) {
         SetStickZoomActive(false);
@@ -616,7 +716,7 @@ class GameScene : public IScene {
         TriggerCameraShake(0.03f + impulse, 0.25f);
         PlayPlayerAnimation(world, AnimationConfig::Clips::PlayerChargeOut, false);
 
-        SOUND_SYS.PlaySE(cfg_Fire1MP3Pass.Get());
+        SOUND_SYS.PlaySE(cfg_Fire1MP3Pass.Get(),true);
     }
 
     void UpdateDeathFade(World &world, float dt /*dt*/) {
@@ -900,7 +1000,7 @@ class GameScene : public IScene {
             }
         }
 
-        SOUND_SYS.PlaySE(cfg_DeathMP3Pass.Get());
+        SOUND_SYS.PlaySE(cfg_DeathMP3Pass.Get(),false);
         SOUND_SYS.StopSE(cfg_DriftMP3Pass.Get());
 
         pendingRespawn_ = true;
@@ -971,6 +1071,13 @@ class GameScene : public IScene {
     void CreateUI(World &world, float screenWidth, float screenHeight);
 
     void CreatePlayer(World &world) {
+        if (world.IsAlive(playerEntity_)) {
+            if (world.Has<GoalAttractor>(playerEntity_)) {
+                world.Remove<GoalAttractor>(playerEntity_);
+                DEBUGLOG("[CreatePlayer] Removed GoalAttractor from existing player");
+            }
+        }
+
         float s = cfg_PlayerScale;
         Transform transform{{0.0f, cfg_PlayerStartY, 0.0f}, {0.0f, 0.0f, 0.0f}, {s, s, s}};
 
@@ -1093,6 +1200,9 @@ class GameScene : public IScene {
 
     void HandleStageAdvance(World &world) {
         world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+            DEBUGLOG("[HandleStageAdvance] requestAdvance=" + std::to_string(sp.requestAdvance) +
+                     " clearedThisStage=" + std::to_string(sp.clearedThisStage) +
+                     " goalTransitioning=" + std::to_string(sp.goalTransitioning));
             if (sp.requestAdvance) {
                 sp.requestAdvance = false;
 
@@ -1102,19 +1212,18 @@ class GameScene : public IScene {
                 if (!nextRoomPath) {
                     DEBUGLOG_WARNING("[StageCreate] Stage" + std::to_string(sp.currentStage) + "/room" + std::to_string(nextRoomIndex) + ".csv が見つかりません。ステージクリア扱いにします");
 
-                    // ステージクリア演出: テキスト表示して一定時間後にステージセレクトへ
-                    //SOUND_SYS.PlayBGM(cfg_ClearMP3Pass);
+                    DEBUGLOG("[HandleStageAdvance] stageClearActive set to true! currentStage=" + std::to_string(sp.currentStage) +
+                             " currentRoom=" + std::to_string(sp.currentRoom) +
+                             " nextRoom=" + std::to_string(nextRoomIndex));
                     stageClearActive_ = true;
                     stageClearTimer_ = 0.0f;
 
-                    // タイマー停止（ゲーム進行用）
                     world.ForEach<GameStatus>([](Entity, GameStatus &stats) {
                         stats.timerRunning = false;
                     });
 
                     if (world.IsAlive(stageClearTextEntity_)) {
                         if (auto *txt = world.TryGet<UIText>(stageClearTextEntity_)) {
-                            //txt->text = L"ステージクリア！";
                         }
                     }
                     ClearGoalTransitionFlag(world);
@@ -1169,7 +1278,7 @@ class GameScene : public IScene {
                     return;
                 }
 
-                SOUND_SYS.PlaySE(cfg_SpeedUpMP3Pass.Get());
+                SOUND_SYS.PlaySE(cfg_SpeedUpMP3Pass.Get(),false);
 
                 Entity newStageEntity = world.Create().With<StageCreate>(pendingStageAdvance_.nextRoomPath).Build();
                 ownedEntities_.push_back(newStageEntity);
@@ -1803,12 +1912,12 @@ class GameScene : public IScene {
             if (!world.Has<PlayerTag>(other))
                 return;
 
-            world.ForEach<StageProgress>([](Entity, StageProgress &sp) {
-                if (sp.clearedThisStage)
-                    return;
-                sp.clearedThisStage = true;
-                StageSave::MarkStageCleared(sp.currentStage);
-            });
+        world.ForEach<StageProgress>([](Entity, StageProgress &sp) {
+            if (sp.clearedThisStage)
+                return;
+            sp.clearedThisStage = true;
+            StageSave::MarkStageCleared(sp.currentStage);
+        });
         }
     };
 
@@ -2191,6 +2300,31 @@ class GameScene : public IScene {
         startEntity_ = {};
         goalEntity_ = {};
         goalEffectHandle_ = -1;
+
+        stageClearActive_ = false;
+        stageClearTimer_ = 0.0f;
+
+        world.ForEach<StageProgress>([](Entity, StageProgress &sp) {
+            sp.requestAdvance = false;
+            sp.goalTransitioning = false;
+            sp.clearedThisStage = false;
+            sp.pressedSwitch = false;
+            sp.goalUnlocked = false;
+            DEBUGLOG("[SetupStage] StageProgress reset: clearedThisStage=" + std::to_string(sp.clearedThisStage) +
+                     " goalTransitioning=" + std::to_string(sp.goalTransitioning) +
+                     " pressedSwitch=" + std::to_string(sp.pressedSwitch));
+        });
+
+        // エフェクトを全停止（前のステージのエフェクトが残らないように）
+        EffekseerManager::GetInstance().StopEffect();
+
+        // プレイヤーからGoalAttractorを削除（前のステージの状態が残らないように）
+        if (world.IsAlive(playerEntity_)) {
+            if (world.Has<GoalAttractor>(playerEntity_)) {
+                world.Remove<GoalAttractor>(playerEntity_);
+                DEBUGLOG("[SetupStage] GoalAttractor removed from player");
+            }
+        }
 
         // 最新のStageCreateのみを利用し、それ以外は破棄して重複生成を防ぐ
         Entity activeStageCreate{};
@@ -2931,7 +3065,7 @@ inline void GameScene_OnTimeUp(World &w, Entity player) {
     if (g_GameScene) {
         g_GameScene->OnTimeUp(player, w);
     } else {
-        SOUND_SYS.PlaySE(cfg_DeathMP3Pass);
+        SOUND_SYS.PlaySE(cfg_DeathMP3Pass,false);
         SOUND_SYS.StopSE(cfg_DriftMP3Pass);
         ResetPlayerToStart(w, player, true);
     }
@@ -2961,7 +3095,7 @@ inline void WallCollisionHandler::OnCollisionEnter(World &w, Entity self, Entity
         if (info.normal.y > 0.5f)
             return;
 
-        SOUND_SYS.PlaySE(cfg_CollideMP3Pass.Get());
+        SOUND_SYS.PlaySE(cfg_CollideMP3Pass.Get(),false);
 
         DEBUGLOG("壁がプレイヤーと衝突 - カメラシェイク＋遅延リスポーン");
         if (g_GameScene) {
@@ -2987,7 +3121,7 @@ inline void FloorWallCollisionHandler::OnCollisionEnter(World &w, Entity self, E
         if (info.normal.y > 0.5f)
             return;
 
-        SOUND_SYS.PlaySE(cfg_CollideMP3Pass.Get());
+        SOUND_SYS.PlaySE(cfg_CollideMP3Pass.Get(),false);
 
         DEBUGLOG("ステージ壁がプレイヤーと衝突 - カメラシェイク＋遅延リスポーン");
         if (g_GameScene) {

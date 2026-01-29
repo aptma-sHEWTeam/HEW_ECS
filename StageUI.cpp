@@ -59,7 +59,21 @@ void StageSelectScene::CreateStageSelectUI(World &world) {
 
     int initialStage = 1;
     world.ForEach<StageProgress>([&](Entity, StageProgress &progress) {
+        progress.Normalize(maxStage_, worldNumber_);
         initialStage = std::clamp(progress.selectStage, 1, maxStage_);
+        DEBUGLOG("[StageSelect] UI init world=" + std::to_string(progress.worldCount) +
+                 " select=" + std::to_string(progress.selectStage) +
+                 " current=" + std::to_string(progress.currentStage) +
+                 " g_Last world=" + std::to_string(g_LastStageProgress.worldCount) +
+                 " g_Last select=" + std::to_string(g_LastStageProgress.selectStage));
+    });
+    if (worldNumber_ >= 1 && worldNumber_ <= 4) {
+        initialStage = std::clamp(s_lastSelected[worldNumber_ - 1], 1, maxStage_);
+    }
+
+    world.ForEach<StageProgress>([&](Entity, StageProgress &progress) {
+        progress.selectStage = initialStage;
+        progress.currentStage = initialStage;
     });
 
     // WorldNo

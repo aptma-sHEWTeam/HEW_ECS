@@ -335,6 +335,21 @@ struct PlayerMovement : Behaviour {
             }
         });
 
+        
+        //ポーズ中はプレイヤーを動かさない
+        w.ForEach<GameStatus>([&](Entity e, GameStatus &stats) {
+            if (stats.isPaused == true) {
+                v->velocity = {0.0f, 0.0f};
+                v->isBoosting = false;
+                v->isDecelerating = false;
+                v->boostSpeed = 0.0f;
+                ResetAngleHistory();
+                isCharging_ = false;
+                wasCharging_ = false;
+                wasChargingPrev_ = false;
+            }
+        });
+
         if (!isStart)
         {
             startBlocked = true;

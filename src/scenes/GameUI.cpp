@@ -8,10 +8,12 @@
 #include "graphics/TextSystem.h"
 #include "components/CountUIComponent.h"
 #include "components/UIImageComponents.h"
+#include "components/StageComponents.h"
 #include "config/ConfigVar.h"
 #include "animation/Animation.h" // cfg_ChargingFade / SpriteSheetAnimation など
 #include "animation/AnimationTools.h"
 #include "animation/AnimationConfig.h"
+#include <algorithm>
 
 inline static ConfigVar<float> cfg_FadeFrameTime{"Fade.Out", "FadeFrameTime", 0.01f, "フェードアウト1フレームの時間（秒）"};
 
@@ -168,7 +170,23 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                                    .Build();
     ownedEntities_.push_back(warningTextEntity);
 
-    UITransform starttimeTransform;
+    UITransform startImgTr;
+    startImgTr.position = {500.0f, 100.0f};
+    startImgTr.size = {250.0f, 250.0f};
+    startImgTr.anchor = {0.0f, 0.0f};
+    startImgTr.pivot = {0.0f, 0.0f};
+
+    UIImage startImg{L"Assets/Textures/UI/StageUI/charge.png"};
+    startImg.opacity = 1.0f;
+    startImg.keepAspect = true;
+
+    Entity startImageEntity = world.Create()
+                                  .With<UITransform>(startImgTr)
+                                  .With<UIImage>(startImg)
+                                  .Build();
+    ownedEntities_.push_back(startImageEntity);
+
+    /* UITransform starttimeTransform;
     starttimeTransform.position = {600.0f, 250.0f};
     starttimeTransform.size = {300.0f, 300.0f};
     starttimeTransform.anchor = {0.0f, 0.0f};
@@ -184,7 +202,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                            .With<UIText>(starttimeText)
                            .Build();
 
-    ownedEntities_.push_back(starttime);
+    ownedEntities_.push_back(starttime);*/
 
 #ifdef _DEBUG
     UITransform fpsTransform;
@@ -313,7 +331,8 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     Entity pauseResumeBtn = createPauseButton(L"再開", 40.0f);
     Entity pauseRetryBtn = createPauseButton(L"リトライ", 110.0f);
     Entity pauseTitleBtn = createPauseButton(L"タイトルへ", 180.0f);
-    Entity pauseQuitBtn = createPauseButton(L"終了", 250.0f);
+    Entity pauseSelectBtn = createPauseButton(L"ステージセレクトへ", 250.0f);
+    Entity pauseQuitBtn = createPauseButton(L"終了", 320.0f);
 
     // 追加: ステージクリア表示（最初は非表示＝空文字）
     UITransform clearTransform;
@@ -347,14 +366,15 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         updater->stageTextEntity_[1] = stageEntity[1];
         //  updater->numEntity_ = numEntity;
         updater->timeImageEntity_ = timerImageEntity;
-        updater->startplayer_ = starttime;
+        updater->startplayer_ = startImageEntity;
         updater->warningOverlayEntity_ = warningOverlayEntity;
-        updater->warningTextEntity_ = warningTextEntity;
+        //updater->warningTextEntity_ = warningTextEntity;
 
         updater->pauseMenuPanelEntity_ = pauseMenuPanelEntity;
         updater->pauseResumeButtonEntity_ = pauseResumeBtn;
         updater->pauseRetryButtonEntity_ = pauseRetryBtn;
         updater->pauseTitleButtonEntity_ = pauseTitleBtn;
+        updater->pauseStageSelectButtonEntity_ = pauseSelectBtn;
         updater->pauseQuitButtonEntity_ = pauseQuitBtn;
         updater->pauseMenuButtonSize_ = {360.0f, 60.0f};
     }
@@ -387,6 +407,18 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                 if (auto *mgr = ServiceLocator::TryGet<SceneManager>()) {
                     mgr->ChangeScene("Title", *wptr);
                 }
+            };
+        }
+        if (auto *b = world.TryGet<UIButton>(pauseSelectBtn)) {
+            b->onClick = [this, wptr]() {
+                wptr->ForEach<GameStatus>([](Entity, GameStatus &s) { s.isPaused = false; });
+                    if (auto *mgr = ServiceLocator::TryGet<SceneManager>()) {
+                        int worldIndex = 1;
+                        wptr->ForEach<StageProgress>([&](Entity, StageProgress &sp) { worldIndex = sp.worldCount; });
+                        worldIndex = std::clamp(worldIndex, 1, 4);
+                        std::string sceneName = "World" + std::to_string(worldIndex) + "_StageSelect";
+                        mgr->ChangeScene(sceneName.c_str(), *wptr);
+                    }
             };
         }
         if (auto *b = world.TryGet<UIButton>(pauseQuitBtn)) {

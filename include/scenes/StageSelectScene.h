@@ -97,6 +97,21 @@ class StageSelectScene : public IScene {
     inline static ConfigVar<float> cfg_StationRadius{"StageSelect.Station", "Radius", 5.0f, "ステージセレクト: ステーション配置半径"};
     inline static ConfigVar<float> cfg_StationScale{"StageSelect.Station", "Scale", 0.1f, "ステージセレクト: ステーションスケール"};
 
+    inline static ConfigVar<float> cfg_PlanetPosX{"StageSelect.Planet", "PosX", 5000.0f, "ステージセレクト: Planet 位置X"};
+    inline static ConfigVar<float> cfg_PlanetPosY{"StageSelect.Planet", "PosY", 0.0f, "ステージセレクト: Planet 位置Y"};
+    inline static ConfigVar<float> cfg_PlanetPosZ{"StageSelect.Planet", "PosZ", 500.0f, "ステージセレクト: Planet 位置Z"};
+    inline static ConfigVar<float> cfg_PlanetScaleX{"StageSelect.Planet", "ScaleX", 0.650000f, "ステージセレクト: Planet スケールX"};
+    inline static ConfigVar<float> cfg_PlanetScaleY{"StageSelect.Planet", "ScaleY", 0.650000f, "ステージセレクト: Planet スケールY"};
+    inline static ConfigVar<float> cfg_PlanetScaleZ{"StageSelect.Planet", "ScaleZ", 0.650000f, "ステージセレクト: Planet スケールZ"};
+    inline static ConfigVar<float> cfg_PlanetRotX{"StageSelect.Planet", "RotX", 0.0f, "ステージセレクト: Planet 回転X"};
+    inline static ConfigVar<float> cfg_PlanetRotY{"StageSelect.Planet", "RotY", 90.0f, "ステージセレクト: Planet 回転Y"};
+    inline static ConfigVar<float> cfg_PlanetRotZ{"StageSelect.Planet", "RotZ", 0.0f, "ステージセレクト: Planet 回転Z"};
+    inline static ConfigVar<std::string> cfg_PlanetModelPath{"StageSelect.Planet", "Path", "Assets/Textures/Skybox/World.fbx", "ステージセレクト: Planetモデルのパス"};
+    inline static ConfigVar<std::string> cfg_PlanetWorld1TexturePath{"StageSelect.Planet", "TexturePath","Assets/Textures/Skybox/W1.png", "ステージセレクト: Planet テクスチャパス"};
+    inline static ConfigVar<std::string> cfg_PlanetWorld2TexturePath{"StageSelect.Planet", "TexturePath", "Assets/Textures/Skybox/W2.png", "ステージセレクト: Planet テクスチャパス"};
+    inline static ConfigVar<std::string> cfg_PlanetWorld3TexturePath{"StageSelect.Planet", "TexturePath", "Assets/Textures/Skybox/W3.png", "ステージセレクト: Planet テクスチャパス"};
+    inline static ConfigVar<std::string> cfg_PlanetWorld4TexturePath{"StageSelect.Planet", "TexturePath", "Assets/Textures/Skybox/W4.png", "ステージセレクト: Planet テクスチャパス"};
+
     inline static ConfigVar<float> cfg_StationPointLightR{"StageSelect.Station.PointLight", "R", 1.0f, "ステージセレクト: ステーション点光源 R"};
     inline static ConfigVar<float> cfg_StationPointLightG{"StageSelect.Station.PointLight", "G", 0.9f, "ステージセレクト: ステーション点光源 G"};
     inline static ConfigVar<float> cfg_StationPointLightB{"StageSelect.Station.PointLight", "B", 0.9f, "ステージセレクト: ステーション点光源 B"};
@@ -187,6 +202,7 @@ class StageSelectScene : public IScene {
     };
 
     inline static max_stages ms[4] = {{0, 1}, {0, 2}, {0, 3}, {0, 4}};
+    inline static int s_lastSelected[4] = {1, 1, 1, 1};
 
     /**
      * @brief コンストラクタ
@@ -274,6 +290,12 @@ class StageSelectScene : public IScene {
         // ワールド移動時のステージ番号初期化
         world.ForEach<StageProgress>([&](Entity, StageProgress &stats) {
             stats.worldCount = worldNumber_;
+            stats.Normalize(maxStage_, worldNumber_);
+            DEBUGLOG("[StageSelect] Before flags world=" + std::to_string(stats.worldCount) +
+                     " select=" + std::to_string(stats.selectStage) +
+                     " current=" + std::to_string(stats.currentStage) +
+                     " IsClearBack=" + std::to_string(stats.IsClearBack) +
+                     " clearedThisStage=" + std::to_string(stats.clearedThisStage));
             if (stats.IsWorldBack) {
                 stats.selectStage = maxStage_;
                 stats.currentStage = stats.selectStage;
@@ -283,11 +305,31 @@ class StageSelectScene : public IScene {
                 stats.currentStage = stats.selectStage;
                 stats.IsWorldNext = false;
             } else if (stats.IsClearBack) {
-                stats.currentStage = stats.selectStage;
+                if (stats.worldCount != worldNumber_) {
+                    stats.selectStage = std::clamp(stats.selectStage, 1, maxStage_);
+                    stats.currentStage = stats.selectStage;
+                }
                 stats.IsClearBack = false;
+            }
+            stats.currentRoom = 1;
+            stats.clearedThisStage = false;
+            stats.goalTransitioning = false;
+            stats.requestAdvance = false;
+            stats.pressedSwitch = false;
+            stats.goalUnlocked = false;
+            if (worldNumber_ >= 1 && worldNumber_ <= 4) {
+                s_lastSelected[worldNumber_ - 1] = std::clamp(stats.currentStage, 1, maxStage_);
             }
             stats.selectStage = std::clamp(stats.selectStage, 1, maxStage_);
             stats.currentStage = std::clamp(stats.currentStage, 1, maxStage_);
+            g_LastStageProgress = stats;
+            DEBUGLOG("[StageSelect] After init world=" + std::to_string(stats.worldCount) +
+                     " select=" + std::to_string(stats.selectStage) +
+                     " current=" + std::to_string(stats.currentStage) +
+                     " clearedThisStage=" + std::to_string(stats.clearedThisStage) +
+                     " g_Last world=" + std::to_string(g_LastStageProgress.worldCount) +
+                     " g_Last select=" + std::to_string(g_LastStageProgress.selectStage) +
+                     " g_Last clearedThisStage=" + std::to_string(g_LastStageProgress.clearedThisStage));
         });
 
         stickRightPrev_ = false;
@@ -326,6 +368,7 @@ class StageSelectScene : public IScene {
 
         isTransitioning_ = false;
         zoomTimer_ = 0.0f;
+        inputProtectionTimer_ = 0.5f;
 
         world.ForEach<StageProgress>([&](Entity, StageProgress &stats) {
             const int stage = std::clamp(stats.selectStage, 1, maxStage_);
@@ -333,6 +376,12 @@ class StageSelectScene : public IScene {
             targetAngle_ = -step * static_cast<float>(stage - 1);
             currentAngle_ = targetAngle_;
             skyboxYawDeg_ = DirectX::XMConvertToDegrees(currentAngle_);
+            if (worldNumber_ >= 1 && worldNumber_ <= 4) {
+                s_lastSelected[worldNumber_ - 1] = stage;
+            }
+            DEBUGLOG("[StageSelect] Init camera angle world=" + std::to_string(worldNumber_) +
+                     " stage=" + std::to_string(stage) +
+                     " angle=" + std::to_string(currentAngle_));
         });
 
         if (cfg_DirLightEnabled.Get()) {
@@ -431,9 +480,20 @@ class StageSelectScene : public IScene {
         lastStageNameStage_ = -1;
 
         isFading = false;
+
+         CreatePlanet(world);
     }
 
     void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
+        if (inputProtectionTimer_ > 0.0f) {
+            inputProtectionTimer_ -= deltaTime;
+            if (inputProtectionTimer_ < 0.0f) {
+                inputProtectionTimer_ = 0.0f;
+            }
+            world.Tick(deltaTime);
+            return;
+        }
+
         world.ForEach<UIInteractionSystem>([&](Entity, UIInteractionSystem &sys) {
             if (!sys.input_) {
                 sys.input_ = &input;
@@ -456,6 +516,19 @@ class StageSelectScene : public IScene {
                             if (sp.selectStage == 1) {
                                 nextScene = "Stage1IntroVideo";
                             }
+
+                            sp.currentStage = sp.selectStage;
+                            sp.currentRoom = 1;
+                            sp.requestAdvance = false;
+                            sp.goalTransitioning = false;
+                            sp.clearedThisStage = false;
+                            sp.pressedSwitch = false;
+                            sp.goalUnlocked = false;
+                            DEBUGLOG("[StageSelect] Transition to Game: world=" + std::to_string(sp.worldCount) +
+                                     " currentStage=" + std::to_string(sp.currentStage) +
+                                     " currentRoom=" + std::to_string(sp.currentRoom) +
+                                     " clearedThisStage=" + std::to_string(sp.clearedThisStage) +
+                                     " goalTransitioning=" + std::to_string(sp.goalTransitioning));
                         });
                         manager->ChangeScene(nextScene.c_str(), world);
                     }
@@ -471,7 +544,7 @@ class StageSelectScene : public IScene {
             if (padsystem &&
                 padsystem->GetAnyButtonDown({GamepadSystem::Button_A})) {
                 trigger = true;
-                SOUND_SYS.PlaySE(cfg_EnterMP3Pass);
+                SOUND_SYS.PlaySE(cfg_EnterMP3Pass,false);
             }
             if (trigger) {
                 isTransitioning_ = true;
@@ -528,7 +601,7 @@ class StageSelectScene : public IScene {
             World *wptr = &world;
             bool dpadStartNow = padsystem->GetButton(padsystem->Button_B);
             if (dpadStartNow) {
-                SOUND_SYS.PlaySE(cfg_EnterMP3Pass);
+                SOUND_SYS.PlaySE(cfg_EnterMP3Pass,false);
                     if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
                         manager->ChangeScene("Title", *wptr);
                     }
@@ -538,10 +611,13 @@ class StageSelectScene : public IScene {
                 if (stats.selectStage < maxStage_) {
                     stats.selectStage++;
                     targetAngle_ -= DirectX::XM_2PI / maxStage_;
-                    SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
+                    SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
+                    if (worldNumber_ >= 1 && worldNumber_ <= 4) {
+                        s_lastSelected[worldNumber_ - 1] = stats.selectStage;
+                    }
                 } else if (stats.selectStage == maxStage_) {
                     if (stats.worldCount != cfg_WorldCount.Get()) {
-                        SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
+                        SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
                         // 次のワールドへ
                         stats.IsWorldBack = false;
                         stats.IsWorldNext = true;
@@ -553,7 +629,10 @@ class StageSelectScene : public IScene {
                 if (stats.selectStage > 1) {
                     stats.selectStage--;
                     targetAngle_ += DirectX::XM_2PI / maxStage_;
-                    SOUND_SYS.PlaySE(cfg_SelectMP3Pass);
+                    SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
+                    if (worldNumber_ >= 1 && worldNumber_ <= 4) {
+                        s_lastSelected[worldNumber_ - 1] = stats.selectStage;
+                    }
                 } else {
                     // 前のワールドへ
                     if (worldNumber_ > 1) {
@@ -1223,6 +1302,39 @@ class StageSelectScene : public IScene {
         objectOwnedEntities_.push_back(obj);
     }
 
+      std::string GetPlanetTexturePath() const {
+        switch (worldNumber_) {
+            case 1:
+                return cfg_PlanetWorld1TexturePath.Get();
+            case 2:
+                return cfg_PlanetWorld2TexturePath.Get();
+            case 3:
+                return cfg_PlanetWorld3TexturePath.Get();
+            case 4:
+                return cfg_PlanetWorld4TexturePath.Get();
+            default:
+                break;
+        }
+    }
+    void CreatePlanet(World &world) {
+        const std::string modelPath = cfg_PlanetModelPath.Get();
+        const std::string texturePath = GetPlanetTexturePath();
+
+        DirectX::XMFLOAT3 objPos{cfg_PlanetPosX.Get(), cfg_PlanetPosY.Get(), cfg_PlanetPosZ.Get()};
+        Transform transform{
+            {objPos}, {cfg_PlanetRotX.Get(), cfg_PlanetRotY.Get(), cfg_PlanetRotZ.Get()}, {cfg_PlanetScaleX.Get(), cfg_PlanetScaleY.Get(), cfg_PlanetScaleZ.Get()}};
+        MeshRenderer meshrenderer;
+        meshrenderer.meshType = MeshType::Cube;
+        meshrenderer.color = DirectX::XMFLOAT3{0.0f, 0.0f, 0.0f};
+        planetEntity_ = world.Create()
+                            .With<Transform>(transform)
+                            .With<Model>(modelPath)
+                            .Build();
+
+        ownedEntities_.push_back(planetEntity_);
+    }
+  
+
     void BeginWorldTransitionFade(World &world, TransitionDirection direction) {
         if (direction == TransitionDirection::None || worldFadeState_ != WorldFadeState::None || !world.IsAlive(fadeEntity_)) {
             return;
@@ -1321,11 +1433,15 @@ class StageSelectScene : public IScene {
 
     bool isTransitioning_ = false;
     float zoomTimer_ = 0.0f;
+    float inputProtectionTimer_ = 0.0f;
 
     bool stickRightPrev_ = false;
     bool stickLeftPrev_ = false;
     bool dpadRightPrev_ = false;
     bool dpadLeftPrev_ = false;
+
+     Entity planetEntity_{};
+    TextureManager::TextureHandle planetTexture_ = TextureManager::INVALID_TEXTURE;
 
     // UI creation methods defined in StageUI.cpp
     void CreateTextStageNoFormats();

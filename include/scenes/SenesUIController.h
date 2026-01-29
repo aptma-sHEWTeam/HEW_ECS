@@ -30,13 +30,14 @@ struct GameUIUpdater : Behaviour {
     int cachedWorldCount = 1;
     Entity startplayer_;
     Entity warningOverlayEntity_;
-    Entity warningTextEntity_;
+    //Entity warningTextEntity_;
     float warningBlinkTimer_ = 0.0f;
 
     Entity pauseMenuPanelEntity_;
     Entity pauseResumeButtonEntity_;
     Entity pauseRetryButtonEntity_;
     Entity pauseTitleButtonEntity_;
+    Entity pauseStageSelectButtonEntity_;
     Entity pauseQuitButtonEntity_;
 
     DirectX::XMFLOAT2 pauseMenuButtonSize_{360.0f, 60.0f};
@@ -117,23 +118,32 @@ struct GameUIUpdater : Behaviour {
                 warningPanel->color = {1.0f, 0.0f, 0.0f, blinkOn ? 0.35f : 0.0f};
             }
 
-            if (auto *warningText = w.TryGet<UIText>(warningTextEntity_)) {
-                warningText->text = shouldWarn ? L"WARNING!" : L"";
-            }
+          /*  if (auto *warningText = w.TryGet<UIText>(warningTextEntity_)) {
+                warningText->text = L"";
+            }*/
 
+           /* if (auto *warningText = w.TryGet<UIText>(warningTextEntity_)) {
+                warningText->text = shouldWarn ? L"WARNING!" : L"";
+            }*/
+
+            if (auto *startImage = w.TryGet<UIImage>(startplayer_)) {
+                if (stats.StartChack == true) {
+                    startImage->opacity = 0.0f;
+                }
+            }
             //スタートのカウントダウン時間の更新
-            if (auto *starttimeText = w.TryGet<UIText>(startplayer_)) {
+            /*if (auto *starttimeText = w.TryGet<UIText>(startplayer_)) {
                 std::wstringstream ss;
                 float seconds = stats.StartCountDown;
                 if (seconds < 0)
                     seconds = 0;
-                ss << L"Charge!";
+                ss << L"ChargeStart!";
                 starttimeText->text = ss.str();
 
                 if (stats.StartChack == true) {
                     starttimeText->text = L"";
                 }
-            }
+            }*/
 
             //fps表示の更新
             if (auto *fpsText = w.TryGet<UIText>(fpsTextEntity_)) {
@@ -174,6 +184,7 @@ struct GameUIUpdater : Behaviour {
             setButtonVisible(pauseResumeButtonEntity_, showPauseMenu);
             setButtonVisible(pauseRetryButtonEntity_, showPauseMenu);
             setButtonVisible(pauseTitleButtonEntity_, showPauseMenu);
+            setButtonVisible(pauseStageSelectButtonEntity_, showPauseMenu);
             setButtonVisible(pauseQuitButtonEntity_, showPauseMenu);
         });
 
@@ -225,4 +236,5 @@ struct GameUIUpdater : Behaviour {
             cachedWorldCount = world;
         cachedRoomCount_ = CountRoomsInStage(world, stage);
     }
+
 };

@@ -1,6 +1,6 @@
 /**
  * @file TitleUI.cpp
- * @brief TitleScene ‚Ì UI \’z‚ÆƒeƒLƒXƒgƒtƒH[ƒ}ƒbƒgÀ‘•
+ * @brief TitleScene ï¿½ï¿½ UI ï¿½\ï¿½zï¿½Æƒeï¿½Lï¿½Xï¿½gï¿½tï¿½Hï¿½[ï¿½}ï¿½bï¿½gï¿½ï¿½ï¿½ï¿½
  */
 #include "pch.h"
 #include "scenes/Game.h"
@@ -10,14 +10,14 @@
 #include "components/CountUIComponent.h"
 #include "components/UIImageComponents.h"
 #include "config/ConfigVar.h"
-#include "animation/Animation.h" // cfg_ChargingFade / SpriteSheetAnimation ‚È‚Ç
+#include "animation/Animation.h" // cfg_ChargingFade / SpriteSheetAnimation ï¿½È‚ï¿½
 
 
 
 void TitleScene::CreateTextNormalFormats() {
     TextSystem::TextFormat normal;
     normal.fontSize = 100.0f;
-    normal.fontFamily = L"ƒƒCƒŠƒI";
+    normal.fontFamily = L"ï¿½ï¿½ï¿½Cï¿½ï¿½ï¿½I";
     normal.alignment = DWRITE_TEXT_ALIGNMENT_LEADING;
     textSystem_.CreateTextFormat("hud", normal);
 }
@@ -42,10 +42,10 @@ void TitleScene::CreateTitleSelectUI(World &world) {
 
     //ownedEntities_.push_back(crossTextEntity);
 
-    //ƒ^ƒCƒgƒ‹ƒƒS
+    //ï¿½^ï¿½Cï¿½gï¿½ï¿½ï¿½ï¿½ï¿½S
     UITransform titleLogoImgTr;
-    titleLogoImgTr.position = {50.0f,-100.0f};
-    titleLogoImgTr.size = {700.0f, 500.0f};
+    titleLogoImgTr.position = {50.0f,0.0f};
+    titleLogoImgTr.size = {560.0f, 350.0f};
     titleLogoImgTr.anchor = {0.0f,0.0f};
     titleLogoImgTr.pivot = {0.0f, 0.0f};
 
@@ -61,15 +61,15 @@ void TitleScene::CreateTitleSelectUI(World &world) {
     ownedEntities_.push_back(titleLogoImageEntity);
    
 
-    //ƒXƒ^[ƒg
+    //ï¿½Xï¿½^ï¿½[ï¿½g
     UITransform startImgTr;
     startImgTr.position = {50.0f, 400.0f};
     startImgTr.size = {300.0f, 300.0f};
     startImgTr.anchor = {0.0f, 0.0f};
     startImgTr.pivot = {0.0f, 0.0f};
 
-    UIImage startImg{normalPaths[0]};
-    startImg.opacity = 1.0f;
+     UIImage startImg{selectPaths[0]};
+     startImg.opacity = 1.0f;
     startImg.keepAspect = true;
 
     Entity startImageEntity = world.Create()
@@ -78,15 +78,16 @@ void TitleScene::CreateTitleSelectUI(World &world) {
                                       .Build();
 
     ownedEntities_.push_back(startImageEntity);
+    baseMenuEntity_[0] = startImageEntity;
 
-    //ƒŠƒXƒ^[ƒg
+    //ï¿½ï¿½ï¿½Xï¿½^ï¿½[ï¿½g
     UITransform restartImgTr;
     restartImgTr.position = {50.0f, 460.0f};
     restartImgTr.size = {300.0f, 300.0f};
     restartImgTr.anchor = {0.0f, 0.0f};
     restartImgTr.pivot = {0.0f, 0.0f};
 
-    UIImage restartImg{normalPaths[1]};
+    UIImage restartImg{selectPaths[1]};
     restartImg.opacity = 1.0f;
     restartImg.keepAspect = true;
 
@@ -96,15 +97,16 @@ void TitleScene::CreateTitleSelectUI(World &world) {
                                   .Build();
 
     ownedEntities_.push_back(restartImageEntity);
+    baseMenuEntity_[1] = restartImageEntity;
 
-     //I—¹
+     //ï¿½Iï¿½ï¿½
     UITransform exitImgTr;
     exitImgTr.position = {50.0f, 520.0f};
     exitImgTr.size = {300.0f, 300.0f};
     exitImgTr.anchor = {0.0f, 0.0f};
     exitImgTr.pivot = {0.0f, 0.0f};
 
-    UIImage exitImg{normalPaths[2]};
+    UIImage exitImg{selectPaths[2]};
     exitImg.opacity = 1.0f;
     exitImg.keepAspect = true;
 
@@ -113,8 +115,9 @@ void TitleScene::CreateTitleSelectUI(World &world) {
                                   .With<UIImage>(exitImg)
                                   .Build();
 
-    //ŠeƒGƒ“ƒeƒBƒeƒB‚ğŠi”[
+    //ï¿½eï¿½Gï¿½ï¿½ï¿½eï¿½Bï¿½eï¿½Bï¿½ï¿½ï¿½iï¿½[
     ownedEntities_.push_back(exitImageEntity);
+    baseMenuEntity_[2] = exitImageEntity;
 
     menuEntity_[0] = world.Create()
                          .With<UITransform>(startImgTr)
@@ -123,15 +126,25 @@ void TitleScene::CreateTitleSelectUI(World &world) {
     ownedEntities_.push_back(menuEntity_[0]);
 
      menuEntity_[1] = world.Create()
-                         .With<UITransform>(restartImgTr)
-                         .With<UIImage>(restartImg)
-                         .Build();
+                          .With<UITransform>(restartImgTr)
+                          .With<UIImage>(restartImg)
+                          .Build();
     ownedEntities_.push_back(menuEntity_[1]);
 
      menuEntity_[2] = world.Create()
-                         .With<UITransform>(exitImgTr)
-                         .With<UIImage>(exitImg)
-                         .Build();
+                          .With<UITransform>(exitImgTr)
+                          .With<UIImage>(exitImg)
+                          .Build();
     ownedEntities_.push_back(menuEntity_[2]);
+
+    for (int i = 0; i < 3; ++i) {
+        if (auto *hoverImg = world.TryGet<UIImage>(menuEntity_[i])) {
+            hoverImg->filePath = normalPaths[i];
+            hoverImg->opacity = (i == currentSelect) ? 1.0f : 0.0f;
+        }
+        if (auto *baseImg = world.TryGet<UIImage>(baseMenuEntity_[i])) {
+            baseImg->opacity = (i == currentSelect) ? 0.0f : 1.0f;
+        }
+    }
 }
 
