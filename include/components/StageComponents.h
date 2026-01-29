@@ -58,6 +58,7 @@ struct StageProgress : IComponent {
     int currentStage = 1;
     int selectStage = 1;
     int currentRoom = 1; // 現在のルーム番号（同一ステージ内の部屋）
+    int maxRoom = 1;
     bool requestAdvance = false;
     bool goalTransitioning = false;
     bool clearedThisStage = false;
@@ -75,6 +76,23 @@ struct StageProgress : IComponent {
         currentRoom = std::max(1, currentRoom);
     }
 };
+inline int CountRooms(int world, int stage) {
+    namespace fs = std::filesystem;
+
+    int count = 0;
+    for (int room = 1;; ++room) {
+        fs::path p =
+            "Assets/StageData/World" + std::to_string(world) +
+            "/StageCollision/Stage" + std::to_string(stage) +
+            "/room" + std::to_string(room) + ".csv";
+
+        if (!fs::exists(p))
+            break;
+
+        ++count;
+    }
+    return std::max(1, count);
+}
 
 inline StageProgress g_LastStageProgress{};
 
@@ -540,7 +558,18 @@ struct GoalAttractor : Behaviour {
             w.ForEach<StageProgress>([](Entity, StageProgress &sp) {
                 if (sp.clearedThisStage)
                     return;
-                sp.clearedThisStage = true;
+
+                if (sp.currentRoom >= sp.maxRoom) {
+                    // World + Stage → PSS番号
+                    int pssNumber = GetPssNumber(sp.worldCount, sp.currentStage);
+
+                    // 全体最大PSSより大きければ保存
+                    if (pssNumber > StageSave::GetMaxClearedPss()) {
+                        StageSave::MarkPssCleared(pssNumber);
+                    }
+
+                    sp.clearedThisStage = true;
+                }
             });
 
 
