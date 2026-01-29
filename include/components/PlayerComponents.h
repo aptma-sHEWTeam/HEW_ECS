@@ -337,14 +337,24 @@ struct PlayerMovement : Behaviour {
 
         
         //ポーズ中はプレイヤーを動かさない
+        bool isPaused = false;
         w.ForEach<GameStatus>([&](Entity e, GameStatus &stats) {
             if (stats.isPaused == true) {
-              
+                isPaused = true;
+            }
+        });
+
+        if (isPaused)
+        {
+            if (isCharging_ || currentEffectState != EffectState::Idle)
+            {
+                v->isRotate = false;
                 isCharging_ = false;
                 wasCharging_ = false;
                 wasChargingPrev_ = false;
             }
-        });
+            return;
+        }
 
         if (!isStart)
         {
