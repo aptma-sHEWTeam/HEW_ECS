@@ -749,7 +749,7 @@ class GameScene : public IScene {
                 if (img)
                     img->opacity = 0.0f;
             }
-            SOUND_SYS.StopSE(cfg_DriftMP3Pass);
+            //SOUND_SYS.StopSE(cfg_DriftMP3Pass);
         } else {
             if (img)
                 img->opacity = 0.0f;
@@ -3117,6 +3117,7 @@ inline void WallCollisionHandler::OnCollisionEnter(World &w, Entity self, Entity
             return;
 
         SOUND_SYS.PlaySE(cfg_CollideMP3Pass.Get(),false);
+        SOUND_SYS.StopSE(cfg_DriftMP3Pass);
 
         DEBUGLOG("壁がプレイヤーと衝突 - カメラシェイク＋遅延リスポーン");
         if (g_GameScene) {
@@ -3143,6 +3144,7 @@ inline void FloorWallCollisionHandler::OnCollisionEnter(World &w, Entity self, E
             return;
 
         SOUND_SYS.PlaySE(cfg_CollideMP3Pass.Get(),false);
+        SOUND_SYS.StopSE(cfg_DriftMP3Pass);
 
         DEBUGLOG("ステージ壁がプレイヤーと衝突 - カメラシェイク＋遅延リスポーン");
         if (g_GameScene) {

@@ -180,6 +180,11 @@ void SoundSystem::UpdateVolume() {
 	}
 }
 
+void SoundSystem::UpdateSEVolume(const std::string &path) {
+     
+
+}
+
 void SoundSystem::PlaySE(const std::string &path, bool multiple) {
 	//SEâπê∫Ç™ë∂ç›Ç∑ÇÈÇ©ämîF
 	if (m_seVoices.count(path) && m_seVoices[path] != nullptr) {
