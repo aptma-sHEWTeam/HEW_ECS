@@ -473,9 +473,9 @@ class GameScene : public IScene {
         RenderingSystem::GetInstance().UpdateLights(world, camera_.position);
 
         // 時間切れチェック
-        if (world.IsAlive(playerEntity_)) {
-            CheckTimeLimit(world, playerEntity_,cfg_LimitTime);
-        }
+            if (world.IsAlive(playerEntity_)) {
+                CheckTimeLimit(world, playerEntity_,cfg_LimitTime);
+            }
         EffekseerManager::GetInstance().Update();
 
 
