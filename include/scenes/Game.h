@@ -394,6 +394,9 @@ class GameScene : public IScene {
         // ゲームの一時停止/再開処理
         GamepadSystem *pad = ServiceLocator::TryGet<GamepadSystem>();
         world.ForEach<GameStatus>([&](Entity, GameStatus &stats) {
+            auto *v = world.TryGet<PlayerVelocity>(playerEntity_);
+            auto *movement = world.TryGet<PlayerMovement>(playerEntity_);
+
             bool togglePause = input.GetKeyDown('P');
             if (pad && pad->GetButtonDown(GamepadSystem::Button_Y)) {
                 togglePause = true;
