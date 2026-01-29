@@ -228,7 +228,10 @@ struct RenderSystem {
         RenderingSystem::GetInstance().BindLightBuffer(gfx.Ctx(), 1);
         RenderingSystem::GetInstance().BindMaterialBuffer(gfx.Ctx(), 2);
 
-        ID3D11ShaderResourceView* shadowSRV = shadowMapSRV_ ? shadowMapSRV_ : dummyShadowSRV_.Get();
+        ID3D11ShaderResourceView* shadowSRV = shadowMapSRV_;
+        if (!shadowSRV || !IsValidSRV(shadowSRV)) {
+            shadowSRV = dummyShadowSRV_.Get();
+        }
         if (shadowSRV) {
             gfx.Ctx()->PSSetShaderResources(2, 1, &shadowSRV);
         }
@@ -272,6 +275,9 @@ struct RenderSystem {
         psLightCb_.Reset();
         rasterState_.Reset();
         samplerState_.Reset();
+        shadowMapSRV_ = nullptr;
+        dummyShadowTex_.Reset();
+        dummyShadowSRV_.Reset();
 
         meshCache_.clear();
 
@@ -318,9 +324,26 @@ struct RenderSystem {
 
     void SetShadowMap(ID3D11ShaderResourceView* srv) {
         shadowMapSRV_ = srv;
+        if (srv && !IsValidSRV(srv)) {
+            DEBUGLOG_WARNING("[RenderSystem] SetShadowMap: Invalid SRV detected, resetting to nullptr");
+            shadowMapSRV_ = nullptr;
+        }
     }
 
   private:
+    /**
+     * @brief SRVが有効かチェック（AddRefでCOM参照カウントを確認）
+     */
+    bool IsValidSRV(ID3D11ShaderResourceView* srv) const {
+        if (!srv) return false;
+        ULONG refCount = srv->AddRef();
+        if (refCount > 1) {
+            srv->Release();
+            return true;
+        }
+        return false;
+    }
+
     /**
      * @brief ダミーシャドウマップの作成（フォールバック用）
      */

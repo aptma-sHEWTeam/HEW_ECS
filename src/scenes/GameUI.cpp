@@ -171,7 +171,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     ownedEntities_.push_back(warningTextEntity);
 
     UITransform startImgTr;
-    startImgTr.position = {550.0f, 100.0f};
+    startImgTr.position = {520.0f, 85.0f};
     startImgTr.size = {250.0f, 250.0f};
     startImgTr.anchor = {0.0f, 0.0f};
     startImgTr.pivot = {0.0f, 0.0f};

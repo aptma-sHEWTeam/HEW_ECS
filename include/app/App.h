@@ -166,6 +166,7 @@ struct App {
         clearVideoScene->SetVideoPath("Assets/Textures/Still/gameclear.mov");
         clearVideoScene->SetNextScene("World1_StageSelect");
         clearVideoScene->SetSkipEnabled(true);
+        clearVideoScene->SetLoopVideoPath("");
         DEBUGLOG("ClearVideo scene instance created");
 
         sceneManager_.RegisterScene("ClearVideo", std::move(clearVideoScene));

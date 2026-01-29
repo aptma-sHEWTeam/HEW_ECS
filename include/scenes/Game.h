@@ -552,7 +552,15 @@ class GameScene : public IScene {
         g_GameScene = nullptr;
         RenderingSystem::GetInstance().Shutdown();
         StopGoalEffect();
-        EffekseerManager::GetInstance().StopEffect(); // エフェクトを全停止
+        StopGoalEffect();
+        //EffekseerManager::GetInstance().StopEffect(); // エフェクトを全停止
+        
+        // エフェクトが次のシーンに残らないよう、マネージャごと強制リセットする
+        if (auto* gfx = ServiceLocator::TryGet<GfxDevice>()) {
+            EffekseerManager::GetInstance().Reset(*gfx, camera_);
+        } else {
+            EffekseerManager::GetInstance().StopEffect();
+        }
 
         // ステージ生成物を優先的に破棄（シーン間で漏れないようにする）
         for (const auto &entity : stageOwnedEntities_) {
@@ -625,6 +633,11 @@ class GameScene : public IScene {
             }
         }
         ownedEntities_.clear();
+
+        // シャドウマップを破棄する前にRenderSystemから参照を切る
+        if (auto *renderer = ServiceLocator::TryGet<RenderSystem>()) {
+            renderer->SetShadowMap(nullptr);
+        }
 
         shadowSystem_.Shutdown();
         shadowMap_.Shutdown();

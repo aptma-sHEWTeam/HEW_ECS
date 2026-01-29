@@ -129,7 +129,8 @@ public:
         hr = MFCreateSourceReaderFromURL(wpath, attributes.Get(), &reader_);
         if (FAILED(hr)) {
             char msg[512];
-            sprintf_s(msg, "Failed to open video file: %s", filepath);
+            sprintf_s(msg, "Failed to open video file: %s (HRESULT: 0x%08X)", filepath, (unsigned int)hr);
+            DEBUGLOG_ERROR(msg);
             MessageBoxA(nullptr, msg, "Video Error", MB_OK | MB_ICONERROR);
             return false;
         }
@@ -355,6 +356,21 @@ public:
      * @return UINT 高さ(ピクセル単位)
      */
     UINT GetHeight() const { return height_; }
+
+    /**
+     * @brief リソースを解放して閉じる
+     */
+    void Close() {
+        Stop();
+        if (reader_) reader_.Reset();
+        if (videoTexture_) videoTexture_.Reset();
+        if (videoSRV_) videoSRV_.Reset();
+        isOpen_ = false;
+        width_ = 0;
+        height_ = 0;
+        frameTimer_ = 0.0;
+        currentTime_ = 0.0f;
+    }
 
 private:
     /**
