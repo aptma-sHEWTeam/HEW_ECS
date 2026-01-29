@@ -162,7 +162,7 @@ class StageSelectScene : public IScene {
     inline static ConfigVar<float> cfg_StageNameRefDist{"StageSelect.UI.StageName", "RefDist_v2", 2.0f, "ステージセレクト: StageName 基準距離 (スケール1.0になる距離)"};
     inline static ConfigVar<float> cfg_StageNameScaleMax{"StageSelect.UI.StageName", "ScaleMax_v2", 3.0f, "ステージセレクト: StageName 最大スケール制限"};
     inline static ConfigVar<float> cfg_StageNameScaleMin{"StageSelect.UI.StageName", "ScaleMin_v2", 0.0f, "ステージセレクト: StageName 最小スケール制限"};
-    inline static ConfigVar<float> cfg_StageNameScalePower{"StageSelect.UI.StageName", "ScalePower", 5.0f, "ステージセレクト: StageName スケール変化の乗数 (大きいほど急に変化)"};
+    inline static ConfigVar<float> cfg_StageNameScalePower{"StageSelect.UI.StageName", "ScalePower", 2.0f, "ステージセレクト: StageName スケール変化の乗数 (大きいほど急に変化)"};
 
     inline static ConfigVar<float> cfg_CameraFovDegrees{"StageSelect.Camera", "FovDegrees", 90.0f, "ステージセレクト: カメラFOV(度)"};
     inline static ConfigVar<float> cfg_CameraNear{"StageSelect.Camera", "Near", 0.1f, "ステージセレクト: カメラNear"};
