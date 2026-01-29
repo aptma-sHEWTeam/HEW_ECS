@@ -44,8 +44,8 @@ void TitleScene::CreateTitleSelectUI(World &world) {
 
     //�^�C�g�����S
     UITransform titleLogoImgTr;
-    titleLogoImgTr.position = {50.0f,0.0f};
-    titleLogoImgTr.size = {560.0f, 350.0f};
+    titleLogoImgTr.position = {50.0f,10.0f};
+    titleLogoImgTr.size = {640.0f, 420.0f};
     titleLogoImgTr.anchor = {0.0f,0.0f};
     titleLogoImgTr.pivot = {0.0f, 0.0f};
 
