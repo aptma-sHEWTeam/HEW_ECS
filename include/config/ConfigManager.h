@@ -1,13 +1,13 @@
-#pragma once
+ï»¿#pragma once
 #include <vector>
 #include <string>
 #include <filesystem>
 
 /**
  * @file ConfigManager.h
- * @brief TOMLŒ`®‚ğg—p‚µ‚½İ’èŠÇ—ƒVƒXƒeƒ€
- * @details ƒfƒoƒbƒOƒrƒ‹ƒh‚ÆƒŠƒŠ[ƒXƒrƒ‹ƒh‚Ì—¼•û‚Åí‚ÉTOML‚©‚ç“Ç‚İ‚İ‚Ü‚·B
- *          ƒ‰ƒ“ƒ^ƒCƒ€İ’è•ÏX‚Ì‚½‚ß‚ÌƒzƒbƒgƒŠƒ[ƒh‚Í‚·‚×‚Ä‚Ìƒrƒ‹ƒh‚ÅƒAƒNƒeƒBƒu‚Å‚·B
+ * @brief TOMLå½¢å¼ã‚’ä½¿ç”¨ã—ãŸè¨­å®šç®¡ç†ã‚·ã‚¹ãƒ†ãƒ 
+ * @details ãƒ‡ãƒãƒƒã‚°ãƒ“ãƒ«ãƒ‰ã¨ãƒªãƒªãƒ¼ã‚¹ãƒ“ãƒ«ãƒ‰ã®ä¸¡æ–¹ã§å¸¸ã«TOMLã‹ã‚‰èª­ã¿è¾¼ã¿ã¾ã™ã€‚
+ *          ãƒ©ãƒ³ã‚¿ã‚¤ãƒ è¨­å®šå¤‰æ›´ã®ãŸã‚ã®ãƒ›ãƒƒãƒˆãƒªãƒ­ãƒ¼ãƒ‰ã¯ã™ã¹ã¦ã®ãƒ“ãƒ«ãƒ‰ã§ã‚¢ã‚¯ãƒ†ã‚£ãƒ–ã§ã™ã€‚
  */
 
 class IConfigVar;
@@ -18,15 +18,15 @@ public:
 
     void Register(IConfigVar* var);
     void Initialize(const std::string& assetPath);
-    void Update(); // ƒzƒbƒgƒŠƒ[ƒh‚Ì‚½‚ß‚É–ˆƒtƒŒ[ƒ€ŒÄ‚Ño‚µ‚Ü‚·
-    void ForceReload(); // TOML‚ğè“®‚ÅÄ“Ç‚İ‚İ‚µ‚Ü‚·
-    void ExportBinary(const std::string& path); // «—ˆ‚ÌÅ“K‰»‚Ì‚½‚ß‚É
+    void Update(); // ãƒ›ãƒƒãƒˆãƒªãƒ­ãƒ¼ãƒ‰ã®ãŸã‚ã«æ¯ãƒ•ãƒ¬ãƒ¼ãƒ å‘¼ã³å‡ºã—ã¾ã™
+    void ForceReload(); // TOMLã‚’æ‰‹å‹•ã§å†èª­ã¿è¾¼ã¿ã—ã¾ã™
+    void ExportBinary(const std::string& path); // å°†æ¥ã®æœ€é©åŒ–ã®ãŸã‚ã«
 
 private:
     ConfigManager() = default;
     ~ConfigManager() = default;
 
-    void Load(); // “à•”“Ç‚İ‚İƒƒ\ƒbƒh
+    void Load(); // å†…éƒ¨èª­ã¿è¾¼ã¿ãƒ¡ã‚½ãƒƒãƒ‰
     void LoadTOML();
     void LoadBinary();
     void SaveTOML();
@@ -37,5 +37,5 @@ private:
     std::string m_AssetPath;
     std::filesystem::file_time_type m_LastWriteTime;
     bool m_IsDirty = false;
-    bool m_IsDebug = true; // í‚Étrue - ‚·‚×‚Ä‚Ìƒrƒ‹ƒh‚ÅƒzƒbƒgƒŠƒ[ƒh‚ª—LŒø
+    bool m_IsDebug = true; // å¸¸ã«true - ã™ã¹ã¦ã®ãƒ“ãƒ«ãƒ‰ã§ãƒ›ãƒƒãƒˆãƒªãƒ­ãƒ¼ãƒ‰ãŒæœ‰åŠ¹
 };

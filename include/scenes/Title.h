@@ -112,6 +112,12 @@ class TitleScene : public IScene {
     inline static ConfigVar<float> cfg_WallScaleX{"Title.Wall", "ScaleX", 0.65000f, "壁: Wall スケールX"};
     inline static ConfigVar<float> cfg_WallScaleY{"Title.Wall", "ScaleY", 0.65000f, "壁: Wall スケールY"};
     inline static ConfigVar<float> cfg_WallScaleZ{"Title.Wall", "ScaleZ", 0.65000f, "壁: Wall スケールZ"};
+    inline static ConfigVar<float> cfg_WallPosX{"Title.Wall", "PosX", 0.0f, "壁: Window 位置X"};
+    inline static ConfigVar<float> cfg_WallPosY{"Title.Wall", "PosY", 1.0f, "壁: Window 位置Y"};
+    inline static ConfigVar<float> cfg_WallPosZ{"Title.Wall", "PosZ", 0.0f, "壁: Window 位置Z"};
+    inline static ConfigVar<float> cfg_WallScaleX{"Title.Wall", "ScaleX", 5.0000f, "壁: Wall スケールX"};
+    inline static ConfigVar<float> cfg_WallScaleY{"Title.Wall", "ScaleY", 5.0000f, "壁: Wall スケールY"};
+    inline static ConfigVar<float> cfg_WallScaleZ{"Title.Wall", "ScaleZ", 5.0000f, "壁: Wall スケールZ"};
     inline static ConfigVar<float> cfg_WallRotX{"Title.Wall", "RotX",  0.0f, "壁: Wall 回転X"};
     inline static ConfigVar<float> cfg_WallRotY{"Title.Wall", "RotY", 90.0f, "壁: Wall 回転Y"};
     inline static ConfigVar<float> cfg_WallRotZ{"Title.Wall", "RotZ",  0.0f, "壁: Wall 回転Z"};
@@ -123,6 +129,12 @@ class TitleScene : public IScene {
     inline static ConfigVar<int> cfg_WallThicknessCols{"Title.Wall", "ThicknessCols", 3, "壁: 枠(左右)の太さ(ブロック単位）"};
     inline static ConfigVar<float> cfg_WallSpacingX{"Title.Wall", "SpacingX", 0.6500f, "壁: 行間隔（X方向）"};//ブロックのサイズに合わせて変更
     inline static ConfigVar<float> cfg_WallRowSpacingZ{"Title.Wall", "RowSpacingZ",1.20000f, "壁: 列間隔（Z方向）"};//ブロックのサイズに合わせて変更
+    inline static ConfigVar<int> cfg_WallColumns{"Title.Wall", "Columns",11, "壁: 横に並べる個数（列数）"};
+    inline static ConfigVar<int> cfg_WallRows{"Title.Wall", "Rows", 6, "壁: 縦に並べる個数（行数）"};
+    inline static ConfigVar<int> cfg_WallThicknessRows{"Title.Wall", "ThicknessRows", 2, "壁: 枠(上下)の太さ(ブロック単位）"};
+    inline static ConfigVar<int> cfg_WallThicknessCols{"Title.Wall", "ThicknessCols", 4, "壁: 枠(左右)の太さ(ブロック単位）"};
+    inline static ConfigVar<float> cfg_WallSpacingX{"Title.Wall", "SpacingX", 0.6500f, "壁: 行間隔（X方向）"};//ブロックのサイズに合わせて変更
+    inline static ConfigVar<float> cfg_WallRowSpacingZ{"Title.Wall", "RowSpacingZ",2.0f, "壁: 列間隔（Z方向）"};//ブロックのサイズに合わせて変更
 
     inline static ConfigVar<int> cfg_WallDirX{"Title.Wall", "DirX", 1, "壁: 列方向の増加向き (1 または -1)"};
     inline static ConfigVar<int> cfg_WallDirZ{"Title.Wall", "DirZ", -1, "壁: 行方向の増加向き (1 または -1)"};
@@ -200,6 +212,9 @@ class TitleScene : public IScene {
 
        CreateWindows(world);
        GenerateWallGridTransforms(cfg_WallColumns.Get(),cfg_WallRows.Get());
+       CreateWalls(world);
+        CreateWindows(world);
+        GenerateWallGridTransforms(cfg_WallColumns.Get(),cfg_WallRows.Get());
        CreateWalls(world);
 
         CreatePlayer(world);
@@ -364,8 +379,7 @@ class TitleScene : public IScene {
         isFading = false;
     }
 
-
-      void CreateWindows(World& world) 
+    void CreateWindows(World& world) 
       {
         //確認用オブジェクト
         DirectX::XMFLOAT3 objPos{cfg_WindowPosX.Get(), cfg_WindowPosY.Get(), cfg_WindowPosZ.Get()};
@@ -382,9 +396,7 @@ class TitleScene : public IScene {
         ownedEntities_.push_back(objectEntity_);
       }
 
-
-      
-      void CreateWalls(World &world) {
+    void CreateWalls(World &world) {
 
          //既に作成されている場合は何もしない
          if (!wallEntities_.empty())
@@ -450,12 +462,11 @@ class TitleScene : public IScene {
       
       }
       
-     
-      void SetWallTransforms(const std::vector<Transform> &transforms){
+    void SetWallTransforms(const std::vector<Transform> &transforms){
              wallTransforms_ = transforms;
          }
 
-      void GenerateWallGridTransforms(int columns , int rows = -1) {
+    void GenerateWallGridTransforms(int columns , int rows = -1) {
           wallTransforms_.clear();
           if (columns <= 0 || rows <= 0) {
               return;
@@ -485,6 +496,7 @@ class TitleScene : public IScene {
               for (int c =0; c < columns; ++c) {//横
 
                   const bool isTop = (r < thicknessRows + 1.0f ); //微調整したいときに数値を変更
+                  const bool isTop    = (r < thicknessRows + 1.0f);//微調整したいときに数値を変更
                   const bool isBottom = (r >= rows - thicknessRows);
                   const bool isLeft   = (c < thicknessCols - 0.5f); 
                   const bool isRight  = (c >= columns - thicknessCols);
@@ -500,6 +512,7 @@ class TitleScene : public IScene {
                   const float x = baseX + ((static_cast<float>(c) - halfCols) * spacingX * static_cast<float>(dirX)- 0.01f );
                   const float y = baseY + ((static_cast<float>(r)  - halfRows)* rowSpacingZ * static_cast<float>(dirZ));
                   const float z = baseZ -0.5f; //微調整(奥行き)したいときに数値を変更
+                  const float z = baseZ - 0.3f; //微調整(奥行き)したいときに数値を変更
                       DirectX::XMFLOAT3 pos{x,y,z };
                       Transform t{
                           {pos}, {cfg_WallRotX.Get(), cfg_WallRotY.Get(), cfg_WallRotZ.Get()}, {cfg_WallScaleX.Get(), cfg_WallScaleY.Get(), cfg_WallScaleZ.Get()}};
@@ -508,6 +521,7 @@ class TitleScene : public IScene {
               }
           }
       }
+
     void CreateSkybox(World &world) {
         const std::string modelPath = cfg_SkyboxModelPath.Get();
         if (modelPath.empty()) {
@@ -990,7 +1004,3 @@ class TitleScene : public IScene {
         {L"./Assets/Textures/UI/TitleUI/title1.png"},
     };
 };
-
-//X横
-//Y奥行き
-//Z縦
