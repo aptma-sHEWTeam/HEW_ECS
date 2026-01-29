@@ -107,7 +107,9 @@ class GameScene : public IScene {
         auto *mgr = ServiceLocator::TryGet<SceneManager>();
         if (!mgr)
             return;
-
+        world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+            sp.maxRoom = CountRooms(sp.worldCount, sp.currentStage);
+        });
         world.ForEach<GameStatus>([&](Entity, GameStatus &stats) {
             stats.isPaused = false;
 
@@ -306,7 +308,11 @@ class GameScene : public IScene {
         Entity modelLoaderSystem = world.Create().With<ModelLoadingSystem>().Build();
         ownedEntities_.push_back(modelLoaderSystem);
 
+
+        skyboxTexture_ = TextureManager::INVALID_TEXTURE;
+        skyboxTextureApplied_ = false;
         CreateSkybox(world);
+
 
 #if defined(_DEBUG)
         static bool skyboxScaleTestsRan = false;
@@ -863,10 +869,25 @@ class GameScene : public IScene {
             if (sp.clearedThisStage) {
                 return;
             }
+            int maxRoom = CountRooms(sp.worldCount, sp.currentStage);
+
+            if (sp.currentRoom < maxRoom) {
+
+                sp.currentRoom++;
+                return;
+            }
+
             sp.clearedThisStage = true;
-            StageSave::MarkStageCleared(sp.currentStage);
+
+            int pssNumber = GetPssNumber(sp.worldCount, sp.currentStage);
+
+            if (pssNumber > StageSave::GetMaxClearedPss()) {
+                StageSave::MarkPssCleared(pssNumber);
+            }
+
             sp.requestAdvance = true;
         });
+
         world.ForEach<GameStatus>([](Entity, GameStatus &stats) {
             stats.elapsedTime = cfg_LimitTime;
             stats.timerRunning = false;
@@ -1916,7 +1937,7 @@ class GameScene : public IScene {
             if (sp.clearedThisStage)
                 return;
             sp.clearedThisStage = true;
-            StageSave::MarkStageCleared(sp.currentStage);
+           
         });
         }
     };

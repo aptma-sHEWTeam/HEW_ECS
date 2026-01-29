@@ -33,6 +33,7 @@ public:
         float srcY = -1.0f;
         float srcW = -1.0f;
         float srcH = -1.0f;
+        float rotation = 0.0f;  ///< 回転角度(度)
     };
 
     bool Init(GfxDevice &gfx);
@@ -46,7 +47,7 @@ public:
 
     // 追加: TextureManagerのハンドルで描画(ソース矩形対応)
     bool Draw(TextureManager::TextureHandle handle, float x, float y, float width, float height, float opacity = 1.0f, bool keepAspect = true,
-              const D2D1_RECT_F *srcOverride = nullptr) {
+              const D2D1_RECT_F *srcOverride = nullptr, float rotation = 0.0f) {
         if (!initialized_ || !d2dContext_) return false;
         if (handle == TextureManager::INVALID_TEXTURE) return false;
 
@@ -74,7 +75,17 @@ public:
             float oy = y + (height - dh) * 0.5f;
             dst = D2D1::RectF(ox, oy, ox + dw, oy + dh);
         }
+
+        if (rotation != 0.0f) {
+            D2D1_POINT_2F center = { (dst.left + dst.right) * 0.5f, (dst.top + dst.bottom) * 0.5f };
+            d2dContext_->SetTransform(D2D1::Matrix3x2F::Rotation(rotation, center));
+        }
+
         d2dContext_->DrawBitmap(bmp.Get(), &dst, opacity, D2D1_BITMAP_INTERPOLATION_MODE_LINEAR, &src);
+
+        if (rotation != 0.0f) {
+            d2dContext_->SetTransform(D2D1::Matrix3x2F::Identity());
+        }
         return true;
     }
 

@@ -162,7 +162,23 @@ class StageSelectScene : public IScene {
     inline static ConfigVar<float> cfg_StageNameRefDist{"StageSelect.UI.StageName", "RefDist_v2", 2.0f, "ステージセレクト: StageName 基準距離 (スケール1.0になる距離)"};
     inline static ConfigVar<float> cfg_StageNameScaleMax{"StageSelect.UI.StageName", "ScaleMax_v2", 3.0f, "ステージセレクト: StageName 最大スケール制限"};
     inline static ConfigVar<float> cfg_StageNameScaleMin{"StageSelect.UI.StageName", "ScaleMin_v2", 0.0f, "ステージセレクト: StageName 最小スケール制限"};
-    inline static ConfigVar<float> cfg_StageNameScalePower{"StageSelect.UI.StageName", "ScalePower", 2.0f, "ステージセレクト: StageName スケール変化の乗数 (大きいほど急に変化)"};
+    inline static ConfigVar<float> cfg_StageNameScalePower{"StageSelect.UI.StageName", "ScalePower", 5.0f, "ステージセレクト: StageName スケール変化の乗数 (大きいほど急に変化)"};
+    inline static ConfigVar<float> cfg_StageUiTiltFactor{"StageSelect.UI.Shared", "TiltFactor", 2.0f, "ステージセレクト: UI回転(慣性)係数"};
+    inline static ConfigVar<float> cfg_StageUiSpinAmount{"StageSelect.UI.Shared", "SpinAmount", 1080.0f, "ステージセレクト: 遷移時の回転量(度)"}; 
+    inline static ConfigVar<float> cfg_StageUiSpinEase{"StageSelect.UI.Shared", "SpinEase", 3.0f, "ステージセレクト: 回転減衰速度(大きいほど早く止まる)"};
+    inline static ConfigVar<float> cfg_StageSterSize1{"StageSelect.UI.StageSter", "Size1", 50.0f, "ステージセレクト: StageSter1(最前面) サイズ"};
+    inline static ConfigVar<float> cfg_StageSterSize2{"StageSelect.UI.StageSter", "Size2", 100.0f, "ステージセレクト: StageSter2(中前) サイズ"};
+    inline static ConfigVar<float> cfg_StageSterSize3{"StageSelect.UI.StageSter", "Size3", 150.0f, "ステージセレクト: StageSter3(中奥) サイズ"};
+    inline static ConfigVar<float> cfg_StageSterSize4{"StageSelect.UI.StageSter", "Size4", 200.0f, "ステージセレクト: StageSter4(最奥) サイズ"};
+    
+    inline static ConfigVar<std::string> cfg_StageSterPath1{"StageSelect.UI.StageSter", "Path1", "Assets/Textures/UI/StageSter/stagester1.png", "ステージセレクト: StageSter1 画像パス"};
+    inline static ConfigVar<std::string> cfg_StageSterPath2{"StageSelect.UI.StageSter", "Path2", "Assets/Textures/UI/StageSter/stagester2.png", "ステージセレクト: StageSter2 画像パス"};
+    inline static ConfigVar<std::string> cfg_StageSterPath3{"StageSelect.UI.StageSter", "Path3", "Assets/Textures/UI/StageSter/stagester3.png", "ステージセレクト: StageSter3 画像パス"};
+    inline static ConfigVar<std::string> cfg_StageSterPath4{"StageSelect.UI.StageSter", "Path4", "Assets/Textures/UI/StageSter/stagester4.png", "ステージセレクト: StageSter4 画像パス"};
+
+    // Reverting to Shared
+    inline static ConfigVar<float> cfg_StageSterOffsetX{"StageSelect.UI.StageSter", "OffsetX", -475.0f, "ステージセレクト: StageSter 位置Xオフセット(共通)"};
+    inline static ConfigVar<float> cfg_StageSterOffsetY{"StageSelect.UI.StageSter", "OffsetY", -260.0f, "ステージセレクト: StageSter 位置Yオフセット(共通)"};
 
     inline static ConfigVar<float> cfg_CameraFovDegrees{"StageSelect.Camera", "FovDegrees", 90.0f, "ステージセレクト: カメラFOV(度)"};
     inline static ConfigVar<float> cfg_CameraNear{"StageSelect.Camera", "Near", 0.1f, "ステージセレクト: カメラNear"};
@@ -620,6 +636,7 @@ class StageSelectScene : public IScene {
                     if (worldNumber_ >= 1 && worldNumber_ <= 4) {
                         s_lastSelected[worldNumber_ - 1] = stats.selectStage;
                     }
+                    uiRotationTarget_ -= cfg_StageUiSpinAmount.Get(); // Spin (Stage++)
                 } else if (stats.selectStage == maxStage_) {
                     if (stats.worldCount != cfg_WorldCount.Get()) {
                         SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
@@ -638,6 +655,7 @@ class StageSelectScene : public IScene {
                     if (worldNumber_ >= 1 && worldNumber_ <= 4) {
                         s_lastSelected[worldNumber_ - 1] = stats.selectStage;
                     }
+                    uiRotationTarget_ += cfg_StageUiSpinAmount.Get(); // Spin (Stage--)
                 } else {
                     // 前のワールドへ
                     if (worldNumber_ > 1) {
@@ -656,17 +674,24 @@ class StageSelectScene : public IScene {
         });
 
         if (requestWorldTransition == TransitionDirection::Right) {
+            uiRotationTarget_ += cfg_StageUiSpinAmount.Get(); // Spin Right (CW)
             GoToNextWorld(world);
             return;
         }
         if (requestWorldTransition == TransitionDirection::Left) {
+            uiRotationTarget_ -= cfg_StageUiSpinAmount.Get(); // Spin Left (CCW)
             GoToPrevWorld(world);
             return;
         }
 
+        // Spin Animation (Lerp to Target)
+        float spinEase = cfg_StageUiSpinEase.Get();
+        uiRotationCurrent_ += (uiRotationTarget_ - uiRotationCurrent_) * deltaTime * spinEase;
+
         // 回転アニメーション
         rotateSpeed_ = cfg_RotateSpeed.Get();
         currentAngle_ += (targetAngle_ - currentAngle_) * deltaTime * rotateSpeed_;
+        // Velocity/Tilt logic replaced by Spin Target logic
         skyboxYawDeg_ = DirectX::XMConvertToDegrees(currentAngle_);
         world.ForEach<Transform, ObjectPos>([&](Entity, Transform &transform, ObjectPos &pos) {
             float angle = currentAngle_;
@@ -882,6 +907,13 @@ class StageSelectScene : public IScene {
         }
         stageNameEntities_.clear();
 
+        for (const auto &e : stageSterEntities_) {
+            if (world.IsAlive(e)) {
+                DestroyEntityHierarchy(world, e);
+            }
+        }
+        stageSterEntities_.clear();
+
         textSystem_.Shutdown();
         imageSystem_.Shutdown();
         isFading = false;
@@ -919,6 +951,8 @@ class StageSelectScene : public IScene {
     int maxStage_;
 
     std::vector<Entity> stageNameEntities_{};
+    std::vector<Entity> stageSterEntities_{};
+    // std::vector<DirectX::XMFLOAT2> stageSterBaseSizes_{}; // Removed, using ConfigVars
     Entity worldUIEntity_{};
     DirectX::XMFLOAT2 worldUIBasePos_{0.0f, 0.0f};
     Entity fadeEntity_{};
@@ -943,6 +977,9 @@ class StageSelectScene : public IScene {
     TransitionDirection pendingWorldTransitionDir_ = TransitionDirection::None;
 
     float skyboxYawDeg_ = 0.0f;
+    // Spin State
+    float uiRotationCurrent_ = 0.0f;
+    float uiRotationTarget_ = 0.0f;
 
     std::vector<Entity> ownedEntities_{};
     std::vector<Entity> objectOwnedEntities_;
@@ -1310,6 +1347,45 @@ class StageSelectScene : public IScene {
                  if (logCounter++ % 60 == 0) {
                       DEBUGLOG("UI Scale Debug(Stg1): Dist=" + std::to_string(dist) + " Scale=" + std::to_string(currentScale) + " Size=" + std::to_string(uiTr->size.x));
                  }
+            }
+
+            // --- Update StageSter & StageName Rotation ---
+            // Use calculated Spin Rotation
+            float tiltDegrees = uiRotationCurrent_;
+
+            // Apply to StageName (Selected)
+            // User requested NO rotation for StageName
+            uiTr->rotation = 0.0f; // Reset to 0 just in case
+
+            // Apply to StageSter
+            for (size_t s = 0; s < stageSterEntities_.size(); ++s) {
+                 Entity ster = stageSterEntities_[s];
+                 if (!world.IsAlive(ster)) continue;
+
+                 auto *sterTr = world.TryGet<UITransform>(ster);
+                 auto *sterImg = world.TryGet<UIImage>(ster);
+                 if (sterTr && sterImg) {
+                      float baseSize = 800.0f;
+                      float offX = cfg_StageSterOffsetX.Get();
+                      float offY = cfg_StageSterOffsetY.Get();
+
+                      // Restore Rotation (Synced with UI)
+                      sterTr->rotation = tiltDegrees;
+                      
+                      // Restore Visibility
+                      sterImg->opacity = 1.0f;
+
+                      // Index 0 = Ster4 (Back), 1 = Ster3, 2 = Ster2, 3 = Ster1 (Front)
+                      switch (s) {
+                          case 0: baseSize = cfg_StageSterSize4.Get(); break;
+                          case 1: baseSize = cfg_StageSterSize3.Get(); break;
+                          case 2: baseSize = cfg_StageSterSize2.Get(); break;
+                          case 3: baseSize = cfg_StageSterSize1.Get(); break; 
+                          default: baseSize = cfg_StageSterSize4.Get(); break;
+                      }
+                      sterTr->size = {baseSize * currentScale, baseSize * currentScale};
+                      sterTr->position = {uiTr->position.x + offX, uiTr->position.y + offY};
+                  }
             }
         }
     }

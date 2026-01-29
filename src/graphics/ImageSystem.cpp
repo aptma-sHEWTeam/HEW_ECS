@@ -49,6 +49,8 @@ bool ImageSystem::Init(GfxDevice &gfx) {
 }
 
 void ImageSystem::BeginDraw() {
+    if (gfx_) gfx_->Resolve();
+
     if (d2dContext_) {
         if (!targetBitmap_) RefreshTargetBitmap();
         d2dContext_->BeginDraw();
@@ -236,6 +238,16 @@ bool ImageSystem::Draw(const Params &p) {
     }
 
     D2D1_RECT_F dest = D2D1::RectF(x, y, x + dstW, y + dstH);
+    
+    if (p.rotation != 0.0f) {
+        D2D1_POINT_2F center = { (dest.left + dest.right) * 0.5f, (dest.top + dest.bottom) * 0.5f };
+        d2dContext_->SetTransform(D2D1::Matrix3x2F::Rotation(p.rotation, center));
+    }
+
     d2dContext_->DrawBitmap(bmp.Get(), &dest, p.opacity, D2D1_BITMAP_INTERPOLATION_MODE_LINEAR, &src);
+
+    if (p.rotation != 0.0f) {
+        d2dContext_->SetTransform(D2D1::Matrix3x2F::Identity());
+    }
     return true;
 }

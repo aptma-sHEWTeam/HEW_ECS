@@ -164,7 +164,10 @@ inline void CheckTimeLimit(World &w, Entity player, float timeLimitSeconds) {
         if (stats.resetDone) {
             return;
         }
-        if (!stats.timerRunning || stats.isPaused) {
+        if (stats.isPaused) {
+            return;
+        }
+        if (stats.elapsedTime > 0.0f && !stats.timerRunning) {
             return;
         }
 
