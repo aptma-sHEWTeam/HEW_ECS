@@ -89,12 +89,12 @@ class TitleScene : public IScene {
     inline static ConfigVar<float> cfg_WindowRotY{"Title.Window", "RotY", 90.0f, "タイトル: Window 回転Y"};
     inline static ConfigVar<float> cfg_WindowRotZ{"Title.Window", "RotZ", 0.0f, "タイトル: Window 回転Z"};
 
-    inline static ConfigVar<float> cfg_PlayerPosX{"Title.Player", "PosX", 1.05f, "タイトル: Player 位置X"};
+    inline static ConfigVar<float> cfg_PlayerPosX{"Title.Player", "PosX", 0.95f, "タイトル: Player 位置X"};
     inline static ConfigVar<float> cfg_PlayerPosY{"Title.Player", "PosY", -0.75f, "タイトル: Player 位置Y"};
-    inline static ConfigVar<float> cfg_PlayerPosZ{"Title.Player", "PosZ", -2.50f, "タイトル: Player 位置Z"};
-    inline static ConfigVar<float> cfg_PlayerScaleX{"Title.Player", "ScaleX", 1.0f, "タイトル: Player スケールX"};
-    inline static ConfigVar<float> cfg_PlayerScaleY{"Title.Player", "ScaleY", 1.0f, "タイトル: Player スケールY"};
-    inline static ConfigVar<float> cfg_PlayerScaleZ{"Title.Player", "ScaleZ", 1.0f, "タイトル: Player スケールZ"};
+    inline static ConfigVar<float> cfg_PlayerPosZ{"Title.Player", "PosZ", -1.20f, "タイトル: Player 位置Z"};
+    inline static ConfigVar<float> cfg_PlayerScaleX{"Title.Player", "ScaleX", 1.5f, "タイトル: Player スケールX"};
+    inline static ConfigVar<float> cfg_PlayerScaleY{"Title.Player", "ScaleY", 1.5f, "タイトル: Player スケールY"};
+    inline static ConfigVar<float> cfg_PlayerScaleZ{"Title.Player", "ScaleZ", 1.5f, "タイトル: Player スケールZ"};
     inline static ConfigVar<float> cfg_PlayerRotX{"Title.Player", "RotX", 0.0f, "タイトル: Player 回転X"};
     inline static ConfigVar<float> cfg_PlayerRotY{"Title.Player", "RotY", 0.0f, "タイトル: Player 回転Y"};
     inline static ConfigVar<float> cfg_PlayerRotZ{"Title.Player", "RotZ", 0.0f, "タイトル: Player 回転Z"};
