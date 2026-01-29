@@ -118,9 +118,9 @@ struct GameUIUpdater : Behaviour {
                 warningPanel->color = {1.0f, 0.0f, 0.0f, blinkOn ? 0.35f : 0.0f};
             }
 
-            if (auto *warningText = w.TryGet<UIText>(warningTextEntity_)) {
+          /*  if (auto *warningText = w.TryGet<UIText>(warningTextEntity_)) {
                 warningText->text = L"";
-            }
+            }*/
 
            /* if (auto *warningText = w.TryGet<UIText>(warningTextEntity_)) {
                 warningText->text = shouldWarn ? L"WARNING!" : L"";
