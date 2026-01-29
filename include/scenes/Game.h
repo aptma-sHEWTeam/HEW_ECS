@@ -546,6 +546,7 @@ class GameScene : public IScene {
         g_GameScene = nullptr;
         RenderingSystem::GetInstance().Shutdown();
         StopGoalEffect();
+        EffekseerManager::GetInstance().StopEffect(); // エフェクトを全停止
 
         // ステージ生成物を優先的に破棄（シーン間で漏れないようにする）
         for (const auto &entity : stageOwnedEntities_) {
@@ -2313,6 +2314,17 @@ class GameScene : public IScene {
                      " goalTransitioning=" + std::to_string(sp.goalTransitioning) +
                      " pressedSwitch=" + std::to_string(sp.pressedSwitch));
         });
+
+        // エフェクトを全停止（前のステージのエフェクトが残らないように）
+        EffekseerManager::GetInstance().StopEffect();
+
+        // プレイヤーからGoalAttractorを削除（前のステージの状態が残らないように）
+        if (world.IsAlive(playerEntity_)) {
+            if (world.Has<GoalAttractor>(playerEntity_)) {
+                world.Remove<GoalAttractor>(playerEntity_);
+                DEBUGLOG("[SetupStage] GoalAttractor removed from player");
+            }
+        }
 
         // 最新のStageCreateのみを利用し、それ以外は破棄して重複生成を防ぐ
         Entity activeStageCreate{};
