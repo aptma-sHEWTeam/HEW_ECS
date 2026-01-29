@@ -41,6 +41,35 @@
 #include "components/Animator.h"
 #include "components/TransformHierarchy.h"
 
+namespace
+{
+inline std::wstring Utf8toWide(const std::string& src)
+{
+    if (src.empty())
+    {
+        return std::wstring();
+    }
+
+    const int len = MultiByteToWideChar(CP_UTF8, 0, src.c_str(), -1, nullptr, 0);
+    if (len <= 0)
+    {
+        return std::wstring();
+    }
+
+    std::wstring dst(static_cast<size_t>(len), L'\0');
+    const int written = MultiByteToWideChar(CP_UTF8, 0, src.c_str(), -1, &dst[0], len);
+    if (written <= 0)
+    {
+        return std::wstring();
+    }
+    if (!dst.empty() && dst.back() == L'\0')
+    {
+        dst.pop_back();
+    }
+    return dst;
+}
+}
+
 /**
  * @class TitleScene
  * @brief ワールドセレクト2のシーン
@@ -102,6 +131,11 @@ class TitleScene : public IScene {
     inline static ConfigVar<int> cfg_WallDirX{"Title.Wall", "DirX", 1, "壁: 列方向の増加向き (1 または -1)"};
     inline static ConfigVar<int> cfg_WallDirZ{"Title.Wall", "DirZ", -1, "壁: 行方向の増加向き (1 または -1)"};
 
+    //フェード関連
+    inline static ConfigVar<float> cfg_FadeSizeW{"Title.Fade", "Width", 1280.0f, "タイトル: フェードUIの幅"};
+    inline static ConfigVar<float> cfg_FadeSizeH{"Title.Fade", "Height", 720.0f, "タイトル: フェードUIの高さ"};
+    inline static ConfigVar<float> cfg_FadeSecondsPerFrame{"Title.Fade", "SecondsPerFrame", 0.1f, "タイトル: フェードアニメ1フレーム時間(秒)"};
+    inline static ConfigVar<std::string> cfg_FadeTexturePath{"Title.Fade", "TexturePath", "./Assets/Textures/Fade/tex_fade.png", "タイトル: フェードテクスチャ"};
 
     Camera GetCameraTitle() const { return camera_; }
    
@@ -303,7 +337,35 @@ class TitleScene : public IScene {
         playerEntity_ = player;
         ownedEntities_.push_back(player);
 
-        
+        UITransform FadeAnimation;
+        FadeAnimation.position = {0.0f, 0.0f};
+        FadeAnimation.size = {cfg_FadeSizeW.Get(), cfg_FadeSizeH.Get()};
+        FadeAnimation.anchor = {0.0f, 0.0f};
+        FadeAnimation.pivot = {0.0f, 0.0f};
+
+        const std::wstring fadePath = Utf8toWide(cfg_FadeTexturePath.Get());
+        UIImage fade{fadePath};
+        fade.opacity = 1.0f;
+        fade.keepAspect = false;
+        fade.overlay = true;
+
+        SpriteSheetDesc fadeDesc = SpriteSheetDesc::Grid(
+            AnimationConfig::UI::FadeFrames,
+            AnimationConfig::UI::FadeCols,
+            cfg_FadeSecondsPerFrame.Get(),
+            /*loop*/ false);
+        fadeDesc.playOnStart = false;
+
+        Entity fadeOutAnimation = world.Create()
+                                      .With<UITransform>(FadeAnimation)
+                                      .With<UIImage>(fade)
+                                      .Build();
+        AnimationTools::AddSpriteSheet(world, fadeOutAnimation, fadeDesc);
+
+        ownedEntities_.push_back(fadeOutAnimation);
+        fadeEntity_ = fadeOutAnimation;
+  
+        isFading = false;
     }
 
 
@@ -556,6 +618,20 @@ class TitleScene : public IScene {
         bool upPressd = input.GetKeyDown(VK_UP);
         bool downPressd = input.GetKeyDown(VK_DOWN);
 
+        if (isFading) {
+            world.Tick(deltaTime);
+            if (auto *anim = world.TryGet<SpriteSheetAnimation>(fadeEntity_)) {
+                if (anim->isFinished) 
+                {
+                    if (auto *manager = ServiceLocator::TryGet<SceneManager>()) 
+                    {
+                        manager->ChangeSceneWithTransition("World1_StageSelect", world, TransitionDirection::Forward);
+                    }
+                }
+            }
+            return;
+        }
+
         GamepadSystem *pad = ServiceLocator::TryGet<GamepadSystem>();
         if (pad) {
             float pady = pad->GetLeftStickY();
@@ -658,6 +734,7 @@ class TitleScene : public IScene {
                 }
             }
             if (trigger) {
+               
                 isTransitioning_ = true;
                 isUiVisible_ = false;
                 DEBUGLOG("Camera Zoom Start!");
@@ -670,6 +747,8 @@ class TitleScene : public IScene {
         UpdateSkyboxRotation(deltaTime);
         UpdateSkyboxTransform(world);
         UpdateSkyboxTexture(world);
+
+         world.Tick(deltaTime);
 
         //サウンドの音量設定の更新
         SOUND_SYS.UpdateVolume();
@@ -735,6 +814,8 @@ class TitleScene : public IScene {
         }
         ownedEntities_.clear();
 
+        isFading = false;
+
         RenderingSystem::GetInstance().Shutdown(); //3Dレンダリング
 
         textSystem_.Shutdown();
@@ -743,6 +824,8 @@ class TitleScene : public IScene {
         skyboxTexture_ = TextureManager::INVALID_TEXTURE;
         skyboxTextureApplied_ = false;
     }
+
+
 
   private:
     struct SceneOwnedTag : IComponent {};
@@ -766,9 +849,9 @@ class TitleScene : public IScene {
         camera_.Update();
 
         if (progress >= 1.0f) {
-            if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
-                manager->ChangeSceneWithTransition("World1_StageSelect", world, TransitionDirection::Forward);
-            }
+            StartFadeInNormal(world);
+            isFading = true;
+            return;
         }
     }
 
@@ -796,6 +879,22 @@ class TitleScene : public IScene {
         camera_.position.y += cameraBobOffsetY_;
         camera_.target.y += cameraBobOffsetY_;
         camera_.Update();
+    }
+
+    void StartFadeInNormal(World &world) {
+        StartSpriteFade(world, fadeEntity_, 1, false);
+    }
+
+    void StartSpriteFade(World &world, Entity target, int direction, bool forceOpaque) {
+        if (!world.IsAlive(target))
+            return;
+        AnimationTools::PlaySpriteSheet(world, target, direction, /*loop*/ false, /*reset*/ true);
+        if (auto *img = world.TryGet<UIImage>(target)) {
+            img->opacity = 1.0f;
+        }
+        if (auto *anim = world.TryGet<SpriteSheetAnimation>(target)) {
+            anim->isFinished = false;
+        }
     }
 
      enum TitleSelect {
@@ -850,6 +949,8 @@ class TitleScene : public IScene {
     bool dpadUpPrev_ = false;
     bool dpadDownPrev_ = false;
 
+    bool fadeStart = false;
+    bool isFading = false;
     std::vector<Entity> ownedEntities_{};
 
     // 複数壁を保持する配列
@@ -858,6 +959,7 @@ class TitleScene : public IScene {
     std::vector<Transform> wallTransforms_{};
  
     //Entity wallEntitiy_{};
+    Entity fadeEntity_{};
     Entity playerEntity_{};
     Entity objectEntity_{};
     Entity skyboxEntity_{};
