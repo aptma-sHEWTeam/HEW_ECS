@@ -100,6 +100,32 @@ void StageSelectScene::CreateStageSelectUI(World &world) {
     ownedEntities_.push_back(worldImageEntity);
     worldUIEntity_ = worldImageEntity;
 
+    // StageSter (Decorations - Drawn behind StageName)
+    stageSterEntities_.clear();
+    // Order: 4 (Back) -> 3 -> 2 -> 1 (Front, behind UI)
+    for (int i = 4; i >= 1; --i) {
+        UITransform sterTr;
+        sterTr.position = {cfg_StageSelectUI_StageNamePosX.Get(), cfg_StageSelectUI_StageNamePosY.Get()};
+        sterTr.size = {800.0f, 800.0f}; // Base size, overridden by Update logic
+        sterTr.anchor = {0.5f, 0.5f}; // Center aligned
+        sterTr.pivot = {0.5f, 0.5f};
+
+        std::wstring path = L"Assets/Textures/UI/StageSter/stagester";
+        path += std::to_wstring(i);
+        path += L".png";
+
+        UIImage sterImg{path};
+        sterImg.opacity = 0.0f; // Start hidden, updated in OnUpdate
+        sterImg.keepAspect = true;
+
+        Entity e = world.Create()
+                       .With<UITransform>(sterTr)
+                       .With<UIImage>(sterImg)
+                       .Build();
+        
+        stageSterEntities_.push_back(e); // Index 0 = Ster4, Index 3 = Ster1
+    }
+
     // StageName (Create for all stages)
     stageNameEntities_.clear();
     stageNameBaseSize_ = {cfg_StageSelectUI_StageNameSizeW.Get(), cfg_StageSelectUI_StageNameSizeH.Get()};

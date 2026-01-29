@@ -30,6 +30,7 @@ struct UITransform : IComponent {
     DirectX::XMFLOAT2 size{100.0f, 50.0f};  ///< サイズ(幅, 高さ)
     DirectX::XMFLOAT2 anchor{0.0f, 0.0f};   ///< アンカー(0-1, 左上=0,0 右下=1,1)
     DirectX::XMFLOAT2 pivot{0.5f, 0.5f};    ///< ピボット(0-1, 中心=0.5,0.5)
+    float rotation = 0.0f;                  ///< 回転(度)
 
     /**
      * @brief アンカーを考慮したスクリーン座標を取得
