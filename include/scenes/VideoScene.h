@@ -152,6 +152,10 @@ class VideoScene : public IScene {
             return;
         }
 
+        /* if () {
+        
+        }*/
+
         world.ForEach<UIInteractionSystem>([&](Entity, UIInteractionSystem &sys) {
             if (!sys.input_)
                 sys.input_ = &input;
@@ -299,7 +303,7 @@ class VideoScene : public IScene {
         crossImgTr.anchor = {0.0f, 0.0f};
         crossImgTr.pivot = {0.0f, 0.0f};
 
-        UIImage crossImg{L"./Assets/Textures/UI/StageUI/stageui3.png"};
+        UIImage crossImg{L"./Assets/Textures/UI/StageUI/stageui4.png"};
         crossImg.opacity = 1.0f;
         crossImg.keepAspect = true;
 

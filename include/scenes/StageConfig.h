@@ -136,7 +136,7 @@ inline ConfigVar<float> cfg_GoalLightRange{"Stage.Goal.Light", "GoalLightRange",
 inline ConfigVar<std::string> cfg_ColdMP3Pass{"Stage.Cold.SE", "ColdMP3Pass","Assets/Sound/DemoSE/cold.mp3", "はじき時の風音"};
 inline ConfigVar<std::string> cfg_CollideMP3Pass{"Stage.Collide.SE", "CollideMP3Pass","Assets/Sound/DemoSE/collide.mp3", "衝突時の音"};
 inline ConfigVar<std::string> cfg_DeathMP3Pass{"Stage.Death.SE", "DeathMP3Pass","Assets/Sound/DemoSE/death.mp3", "死亡時の音"};
-inline ConfigVar<std::string> cfg_DriftMP3Pass{"Stage.Drift.SE", "DriftMP3Pass","Assets/Sound/DemoSE/drift.mp3", "ドリフト音"};
+inline ConfigVar<std::string> cfg_DriftMP3Pass{"Stage.Drift.SE", "DriftMP3Pass","Assets/Sound/DemoSE/drift_7.mp3", "ドリフト音"};
 inline ConfigVar<std::string> cfg_Fire1MP3Pass{"Stage.Fire1.SE", "Fire1MP3Pass","Assets/Sound/DemoSE/fire1.mp3", "ジェットパック段階音１"};
 inline ConfigVar<std::string> cfg_Fire2MP3Pass{"Stage.Fire2.SE", "Fire2MP3Pass","Assets/Sound/DemoSE/fire2.mp3", "ジェットパック段階音２"};
 inline ConfigVar<std::string> cfg_Fire3MP3Pass{"Stage.Fire3.SE", "Fire3MP3Pass","Assets/Sound/DemoSE/fire3.mp3", "ジェットパック段階音３"};
