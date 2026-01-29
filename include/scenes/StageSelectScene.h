@@ -1269,11 +1269,6 @@ class StageSelectScene : public IScene {
             }
             if (!world.IsAlive(uiEntity)) continue;
 
-            // 対応するStationオブジェクトを取得
-            // objectOwnedEntities_ の構造に依存するが、Stationは最初の方に追加されているため、
-            // ステージ数とインデックスが一致していると仮定する。
-            // CreateObjectで追加された順序がステージ順であればOK。
-            // (CreateObjectはLoadでi=0から順に呼ばれていることを確認済み)
             if (i >= objectOwnedEntities_.size()) break;
 
             Entity station = objectOwnedEntities_[i];
@@ -1329,9 +1324,6 @@ class StageSelectScene : public IScene {
             }
             currentScale = std::clamp(currentScale, scaleMin, scaleMax);
 
-            // BaseSize init check (per entity logic ideally, but sharing member for now since they are same texture usually)
-            // But texture might differ? Size should be from texture.
-            // If we use same base size for all, it's fine.
             if (stageNameBaseSize_.x <= 0.0f || stageNameBaseSize_.y <= 0.0f) {
                  stageNameBaseSize_ = uiTr->size;
                  if (stageNameBaseSize_.x <= 0.0f) stageNameBaseSize_ = {621.0f, 207.0f}; 
@@ -1411,12 +1403,6 @@ class StageSelectScene : public IScene {
 
         if (!modelPath.empty()) {
             builder.With<Model>(modelPath);
-        } else {
-            // モデルがない場合はCubeを表示（World2-4互換）
-            MeshRenderer renderer;
-            renderer.meshType = MeshType::Cube;
-            renderer.color = {1.0f, 1.0f, 1.0f};
-            builder.With<MeshRenderer>(renderer);
         }
 
         Entity obj = builder.Build();
