@@ -739,6 +739,9 @@ class TitleScene : public IScene {
 
         textSystem_.Shutdown();
         imageSystem_.Shutdown();
+
+        skyboxTexture_ = TextureManager::INVALID_TEXTURE;
+        skyboxTextureApplied_ = false;
     }
 
   private:
