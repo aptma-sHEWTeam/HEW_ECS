@@ -76,6 +76,11 @@ struct StageProgress : IComponent {
     }
 };
 
+ struct PlanetInfo {
+    std::string planetPath;
+    DirectX::XMFLOAT3 planetPos;
+};
+
 inline StageProgress g_LastStageProgress{};
 
 /**
