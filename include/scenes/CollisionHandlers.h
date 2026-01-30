@@ -377,7 +377,8 @@ struct DashBordCollisionHandler : ICollisionHandler {
         DirectX::XMFLOAT3 effectPos = tSelf->position;
         effectPos.y += 0.2f;
         //加速板のエフェクト(プレイヤーが加速板に触れたらエフェクトが出る)
-        EffekseerManager::GetInstance().PlayEffect("SpeedUp", effectPos, {1.0f, 1.0f, 1.0f}, false);
+        int handle = EffekseerManager::GetInstance().PlayEffect("SpeedUp", effectPos, {1.0f, 1.0f, 1.0f}, false);
+        EffekseerManager::GetInstance().SetEffectRotation(handle, {0, 90.0f - dash->accelAngle, 0});
 
         // 現在の速度を無視して、指定角度・指定大きさで上書き
         v->boostDir = boostDir;
