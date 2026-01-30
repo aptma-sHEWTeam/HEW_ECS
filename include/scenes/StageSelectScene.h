@@ -37,6 +37,7 @@
 #include "components/ModelComponent.h"
 #include "components/PointLight.h"
 #include "components/TransformHierarchy.h"
+#include"components/Rotator.h"
 #include "systems/RenderingSystem.h"
 #include "graphics/TextureManager.h"
 
@@ -97,20 +98,29 @@ class StageSelectScene : public IScene {
     inline static ConfigVar<float> cfg_StationRadius{"StageSelect.Station", "Radius", 5.0f, "ステージセレクト: ステーション配置半径"};
     inline static ConfigVar<float> cfg_StationScale{"StageSelect.Station", "Scale", 0.1f, "ステージセレクト: ステーションスケール"};
 
-    inline static ConfigVar<float> cfg_PlanetPosX{"StageSelect.Planet", "PosX", 5000.0f, "ステージセレクト: Planet 位置X"};
-    inline static ConfigVar<float> cfg_PlanetPosY{"StageSelect.Planet", "PosY", 0.0f, "ステージセレクト: Planet 位置Y"};
-    inline static ConfigVar<float> cfg_PlanetPosZ{"StageSelect.Planet", "PosZ", 500.0f, "ステージセレクト: Planet 位置Z"};
-    inline static ConfigVar<float> cfg_PlanetScaleX{"StageSelect.Planet", "ScaleX", 0.650000f, "ステージセレクト: Planet スケールX"};
-    inline static ConfigVar<float> cfg_PlanetScaleY{"StageSelect.Planet", "ScaleY", 0.650000f, "ステージセレクト: Planet スケールY"};
-    inline static ConfigVar<float> cfg_PlanetScaleZ{"StageSelect.Planet", "ScaleZ", 0.650000f, "ステージセレクト: Planet スケールZ"};
+    inline static ConfigVar<float> cfg_PlanetWorld1PosX{"StageSelect.Planet", "World1PosX", 0.0f, "ステージセレクト: Planet 位置X"};
+    inline static ConfigVar<float> cfg_PlanetWorld1PosY{"StageSelect.Planet", "World1PosY", 5.0f, "ステージセレクト: Planet 位置Y"};
+    inline static ConfigVar<float> cfg_PlanetWorld1PosZ{"StageSelect.Planet", "World1PosZ", 7.0f, "ステージセレクト: Planet 位置Z"};
+    inline static ConfigVar<float> cfg_PlanetWorld2PosX{"StageSelect.Planet", "World2PosX", 0.0f, "ステージセレクト: Planet 位置X"};
+    inline static ConfigVar<float> cfg_PlanetWorld2PosY{"StageSelect.Planet", "World2PosY", -5.0f, "ステージセレクト: Planet 位置Y"};
+    inline static ConfigVar<float> cfg_PlanetWorld2PosZ{"StageSelect.Planet", "World2PosZ", -7.0f, "ステージセレクト: Planet 位置Z"};
+    inline static ConfigVar<float> cfg_PlanetWorld3PosX{"StageSelect.Planet", "World3PosX", 0.0f, "ステージセレクト: Planet 位置X"};
+    inline static ConfigVar<float> cfg_PlanetWorld3PosY{"StageSelect.Planet", "World3PosY", 5.0f, "ステージセレクト: Planet 位置Y"};
+    inline static ConfigVar<float> cfg_PlanetWorld3PosZ{"StageSelect.Planet", "World3PosZ", 7.0f, "ステージセレクト: Planet 位置Z"};
+    inline static ConfigVar<float> cfg_PlanetWorld4PosX{"StageSelect.Planet", "World4PosX", 0.0f, "ステージセレクト: Planet 位置X"};
+    inline static ConfigVar<float> cfg_PlanetWorld4PosY{"StageSelect.Planet", "World4PosY", 5.0f, "ステージセレクト: Planet 位置Y"};
+    inline static ConfigVar<float> cfg_PlanetWorld4PosZ{"StageSelect.Planet", "World4PosZ", 7.0f, "ステージセレクト: Planet 位置Z"};
+    inline static ConfigVar<float> cfg_PlanetScaleX{"StageSelect.Planet", "ScaleX", 0.40000f, "ステージセレクト: Planet スケールX"};
+    inline static ConfigVar<float> cfg_PlanetScaleY{"StageSelect.Planet", "ScaleY", 0.40000f, "ステージセレクト: Planet スケールY"};
+    inline static ConfigVar<float> cfg_PlanetScaleZ{"StageSelect.Planet", "ScaleZ", 0.40000f, "ステージセレクト: Planet スケールZ"};
     inline static ConfigVar<float> cfg_PlanetRotX{"StageSelect.Planet", "RotX", 0.0f, "ステージセレクト: Planet 回転X"};
     inline static ConfigVar<float> cfg_PlanetRotY{"StageSelect.Planet", "RotY", 90.0f, "ステージセレクト: Planet 回転Y"};
     inline static ConfigVar<float> cfg_PlanetRotZ{"StageSelect.Planet", "RotZ", 0.0f, "ステージセレクト: Planet 回転Z"};
-    inline static ConfigVar<std::string> cfg_PlanetModelPath{"StageSelect.Planet", "Path", "Assets/Textures/Skybox/World.fbx", "ステージセレクト: Planetモデルのパス"};
-    inline static ConfigVar<std::string> cfg_PlanetWorld1TexturePath{"StageSelect.Planet", "TexturePath","Assets/Textures/Skybox/W1.png", "ステージセレクト: Planet テクスチャパス"};
-    inline static ConfigVar<std::string> cfg_PlanetWorld2TexturePath{"StageSelect.Planet", "TexturePath", "Assets/Textures/Skybox/W2.png", "ステージセレクト: Planet テクスチャパス"};
-    inline static ConfigVar<std::string> cfg_PlanetWorld3TexturePath{"StageSelect.Planet", "TexturePath", "Assets/Textures/Skybox/W3.png", "ステージセレクト: Planet テクスチャパス"};
-    inline static ConfigVar<std::string> cfg_PlanetWorld4TexturePath{"StageSelect.Planet", "TexturePath", "Assets/Textures/Skybox/W4.png", "ステージセレクト: Planet テクスチャパス"};
+    inline static ConfigVar<std::string> cfg_PlanetWorld1ModelPath{"StageSelect.Planet", "PathWorld1", "Assets/Textures/Skybox/World01.fbx", "ステージセレクト: Planetモデルのパス"};
+    inline static ConfigVar<std::string> cfg_PlanetWorld2ModelPath{"StageSelect.Planet", "PathWorld2", "Assets/Textures/Skybox/World02.fbx", "ステージセレクト: Planetモデルのパス"};
+    inline static ConfigVar<std::string> cfg_PlanetWorld3ModelPath{"StageSelect.Planet", "PathWorld3", "Assets/Textures/Skybox/World03.fbx", "ステージセレクト: Planetモデルのパス"};
+    inline static ConfigVar<std::string> cfg_PlanetWorld4ModelPath{"StageSelect.Planet", "PathWorld4", "Assets/Textures/Skybox/World04.fbx", "ステージセレクト: Planetモデルのパス"};
+   
 
     inline static ConfigVar<float> cfg_StationPointLightR{"StageSelect.Station.PointLight", "R", 1.0f, "ステージセレクト: ステーション点光源 R"};
     inline static ConfigVar<float> cfg_StationPointLightG{"StageSelect.Station.PointLight", "G", 0.9f, "ステージセレクト: ステーション点光源 G"};
@@ -159,13 +169,14 @@ class StageSelectScene : public IScene {
     inline static ConfigVar<float> cfg_StageNameProjectYOffset{"StageSelect.UI.StageName", "ProjectYOffset", 0.8f, "ステージセレクト: StageName投影Yオフセット"};
     inline static ConfigVar<float> cfg_StageNameProjectXOffset{"StageSelect.UI.StageName", "ProjectXOffset", 1.0f, "ステージセレクト: StageName投影Xオフセット"};
 
-    inline static ConfigVar<float> cfg_StageNameRefDist{"StageSelect.UI.StageName", "RefDist_v2", 2.0f, "ステージセレクト: StageName 基準距離 (スケール1.0になる距離)"};
+    inline static ConfigVar<float> cfg_StageNameRefDist{"StageSelect.UI.StageName", "RefDist_v2", 2.1f, "ステージセレクト: StageName 基準距離 (スケール1.0になる距離)"};
     inline static ConfigVar<float> cfg_StageNameScaleMax{"StageSelect.UI.StageName", "ScaleMax_v2", 3.0f, "ステージセレクト: StageName 最大スケール制限"};
     inline static ConfigVar<float> cfg_StageNameScaleMin{"StageSelect.UI.StageName", "ScaleMin_v2", 0.0f, "ステージセレクト: StageName 最小スケール制限"};
     inline static ConfigVar<float> cfg_StageNameScalePower{"StageSelect.UI.StageName", "ScalePower", 5.0f, "ステージセレクト: StageName スケール変化の乗数 (大きいほど急に変化)"};
     inline static ConfigVar<float> cfg_StageUiTiltFactor{"StageSelect.UI.Shared", "TiltFactor", 2.0f, "ステージセレクト: UI回転(慣性)係数"};
     inline static ConfigVar<float> cfg_StageUiSpinAmount{"StageSelect.UI.Shared", "SpinAmount", 1080.0f, "ステージセレクト: 遷移時の回転量(度)"}; 
     inline static ConfigVar<float> cfg_StageUiSpinEase{"StageSelect.UI.Shared", "SpinEase", 3.0f, "ステージセレクト: 回転減衰速度(大きいほど早く止まる)"};
+    inline static ConfigVar<float> cfg_StageUiIdleSpinSpeed{"StageSelect.UI.Shared", "IdleSpinSpeed", 10.0f, "ステージセレクト: アイドリング回転速度(度/秒)"};
     inline static ConfigVar<float> cfg_StageSterSize1{"StageSelect.UI.StageSter", "Size1", 50.0f, "ステージセレクト: StageSter1(最前面) サイズ"};
     inline static ConfigVar<float> cfg_StageSterSize2{"StageSelect.UI.StageSter", "Size2", 100.0f, "ステージセレクト: StageSter2(中前) サイズ"};
     inline static ConfigVar<float> cfg_StageSterSize3{"StageSelect.UI.StageSter", "Size3", 150.0f, "ステージセレクト: StageSter3(中奥) サイズ"};
@@ -175,10 +186,16 @@ class StageSelectScene : public IScene {
     inline static ConfigVar<std::string> cfg_StageSterPath2{"StageSelect.UI.StageSter", "Path2", "Assets/Textures/UI/StageSter/stagester2.png", "ステージセレクト: StageSter2 画像パス"};
     inline static ConfigVar<std::string> cfg_StageSterPath3{"StageSelect.UI.StageSter", "Path3", "Assets/Textures/UI/StageSter/stagester3.png", "ステージセレクト: StageSter3 画像パス"};
     inline static ConfigVar<std::string> cfg_StageSterPath4{"StageSelect.UI.StageSter", "Path4", "Assets/Textures/UI/StageSter/stagester4.png", "ステージセレクト: StageSter4 画像パス"};
+    
+    // Idle Spin Multipliers (1=Front/Small -> 4=Back/Big)
+    inline static ConfigVar<float> cfg_StageSterIdleMult1{"StageSelect.UI.StageSter", "IdleMult1", 3.0f, "ステージセレクト: StageSter1(最前面) 回転倍率"};
+    inline static ConfigVar<float> cfg_StageSterIdleMult2{"StageSelect.UI.StageSter", "IdleMult2", 2.5f, "ステージセレクト: StageSter2(中前) 回転倍率"};
+    inline static ConfigVar<float> cfg_StageSterIdleMult3{"StageSelect.UI.StageSter", "IdleMult3", 2.0f, "ステージセレクト: StageSter3(中奥) 回転倍率"};
+    inline static ConfigVar<float> cfg_StageSterIdleMult4{"StageSelect.UI.StageSter", "IdleMult4", 1.0f, "ステージセレクト: StageSter4(最奥) 回転倍率"};
 
     // Reverting to Shared
-    inline static ConfigVar<float> cfg_StageSterOffsetX{"StageSelect.UI.StageSter", "OffsetX", -475.0f, "ステージセレクト: StageSter 位置Xオフセット(共通)"};
-    inline static ConfigVar<float> cfg_StageSterOffsetY{"StageSelect.UI.StageSter", "OffsetY", -260.0f, "ステージセレクト: StageSter 位置Yオフセット(共通)"};
+    inline static ConfigVar<float> cfg_StageSterOffsetX{"StageSelect.UI.StageSter", "OffsetX", -425.0f, "ステージセレクト: StageSter 位置Xオフセット(共通)"};
+    inline static ConfigVar<float> cfg_StageSterOffsetY{"StageSelect.UI.StageSter", "OffsetY", -240.0f, "ステージセレクト: StageSter 位置Yオフセット(共通)"};
 
     inline static ConfigVar<float> cfg_CameraFovDegrees{"StageSelect.Camera", "FovDegrees", 90.0f, "ステージセレクト: カメラFOV(度)"};
     inline static ConfigVar<float> cfg_CameraNear{"StageSelect.Camera", "Near", 0.1f, "ステージセレクト: カメラNear"};
@@ -527,35 +544,18 @@ class StageSelectScene : public IScene {
             return;
         }
 
+        bool fadeFinished = false;
+        bool worldTicked = false;
         if (isFading) {
             world.Tick(deltaTime);
+            worldTicked = true;
             if (auto *anim = world.TryGet<SpriteSheetAnimation>(fadeEntity_)) {
                 if (anim->isFinished) {
-                        if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
-                            std::string nextScene = "Game";
-                            world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
-                                if (worldNumber_ == 1 && sp.selectStage == 1) {
-                                    nextScene = "Stage1IntroVideo";
-                                }
-
-                            sp.currentStage = sp.selectStage;
-                            sp.currentRoom = 1;
-                            sp.requestAdvance = false;
-                            sp.goalTransitioning = false;
-                            sp.clearedThisStage = false;
-                            sp.pressedSwitch = false;
-                            sp.goalUnlocked = false;
-                            DEBUGLOG("[StageSelect] Transition to Game: world=" + std::to_string(sp.worldCount) +
-                                     " currentStage=" + std::to_string(sp.currentStage) +
-                                     " currentRoom=" + std::to_string(sp.currentRoom) +
-                                     " clearedThisStage=" + std::to_string(sp.clearedThisStage) +
-                                     " goalTransitioning=" + std::to_string(sp.goalTransitioning));
-                        });
-                        manager->ChangeScene(nextScene.c_str(), world);
-                    }
+                    fadeFinished = true;
                 }
+            } else {
+                fadeFinished = true;
             }
-            return;
         }
 
         // ゲームシーンへの遷移 (Enter / ×ボタン)
@@ -570,12 +570,37 @@ class StageSelectScene : public IScene {
             if (trigger) {
                 isTransitioning_ = true;
                 zoomTimer_ = 0.0f;
+                StartFadeInNormal(world);
+                isFading = true;
                 DEBUGLOG("StageSelect Camera Zoom Start!");
-                //StartFadeInNormal(world);
             }
         } else {
-            UpdateCameraZoom(world, deltaTime);
-            /* StartFadeInNormal(world);*/
+            bool zoomFinished = UpdateCameraZoom(world, deltaTime);
+            if (zoomFinished && (!isFading || fadeFinished)) {
+                if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
+                    std::string nextScene = "Game";
+                    world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+                        if (worldNumber_ == 1 && sp.selectStage == 1) {
+                            nextScene = "Stage1IntroVideo";
+                        }
+
+                        sp.currentStage = sp.selectStage;
+                        sp.currentRoom = 1;
+                        sp.requestAdvance = false;
+                        sp.goalTransitioning = false;
+                        sp.clearedThisStage = false;
+                        sp.pressedSwitch = false;
+                        sp.goalUnlocked = false;
+                        DEBUGLOG("[StageSelect] Transition to Game: world=" + std::to_string(sp.worldCount) +
+                                 " currentStage=" + std::to_string(sp.currentStage) +
+                                 " currentRoom=" + std::to_string(sp.currentRoom) +
+                                 " clearedThisStage=" + std::to_string(sp.clearedThisStage) +
+                                 " goalTransitioning=" + std::to_string(sp.goalTransitioning));
+                    });
+                    manager->ChangeScene(nextScene.c_str(), world);
+                }
+                return;
+            }
         }
 
         UpdateSkyboxTransform(world);
@@ -637,6 +662,7 @@ class StageSelectScene : public IScene {
                         s_lastSelected[worldNumber_ - 1] = stats.selectStage;
                     }
                     uiRotationTarget_ -= cfg_StageUiSpinAmount.Get(); // Spin (Stage++)
+                    idleSpinDir_ = -1.0f;
                 } else if (stats.selectStage == maxStage_) {
                     if (stats.worldCount != cfg_WorldCount.Get()) {
                         SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
@@ -656,6 +682,7 @@ class StageSelectScene : public IScene {
                         s_lastSelected[worldNumber_ - 1] = stats.selectStage;
                     }
                     uiRotationTarget_ += cfg_StageUiSpinAmount.Get(); // Spin (Stage--)
+                    idleSpinDir_ = 1.0f;
                 } else {
                     // 前のワールドへ
                     if (worldNumber_ > 1) {
@@ -675,11 +702,18 @@ class StageSelectScene : public IScene {
 
         if (requestWorldTransition == TransitionDirection::Right) {
             uiRotationTarget_ += cfg_StageUiSpinAmount.Get(); // Spin Right (CW)
+            idleSpinDir_ = 1.0f; // Note: World transition might have different rotation direction logic? 
+            // Checking logic: Right transition -> GoToNextWorld -> Slide Right. 
+            // In line 646 (Stage++), target decreases (-=). 
+            // But here line 684 says +=. 
+            // Let's trust the existing code for Spin and just sync idleSpinDir.
+            // If +=, then dir is 1.0f.
             GoToNextWorld(world);
             return;
         }
         if (requestWorldTransition == TransitionDirection::Left) {
             uiRotationTarget_ -= cfg_StageUiSpinAmount.Get(); // Spin Left (CCW)
+            idleSpinDir_ = -1.0f;
             GoToPrevWorld(world);
             return;
         }
@@ -687,6 +721,11 @@ class StageSelectScene : public IScene {
         // Spin Animation (Lerp to Target)
         float spinEase = cfg_StageUiSpinEase.Get();
         uiRotationCurrent_ += (uiRotationTarget_ - uiRotationCurrent_) * deltaTime * spinEase;
+        
+        // Idle Spin (Wrap to 360 to avoid overflow)
+        uiIdleRotationCurrent_ += cfg_StageUiIdleSpinSpeed.Get() * deltaTime * idleSpinDir_;
+        if (uiIdleRotationCurrent_ >= 360.0f) uiIdleRotationCurrent_ -= 360.0f;
+        else if (uiIdleRotationCurrent_ <= -360.0f) uiIdleRotationCurrent_ += 360.0f;
 
         // 回転アニメーション
         rotateSpeed_ = cfg_RotateSpeed.Get();
@@ -705,7 +744,9 @@ class StageSelectScene : public IScene {
             sp.worldCount = worldNumber_;
         });
 
-        world.Tick(deltaTime);
+        if (!worldTicked) {
+            world.Tick(deltaTime);
+        }
     }
 
     void OnRender(World &world) override {
@@ -980,6 +1021,8 @@ class StageSelectScene : public IScene {
     // Spin State
     float uiRotationCurrent_ = 0.0f;
     float uiRotationTarget_ = 0.0f;
+    float uiIdleRotationCurrent_ = 0.0f;
+    float idleSpinDir_ = -1.0f;
 
     std::vector<Entity> ownedEntities_{};
     std::vector<Entity> objectOwnedEntities_;
@@ -1269,11 +1312,6 @@ class StageSelectScene : public IScene {
             }
             if (!world.IsAlive(uiEntity)) continue;
 
-            // 対応するStationオブジェクトを取得
-            // objectOwnedEntities_ の構造に依存するが、Stationは最初の方に追加されているため、
-            // ステージ数とインデックスが一致していると仮定する。
-            // CreateObjectで追加された順序がステージ順であればOK。
-            // (CreateObjectはLoadでi=0から順に呼ばれていることを確認済み)
             if (i >= objectOwnedEntities_.size()) break;
 
             Entity station = objectOwnedEntities_[i];
@@ -1312,7 +1350,12 @@ class StageSelectScene : public IScene {
             uiTr->position = {sx - uiOffsetX, sy};
 
             // 距離によるスケール計算
-            DirectX::XMVECTOR camPos = DirectX::XMLoadFloat3(&camera.position);
+            DirectX::XMVECTOR camPos;
+            if (isTransitioning_) {
+                camPos = DirectX::XMLoadFloat3(&cameraPosition_);
+            } else {
+                camPos = DirectX::XMLoadFloat3(&camera.position);
+            }
             DirectX::XMVECTOR targetPos = DirectX::XMLoadFloat3(&p);
             float dist = DirectX::XMVectorGetX(DirectX::XMVector3Length(DirectX::XMVectorSubtract(camPos, targetPos)));
 
@@ -1329,9 +1372,6 @@ class StageSelectScene : public IScene {
             }
             currentScale = std::clamp(currentScale, scaleMin, scaleMax);
 
-            // BaseSize init check (per entity logic ideally, but sharing member for now since they are same texture usually)
-            // But texture might differ? Size should be from texture.
-            // If we use same base size for all, it's fine.
             if (stageNameBaseSize_.x <= 0.0f || stageNameBaseSize_.y <= 0.0f) {
                  stageNameBaseSize_ = uiTr->size;
                  if (stageNameBaseSize_.x <= 0.0f) stageNameBaseSize_ = {621.0f, 207.0f}; 
@@ -1350,8 +1390,8 @@ class StageSelectScene : public IScene {
             }
 
             // --- Update StageSter & StageName Rotation ---
-            // Use calculated Spin Rotation
-            float tiltDegrees = uiRotationCurrent_;
+            // Base Spin from Transition
+            float baseTilt = uiRotationCurrent_;
 
             // Apply to StageName (Selected)
             // User requested NO rotation for StageName
@@ -1369,8 +1409,16 @@ class StageSelectScene : public IScene {
                       float offX = cfg_StageSterOffsetX.Get();
                       float offY = cfg_StageSterOffsetY.Get();
 
-                      // Restore Rotation (Synced with UI)
-                      sterTr->rotation = tiltDegrees;
+                      // Restore Rotation (Synced with UI + Idle Multiplier)
+                      float mult = 1.0f;
+                      switch (s) {
+                          case 0: mult = cfg_StageSterIdleMult4.Get(); break; // Back
+                          case 1: mult = cfg_StageSterIdleMult3.Get(); break;
+                          case 2: mult = cfg_StageSterIdleMult2.Get(); break;
+                          case 3: mult = cfg_StageSterIdleMult1.Get(); break; // Front
+                          default: mult = 1.0f; break;
+                      }
+                      sterTr->rotation = baseTilt + (uiIdleRotationCurrent_ * mult);
                       
                       // Restore Visibility
                       sterImg->opacity = 1.0f;
@@ -1411,45 +1459,60 @@ class StageSelectScene : public IScene {
 
         if (!modelPath.empty()) {
             builder.With<Model>(modelPath);
-        } else {
-            // モデルがない場合はCubeを表示（World2-4互換）
-            MeshRenderer renderer;
-            renderer.meshType = MeshType::Cube;
-            renderer.color = {1.0f, 1.0f, 1.0f};
-            builder.With<MeshRenderer>(renderer);
         }
 
         Entity obj = builder.Build();
         objectOwnedEntities_.push_back(obj);
     }
 
-      std::string GetPlanetTexturePath() const {
+   
+
+     PlanetInfo PlanetModelInfo() const {
+
+         PlanetInfo info{
+             "",   
+             {0.0f, 0.0f, 0.0f}
+         };
+
         switch (worldNumber_) {
             case 1:
-                return cfg_PlanetWorld1TexturePath.Get();
+                info.planetPath = cfg_PlanetWorld1ModelPath.Get();
+                info.planetPos = {cfg_PlanetWorld1PosX.Get(), cfg_PlanetWorld1PosY.Get(), cfg_PlanetWorld1PosZ.Get()};
+                break;
             case 2:
-                return cfg_PlanetWorld2TexturePath.Get();
+                info.planetPath = cfg_PlanetWorld2ModelPath.Get();
+                info.planetPos = {cfg_PlanetWorld2PosX.Get(), cfg_PlanetWorld2PosY.Get(), cfg_PlanetWorld2PosZ.Get()};
+                break;
             case 3:
-                return cfg_PlanetWorld3TexturePath.Get();
+                info.planetPath = cfg_PlanetWorld3ModelPath.Get();
+                info.planetPos = {cfg_PlanetWorld3PosX.Get(), cfg_PlanetWorld3PosY.Get(), cfg_PlanetWorld3PosZ.Get()};
+                break;
             case 4:
-                return cfg_PlanetWorld4TexturePath.Get();
+                info.planetPath = cfg_PlanetWorld4ModelPath.Get();
+                info.planetPos = {cfg_PlanetWorld4PosX.Get(), cfg_PlanetWorld4PosY.Get(), cfg_PlanetWorld4PosZ.Get()};
+                break;
             default:
                 break;
         }
-    }
-    void CreatePlanet(World &world) {
-        const std::string modelPath = cfg_PlanetModelPath.Get();
-        const std::string texturePath = GetPlanetTexturePath();
 
-        DirectX::XMFLOAT3 objPos{cfg_PlanetPosX.Get(), cfg_PlanetPosY.Get(), cfg_PlanetPosZ.Get()};
+        return info;
+    }
+
+
+    void CreatePlanet(World &world) {
+        PlanetInfo info = PlanetModelInfo();
+        const std::string modelPath = info.planetPath;
+        DirectX::XMFLOAT3 objPos = info.planetPos;
+
         Transform transform{
-            {objPos}, {cfg_PlanetRotX.Get(), cfg_PlanetRotY.Get(), cfg_PlanetRotZ.Get()}, {cfg_PlanetScaleX.Get(), cfg_PlanetScaleY.Get(), cfg_PlanetScaleZ.Get()}};
+             {objPos}, {cfg_PlanetRotX.Get(), cfg_PlanetRotY.Get(), cfg_PlanetRotZ.Get()}, {cfg_PlanetScaleX.Get(), cfg_PlanetScaleY.Get(), cfg_PlanetScaleZ.Get()}};
         MeshRenderer meshrenderer;
         meshrenderer.meshType = MeshType::Cube;
         meshrenderer.color = DirectX::XMFLOAT3{0.0f, 0.0f, 0.0f};
         planetEntity_ = world.Create()
                             .With<Transform>(transform)
                             .With<Model>(modelPath)
+                            .With<Rotator>(10.0f)
                             .Build();
 
         ownedEntities_.push_back(planetEntity_);
@@ -1508,7 +1571,7 @@ class StageSelectScene : public IScene {
         }
     }
 
-    void UpdateCameraZoom(World &world, float deltaTime) {
+    bool UpdateCameraZoom(World &world, float deltaTime) {
         //遷移の時間
         const float duration = std::max(cfg_CameraZoomDurationSeconds.Get(), 0.0001f);
         zoomTimer_ += deltaTime;
@@ -1526,12 +1589,7 @@ class StageSelectScene : public IScene {
         //視野角
         camera_.Zoom(cfg_CameraZoomFovDeltaPerSecond.Get() * deltaTime);
         camera_.Update();
-        //シーン遷移
-        if (progress >= 1.0f) {
-            StartFadeInNormal(world);
-            isFading = true;
-            return;
-        }
+        return progress >= 1.0f;
     }
 
     static bool IsSkyboxTexturePathValid(const std::string &path) {

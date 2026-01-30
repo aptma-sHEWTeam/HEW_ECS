@@ -573,18 +573,18 @@ class TitleScene : public IScene {
         bool upPressd = input.GetKeyDown(VK_UP);
         bool downPressd = input.GetKeyDown(VK_DOWN);
 
+        bool fadeFinished = false;
+        bool worldTicked = false;
         if (isFading) {
             world.Tick(deltaTime);
+            worldTicked = true;
             if (auto *anim = world.TryGet<SpriteSheetAnimation>(fadeEntity_)) {
-                if (anim->isFinished) 
-                {
-                    if (auto *manager = ServiceLocator::TryGet<SceneManager>()) 
-                    {
-                        manager->ChangeSceneWithTransition("World1_StageSelect", world, TransitionDirection::Forward);
-                    }
+                if (anim->isFinished) {
+                    fadeFinished = true;
                 }
+            } else {
+                fadeFinished = true;
             }
-            return;
         }
 
         GamepadSystem *pad = ServiceLocator::TryGet<GamepadSystem>();
@@ -613,14 +613,26 @@ class TitleScene : public IScene {
             SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
         }
 
+       
         for (int i = 0; i < 3; ++i) {
+
+            bool isSelect = (i == currentSelect);
+
             if (auto *hoverImg = world.TryGet<UIImage>(menuEntity_[i])) {
-                hoverImg->opacity = (i == currentSelect) ? 1.0f : 0.0f;
+                hoverImg->opacity = isSelect ? 1.0f : 0.0f;
             }
             if (auto *baseImg = world.TryGet<UIImage>(baseMenuEntity_[i])) {
-                baseImg->opacity = (i == currentSelect) ? 0.0f : 1.0f;
+                baseImg->opacity = isSelect ? 0.0f : 1.0f;
+            }
+
+            if (auto *tr = world.TryGet<UITransform>(menuEntity_[i])) {
+                tr->size = isSelect ? tr->titleBigSize : tr->titleNormalSize;
+            }
+            if (auto *tr = world.TryGet<UITransform>(baseMenuEntity_[i])) {
+                tr->size = isSelect ? tr->titleBigSize : tr->titleNormalSize;
             }
         }
+
 
         if (world.IsAlive(objectEntity_)) {
             if (auto *t = world.TryGet<Transform>(objectEntity_)) {
@@ -692,13 +704,20 @@ class TitleScene : public IScene {
                 }
             }
             if (trigger) {
-               
                 isTransitioning_ = true;
-                isUiVisible_ = false;
+                zoomTimer_ = 0.0f;
+                StartFadeInNormal(world);
+                isFading = true;
                 DEBUGLOG("Camera Zoom Start!");
             }
         } else {
-            UpdateCameraZoom(world, deltaTime);
+            bool zoomFinished = UpdateCameraZoom(world, deltaTime);
+            if (zoomFinished && (!isFading || fadeFinished)) {
+                if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
+                    manager->ChangeSceneWithTransition("World1_StageSelect", world, TransitionDirection::Forward);
+                }
+                return;
+            }
         }
 
         UpdateCameraBob(deltaTime);
@@ -706,7 +725,9 @@ class TitleScene : public IScene {
         UpdateSkyboxTransform(world);
         UpdateSkyboxTexture(world);
 
-         world.Tick(deltaTime);
+         if (!worldTicked) {
+             world.Tick(deltaTime);
+         }
 
         //サウンドの音量設定の更新
         SOUND_SYS.UpdateVolume();
@@ -788,7 +809,7 @@ class TitleScene : public IScene {
   private:
     struct SceneOwnedTag : IComponent {};
 
-    void UpdateCameraZoom(World &world, float deltaTime) {
+    bool UpdateCameraZoom(World &world, float deltaTime) {
         const float duration = 1.5f;
         zoomTimer_ += deltaTime;
 
@@ -807,11 +828,7 @@ class TitleScene : public IScene {
         camera_.Zoom(-0.1f * deltaTime);
         camera_.Update();
 
-        if (progress >= 1.0f) {
-            StartFadeInNormal(world);
-            isFading = true;
-            return;
-        }
+        return progress >= 1.0f;
     }
 
     void UpdateCameraBob(float deltaTime) {

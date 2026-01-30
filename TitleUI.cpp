@@ -44,8 +44,8 @@ void TitleScene::CreateTitleSelectUI(World &world) {
 
     //�^�C�g�����S
     UITransform titleLogoImgTr;
-    titleLogoImgTr.position = {50.0f,0.0f};
-    titleLogoImgTr.size = {560.0f, 350.0f};
+    titleLogoImgTr.position = {50.0f,10.0f};
+    titleLogoImgTr.size = {640.0f, 420.0f};
     titleLogoImgTr.anchor = {0.0f,0.0f};
     titleLogoImgTr.pivot = {0.0f, 0.0f};
 
@@ -63,7 +63,7 @@ void TitleScene::CreateTitleSelectUI(World &world) {
 
     //�X�^�[�g
     UITransform startImgTr;
-    startImgTr.position = {50.0f, 400.0f};
+    startImgTr.position = {50.0f, 440.0f};
     startImgTr.size = {300.0f, 300.0f};
     startImgTr.anchor = {0.0f, 0.0f};
     startImgTr.pivot = {0.0f, 0.0f};
@@ -82,7 +82,7 @@ void TitleScene::CreateTitleSelectUI(World &world) {
 
     //���X�^�[�g
     UITransform restartImgTr;
-    restartImgTr.position = {50.0f, 460.0f};
+    restartImgTr.position = {50.0f, 520.0f};
     restartImgTr.size = {300.0f, 300.0f};
     restartImgTr.anchor = {0.0f, 0.0f};
     restartImgTr.pivot = {0.0f, 0.0f};
@@ -101,7 +101,7 @@ void TitleScene::CreateTitleSelectUI(World &world) {
 
      //�I��
     UITransform exitImgTr;
-    exitImgTr.position = {50.0f, 520.0f};
+    exitImgTr.position = {50.0f, 600.0f};
     exitImgTr.size = {300.0f, 300.0f};
     exitImgTr.anchor = {0.0f, 0.0f};
     exitImgTr.pivot = {0.0f, 0.0f};
