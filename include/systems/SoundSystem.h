@@ -78,6 +78,9 @@ public:
     //音量を更新
     void UpdateSEVolume(const std::string& path);
 
+    // XAudio2デバイスの取得 (VideoPlayerなどが直接利用するため)
+    IXAudio2* GetXAudio() const { return m_pXAudio; }
+
   private:
      //メンバ変数
     IXAudio2 *m_pXAudio;

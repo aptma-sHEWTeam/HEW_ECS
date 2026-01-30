@@ -144,6 +144,14 @@ class VideoScene : public IScene {
         isFading = false;
 
         DEBUGLOG(std::string("VideoScene: Video playback started - ") + videoPath_);
+
+        if (bgmPathSet_) {
+            if (!bgmPath_.empty()) {
+                SOUND_SYS.PlayBGM(bgmPath_);
+            }
+        } else {
+            SOUND_SYS.PlayBGM(cfg_ClearMP3Pass.Get());
+        }
     }
 
     void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
@@ -207,13 +215,7 @@ class VideoScene : public IScene {
             }
         }
 
-        if (bgmPathSet_) {
-            if (!bgmPath_.empty()) {
-                SOUND_SYS.PlayBGM(bgmPath_);
-            }
-        } else {
-            SOUND_SYS.PlayBGM(cfg_ClearMP3Pass);
-        }
+
 
         world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
             sys.Render(world);

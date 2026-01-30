@@ -33,6 +33,7 @@
     <RootNamespace>HEW_GAME</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
     <ProjectName>HEW_GAME</ProjectName>
+    <ApplicationIcon>Assets\Textures\logo\gameicon.ico</ApplicationIcon>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -103,6 +104,11 @@
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
+  <ItemDefinitionGroup>
+    <ResourceCompile>
+      <PreprocessorDefinitions>RES_ICON_PATH="$(ProjectDir)Assets\Textures\logo\gameicon.ico";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+  </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
@@ -265,6 +271,7 @@
     <ClInclude Include="libs\Effekseer\Effekseer.h" />
     <ClInclude Include="libs\Effekseer\Effekseer.Modules.h" />
     <ClInclude Include="libs\Effekseer\Effekseer.SIMD.h" />
+    <ClInclude Include="resource.h" />
     <ClInclude Include="RoomUIComponents.h" />
     <ClInclude Include="SoundComponent.h" />
     <ClInclude Include="StageStatus.h" />
@@ -369,6 +376,13 @@
     <None Include="docs\Transform_Hierarchy_Guide.md" />
     <None Include="docs\UI_System_Guide.md" />
     <None Include="README.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Assets\Textures\logo\gameicon.ico" />
+    <Image Include="Assets\Textures\logo\gameicon.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Resource.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

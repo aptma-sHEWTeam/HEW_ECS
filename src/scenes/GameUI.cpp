@@ -193,7 +193,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     barTr.pivot = {0.0f, 0.0f};
 
     UIPanel barPanel;
-    barPanel.color = {0.0f, 1.0f, 1.0f, 0.8f};
+    barPanel.color = {1.0f, 0.0f, 0.0f, 1.0f};
 
     Entity startChargeBarEntity = world.Create()
                                     .With<UITransform>(barTr)
@@ -343,11 +343,11 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         return e;
     };
 
-    Entity pauseResumeBtn = createPauseButton(L"再開", 40.0f);
-    Entity pauseRetryBtn = createPauseButton(L"リトライ", 110.0f);
-    Entity pauseTitleBtn = createPauseButton(L"タイトルへ", 180.0f);
-    Entity pauseSelectBtn = createPauseButton(L"ステージセレクトへ", 250.0f);
-    Entity pauseQuitBtn = createPauseButton(L"終了", 320.0f);
+    Entity pauseResumeBtn = createPauseButton(L"再開", -30.0f);
+    Entity pauseRetryBtn = createPauseButton(L"リトライ", 40.0f);
+    Entity pauseTitleBtn = createPauseButton(L"タイトルへ", 110.0f);
+    Entity pauseSelectBtn = createPauseButton(L"ステージセレクトへ", 180.0f);
+    Entity pauseQuitBtn = createPauseButton(L"終了", 250.0f);
 
     // 追加: ステージクリア表示（最初は非表示＝空文字）
     UITransform clearTransform;

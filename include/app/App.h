@@ -26,6 +26,8 @@
 #include <filesystem>
 #include <fstream>
 
+#include "../resource.h"
+
 #include "app/BuildConfig.h"
 
 // DirectX11 & ECS システム
@@ -677,6 +679,12 @@ struct App {
         wc.hCursor = LoadCursor(nullptr, IDC_ARROW);
         wc.lpszClassName = L"MiniGame_Class";
 
+        wc.hIcon = (HICON) LoadImage(hInst, MAKEINTRESOURCE(IDI_ICON1),
+                                     IMAGE_ICON, 0, 0, LR_DEFAULTSIZE);
+
+        wc.hIconSm = (HICON) LoadImage(hInst, MAKEINTRESOURCE(IDI_ICON1),
+                                       IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR);
+
         if (!RegisterClassEx(&wc)) {
             DEBUGLOG("[ERROR] RegisterClassEx() 失敗 - エラーコード: " + std::to_string(GetLastError()));
             return false;
@@ -705,6 +713,8 @@ struct App {
 
         input_.SetWindowHandle(hwnd_);
         ShowWindow(hwnd_, SW_SHOW);
+        SendMessage(hwnd_, WM_SETICON, ICON_BIG, (LPARAM) wc.hIcon);
+        SendMessage(hwnd_, WM_SETICON, ICON_SMALL, (LPARAM) wc.hIconSm);
         DEBUGLOG("ウィンドウを表示");
         DEBUGLOG("CreateAppWindow() 正常に完了");
         return true;

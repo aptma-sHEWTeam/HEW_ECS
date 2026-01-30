@@ -407,6 +407,7 @@
       <Filter>Header Files\scenes</Filter>
     </ClInclude>
     <ClInclude Include="include\components\TimeScaleComponents.h" />
+    <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include=".github\ISSUE_TEMPLATE\01_task.yml" />
@@ -434,5 +435,12 @@
     <None Include="docs\Transform_Hierarchy_Guide.md" />
     <None Include="docs\UI_System_Guide.md" />
     <None Include="README.md" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Assets\Textures\logo\gameicon.ico" />
+    <Image Include="Assets\Textures\logo\gameicon.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Resource.rc" />
   </ItemGroup>
 </Project>
