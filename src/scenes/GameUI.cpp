@@ -170,7 +170,23 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                                    .Build();
     ownedEntities_.push_back(warningTextEntity);
 
-    UITransform starttimeTransform;
+    UITransform startImgTr;
+    startImgTr.position = {520.0f, 85.0f};
+    startImgTr.size = {250.0f, 250.0f};
+    startImgTr.anchor = {0.0f, 0.0f};
+    startImgTr.pivot = {0.0f, 0.0f};
+
+    UIImage startImg{L"Assets/Textures/UI/StageUI/charge.png"};
+    startImg.opacity = 1.0f;
+    startImg.keepAspect = true;
+
+    Entity startImageEntity = world.Create()
+                                  .With<UITransform>(startImgTr)
+                                  .With<UIImage>(startImg)
+                                  .Build();
+    ownedEntities_.push_back(startImageEntity);
+
+    /* UITransform starttimeTransform;
     starttimeTransform.position = {600.0f, 250.0f};
     starttimeTransform.size = {300.0f, 300.0f};
     starttimeTransform.anchor = {0.0f, 0.0f};
@@ -186,7 +202,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                            .With<UIText>(starttimeText)
                            .Build();
 
-    ownedEntities_.push_back(starttime);
+    ownedEntities_.push_back(starttime);*/
 
 #ifdef _DEBUG
     UITransform fpsTransform;
@@ -350,9 +366,9 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         updater->stageTextEntity_[1] = stageEntity[1];
         //  updater->numEntity_ = numEntity;
         updater->timeImageEntity_ = timerImageEntity;
-        updater->startplayer_ = starttime;
+        updater->startplayer_ = startImageEntity;
         updater->warningOverlayEntity_ = warningOverlayEntity;
-        updater->warningTextEntity_ = warningTextEntity;
+        //updater->warningTextEntity_ = warningTextEntity;
 
         updater->pauseMenuPanelEntity_ = pauseMenuPanelEntity;
         updater->pauseResumeButtonEntity_ = pauseResumeBtn;
@@ -401,7 +417,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                         wptr->ForEach<StageProgress>([&](Entity, StageProgress &sp) { worldIndex = sp.worldCount; });
                         worldIndex = std::clamp(worldIndex, 1, 4);
                         std::string sceneName = "World" + std::to_string(worldIndex) + "_StageSelect";
-                        mgr->ChangeScene(sceneName.c_str(), *wptr);
+                        BeginStageSelectFade(sceneName, *wptr);
                     }
             };
         }

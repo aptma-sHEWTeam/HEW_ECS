@@ -102,12 +102,16 @@ class GameScene : public IScene {
         DEBUGLOG("GameWithUIScene::OnEnter() 開始");
 
         pauseInputLock_ = 0.35f;
+        pendingStageSelectScene_.clear();
+        isStageSelectFadeActive_ = false;
 
         StageSave::Load();
         auto *mgr = ServiceLocator::TryGet<SceneManager>();
         if (!mgr)
             return;
-
+        world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+            sp.maxRoom = CountRooms(sp.worldCount, sp.currentStage);
+        });
         world.ForEach<GameStatus>([&](Entity, GameStatus &stats) {
             stats.isPaused = false;
 
@@ -306,7 +310,11 @@ class GameScene : public IScene {
         Entity modelLoaderSystem = world.Create().With<ModelLoadingSystem>().Build();
         ownedEntities_.push_back(modelLoaderSystem);
 
+
+        skyboxTexture_ = TextureManager::INVALID_TEXTURE;
+        skyboxTextureApplied_ = false;
         CreateSkybox(world);
+
 
 #if defined(_DEBUG)
         static bool skyboxScaleTestsRan = false;
@@ -391,9 +399,25 @@ class GameScene : public IScene {
      */
    
  void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
+        if (isStageSelectFadeActive_) {
+            if (auto *anim = world.TryGet<SpriteSheetAnimation>(fadeAnimationEntity_)) {
+                if (anim->isFinished && !anim->isPlaying) {
+                    if (auto *mgr = ServiceLocator::TryGet<SceneManager>()) {
+                        mgr->ChangeScene(pendingStageSelectScene_.c_str(), world);
+                    }
+                    return;
+                }
+            } else if (auto *mgr = ServiceLocator::TryGet<SceneManager>()) {
+                mgr->ChangeScene(pendingStageSelectScene_.c_str(), world);
+                return;
+            }
+        }
         // ゲームの一時停止/再開処理
         GamepadSystem *pad = ServiceLocator::TryGet<GamepadSystem>();
         world.ForEach<GameStatus>([&](Entity, GameStatus &stats) {
+            auto *v = world.TryGet<PlayerVelocity>(playerEntity_);
+            auto *movement = world.TryGet<PlayerMovement>(playerEntity_);
+
             bool togglePause = input.GetKeyDown('P');
             if (pad && pad->GetButtonDown(GamepadSystem::Button_Y)) {
                 togglePause = true;
@@ -480,9 +504,9 @@ class GameScene : public IScene {
         RenderingSystem::GetInstance().UpdateLights(world, camera_.position);
 
         // 時間切れチェック
-        if (world.IsAlive(playerEntity_)) {
-            CheckTimeLimit(world, playerEntity_,cfg_LimitTime);
-        }
+            if (world.IsAlive(playerEntity_)) {
+                CheckTimeLimit(world, playerEntity_,cfg_LimitTime);
+            }
         EffekseerManager::GetInstance().Update();
 
 
@@ -543,6 +567,15 @@ class GameScene : public IScene {
         g_GameScene = nullptr;
         RenderingSystem::GetInstance().Shutdown();
         StopGoalEffect();
+        StopGoalEffect();
+        //EffekseerManager::GetInstance().StopEffect(); // エフェクトを全停止
+        
+        // エフェクトが次のシーンに残らないよう、マネージャごと強制リセットする
+        if (auto* gfx = ServiceLocator::TryGet<GfxDevice>()) {
+            EffekseerManager::GetInstance().Reset(*gfx, camera_);
+        } else {
+            EffekseerManager::GetInstance().StopEffect();
+        }
 
         // ステージ生成物を優先的に破棄（シーン間で漏れないようにする）
         for (const auto &entity : stageOwnedEntities_) {
@@ -615,6 +648,11 @@ class GameScene : public IScene {
             }
         }
         ownedEntities_.clear();
+
+        // シャドウマップを破棄する前にRenderSystemから参照を切る
+        if (auto *renderer = ServiceLocator::TryGet<RenderSystem>()) {
+            renderer->SetShadowMap(nullptr);
+        }
 
         shadowSystem_.Shutdown();
         shadowMap_.Shutdown();
@@ -739,7 +777,7 @@ class GameScene : public IScene {
                 if (img)
                     img->opacity = 0.0f;
             }
-            SOUND_SYS.StopSE(cfg_DriftMP3Pass);
+            //SOUND_SYS.StopSE(cfg_DriftMP3Pass);
         } else {
             if (img)
                 img->opacity = 0.0f;
@@ -859,10 +897,25 @@ class GameScene : public IScene {
             if (sp.clearedThisStage) {
                 return;
             }
+            int maxRoom = CountRooms(sp.worldCount, sp.currentStage);
+
+            if (sp.currentRoom < maxRoom) {
+
+                sp.currentRoom++;
+                return;
+            }
+
             sp.clearedThisStage = true;
-            StageSave::MarkStageCleared(sp.currentStage);
+
+            int pssNumber = GetPssNumber(sp.worldCount, sp.currentStage);
+
+            if (pssNumber > StageSave::GetMaxClearedPss()) {
+                StageSave::MarkPssCleared(pssNumber);
+            }
+
             sp.requestAdvance = true;
         });
+
         world.ForEach<GameStatus>([](Entity, GameStatus &stats) {
             stats.elapsedTime = cfg_LimitTime;
             stats.timerRunning = false;
@@ -1009,6 +1062,14 @@ class GameScene : public IScene {
     /** @brief ワールドへのポインタを設定 */
     void SetWorldRef(World *w) {
         world_ = w;
+    }
+
+    void BeginStageSelectFade(const std::string &sceneName, World &world) {
+        pendingStageSelectScene_ = sceneName;
+        if (!pendingStageSelectScene_.empty()) {
+            StartFadeOutNormal(world);
+            isStageSelectFadeActive_ = true;
+        }
     }
 
     /** @brief リスポーン待機中かを取得 */
@@ -1912,7 +1973,7 @@ class GameScene : public IScene {
             if (sp.clearedThisStage)
                 return;
             sp.clearedThisStage = true;
-            StageSave::MarkStageCleared(sp.currentStage);
+           
         });
         }
     };
@@ -2310,6 +2371,17 @@ class GameScene : public IScene {
                      " goalTransitioning=" + std::to_string(sp.goalTransitioning) +
                      " pressedSwitch=" + std::to_string(sp.pressedSwitch));
         });
+
+        // エフェクトを全停止（前のステージのエフェクトが残らないように）
+        EffekseerManager::GetInstance().StopEffect();
+
+        // プレイヤーからGoalAttractorを削除（前のステージの状態が残らないように）
+        if (world.IsAlive(playerEntity_)) {
+            if (world.Has<GoalAttractor>(playerEntity_)) {
+                world.Remove<GoalAttractor>(playerEntity_);
+                DEBUGLOG("[SetupStage] GoalAttractor removed from player");
+            }
+        }
 
         // 最新のStageCreateのみを利用し、それ以外は破棄して重複生成を防ぐ
         Entity activeStageCreate{};
@@ -3021,6 +3093,8 @@ class GameScene : public IScene {
     bool chargeOverlayVisible_ = false;
     bool deathFadeVisible_ = false;
     bool startFadeVisible_ = false;
+    bool isStageSelectFadeActive_ = false;
+    std::string pendingStageSelectScene_;
     float stickZoomTarget_ = 0.0f;
     float stickZoomCurrent_ = 0.0f;
     float stickZoomRatioCurrent_ = 0.0f; ///< スティックズーム時の現在の寄り率（0〜1）
@@ -3081,6 +3155,7 @@ inline void WallCollisionHandler::OnCollisionEnter(World &w, Entity self, Entity
             return;
 
         SOUND_SYS.PlaySE(cfg_CollideMP3Pass.Get(),false);
+        SOUND_SYS.StopSE(cfg_DriftMP3Pass);
 
         DEBUGLOG("壁がプレイヤーと衝突 - カメラシェイク＋遅延リスポーン");
         if (g_GameScene) {
@@ -3107,6 +3182,7 @@ inline void FloorWallCollisionHandler::OnCollisionEnter(World &w, Entity self, E
             return;
 
         SOUND_SYS.PlaySE(cfg_CollideMP3Pass.Get(),false);
+        SOUND_SYS.StopSE(cfg_DriftMP3Pass);
 
         DEBUGLOG("ステージ壁がプレイヤーと衝突 - カメラシェイク＋遅延リスポーン");
         if (g_GameScene) {

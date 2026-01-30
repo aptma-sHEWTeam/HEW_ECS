@@ -539,6 +539,8 @@ void TextSystem::FillRect(float x, float y, float width, float height, const Dir
 }
 
 void TextSystem::BeginDraw() {
+    if (gfx_) gfx_->Resolve();
+
     if (d2dContext_) {
         if (!targetBitmap_) {
             RefreshTargetBitmap();

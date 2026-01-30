@@ -169,6 +169,34 @@ class StageSelectScene : public IScene {
     inline static ConfigVar<float> cfg_StageNameProjectYOffset{"StageSelect.UI.StageName", "ProjectYOffset", 0.8f, "ステージセレクト: StageName投影Yオフセット"};
     inline static ConfigVar<float> cfg_StageNameProjectXOffset{"StageSelect.UI.StageName", "ProjectXOffset", 1.0f, "ステージセレクト: StageName投影Xオフセット"};
 
+    inline static ConfigVar<float> cfg_StageNameRefDist{"StageSelect.UI.StageName", "RefDist_v2", 2.1f, "ステージセレクト: StageName 基準距離 (スケール1.0になる距離)"};
+    inline static ConfigVar<float> cfg_StageNameScaleMax{"StageSelect.UI.StageName", "ScaleMax_v2", 3.0f, "ステージセレクト: StageName 最大スケール制限"};
+    inline static ConfigVar<float> cfg_StageNameScaleMin{"StageSelect.UI.StageName", "ScaleMin_v2", 0.0f, "ステージセレクト: StageName 最小スケール制限"};
+    inline static ConfigVar<float> cfg_StageNameScalePower{"StageSelect.UI.StageName", "ScalePower", 5.0f, "ステージセレクト: StageName スケール変化の乗数 (大きいほど急に変化)"};
+    inline static ConfigVar<float> cfg_StageUiTiltFactor{"StageSelect.UI.Shared", "TiltFactor", 2.0f, "ステージセレクト: UI回転(慣性)係数"};
+    inline static ConfigVar<float> cfg_StageUiSpinAmount{"StageSelect.UI.Shared", "SpinAmount", 1080.0f, "ステージセレクト: 遷移時の回転量(度)"}; 
+    inline static ConfigVar<float> cfg_StageUiSpinEase{"StageSelect.UI.Shared", "SpinEase", 3.0f, "ステージセレクト: 回転減衰速度(大きいほど早く止まる)"};
+    inline static ConfigVar<float> cfg_StageUiIdleSpinSpeed{"StageSelect.UI.Shared", "IdleSpinSpeed", 10.0f, "ステージセレクト: アイドリング回転速度(度/秒)"};
+    inline static ConfigVar<float> cfg_StageSterSize1{"StageSelect.UI.StageSter", "Size1", 50.0f, "ステージセレクト: StageSter1(最前面) サイズ"};
+    inline static ConfigVar<float> cfg_StageSterSize2{"StageSelect.UI.StageSter", "Size2", 100.0f, "ステージセレクト: StageSter2(中前) サイズ"};
+    inline static ConfigVar<float> cfg_StageSterSize3{"StageSelect.UI.StageSter", "Size3", 150.0f, "ステージセレクト: StageSter3(中奥) サイズ"};
+    inline static ConfigVar<float> cfg_StageSterSize4{"StageSelect.UI.StageSter", "Size4", 200.0f, "ステージセレクト: StageSter4(最奥) サイズ"};
+    
+    inline static ConfigVar<std::string> cfg_StageSterPath1{"StageSelect.UI.StageSter", "Path1", "Assets/Textures/UI/StageSter/stagester1.png", "ステージセレクト: StageSter1 画像パス"};
+    inline static ConfigVar<std::string> cfg_StageSterPath2{"StageSelect.UI.StageSter", "Path2", "Assets/Textures/UI/StageSter/stagester2.png", "ステージセレクト: StageSter2 画像パス"};
+    inline static ConfigVar<std::string> cfg_StageSterPath3{"StageSelect.UI.StageSter", "Path3", "Assets/Textures/UI/StageSter/stagester3.png", "ステージセレクト: StageSter3 画像パス"};
+    inline static ConfigVar<std::string> cfg_StageSterPath4{"StageSelect.UI.StageSter", "Path4", "Assets/Textures/UI/StageSter/stagester4.png", "ステージセレクト: StageSter4 画像パス"};
+    
+    // Idle Spin Multipliers (1=Front/Small -> 4=Back/Big)
+    inline static ConfigVar<float> cfg_StageSterIdleMult1{"StageSelect.UI.StageSter", "IdleMult1", 3.0f, "ステージセレクト: StageSter1(最前面) 回転倍率"};
+    inline static ConfigVar<float> cfg_StageSterIdleMult2{"StageSelect.UI.StageSter", "IdleMult2", 2.5f, "ステージセレクト: StageSter2(中前) 回転倍率"};
+    inline static ConfigVar<float> cfg_StageSterIdleMult3{"StageSelect.UI.StageSter", "IdleMult3", 2.0f, "ステージセレクト: StageSter3(中奥) 回転倍率"};
+    inline static ConfigVar<float> cfg_StageSterIdleMult4{"StageSelect.UI.StageSter", "IdleMult4", 1.0f, "ステージセレクト: StageSter4(最奥) 回転倍率"};
+
+    // Reverting to Shared
+    inline static ConfigVar<float> cfg_StageSterOffsetX{"StageSelect.UI.StageSter", "OffsetX", -425.0f, "ステージセレクト: StageSter 位置Xオフセット(共通)"};
+    inline static ConfigVar<float> cfg_StageSterOffsetY{"StageSelect.UI.StageSter", "OffsetY", -240.0f, "ステージセレクト: StageSter 位置Yオフセット(共通)"};
+
     inline static ConfigVar<float> cfg_CameraFovDegrees{"StageSelect.Camera", "FovDegrees", 90.0f, "ステージセレクト: カメラFOV(度)"};
     inline static ConfigVar<float> cfg_CameraNear{"StageSelect.Camera", "Near", 0.1f, "ステージセレクト: カメラNear"};
     inline static ConfigVar<float> cfg_CameraFar{"StageSelect.Camera", "Far", 10000.0f, "ステージセレクト: カメラFar"};
@@ -516,35 +544,18 @@ class StageSelectScene : public IScene {
             return;
         }
 
+        bool fadeFinished = false;
+        bool worldTicked = false;
         if (isFading) {
             world.Tick(deltaTime);
+            worldTicked = true;
             if (auto *anim = world.TryGet<SpriteSheetAnimation>(fadeEntity_)) {
                 if (anim->isFinished) {
-                    if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
-                        std::string nextScene = "Game";
-                        world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
-                            if (sp.selectStage == 1) {
-                                nextScene = "Stage1IntroVideo";
-                            }
-
-                            sp.currentStage = sp.selectStage;
-                            sp.currentRoom = 1;
-                            sp.requestAdvance = false;
-                            sp.goalTransitioning = false;
-                            sp.clearedThisStage = false;
-                            sp.pressedSwitch = false;
-                            sp.goalUnlocked = false;
-                            DEBUGLOG("[StageSelect] Transition to Game: world=" + std::to_string(sp.worldCount) +
-                                     " currentStage=" + std::to_string(sp.currentStage) +
-                                     " currentRoom=" + std::to_string(sp.currentRoom) +
-                                     " clearedThisStage=" + std::to_string(sp.clearedThisStage) +
-                                     " goalTransitioning=" + std::to_string(sp.goalTransitioning));
-                        });
-                        manager->ChangeScene(nextScene.c_str(), world);
-                    }
+                    fadeFinished = true;
                 }
+            } else {
+                fadeFinished = true;
             }
-            return;
         }
 
         // ゲームシーンへの遷移 (Enter / ×ボタン)
@@ -559,12 +570,37 @@ class StageSelectScene : public IScene {
             if (trigger) {
                 isTransitioning_ = true;
                 zoomTimer_ = 0.0f;
+                StartFadeInNormal(world);
+                isFading = true;
                 DEBUGLOG("StageSelect Camera Zoom Start!");
-                //StartFadeInNormal(world);
             }
         } else {
-            UpdateCameraZoom(world, deltaTime);
-            /* StartFadeInNormal(world);*/
+            bool zoomFinished = UpdateCameraZoom(world, deltaTime);
+            if (zoomFinished && (!isFading || fadeFinished)) {
+                if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
+                    std::string nextScene = "Game";
+                    world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+                        if (worldNumber_ == 1 && sp.selectStage == 1) {
+                            nextScene = "Stage1IntroVideo";
+                        }
+
+                        sp.currentStage = sp.selectStage;
+                        sp.currentRoom = 1;
+                        sp.requestAdvance = false;
+                        sp.goalTransitioning = false;
+                        sp.clearedThisStage = false;
+                        sp.pressedSwitch = false;
+                        sp.goalUnlocked = false;
+                        DEBUGLOG("[StageSelect] Transition to Game: world=" + std::to_string(sp.worldCount) +
+                                 " currentStage=" + std::to_string(sp.currentStage) +
+                                 " currentRoom=" + std::to_string(sp.currentRoom) +
+                                 " clearedThisStage=" + std::to_string(sp.clearedThisStage) +
+                                 " goalTransitioning=" + std::to_string(sp.goalTransitioning));
+                    });
+                    manager->ChangeScene(nextScene.c_str(), world);
+                }
+                return;
+            }
         }
 
         UpdateSkyboxTransform(world);
@@ -625,6 +661,8 @@ class StageSelectScene : public IScene {
                     if (worldNumber_ >= 1 && worldNumber_ <= 4) {
                         s_lastSelected[worldNumber_ - 1] = stats.selectStage;
                     }
+                    uiRotationTarget_ -= cfg_StageUiSpinAmount.Get(); // Spin (Stage++)
+                    idleSpinDir_ = -1.0f;
                 } else if (stats.selectStage == maxStage_) {
                     if (stats.worldCount != cfg_WorldCount.Get()) {
                         SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
@@ -643,6 +681,8 @@ class StageSelectScene : public IScene {
                     if (worldNumber_ >= 1 && worldNumber_ <= 4) {
                         s_lastSelected[worldNumber_ - 1] = stats.selectStage;
                     }
+                    uiRotationTarget_ += cfg_StageUiSpinAmount.Get(); // Spin (Stage--)
+                    idleSpinDir_ = 1.0f;
                 } else {
                     // 前のワールドへ
                     if (worldNumber_ > 1) {
@@ -655,21 +695,42 @@ class StageSelectScene : public IScene {
 
             stats.selectStage = std::clamp(stats.selectStage, 1, maxStage_);
 
-            UpdateStageNameTexture(world, stats.selectStage);
+            stats.selectStage = std::clamp(stats.selectStage, 1, maxStage_);
+            
+            // UpdateStageNameTexture removed (now handled at init/static strings)
         });
 
         if (requestWorldTransition == TransitionDirection::Right) {
+            uiRotationTarget_ += cfg_StageUiSpinAmount.Get(); // Spin Right (CW)
+            idleSpinDir_ = 1.0f; // Note: World transition might have different rotation direction logic? 
+            // Checking logic: Right transition -> GoToNextWorld -> Slide Right. 
+            // In line 646 (Stage++), target decreases (-=). 
+            // But here line 684 says +=. 
+            // Let's trust the existing code for Spin and just sync idleSpinDir.
+            // If +=, then dir is 1.0f.
             GoToNextWorld(world);
             return;
         }
         if (requestWorldTransition == TransitionDirection::Left) {
+            uiRotationTarget_ -= cfg_StageUiSpinAmount.Get(); // Spin Left (CCW)
+            idleSpinDir_ = -1.0f;
             GoToPrevWorld(world);
             return;
         }
 
+        // Spin Animation (Lerp to Target)
+        float spinEase = cfg_StageUiSpinEase.Get();
+        uiRotationCurrent_ += (uiRotationTarget_ - uiRotationCurrent_) * deltaTime * spinEase;
+        
+        // Idle Spin (Wrap to 360 to avoid overflow)
+        uiIdleRotationCurrent_ += cfg_StageUiIdleSpinSpeed.Get() * deltaTime * idleSpinDir_;
+        if (uiIdleRotationCurrent_ >= 360.0f) uiIdleRotationCurrent_ -= 360.0f;
+        else if (uiIdleRotationCurrent_ <= -360.0f) uiIdleRotationCurrent_ += 360.0f;
+
         // 回転アニメーション
         rotateSpeed_ = cfg_RotateSpeed.Get();
         currentAngle_ += (targetAngle_ - currentAngle_) * deltaTime * rotateSpeed_;
+        // Velocity/Tilt logic replaced by Spin Target logic
         skyboxYawDeg_ = DirectX::XMConvertToDegrees(currentAngle_);
         world.ForEach<Transform, ObjectPos>([&](Entity, Transform &transform, ObjectPos &pos) {
             float angle = currentAngle_;
@@ -683,7 +744,9 @@ class StageSelectScene : public IScene {
             sp.worldCount = worldNumber_;
         });
 
-        world.Tick(deltaTime);
+        if (!worldTicked) {
+            world.Tick(deltaTime);
+        }
     }
 
     void OnRender(World &world) override {
@@ -873,11 +936,24 @@ class StageSelectScene : public IScene {
         }
         objectOwnedEntities_.clear();
 
-        if (world.IsAlive(StageSelectEntity_)) {
-            DestroyEntityHierarchy(world, StageSelectEntity_);
-            StageSelectEntity_ = {};
+        if (world.IsAlive(worldUIEntity_)) {
+             DestroyEntityHierarchy(world, worldUIEntity_);
+             worldUIEntity_ = {};
         }
-        worldUIEntity_ = {};
+        
+        for (const auto &e : stageNameEntities_) {
+            if (world.IsAlive(e)) {
+                DestroyEntityHierarchy(world, e);
+            }
+        }
+        stageNameEntities_.clear();
+
+        for (const auto &e : stageSterEntities_) {
+            if (world.IsAlive(e)) {
+                DestroyEntityHierarchy(world, e);
+            }
+        }
+        stageSterEntities_.clear();
 
         textSystem_.Shutdown();
         imageSystem_.Shutdown();
@@ -915,7 +991,9 @@ class StageSelectScene : public IScene {
     int worldNumber_;
     int maxStage_;
 
-    Entity StageSelectEntity_{};
+    std::vector<Entity> stageNameEntities_{};
+    std::vector<Entity> stageSterEntities_{};
+    // std::vector<DirectX::XMFLOAT2> stageSterBaseSizes_{}; // Removed, using ConfigVars
     Entity worldUIEntity_{};
     DirectX::XMFLOAT2 worldUIBasePos_{0.0f, 0.0f};
     Entity fadeEntity_{};
@@ -940,6 +1018,11 @@ class StageSelectScene : public IScene {
     TransitionDirection pendingWorldTransitionDir_ = TransitionDirection::None;
 
     float skyboxYawDeg_ = 0.0f;
+    // Spin State
+    float uiRotationCurrent_ = 0.0f;
+    float uiRotationTarget_ = 0.0f;
+    float uiIdleRotationCurrent_ = 0.0f;
+    float idleSpinDir_ = -1.0f;
 
     std::vector<Entity> ownedEntities_{};
     std::vector<Entity> objectOwnedEntities_;
@@ -961,6 +1044,7 @@ class StageSelectScene : public IScene {
     std::mt19937 starRng_{std::random_device{}()};
 
     int lastStageNameStage_ = -1;
+    DirectX::XMFLOAT2 stageNameBaseSize_{0.0f, 0.0f};
 
     void DestroyEntityHierarchy(World &world, Entity root) {
         if (!world.IsAlive(root)) {
@@ -1201,82 +1285,157 @@ class StageSelectScene : public IScene {
         shootingStars_.clear();
     }
 
-    void UpdateStageNameTexture(World &world, int stage) {
-        if (stage <= 0 || lastStageNameStage_ == stage || !world.IsAlive(StageSelectEntity_)) {
-            return;
-        }
-
-        auto *img = world.TryGet<UIImage>(StageSelectEntity_);
-        if (!img) {
-            return;
-        }
-
-        std::wstring stageNamePath = L"Assets/Textures/UI/StageName/stagename";
-        stageNamePath += std::to_wstring(worldNumber_);
-        stageNamePath += std::to_wstring(static_cast<int>(cfg_StageNameWorldDigit.Get()));
-        stageNamePath += std::to_wstring(stage);
-        stageNamePath += L".png";
-
-        img->filePath = stageNamePath;
-        img->opacity = 1.0f;
-        lastStageNameStage_ = stage;
-    }
 
     void UpdateStageNameFollow(World &world, const Camera &camera, float uiOffsetX, float screenWidth, float screenHeight) {
-        if (!world.IsAlive(StageSelectEntity_) || screenWidth <= 0.0f || screenHeight <= 0.0f) {
+        if (stageNameEntities_.empty() || objectOwnedEntities_.empty() || screenWidth <= 0.0f || screenHeight <= 0.0f) {
             return;
         }
 
-        int stage = 1;
-        world.ForEach<StageProgress>([&](Entity, StageProgress &stats) {
-            stage = std::clamp(stats.selectStage, 1, maxStage_);
+        // 全ステージ分のUI位置・スケール更新
+        int currSelectStage = 1;
+        world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+             if (sp.worldCount == worldNumber_) {
+                 currSelectStage = sp.selectStage;
+             }
         });
 
-        UpdateStageNameTexture(world, stage);
+        for (size_t i = 0; i < stageNameEntities_.size(); ++i) {
+            Entity uiEntity = stageNameEntities_[i];
+            
+            // Visibility Check: Only show selected stage
+            // i is 0-based index, stage is 1-based.
+            if ((static_cast<int>(i) + 1) != currSelectStage) {
+                if (auto *img = world.TryGet<UIImage>(uiEntity)) {
+                    img->opacity = 0.0f; // Hide
+                }
+                continue;
+            }
+            if (!world.IsAlive(uiEntity)) continue;
 
-        const size_t idx = static_cast<size_t>(stage - 1);
-        if (idx >= objectOwnedEntities_.size()) {
-            return;
+            if (i >= objectOwnedEntities_.size()) break;
+
+            Entity station = objectOwnedEntities_[i];
+            auto *stationTr = world.TryGet<Transform>(station);
+            if (!stationTr) continue;
+
+            DirectX::XMFLOAT3 p = stationTr->position;
+            p.y += cfg_StageNameProjectYOffset.Get();
+            p.x += cfg_StageNameProjectXOffset.Get();
+
+            DirectX::XMVECTOR proj = DirectX::XMVector3Project(
+                DirectX::XMLoadFloat3(&p),
+                0.0f, 0.0f, screenWidth, screenHeight,
+                0.0f, 1.0f,
+                camera.GetProjectionMatrix(),
+                camera.GetViewMatrix(),
+                DirectX::XMMatrixIdentity());
+
+            float sx = DirectX::XMVectorGetX(proj);
+            float sy = DirectX::XMVectorGetY(proj);
+            float sz = DirectX::XMVectorGetZ(proj);
+
+            auto *img = world.TryGet<UIImage>(uiEntity);
+            if (img) {
+                img->opacity = (sz >= 0.0f && sz <= 1.0f) ? 1.0f : 0.0f;
+            }
+            if (sz < 0.0f || sz > 1.0f) {
+                continue;
+            }
+
+            auto *uiTr = world.TryGet<UITransform>(uiEntity);
+            if (!uiTr) continue;
+
+            uiTr->anchor = {0.0f, 0.0f};
+            uiTr->pivot = {0.0f, 0.0f};
+            uiTr->position = {sx - uiOffsetX, sy};
+
+            // 距離によるスケール計算
+            DirectX::XMVECTOR camPos;
+            if (isTransitioning_) {
+                camPos = DirectX::XMLoadFloat3(&cameraPosition_);
+            } else {
+                camPos = DirectX::XMLoadFloat3(&camera.position);
+            }
+            DirectX::XMVECTOR targetPos = DirectX::XMLoadFloat3(&p);
+            float dist = DirectX::XMVectorGetX(DirectX::XMVector3Length(DirectX::XMVectorSubtract(camPos, targetPos)));
+
+            const float refDist = cfg_StageNameRefDist.Get();
+            const float scaleMax = cfg_StageNameScaleMax.Get();
+            const float scaleMin = cfg_StageNameScaleMin.Get();
+            const float scalePower = cfg_StageNameScalePower.Get();
+
+            float currentScale = 1.0f;
+            if (dist > 0.001f) {
+                // Easing: Scale = pow(Ref / Dist, Power)
+                float ratio = refDist / dist;
+                currentScale = std::pow(ratio, scalePower);
+            }
+            currentScale = std::clamp(currentScale, scaleMin, scaleMax);
+
+            if (stageNameBaseSize_.x <= 0.0f || stageNameBaseSize_.y <= 0.0f) {
+                 stageNameBaseSize_ = uiTr->size;
+                 if (stageNameBaseSize_.x <= 0.0f) stageNameBaseSize_ = {621.0f, 207.0f}; 
+            }
+
+            if (stageNameBaseSize_.x > 0.0f && stageNameBaseSize_.y > 0.0f) {
+                uiTr->size = {stageNameBaseSize_.x * currentScale, stageNameBaseSize_.y * currentScale};
+            }
+            
+            // Log only for the first stage (selected or not, just index 0) to avoid spam
+            if (i == 0) {
+                 static int logCounter = 0;
+                 if (logCounter++ % 60 == 0) {
+                      DEBUGLOG("UI Scale Debug(Stg1): Dist=" + std::to_string(dist) + " Scale=" + std::to_string(currentScale) + " Size=" + std::to_string(uiTr->size.x));
+                 }
+            }
+
+            // --- Update StageSter & StageName Rotation ---
+            // Base Spin from Transition
+            float baseTilt = uiRotationCurrent_;
+
+            // Apply to StageName (Selected)
+            // User requested NO rotation for StageName
+            uiTr->rotation = 0.0f; // Reset to 0 just in case
+
+            // Apply to StageSter
+            for (size_t s = 0; s < stageSterEntities_.size(); ++s) {
+                 Entity ster = stageSterEntities_[s];
+                 if (!world.IsAlive(ster)) continue;
+
+                 auto *sterTr = world.TryGet<UITransform>(ster);
+                 auto *sterImg = world.TryGet<UIImage>(ster);
+                 if (sterTr && sterImg) {
+                      float baseSize = 800.0f;
+                      float offX = cfg_StageSterOffsetX.Get();
+                      float offY = cfg_StageSterOffsetY.Get();
+
+                      // Restore Rotation (Synced with UI + Idle Multiplier)
+                      float mult = 1.0f;
+                      switch (s) {
+                          case 0: mult = cfg_StageSterIdleMult4.Get(); break; // Back
+                          case 1: mult = cfg_StageSterIdleMult3.Get(); break;
+                          case 2: mult = cfg_StageSterIdleMult2.Get(); break;
+                          case 3: mult = cfg_StageSterIdleMult1.Get(); break; // Front
+                          default: mult = 1.0f; break;
+                      }
+                      sterTr->rotation = baseTilt + (uiIdleRotationCurrent_ * mult);
+                      
+                      // Restore Visibility
+                      sterImg->opacity = 1.0f;
+
+                      // Index 0 = Ster4 (Back), 1 = Ster3, 2 = Ster2, 3 = Ster1 (Front)
+                      switch (s) {
+                          case 0: baseSize = cfg_StageSterSize4.Get(); break;
+                          case 1: baseSize = cfg_StageSterSize3.Get(); break;
+                          case 2: baseSize = cfg_StageSterSize2.Get(); break;
+                          case 3: baseSize = cfg_StageSterSize1.Get(); break; 
+                          default: baseSize = cfg_StageSterSize4.Get(); break;
+                      }
+                      sterTr->size = {baseSize * currentScale, baseSize * currentScale};
+                      sterTr->position = {uiTr->position.x + offX, uiTr->position.y + offY};
+                  }
+            }
         }
-
-        Entity station = objectOwnedEntities_[idx];
-        auto *stationTr = world.TryGet<Transform>(station);
-        if (!stationTr) {
-            return;
-        }
-
-        DirectX::XMFLOAT3 p = stationTr->position;
-        p.y += cfg_StageNameProjectYOffset.Get();
-        p.x += cfg_StageNameProjectXOffset.Get();
-
-        DirectX::XMVECTOR proj = DirectX::XMVector3Project(
-            DirectX::XMLoadFloat3(&p),
-            0.0f, 0.0f, screenWidth, screenHeight,
-            0.0f, 1.0f,
-            camera.GetProjectionMatrix(),
-            camera.GetViewMatrix(),
-            DirectX::XMMatrixIdentity());
-
-        float sx = DirectX::XMVectorGetX(proj);
-        float sy = DirectX::XMVectorGetY(proj);
-        float sz = DirectX::XMVectorGetZ(proj);
-
-        auto *img = world.TryGet<UIImage>(StageSelectEntity_);
-        if (img) {
-            img->opacity = (sz >= 0.0f && sz <= 1.0f) ? 1.0f : 0.0f;
-        }
-        if (sz < 0.0f || sz > 1.0f) {
-            return;
-        }
-
-        auto *uiTr = world.TryGet<UITransform>(StageSelectEntity_);
-        if (!uiTr) {
-            return;
-        }
-
-        uiTr->anchor = {0.0f, 0.0f};
-        uiTr->pivot = {0.0f, 0.0f};
-        uiTr->position = {sx - uiOffsetX, sy};
     }
 
     void CreateObject(World &world, const DirectX::XMFLOAT3 &position, const std::string &modelPath) {
@@ -1300,12 +1459,6 @@ class StageSelectScene : public IScene {
 
         if (!modelPath.empty()) {
             builder.With<Model>(modelPath);
-        } else {
-            // モデルがない場合はCubeを表示（World2-4互換）
-            MeshRenderer renderer;
-            renderer.meshType = MeshType::Cube;
-            renderer.color = {1.0f, 1.0f, 1.0f};
-            builder.With<MeshRenderer>(renderer);
         }
 
         Entity obj = builder.Build();
@@ -1418,7 +1571,7 @@ class StageSelectScene : public IScene {
         }
     }
 
-    void UpdateCameraZoom(World &world, float deltaTime) {
+    bool UpdateCameraZoom(World &world, float deltaTime) {
         //遷移の時間
         const float duration = std::max(cfg_CameraZoomDurationSeconds.Get(), 0.0001f);
         zoomTimer_ += deltaTime;
@@ -1436,12 +1589,7 @@ class StageSelectScene : public IScene {
         //視野角
         camera_.Zoom(cfg_CameraZoomFovDeltaPerSecond.Get() * deltaTime);
         camera_.Update();
-        //シーン遷移
-        if (progress >= 1.0f) {
-            StartFadeInNormal(world);
-            isFading = true;
-            return;
-        }
+        return progress >= 1.0f;
     }
 
     static bool IsSkyboxTexturePathValid(const std::string &path) {

@@ -59,6 +59,8 @@ class EffekseerManager
    void SetEffectScale(int handle, DirectX::XMFLOAT3 scale);
    void Update();			///<更新処理
    void Draw(const Camera& camera);				///<描画処理
+
+   void Reset(GfxDevice& device, const Camera& camera); ///< 完全リセット（再初期化）
    
  private:
    EffekseerManager() = default;
