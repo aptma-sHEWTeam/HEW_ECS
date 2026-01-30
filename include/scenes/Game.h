@@ -78,7 +78,7 @@ inline static ConfigVar<float> cfg_StickZoomResponse{"Camera.Stick", "StickZoomR
 inline static ConfigVar<float> cfg_StickZoomTargetRatio{"Camera.Stick", "StickZoomTargetRatio", 0.3f, "プレイヤーへのカメラ寄り具合(0=寄らない,1=完全に寄る)"};
 inline static ConfigVar<float> cfg_StickZoomTargetSpeed{"Camera.Stick", "StickZoomTargetSpeed", 2.0f, "カメラターゲット補間速度"};
 // 追加: ステージクリア待機時間
-inline static ConfigVar<float> cfg_StageClearWait{"UI.StageClear", "WaitSeconds", 2.0f, "ステージクリア表示後にシーン遷移するまでの待機時間"};
+inline static ConfigVar<float> cfg_StageClearWait{"UI.StageClear", "WaitSeconds", 0.5f, "ステージクリア表示後にシーン遷移するまでの待機時間"};
 inline static ConfigVar<float> cfg_SkyboxSpeed{"Skybox", "Speed", 0.05f, "スカイボックスの回転速度(rad/sec)"};
 inline static ConfigVar<std::string> cfg_GameSkyboxModelPath{"Game.Skybox", "ModelPath", "Assets/Textures/Skybox/skybox.fbx", "ゲーム: Skybox モデルパス"};
 inline static ConfigVar<std::string> cfg_GameSkyboxTexturePath{"Game.Skybox", "TexturePath", "Assets/Textures/Skybox/Sky_Box.png", "ゲーム: Skybox テクスチャパス"};

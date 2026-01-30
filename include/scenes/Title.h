@@ -90,11 +90,11 @@ class TitleScene : public IScene {
     inline static ConfigVar<float> cfg_WindowRotZ{"Title.Window", "RotZ", 0.0f, "タイトル: Window 回転Z"};
 
     inline static ConfigVar<float> cfg_PlayerPosX{"Title.Player", "PosX", 0.95f, "タイトル: Player 位置X"};
-    inline static ConfigVar<float> cfg_PlayerPosY{"Title.Player", "PosY", -0.75f, "タイトル: Player 位置Y"};
-    inline static ConfigVar<float> cfg_PlayerPosZ{"Title.Player", "PosZ", -1.40f, "タイトル: Player 位置Z"};
-    inline static ConfigVar<float> cfg_PlayerScaleX{"Title.Player", "ScaleX", 1.5f, "タイトル: Player スケールX"};
-    inline static ConfigVar<float> cfg_PlayerScaleY{"Title.Player", "ScaleY", 1.5f, "タイトル: Player スケールY"};
-    inline static ConfigVar<float> cfg_PlayerScaleZ{"Title.Player", "ScaleZ", 1.5f, "タイトル: Player スケールZ"};
+    inline static ConfigVar<float> cfg_PlayerPosY{"Title.Player", "PosY", -0.5f, "タイトル: Player 位置Y"};
+    inline static ConfigVar<float> cfg_PlayerPosZ{"Title.Player", "PosZ", -1.1f, "タイトル: Player 位置Z"};
+    inline static ConfigVar<float> cfg_PlayerScaleX{"Title.Player", "ScaleX", 1.2f, "タイトル: Player スケールX"};
+    inline static ConfigVar<float> cfg_PlayerScaleY{"Title.Player", "ScaleY", 1.2f, "タイトル: Player スケールY"};
+    inline static ConfigVar<float> cfg_PlayerScaleZ{"Title.Player", "ScaleZ", 1.2f, "タイトル: Player スケールZ"};
     inline static ConfigVar<float> cfg_PlayerRotX{"Title.Player", "RotX", 25.0f, "タイトル: Player 回転X"};
     inline static ConfigVar<float> cfg_PlayerRotY{"Title.Player", "RotY", 0.0f, "タイトル: Player 回転Y"};
     inline static ConfigVar<float> cfg_PlayerRotZ{"Title.Player", "RotZ", 0.0f, "タイトル: Player 回転Z"};
@@ -213,7 +213,7 @@ class TitleScene : public IScene {
         float aspect = static_cast<float>(gfx->Width()) / gfx->Height();
         camera_ = Camera::LookAtLH(
             DirectX::XM_PIDIV4, aspect, 0.1f, 10000.0f,
-            {0, 0, -5}, {0, 0, 1}, {0, 1, 0});
+            {-2, 1, -3}, {0, 0, 1}, {0, 2, 0});
         cameraBobPhase_ = 0.0f;
         cameraBobOffsetY_ = 0.0f;
 
