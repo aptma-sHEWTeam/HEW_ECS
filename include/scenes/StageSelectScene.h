@@ -735,26 +735,7 @@ class StageSelectScene : public IScene {
         currentAngle_ += (targetAngle_ - currentAngle_) * deltaTime * rotateSpeed_;
         // Velocity/Tilt logic replaced by Spin Target logic
         skyboxYawDeg_ = DirectX::XMConvertToDegrees(currentAngle_);
-        world.ForEach<Transform, ObjectPos>([&](Entity, Transform &transform, ObjectPos &pos) {
-            float angle = currentAngle_;
-            float x = pos.basepos.x;
-            float z = pos.basepos.z;
-            transform.position.x = x * cosf(angle) - z * sinf(angle);
-            transform.position.z = x * sinf(angle) + z * cosf(angle);
-            DirectX::XMVECTOR camPos = DirectX::XMLoadFloat3(&camera_.position);
-            DirectX::XMVECTOR objPos = DirectX::XMLoadFloat3(&transform.position);
-            float dist = DirectX::XMVectorGetX(DirectX::XMVector3Length(DirectX::XMVectorSubtract(camPos, objPos)));
-            const float refDist = std::max(cfg_StationScaleRefDist.Get(), 0.001f);
-            const float scalePower = std::max(cfg_StationScalePower.Get(), 0.0f);
-            const float minRatio = std::clamp(cfg_StationScaleMinRatio.Get(), 0.0f, 1.0f);
-            float ratio = 1.0f;
-            if (dist > 0.001f) {
-                ratio = std::pow(refDist / dist, scalePower);
-            }
-            ratio = std::clamp(ratio, minRatio, 1.0f);
-            const float baseScale = cfg_StationScale.Get();
-            transform.scale = {baseScale * ratio, baseScale * ratio, baseScale * ratio};
-        });
+        UpdateStationTransforms(world, camera_.position);
 
         world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
             sp.worldCount = worldNumber_;
@@ -855,6 +836,8 @@ class StageSelectScene : public IScene {
                 }
             }
         }
+
+        UpdateStationTransforms(world, renderCamera.position);
 
         // UI描画時にもオフセットを適用
         auto *gfx = ServiceLocator::TryGet<GfxDevice>();
@@ -1452,6 +1435,29 @@ class StageSelectScene : public IScene {
                   }
             }
         }
+    }
+
+    void UpdateStationTransforms(World &world, const DirectX::XMFLOAT3 &cameraPos) {
+        world.ForEach<Transform, ObjectPos>([&](Entity, Transform &transform, ObjectPos &pos) {
+            float angle = currentAngle_;
+            float x = pos.basepos.x;
+            float z = pos.basepos.z;
+            transform.position.x = x * cosf(angle) - z * sinf(angle);
+            transform.position.z = x * sinf(angle) + z * cosf(angle);
+            DirectX::XMVECTOR camVec = DirectX::XMLoadFloat3(&cameraPos);
+            DirectX::XMVECTOR objPos = DirectX::XMLoadFloat3(&transform.position);
+            float dist = DirectX::XMVectorGetX(DirectX::XMVector3Length(DirectX::XMVectorSubtract(camVec, objPos)));
+            const float refDist = std::max(cfg_StationScaleRefDist.Get(), 0.001f);
+            const float scalePower = std::max(cfg_StationScalePower.Get(), 0.0f);
+            const float minRatio = std::clamp(cfg_StationScaleMinRatio.Get(), 0.0f, 1.0f);
+            float ratio = 1.0f;
+            if (dist > 0.001f) {
+                ratio = std::pow(refDist / dist, scalePower);
+            }
+            ratio = std::clamp(ratio, minRatio, 1.0f);
+            const float baseScale = cfg_StationScale.Get();
+            transform.scale = {baseScale * ratio, baseScale * ratio, baseScale * ratio};
+        });
     }
 
     void CreateObject(World &world, const DirectX::XMFLOAT3 &position, const std::string &modelPath) {

@@ -800,6 +800,7 @@ class TitleScene : public IScene {
             }
         }
         ownedEntities_.clear();
+        wallEntities_.clear();
 
         isFading = false;
 
