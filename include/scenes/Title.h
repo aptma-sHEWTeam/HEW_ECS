@@ -659,14 +659,26 @@ class TitleScene : public IScene {
             SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
         }
 
+       
         for (int i = 0; i < 3; ++i) {
+
+            bool isSelect = (i == currentSelect);
+
             if (auto *hoverImg = world.TryGet<UIImage>(menuEntity_[i])) {
-                hoverImg->opacity = (i == currentSelect) ? 1.0f : 0.0f;
+                hoverImg->opacity = isSelect ? 1.0f : 0.0f;
             }
             if (auto *baseImg = world.TryGet<UIImage>(baseMenuEntity_[i])) {
-                baseImg->opacity = (i == currentSelect) ? 0.0f : 1.0f;
+                baseImg->opacity = isSelect ? 0.0f : 1.0f;
+            }
+
+            if (auto *tr = world.TryGet<UITransform>(menuEntity_[i])) {
+                tr->size = isSelect ? tr->titleBigSize : tr->titleNormalSize;
+            }
+            if (auto *tr = world.TryGet<UITransform>(baseMenuEntity_[i])) {
+                tr->size = isSelect ? tr->titleBigSize : tr->titleNormalSize;
             }
         }
+
 
         if (world.IsAlive(objectEntity_)) {
             if (auto *t = world.TryGet<Transform>(objectEntity_)) {
