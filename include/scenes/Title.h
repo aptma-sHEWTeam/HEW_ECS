@@ -81,7 +81,7 @@ class TitleScene : public IScene {
   public:
     inline static ConfigVar<float> cfg_WindowPosX{"Title.Window", "PosX", 0.025f, "タイトル: Window 位置X"};
     inline static ConfigVar<float> cfg_WindowPosY{"Title.Window", "PosY", -0.500f, "タイトル: Window 位置Y"};
-    inline static ConfigVar<float> cfg_WindowPosZ{"Title.Window", "PosZ", -0.350f, "タイトル: Window 位置Z"};
+    inline static ConfigVar<float> cfg_WindowPosZ{"Title.Window", "PosZ", -0.500f, "タイトル: Window 位置Z"};
     inline static ConfigVar<float> cfg_WindowScaleX{"Title.Window", "ScaleX", 0.650000f, "タイトル: Window スケールX"};
     inline static ConfigVar<float> cfg_WindowScaleY{"Title.Window", "ScaleY", 0.650000f, "タイトル: Window スケールY"};
     inline static ConfigVar<float> cfg_WindowScaleZ{"Title.Window", "ScaleZ", 0.650000f, "タイトル: Window スケールZ"};
@@ -91,11 +91,11 @@ class TitleScene : public IScene {
 
     inline static ConfigVar<float> cfg_PlayerPosX{"Title.Player", "PosX", 0.95f, "タイトル: Player 位置X"};
     inline static ConfigVar<float> cfg_PlayerPosY{"Title.Player", "PosY", -0.75f, "タイトル: Player 位置Y"};
-    inline static ConfigVar<float> cfg_PlayerPosZ{"Title.Player", "PosZ", -1.20f, "タイトル: Player 位置Z"};
+    inline static ConfigVar<float> cfg_PlayerPosZ{"Title.Player", "PosZ", -1.40f, "タイトル: Player 位置Z"};
     inline static ConfigVar<float> cfg_PlayerScaleX{"Title.Player", "ScaleX", 1.5f, "タイトル: Player スケールX"};
     inline static ConfigVar<float> cfg_PlayerScaleY{"Title.Player", "ScaleY", 1.5f, "タイトル: Player スケールY"};
     inline static ConfigVar<float> cfg_PlayerScaleZ{"Title.Player", "ScaleZ", 1.5f, "タイトル: Player スケールZ"};
-    inline static ConfigVar<float> cfg_PlayerRotX{"Title.Player", "RotX", 0.0f, "タイトル: Player 回転X"};
+    inline static ConfigVar<float> cfg_PlayerRotX{"Title.Player", "RotX", 25.0f, "タイトル: Player 回転X"};
     inline static ConfigVar<float> cfg_PlayerRotY{"Title.Player", "RotY", 0.0f, "タイトル: Player 回転Y"};
     inline static ConfigVar<float> cfg_PlayerRotZ{"Title.Player", "RotZ", 0.0f, "タイトル: Player 回転Z"};
     inline static ConfigVar<std::string> cfg_SkyboxModelPath{"Title.Skybox", "ModelPath", "Assets/Textures/Skybox/skybox.fbx", "タイトル: Skybox モデルパス"};
@@ -107,8 +107,8 @@ class TitleScene : public IScene {
 
     // 壁見た目
     inline static ConfigVar<float> cfg_WallPosX{"Title.Wall", "PosX", 0.025f, "壁: Wall 位置X"};
-    inline static ConfigVar<float> cfg_WallPosY{"Title.Wall", "PosY", 0.035f, "壁: Wall 位置Y"};
-    inline static ConfigVar<float> cfg_WallPosZ{"Title.Wall", "PosZ", 0.000f, "壁: Wall 位置Z"};
+    inline static ConfigVar<float> cfg_WallPosY{"Title.Wall", "PosY", -0.500f, "壁: Wall 位置Y"};
+    inline static ConfigVar<float> cfg_WallPosZ{"Title.Wall", "PosZ", -0.050f, "壁: Wall 位置Z"};
     inline static ConfigVar<float> cfg_WallScaleX{"Title.Wall", "ScaleX", 0.65000f, "壁: Wall スケールX"};
     inline static ConfigVar<float> cfg_WallScaleY{"Title.Wall", "ScaleY", 0.65000f, "壁: Wall スケールY"};
     inline static ConfigVar<float> cfg_WallScaleZ{"Title.Wall", "ScaleZ", 0.65000f, "壁: Wall スケールZ"};
@@ -118,11 +118,11 @@ class TitleScene : public IScene {
    
     //壁の複数化の設定
     inline static ConfigVar<int> cfg_WallRows{"Title.Wall", "Rows", 5, "壁: 縦に並べる個数（行数）"};
-    inline static ConfigVar<int> cfg_WallColumns{"Title.Wall", "Columns",11, "壁: 横に並べる個数（列数）"};
-    inline static ConfigVar<int> cfg_WallThicknessRows{"Title.Wall", "ThicknessRows", 1, "壁: 枠(上下)の太さ(ブロック単位）"};
-    inline static ConfigVar<int> cfg_WallThicknessCols{"Title.Wall", "ThicknessCols", 3, "壁: 枠(左右)の太さ(ブロック単位）"};
-    inline static ConfigVar<float> cfg_WallSpacingX{"Title.Wall", "SpacingX", 0.6500f, "壁: 行間隔（X方向）"};//ブロックのサイズに合わせて変更
-    inline static ConfigVar<float> cfg_WallRowSpacingZ{"Title.Wall", "RowSpacingZ",1.20000f, "壁: 列間隔（Z方向）"};//ブロックのサイズに合わせて変更
+    inline static ConfigVar<int> cfg_WallColumns{"Title.Wall", "Columns",13, "壁: 横に並べる個数（列数）"};
+    inline static ConfigVar<int> cfg_WallThicknessRows{"Title.Wall", "ThicknessRows", 2, "壁: 枠(上下)の太さ(ブロック単位）"};
+    inline static ConfigVar<int> cfg_WallThicknessCols{"Title.Wall", "ThicknessCols", 4, "壁: 枠(左右)の太さ(ブロック単位）"};
+    inline static ConfigVar<float> cfg_WallSpacingX{"Title.Wall", "SpacingX", 0.65000f, "壁: 行間隔（X方向）"};//ブロックのサイズに合わせて変更
+    inline static ConfigVar<float> cfg_WallRowSpacingZ{"Title.Wall", "RowSpacingZ",1.95000f, "壁: 列間隔（Z方向）"};//ブロックのサイズに合わせて変更
 
    
     inline static ConfigVar<int> cfg_WallDirX{"Title.Wall", "DirX", 1, "壁: 列方向の増加向き (1 または -1)"};
@@ -205,10 +205,6 @@ class TitleScene : public IScene {
        CreateWindows(world);
        GenerateWallGridTransforms(cfg_WallColumns.Get(),cfg_WallRows.Get());
        CreateWalls(world);
-        CreateWindows(world);
-        GenerateWallGridTransforms(cfg_WallColumns.Get(),cfg_WallRows.Get());
-       CreateWalls(world);
-
         CreatePlayer(world);
         CreateTextNormalFormats();
         CreateTitleSelectUI(world);
@@ -397,61 +393,19 @@ class TitleScene : public IScene {
              return;
 
          if (!wallTransforms_.empty()) {
-             size_t need = wallTransforms_.size();
-             for (size_t i = wallEntities_.size(); i < need; ++i) {
-                 const Transform &tf = wallTransforms_[i];
 
-                 Entity e = world.Create()
-                                .With<Transform>(tf)
-                                .With<Model>("Assets/Models/StageObj/Wall/obj_wall.fbx")
-                                .With<SceneOwnedTag>()
-                                .Build();
-                 wallEntities_.push_back(e);
-                 ownedEntities_.push_back(e);
-             }
-             while (wallEntities_.size() > need)
-             {//余分なエンティティがあったら破棄
-                 Entity e = wallEntities_.back();
-                 wallEntities_.pop_back();
-
-                 ownedEntities_.erase(std::remove(ownedEntities_.begin(), ownedEntities_.end(), e), ownedEntities_.end());
-                 if (world.IsAlive(e)) {
-                     world.DestroyEntityWithCause(e, World::Cause::SceneUnload);
+             if (!wallTransforms_.empty()) {
+                 for (const auto &tf : wallTransforms_) {
+                     Entity e = world.Create()
+                                    .With<Transform>(tf)
+                                    .With<Model>("Assets/Models/StageObj/Wall/obj_wall.fbx")
+                                    .With<SceneOwnedTag>()
+                                    .Build();
+                     wallEntities_.push_back(e);
+                     ownedEntities_.push_back(e);
                  }
+                 return;
              }
-             return;
-
-             int count = std::max(0, cfg_WallColumns.Get());
-             for (int i = 0; i < count; ++i) {
-                 DirectX::XMFLOAT3 wallPos {
-                     cfg_WallPosX.Get() + static_cast<float>(i),
-                         cfg_WallPosY.Get(),
-                         cfg_WallPosZ.Get()
-                 };
-                 Transform transform{
-                     {wallPos}, {cfg_WallRotX.Get(), cfg_WallRotY.Get(), cfg_WallRotZ.Get()}, {cfg_WallScaleX.Get(), cfg_WallScaleY.Get() ,cfg_WallScaleZ.Get()}};
-                     
-                 
-             }
-         }
-         int count = std::max(0, cfg_WallColumns.Get());
-         for (int i = 0; i < count; ++i) {
-             DirectX::XMFLOAT3 wallPos{
-                 cfg_WallPosX.Get() + static_cast<float>(i) * cfg_WallScaleX.Get(),
-                 cfg_WallPosY.Get()  ,
-                 cfg_WallPosZ.Get() + static_cast<float>(i) * cfg_WallScaleZ.Get()};
-             Transform transform{
-                 {wallPos}, {cfg_WallRotX.Get(), cfg_WallRotY.Get(), cfg_WallRotZ.Get()}, {cfg_WallScaleX.Get(), cfg_WallScaleY.Get(), cfg_WallScaleZ.Get()}};
-             MeshRenderer mrWalls;
-             mrWalls.meshType = MeshType::Cube;
-             mrWalls.color = DirectX::XMFLOAT3{0.0f, 0.0f, 0.0f};
-             Entity e = world.Create()
-                            .With<Transform>(transform)
-                            .With<Model>("Assets/Models/StageObj/Wall/obj_wall.fbx")
-                            .With<SceneOwnedTag>()
-                            .Build();
-             wallEntities_.push_back(e);
-             ownedEntities_.push_back(e);
          }
       
       }
@@ -461,49 +415,49 @@ class TitleScene : public IScene {
          }
 
     void GenerateWallGridTransforms(int columns , int rows = -1) {
-          wallTransforms_.clear();
+        wallTransforms_.clear();
           if (columns <= 0 || rows <= 0) {
               return;
           }
           if (rows <= 0) {
               rows = cfg_WallRows.Get();
           }
+          if (rows <= 0) {
+              return;
+          }
 
           const float spacingX = cfg_WallSpacingX.Get();         //幅
           const float rowSpacingZ = cfg_WallRowSpacingZ.Get();   //高さ
         //  const float rowSpacingY = cfg_WallRowSpacingY.Get(); //行間隔
           const float baseX = cfg_WallPosX.Get();
-          const float baseY = cfg_WallPosY.Get() ;
+          const float baseY = cfg_WallPosY.Get();
           const float baseZ = cfg_WallPosZ.Get();
           const int thicknessRows = std::max(1, cfg_WallThicknessRows.Get());//上下
           const int thicknessCols = std::max(1, cfg_WallThicknessCols.Get());//左右
-          const int dirX = std::clamp(cfg_WallDirX.Get(), -1, 1);
-          const int dirZ = std::clamp(cfg_WallDirZ.Get(), -1, 1);
+          //const int dirX = std::clamp(cfg_WallDirX.Get(), -1, 1);
+          //const int dirZ = std::clamp(cfg_WallDirZ.Get(), -1, 1);
           const float halfCols = (static_cast<float>(columns) - 1.0f) * 0.5f;
           const float halfRows = (static_cast<float>(rows) - 1.0f) * 0.5f;
-
-          //const float scaleUpWall = 5.0f;
-
 
 
           for (int r = 0; r < rows; ++r) {//縦
               for (int c =0; c < columns; ++c) {//横
 
-                  const bool isTop = (r < thicknessRows + 1.0f ); //微調整したいときに数値を変更
-                  const bool isBottom = (r >= rows - thicknessRows);
-                  const bool isLeft   = (c < thicknessCols - 0.5f); 
-                  const bool isRight  = (c >= columns - thicknessCols);
+                  const bool isTop = (r < thicknessRows); //微調整したいときに数値を変更
+                  const bool isBottom = (r >= rows - thicknessRows) * (-1) ;
+                
+                  const bool isLeft   = (c < thicknessCols ) && (!isTop && !isBottom); 
+                  const bool isRight  = (c >= columns - thicknessCols) && (!isTop && !isBottom);
+
 
                   const bool isEdge = isTop || isBottom || isLeft || isRight;
-                  if (!isEdge) {//空白用
+                  if (!isEdge) {//中央空白用（窓を置く場所用）
                       continue;
                   }
-                     
-                 /* const float x = baseX + static_cast<float>(c) * spacingX * static_cast<float>(dirX);
-                  const float y = baseY + static_cast<float>(r) * rowSpacingZ * static_cast<float>(dirZ);
-                  const float z = baseZ - 0.3f; */
-                  const float x = baseX + ((static_cast<float>(c) - halfCols) * spacingX * static_cast<float>(dirX)- 0.01f );
-                  const float y = baseY + ((static_cast<float>(r)  - halfRows)* rowSpacingZ * static_cast<float>(dirZ));
+
+            
+                  const float x = baseX + ((static_cast<float>(c) - halfCols) * spacingX * static_cast<float>(cfg_WallDirX.Get()));
+                  const float y = baseY + ((static_cast<float>(r)  - halfRows)* rowSpacingZ * static_cast<float>(cfg_WallDirZ.Get()));
                   const float z = baseZ -0.5f; //微調整(奥行き)したいときに数値を変更
                  
                       DirectX::XMFLOAT3 pos{x,y,z };
@@ -664,14 +618,26 @@ class TitleScene : public IScene {
             SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
         }
 
+       
         for (int i = 0; i < 3; ++i) {
+
+            bool isSelect = (i == currentSelect);
+
             if (auto *hoverImg = world.TryGet<UIImage>(menuEntity_[i])) {
-                hoverImg->opacity = (i == currentSelect) ? 1.0f : 0.0f;
+                hoverImg->opacity = isSelect ? 1.0f : 0.0f;
             }
             if (auto *baseImg = world.TryGet<UIImage>(baseMenuEntity_[i])) {
-                baseImg->opacity = (i == currentSelect) ? 0.0f : 1.0f;
+                baseImg->opacity = isSelect ? 0.0f : 1.0f;
+            }
+
+            if (auto *tr = world.TryGet<UITransform>(menuEntity_[i])) {
+                tr->size = isSelect ? tr->titleBigSize : tr->titleNormalSize;
+            }
+            if (auto *tr = world.TryGet<UITransform>(baseMenuEntity_[i])) {
+                tr->size = isSelect ? tr->titleBigSize : tr->titleNormalSize;
             }
         }
+
 
         if (world.IsAlive(objectEntity_)) {
             if (auto *t = world.TryGet<Transform>(objectEntity_)) {
