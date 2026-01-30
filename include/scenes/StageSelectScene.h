@@ -37,6 +37,7 @@
 #include "components/ModelComponent.h"
 #include "components/PointLight.h"
 #include "components/TransformHierarchy.h"
+#include"components/Rotator.h"
 #include "systems/RenderingSystem.h"
 #include "graphics/TextureManager.h"
 
@@ -97,20 +98,29 @@ class StageSelectScene : public IScene {
     inline static ConfigVar<float> cfg_StationRadius{"StageSelect.Station", "Radius", 5.0f, "ステージセレクト: ステーション配置半径"};
     inline static ConfigVar<float> cfg_StationScale{"StageSelect.Station", "Scale", 0.1f, "ステージセレクト: ステーションスケール"};
 
-    inline static ConfigVar<float> cfg_PlanetPosX{"StageSelect.Planet", "PosX", 5000.0f, "ステージセレクト: Planet 位置X"};
-    inline static ConfigVar<float> cfg_PlanetPosY{"StageSelect.Planet", "PosY", 0.0f, "ステージセレクト: Planet 位置Y"};
-    inline static ConfigVar<float> cfg_PlanetPosZ{"StageSelect.Planet", "PosZ", 500.0f, "ステージセレクト: Planet 位置Z"};
-    inline static ConfigVar<float> cfg_PlanetScaleX{"StageSelect.Planet", "ScaleX", 0.650000f, "ステージセレクト: Planet スケールX"};
-    inline static ConfigVar<float> cfg_PlanetScaleY{"StageSelect.Planet", "ScaleY", 0.650000f, "ステージセレクト: Planet スケールY"};
-    inline static ConfigVar<float> cfg_PlanetScaleZ{"StageSelect.Planet", "ScaleZ", 0.650000f, "ステージセレクト: Planet スケールZ"};
+    inline static ConfigVar<float> cfg_PlanetWorld1PosX{"StageSelect.Planet", "World1PosX", 0.0f, "ステージセレクト: Planet 位置X"};
+    inline static ConfigVar<float> cfg_PlanetWorld1PosY{"StageSelect.Planet", "World1PosY", 5.0f, "ステージセレクト: Planet 位置Y"};
+    inline static ConfigVar<float> cfg_PlanetWorld1PosZ{"StageSelect.Planet", "World1PosZ", 7.0f, "ステージセレクト: Planet 位置Z"};
+    inline static ConfigVar<float> cfg_PlanetWorld2PosX{"StageSelect.Planet", "World2PosX", 0.0f, "ステージセレクト: Planet 位置X"};
+    inline static ConfigVar<float> cfg_PlanetWorld2PosY{"StageSelect.Planet", "World2PosY", -5.0f, "ステージセレクト: Planet 位置Y"};
+    inline static ConfigVar<float> cfg_PlanetWorld2PosZ{"StageSelect.Planet", "World2PosZ", -7.0f, "ステージセレクト: Planet 位置Z"};
+    inline static ConfigVar<float> cfg_PlanetWorld3PosX{"StageSelect.Planet", "World3PosX", 0.0f, "ステージセレクト: Planet 位置X"};
+    inline static ConfigVar<float> cfg_PlanetWorld3PosY{"StageSelect.Planet", "World3PosY", 5.0f, "ステージセレクト: Planet 位置Y"};
+    inline static ConfigVar<float> cfg_PlanetWorld3PosZ{"StageSelect.Planet", "World3PosZ", 7.0f, "ステージセレクト: Planet 位置Z"};
+    inline static ConfigVar<float> cfg_PlanetWorld4PosX{"StageSelect.Planet", "World4PosX", 0.0f, "ステージセレクト: Planet 位置X"};
+    inline static ConfigVar<float> cfg_PlanetWorld4PosY{"StageSelect.Planet", "World4PosY", 5.0f, "ステージセレクト: Planet 位置Y"};
+    inline static ConfigVar<float> cfg_PlanetWorld4PosZ{"StageSelect.Planet", "World4PosZ", 7.0f, "ステージセレクト: Planet 位置Z"};
+    inline static ConfigVar<float> cfg_PlanetScaleX{"StageSelect.Planet", "ScaleX", 0.40000f, "ステージセレクト: Planet スケールX"};
+    inline static ConfigVar<float> cfg_PlanetScaleY{"StageSelect.Planet", "ScaleY", 0.40000f, "ステージセレクト: Planet スケールY"};
+    inline static ConfigVar<float> cfg_PlanetScaleZ{"StageSelect.Planet", "ScaleZ", 0.40000f, "ステージセレクト: Planet スケールZ"};
     inline static ConfigVar<float> cfg_PlanetRotX{"StageSelect.Planet", "RotX", 0.0f, "ステージセレクト: Planet 回転X"};
     inline static ConfigVar<float> cfg_PlanetRotY{"StageSelect.Planet", "RotY", 90.0f, "ステージセレクト: Planet 回転Y"};
     inline static ConfigVar<float> cfg_PlanetRotZ{"StageSelect.Planet", "RotZ", 0.0f, "ステージセレクト: Planet 回転Z"};
-    inline static ConfigVar<std::string> cfg_PlanetModelPath{"StageSelect.Planet", "Path", "Assets/Textures/Skybox/World.fbx", "ステージセレクト: Planetモデルのパス"};
-    inline static ConfigVar<std::string> cfg_PlanetWorld1TexturePath{"StageSelect.Planet", "TexturePath","Assets/Textures/Skybox/W1.png", "ステージセレクト: Planet テクスチャパス"};
-    inline static ConfigVar<std::string> cfg_PlanetWorld2TexturePath{"StageSelect.Planet", "TexturePath", "Assets/Textures/Skybox/W2.png", "ステージセレクト: Planet テクスチャパス"};
-    inline static ConfigVar<std::string> cfg_PlanetWorld3TexturePath{"StageSelect.Planet", "TexturePath", "Assets/Textures/Skybox/W3.png", "ステージセレクト: Planet テクスチャパス"};
-    inline static ConfigVar<std::string> cfg_PlanetWorld4TexturePath{"StageSelect.Planet", "TexturePath", "Assets/Textures/Skybox/W4.png", "ステージセレクト: Planet テクスチャパス"};
+    inline static ConfigVar<std::string> cfg_PlanetWorld1ModelPath{"StageSelect.Planet", "PathWorld1", "Assets/Textures/Skybox/World01.fbx", "ステージセレクト: Planetモデルのパス"};
+    inline static ConfigVar<std::string> cfg_PlanetWorld2ModelPath{"StageSelect.Planet", "PathWorld2", "Assets/Textures/Skybox/World02.fbx", "ステージセレクト: Planetモデルのパス"};
+    inline static ConfigVar<std::string> cfg_PlanetWorld3ModelPath{"StageSelect.Planet", "PathWorld3", "Assets/Textures/Skybox/World03.fbx", "ステージセレクト: Planetモデルのパス"};
+    inline static ConfigVar<std::string> cfg_PlanetWorld4ModelPath{"StageSelect.Planet", "PathWorld4", "Assets/Textures/Skybox/World04.fbx", "ステージセレクト: Planetモデルのパス"};
+   
 
     inline static ConfigVar<float> cfg_StationPointLightR{"StageSelect.Station.PointLight", "R", 1.0f, "ステージセレクト: ステーション点光源 R"};
     inline static ConfigVar<float> cfg_StationPointLightG{"StageSelect.Station.PointLight", "G", 0.9f, "ステージセレクト: ステーション点光源 G"};
@@ -1455,33 +1465,54 @@ class StageSelectScene : public IScene {
         objectOwnedEntities_.push_back(obj);
     }
 
-      std::string GetPlanetTexturePath() const {
+   
+
+     PlanetInfo PlanetModelInfo() const {
+
+         PlanetInfo info{
+             "",   
+             {0.0f, 0.0f, 0.0f}
+         };
+
         switch (worldNumber_) {
             case 1:
-                return cfg_PlanetWorld1TexturePath.Get();
+                info.planetPath = cfg_PlanetWorld1ModelPath.Get();
+                info.planetPos = {cfg_PlanetWorld1PosX.Get(), cfg_PlanetWorld1PosY.Get(), cfg_PlanetWorld1PosZ.Get()};
+                break;
             case 2:
-                return cfg_PlanetWorld2TexturePath.Get();
+                info.planetPath = cfg_PlanetWorld2ModelPath.Get();
+                info.planetPos = {cfg_PlanetWorld2PosX.Get(), cfg_PlanetWorld2PosY.Get(), cfg_PlanetWorld2PosZ.Get()};
+                break;
             case 3:
-                return cfg_PlanetWorld3TexturePath.Get();
+                info.planetPath = cfg_PlanetWorld3ModelPath.Get();
+                info.planetPos = {cfg_PlanetWorld3PosX.Get(), cfg_PlanetWorld3PosY.Get(), cfg_PlanetWorld3PosZ.Get()};
+                break;
             case 4:
-                return cfg_PlanetWorld4TexturePath.Get();
+                info.planetPath = cfg_PlanetWorld4ModelPath.Get();
+                info.planetPos = {cfg_PlanetWorld4PosX.Get(), cfg_PlanetWorld4PosY.Get(), cfg_PlanetWorld4PosZ.Get()};
+                break;
             default:
                 break;
         }
-    }
-    void CreatePlanet(World &world) {
-        const std::string modelPath = cfg_PlanetModelPath.Get();
-        const std::string texturePath = GetPlanetTexturePath();
 
-        DirectX::XMFLOAT3 objPos{cfg_PlanetPosX.Get(), cfg_PlanetPosY.Get(), cfg_PlanetPosZ.Get()};
+        return info;
+    }
+
+
+    void CreatePlanet(World &world) {
+        PlanetInfo info = PlanetModelInfo();
+        const std::string modelPath = info.planetPath;
+        DirectX::XMFLOAT3 objPos = info.planetPos;
+
         Transform transform{
-            {objPos}, {cfg_PlanetRotX.Get(), cfg_PlanetRotY.Get(), cfg_PlanetRotZ.Get()}, {cfg_PlanetScaleX.Get(), cfg_PlanetScaleY.Get(), cfg_PlanetScaleZ.Get()}};
+             {objPos}, {cfg_PlanetRotX.Get(), cfg_PlanetRotY.Get(), cfg_PlanetRotZ.Get()}, {cfg_PlanetScaleX.Get(), cfg_PlanetScaleY.Get(), cfg_PlanetScaleZ.Get()}};
         MeshRenderer meshrenderer;
         meshrenderer.meshType = MeshType::Cube;
         meshrenderer.color = DirectX::XMFLOAT3{0.0f, 0.0f, 0.0f};
         planetEntity_ = world.Create()
                             .With<Transform>(transform)
                             .With<Model>(modelPath)
+                            .With<Rotator>(10.0f)
                             .Build();
 
         ownedEntities_.push_back(planetEntity_);

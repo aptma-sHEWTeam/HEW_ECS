@@ -94,6 +94,11 @@ inline int CountRooms(int world, int stage) {
     return std::max(1, count);
 }
 
+ struct PlanetInfo {
+    std::string planetPath;
+    DirectX::XMFLOAT3 planetPos;
+};
+
 inline StageProgress g_LastStageProgress{};
 
 /**
