@@ -495,6 +495,8 @@ struct LoadAngle : IComponent {
 struct DashBoardStatus : IComponent {
     int blockID = 0;        //各ブロックのステージID
     float accelAngle = 0.0f;     //加速の方向
+    bool lightingDisabled = true;
+    int effectHandle = -1;       //エフェクトハンドル
 };
 
 /**

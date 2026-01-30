@@ -500,6 +500,7 @@ class GameScene : public IScene {
         UpdateSkyboxRotation(deltaTime);
         UpdateSkyboxTransform(world);
         UpdateSkyboxTexture(world);
+        ApplyDashBoardShading(world);
         ChargCameraAction(world);
         RenderingSystem::GetInstance().UpdateLights(world, camera_.position);
 
@@ -2291,9 +2292,6 @@ class GameScene : public IScene {
         // プレイヤーへの影響角度はCSVそのまま（見た目補正は加えない）
         status.accelAngle = csvAngleDeg;
 
-        //加速板のエフェクト常時出力
-        EffekseerManager::GetInstance().PlayEffectSafe("DashBoard", transform.position, {1.0f, 1.0f, 1.0f}, true);
-
         Entity dashBoardEntity = world.Create()
                                      .With<Transform>(transform)
                                      .With<Model>(cfg_DashBoardFBXPass)
@@ -2304,6 +2302,30 @@ class GameScene : public IScene {
                                      .With<DashBoardStatus>(status)
                                      .With<StaticCollider>()
                                      .Build();
+
+        // -------------------------------------------------------------
+        // 加速板の常時再生エフェクト ("DashBoard") を再生
+        // -------------------------------------------------------------
+        {
+            // エフェクトの再生位置はモデルと同じ(あるいは少し上げる？)
+            // ここではモデルの中心位置(=transform.position)に合わせる
+            DirectX::XMFLOAT3 effectPos = adjustedPos;
+            effectPos.y += 0.2f; // 床に埋まらないように少し上げる
+
+            auto handleOpt = EffekseerManager::GetInstance().PlayEffectSafe("DashBoard", effectPos, {1.0f, 1.0f, 1.0f}, true);
+            if (handleOpt) {
+                int handle = *handleOpt;
+                
+                // エフェクトの向きを加速板に合わせる
+                // visualYawDeg はモデルの見た目の角度 (Y軸回転)
+                EffekseerManager::GetInstance().SetEffectRotation(handle, {0.0f, visualYawDeg, 0.0f});
+
+                // コンポーネントにハンドを保存
+                if (auto *dbStatus = world.TryGet<DashBoardStatus>(dashBoardEntity)) {
+                    dbStatus->effectHandle = handle;
+                }
+            }
+        }
 
         stageOwnedEntities_.push_back(dashBoardEntity);
     }
@@ -2321,6 +2343,22 @@ class GameScene : public IScene {
             if (world.IsAlive(child)) {
                 outList.push_back(child);
                 CollectDescendants(world, child, outList);
+            }
+        }
+    }
+
+    void ApplyUnlitRecursive(World &world, Entity entity) {
+        if (auto *mr = world.TryGet<MeshRenderer>(entity)) {
+            mr->useLighting = 0.0f;
+        }
+        if (auto *mc = world.TryGet<ModelComponent>(entity)) {
+            mc->useLighting = 0.0f;
+        }
+        if (auto *hier = world.TryGet<TransformHierarchy>(entity)) {
+            for (const auto &child : hier->GetChildren()) {
+                if (world.IsAlive(child)) {
+                    ApplyUnlitRecursive(world, child);
+                }
             }
         }
     }
@@ -2883,6 +2921,34 @@ class GameScene : public IScene {
         if (ApplySkyboxTextureRecursive(world, skyboxEntity_)) {
             skyboxTextureApplied_ = true;
         }
+    }
+
+    void ApplyDashBoardShading(World &world) {
+        world.ForEach<DashBoardStatus>([&](Entity e, DashBoardStatus &status) {
+            if (!status.lightingDisabled) {
+                return;
+            }
+            if (!world.IsAlive(e)) {
+                return;
+            }
+            if (world.Has<ModelComponent>(e) || world.Has<MeshRenderer>(e)) {
+                ApplyUnlitRecursive(world, e);
+                status.lightingDisabled = false;
+                return;
+            }
+            if (auto *hier = world.TryGet<TransformHierarchy>(e)) {
+                for (const auto &child : hier->GetChildren()) {
+                    if (!world.IsAlive(child)) {
+                        continue;
+                    }
+                    if (world.Has<ModelComponent>(child) || world.Has<MeshRenderer>(child)) {
+                        ApplyUnlitRecursive(world, e);
+                        status.lightingDisabled = false;
+                        return;
+                    }
+                }
+            }
+        });
     }
 
     void UpdateChargeOverlay(World &world, float dt) {

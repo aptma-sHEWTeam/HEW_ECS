@@ -97,6 +97,9 @@ class StageSelectScene : public IScene {
     inline static ConfigVar<std::string> cfg_StationFallbackModelPath{"StageSelect.Station", "FallbackModelPath", "Assets/Models/SelectObj_ISS/Station/World1/station3.fbx", "ステージセレクト: ステーションモデルのフォールバック"};
     inline static ConfigVar<float> cfg_StationRadius{"StageSelect.Station", "Radius", 5.0f, "ステージセレクト: ステーション配置半径"};
     inline static ConfigVar<float> cfg_StationScale{"StageSelect.Station", "Scale", 0.1f, "ステージセレクト: ステーションスケール"};
+    inline static ConfigVar<float> cfg_StationScaleRefDist{"StageSelect.Station", "ScaleRefDist", 8.0f, "ステージセレクト: ステーションスケール基準距離"};
+    inline static ConfigVar<float> cfg_StationScaleMinRatio{"StageSelect.Station", "ScaleMinRatio", 0.5f, "ステージセレクト: ステーションスケール最小比率"};
+    inline static ConfigVar<float> cfg_StationScalePower{"StageSelect.Station", "ScalePower", 1.0f, "ステージセレクト: ステーションスケール減衰係数"};
 
     inline static ConfigVar<float> cfg_PlanetWorld1PosX{"StageSelect.Planet", "World1PosX", 0.0f, "ステージセレクト: Planet 位置X"};
     inline static ConfigVar<float> cfg_PlanetWorld1PosY{"StageSelect.Planet", "World1PosY", 5.0f, "ステージセレクト: Planet 位置Y"};
@@ -738,6 +741,19 @@ class StageSelectScene : public IScene {
             float z = pos.basepos.z;
             transform.position.x = x * cosf(angle) - z * sinf(angle);
             transform.position.z = x * sinf(angle) + z * cosf(angle);
+            DirectX::XMVECTOR camPos = DirectX::XMLoadFloat3(&camera_.position);
+            DirectX::XMVECTOR objPos = DirectX::XMLoadFloat3(&transform.position);
+            float dist = DirectX::XMVectorGetX(DirectX::XMVector3Length(DirectX::XMVectorSubtract(camPos, objPos)));
+            const float refDist = std::max(cfg_StationScaleRefDist.Get(), 0.001f);
+            const float scalePower = std::max(cfg_StationScalePower.Get(), 0.0f);
+            const float minRatio = std::clamp(cfg_StationScaleMinRatio.Get(), 0.0f, 1.0f);
+            float ratio = 1.0f;
+            if (dist > 0.001f) {
+                ratio = std::pow(refDist / dist, scalePower);
+            }
+            ratio = std::clamp(ratio, minRatio, 1.0f);
+            const float baseScale = cfg_StationScale.Get();
+            transform.scale = {baseScale * ratio, baseScale * ratio, baseScale * ratio};
         });
 
         world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
