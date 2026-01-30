@@ -426,11 +426,12 @@ struct PlayerMovement : Behaviour {
                         w.ForEach<GameStatus>([&](Entity e, GameStatus &status) {
                             status.StartChack = true;
                         });
+                        SOUND_SYS.StopSE(cfg_DriftMP3Pass.Get()); // Stop charge sound
                       return;
-                    } else {
-                        if (isCharging_) {
-                            GameScene_OnChargeRelease(w, 0.0f);
-                        }
+                    if (isCharging_) {
+                        GameScene_OnChargeRelease(w, 0.0f);
+                        SOUND_SYS.StopSE(cfg_DriftMP3Pass.Get()); // Stop charge sound
+                    }
                         isCharging_ = false;
                         if (currentEffectState != EffectState::Idle && currentEffectState != EffectState::MaxCharge) 
                          {
@@ -461,6 +462,7 @@ struct PlayerMovement : Behaviour {
             wasCharging_ = false;
             wasChargingPrev_ = false;
             EffectState currentEffectState = EffectState::Idle;
+            SOUND_SYS.StopSE(cfg_DriftMP3Pass.Get()); // Stop charge sound if active
             return;
         }
 
@@ -479,6 +481,7 @@ struct PlayerMovement : Behaviour {
             isCharging_ = false;
             wasCharging_ = false;
             wasChargingPrev_ = false;
+            SOUND_SYS.StopSE(cfg_DriftMP3Pass.Get()); // Stop charge sound if active
             return;
         }
 

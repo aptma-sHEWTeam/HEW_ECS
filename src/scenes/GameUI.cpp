@@ -186,6 +186,21 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                                   .Build();
     ownedEntities_.push_back(startImageEntity);
 
+    UITransform barTr;
+    barTr.position = {520.0f, 335.0f};
+    barTr.size = {0.0f, 20.0f};
+    barTr.anchor = {0.0f, 0.0f};
+    barTr.pivot = {0.0f, 0.0f};
+
+    UIPanel barPanel;
+    barPanel.color = {0.0f, 1.0f, 1.0f, 0.8f};
+
+    Entity startChargeBarEntity = world.Create()
+                                    .With<UITransform>(barTr)
+                                    .With<UIPanel>(barPanel)
+                                    .Build();
+    ownedEntities_.push_back(startChargeBarEntity);
+
     /* UITransform starttimeTransform;
     starttimeTransform.position = {600.0f, 250.0f};
     starttimeTransform.size = {300.0f, 300.0f};
@@ -367,6 +382,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         //  updater->numEntity_ = numEntity;
         updater->timeImageEntity_ = timerImageEntity;
         updater->startplayer_ = startImageEntity;
+        updater->startChargeBarEntity_ = startChargeBarEntity;
         updater->warningOverlayEntity_ = warningOverlayEntity;
         //updater->warningTextEntity_ = warningTextEntity;
 

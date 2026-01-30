@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <sstream>
 #include <iomanip>
+#include "components/PlayerComponents.h"
 
 /**
  * @struct GameUIUpdater
@@ -29,6 +30,7 @@ struct GameUIUpdater : Behaviour {
     int cachedRoomCount_ = 1;
     int cachedWorldCount = 1;
     Entity startplayer_;
+    Entity startChargeBarEntity_;
     Entity warningOverlayEntity_;
     //Entity warningTextEntity_;
     float warningBlinkTimer_ = 0.0f;
@@ -131,6 +133,20 @@ struct GameUIUpdater : Behaviour {
                     startImage->opacity = 0.0f;
                 }
             }
+
+             // Start Charge Bar Update
+             w.ForEach<PlayerMovement>([&](Entity, PlayerMovement& pm) {
+                if (auto* barTr = w.TryGet<UITransform>(startChargeBarEntity_)) {
+                    if (stats.StartChack) {
+                        barTr->size.x = 0.0f;
+                    } else {
+                        float maxTime = 0.6f;
+                        float progress = std::clamp(pm.chargeTimer / maxTime, 0.0f, 1.0f);
+                        float maxWidth = 250.0f;
+                        barTr->size.x = maxWidth * progress;
+                    }
+                }
+            });
             //スタートのカウントダウン時間の更新
             /*if (auto *starttimeText = w.TryGet<UIText>(startplayer_)) {
                 std::wstringstream ss;

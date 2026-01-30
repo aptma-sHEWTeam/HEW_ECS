@@ -12,9 +12,11 @@
 #include "graphics/Effect.h"
 #include "systems/SoundSystem.h"
 #include "components/UIComponents.h"
+#include "components/UIImageComponents.h"
 #include "systems/UISystem.h"
 #include "scenes/StageConfig.h"
 #include "animation/AnimationConfig.h"
+#include "animation/AnimationTools.h"
 #include <vector>
 #include <functional>
 #include <string>
@@ -45,6 +47,24 @@ public:
         world.ForEach<UIInteractionSystem>([&](Entity, UIInteractionSystem& sys) {
             if (!sys.input_) sys.input_ = &input;
         });
+
+        if (isFading_) {
+            world.Tick(deltaTime);
+            bool fadeFinished = false;
+            if (auto* anim = world.TryGet<SpriteSheetAnimation>(fadeEntity_)) {
+                if (anim->isFinished && !anim->isPlaying) {
+                    fadeFinished = true;
+                }
+            } else {
+                fadeFinished = true;
+            }
+            if (fadeFinished) {
+                if (auto* manager = ServiceLocator::TryGet<SceneManager>()) {
+                    manager->ChangeScene("Title", world);
+                }
+            }
+            return;
+        }
 
         // 最初のフレームはスキップ（"Loading..." を描画させるため）
         if (isFirstFrame_) {
@@ -97,8 +117,9 @@ public:
             // 少し待機してから遷移（100%を見せるため）
             waitTimer_ += deltaTime;
             if (waitTimer_ > 0.5f) {
-                if (auto* manager = ServiceLocator::TryGet<SceneManager>()) {
-                    manager->ChangeScene("Title", world);
+                if (!isFading_) {
+                    StartSpriteFade(world, fadeEntity_, 1, false);
+                    isFading_ = true;
                 }
             }
         }
@@ -151,9 +172,11 @@ private:
     Entity progressTextEntity_;
     Entity astronautEntity_;
     Entity uiSystemEntity_;
+    Entity fadeEntity_;
 
     TextSystem textSystem_{};
     ImageSystem imageSystem_{};
+    bool isFading_ = false;
 
     bool InitSystems() {
         auto* gfx = ServiceLocator::TryGet<GfxDevice>();
@@ -250,6 +273,32 @@ private:
             progressTextEntity_ = e;
             uiEntities_.push_back(e);
         }
+
+        UITransform fadeTransform;
+        fadeTransform.position = {0.0f, 0.0f};
+        fadeTransform.size = {width, height};
+        fadeTransform.anchor = {0.0f, 0.0f};
+        fadeTransform.pivot = {0.0f, 0.0f};
+
+        UIImage fade{L"./Assets/Textures/Fade/tex_fade.png"};
+        fade.opacity = 1.0f;
+        fade.keepAspect = false;
+        fade.overlay = true;
+
+        SpriteSheetDesc fadeDesc = SpriteSheetDesc::Grid(
+            AnimationConfig::UI::FadeFrames,
+            AnimationConfig::UI::FadeCols,
+            AnimationConfig::UI::FadeFrameTime,
+            /*loop*/ false);
+        fadeDesc.playOnStart = false;
+
+        Entity fadeEntity = world.Create()
+                             .With<UITransform>(fadeTransform)
+                             .With<UIImage>(fade)
+                             .Build();
+        AnimationTools::AddSpriteSheet(world, fadeEntity, fadeDesc);
+        fadeEntity_ = fadeEntity;
+        uiEntities_.push_back(fadeEntity_);
     }
 
     void CreateAstronaut(World& world, float screenW, float screenH) {
@@ -426,5 +475,17 @@ private:
 
     void AddTask(std::function<void()> task) {
         loadingTasks_.push_back(task);
+    }
+
+    void StartSpriteFade(World &world, Entity target, int direction, bool forceOpaque) {
+        if (!world.IsAlive(target))
+            return;
+        AnimationTools::PlaySpriteSheet(world, target, direction, /*loop*/ false, /*reset*/ true);
+        if (auto *img = world.TryGet<UIImage>(target)) {
+            img->opacity = 1.0f;
+        }
+        if (auto *anim = world.TryGet<SpriteSheetAnimation>(target)) {
+            anim->isFinished = false;
+        }
     }
 };
