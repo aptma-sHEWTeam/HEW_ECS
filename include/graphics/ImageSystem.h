@@ -143,7 +143,8 @@ private:
             return false;
         }
         Microsoft::WRL::ComPtr<IWICBitmap> wicBitmap;
-        HRESULT hr = wicFactory_->CreateBitmap(desc.Width, desc.Height, GUID_WICPixelFormat32bppPBGRA, WICBitmapCacheOnDemand, &wicBitmap);
+        // Source is typically RGBA (DXGI_FORMAT_R8G8B8A8_UNORM), so tell WIC it is RGBA
+        HRESULT hr = wicFactory_->CreateBitmap(desc.Width, desc.Height, GUID_WICPixelFormat32bppRGBA, WICBitmapCacheOnDemand, &wicBitmap);
         if (FAILED(hr)) {
             gfx_->Ctx()->Unmap(staging.Get(), 0);
             return false;
@@ -166,11 +167,19 @@ private:
         lock.Reset();
         gfx_->Ctx()->Unmap(staging.Get(), 0);
 
+        // Convert RGBA -> PBGRA for D2D
+        Microsoft::WRL::ComPtr<IWICFormatConverter> converter;
+        hr = wicFactory_->CreateFormatConverter(converter.GetAddressOf());
+        if (FAILED(hr)) return false;
+
+        hr = converter->Initialize(wicBitmap.Get(), GUID_WICPixelFormat32bppPBGRA, WICBitmapDitherTypeNone, nullptr, 0.0f, WICBitmapPaletteTypeCustom);
+        if (FAILED(hr)) return false;
+
         D2D1_BITMAP_PROPERTIES1 bp = D2D1::BitmapProperties1(
             D2D1_BITMAP_OPTIONS_NONE,
             D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
         Microsoft::WRL::ComPtr<ID2D1Bitmap1> d2dBmp;
-        hr = d2dContext_->CreateBitmapFromWicBitmap(wicBitmap.Get(), &bp, &d2dBmp);
+        hr = d2dContext_->CreateBitmapFromWicBitmap(converter.Get(), &bp, &d2dBmp);
         if (FAILED(hr)) {
             return false;
         }

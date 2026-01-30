@@ -263,37 +263,44 @@ void EffekseerManager::Load()
 
     for (const auto& def : predefined_)
     {
-        std::wstring wpath = Utf8ToWide(def.path);
-        if (wpath.empty())
-        {
-            continue;
-        }
+        LoadEffect(def.name, def.path);
+    }
+}
 
-        if (fileInterface_ != nullptr)
-        {
-            std::filesystem::path effectPath(wpath);
-            auto baseDir16 = effectPath.parent_path().u16string();
-            if (auto* rel = dynamic_cast<RelativeFileInterface*>(fileInterface_.Get()))
-            {
-                rel->SetBaseDir(baseDir16);
-                std::string bep;
-                try { bep = effectPath.parent_path().wstring().empty() ? std::string() : WideToUtf8(effectPath.parent_path().wstring()); } catch(...) { bep = "<conv-error>"; }
-                DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, std::string("Effekseer Load: set effect base dir to '") + bep + "' for effect '" + def.path + "'");
-            }
-        }
+void EffekseerManager::LoadEffect(const std::string& name, const std::string& path)
+{
+    if (m_pManager == nullptr) return;
 
-        std::string wpath_s = WideToUtf8(wpath);
-        DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, std::string("EffekseerManager: creating effect from '") + wpath_s + "'");
-        auto effect = Effekseer::Effect::Create(m_pManager, reinterpret_cast<const char16_t*>(wpath.c_str()));
-        if (effect != nullptr)
+    std::wstring wpath = Utf8ToWide(path);
+    if (wpath.empty())
+    {
+        return;
+    }
+
+    if (fileInterface_ != nullptr)
+    {
+        std::filesystem::path effectPath(wpath);
+        auto baseDir16 = effectPath.parent_path().u16string();
+        if (auto* rel = dynamic_cast<RelativeFileInterface*>(fileInterface_.Get()))
         {
-            m_effects[def.name] = effect;
-            DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, std::string("EffekseerManager: effect loaded '") + wpath_s + "' as '" + def.name + "'");
+            rel->SetBaseDir(baseDir16);
+            std::string bep;
+            try { bep = effectPath.parent_path().wstring().empty() ? std::string() : WideToUtf8(effectPath.parent_path().wstring()); } catch(...) { bep = "<conv-error>"; }
+            DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, std::string("Effekseer Load: set effect base dir to '") + bep + "' for effect '" + path + "'");
         }
-        else
-        {
-            DEBUGLOG_WARNING(std::string("EffekseerManager: failed to load effect '") + wpath_s + "'");
-        }
+    }
+
+    std::string wpath_s = WideToUtf8(wpath);
+    DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, std::string("EffekseerManager: creating effect from '") + wpath_s + "'");
+    auto effect = Effekseer::Effect::Create(m_pManager, reinterpret_cast<const char16_t*>(wpath.c_str()));
+    if (effect != nullptr)
+    {
+        m_effects[name] = effect;
+        DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, std::string("EffekseerManager: effect loaded '") + wpath_s + "' as '" + name + "'");
+    }
+    else
+    {
+        DEBUGLOG_WARNING(std::string("EffekseerManager: failed to load effect '") + wpath_s + "'");
     }
 }
 

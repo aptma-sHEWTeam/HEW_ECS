@@ -50,43 +50,50 @@ struct UIRenderSystem {
             imageSystem_->EndDraw();
         };
 
-        auto drawTextPass = [&]() {
+        auto drawPanels = [&](bool beforeImages) {
             textSystem_->BeginDraw();
             w.ForEach<UICanvas>([&](Entity, UICanvas &canvas) {
                 if (!canvas.enabled)
                     return;
 
                 w.ForEach<UITransform, UIPanel>([&](Entity, UITransform &t, UIPanel &p) {
-                    if (p.visible)
+                    if (p.visible && p.drawBeforeImages == beforeImages)
                         DrawPanel(t, p);
-                });
-
-                w.ForEach<UITransform, UIButton>([&](Entity e, UITransform &t, UIButton &b) {
-                    if (!b.enabled || t.size.x <= 0.0f || t.size.y <= 0.0f)
-                        return;
-                    DrawButton(t, b);
-                    if (auto *txt = w.TryGet<UIText>(e)) {
-                        if (!txt->text.empty()) {
-                            DrawButtonText(t, b, *txt);
-                        }
-                    }
-                });
-
-                w.ForEach<UITransform, UIText>([&](Entity e, UITransform &t, UIText &txt) {
-                    if (w.Has<UIButton>(e))
-                        return;
-                    if (t.size.x <= 0.0f || t.size.y <= 0.0f)
-                        return;
-                    if (txt.text.empty())
-                        return;
-                    DrawText(t, txt);
                 });
             });
             textSystem_->EndDraw();
         };
 
+        drawPanels(true);
         drawImages(false);
-        drawTextPass();
+        drawPanels(false);
+        textSystem_->BeginDraw();
+        w.ForEach<UICanvas>([&](Entity, UICanvas &canvas) {
+            if (!canvas.enabled)
+                return;
+
+            w.ForEach<UITransform, UIButton>([&](Entity e, UITransform &t, UIButton &b) {
+                if (!b.enabled || t.size.x <= 0.0f || t.size.y <= 0.0f)
+                    return;
+                DrawButton(t, b);
+                if (auto *txt = w.TryGet<UIText>(e)) {
+                    if (!txt->text.empty()) {
+                        DrawButtonText(t, b, *txt);
+                    }
+                }
+            });
+
+            w.ForEach<UITransform, UIText>([&](Entity e, UITransform &t, UIText &txt) {
+                if (w.Has<UIButton>(e))
+                    return;
+                if (t.size.x <= 0.0f || t.size.y <= 0.0f)
+                    return;
+                if (txt.text.empty())
+                    return;
+                DrawText(t, txt);
+            });
+        });
+        textSystem_->EndDraw();
         drawImages(true);
     }
 

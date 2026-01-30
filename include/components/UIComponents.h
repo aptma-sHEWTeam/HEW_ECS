@@ -151,6 +151,7 @@ struct UIButton : IComponent {
 struct UIPanel : IComponent {
     DirectX::XMFLOAT4 color{0.1f, 0.1f, 0.1f, 0.8f}; ///< パネルの色(RGBA)
     bool visible = true;                             ///< 表示/非表示
+    bool drawBeforeImages = false;
 
     explicit UIPanel(const DirectX::XMFLOAT4 &col = {0.1f, 0.1f, 0.1f, 0.8f})
         : color(col) {}

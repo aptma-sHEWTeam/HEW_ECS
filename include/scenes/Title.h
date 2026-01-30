@@ -134,6 +134,9 @@ class TitleScene : public IScene {
     inline static ConfigVar<float> cfg_FadeSecondsPerFrame{"Title.Fade", "SecondsPerFrame", 0.1f, "タイトル: フェードアニメ1フレーム時間(秒)"};
     inline static ConfigVar<std::string> cfg_FadeTexturePath{"Title.Fade", "TexturePath", "./Assets/Textures/Fade/tex_fade.png", "タイトル: フェードテクスチャ"};
 
+    // 宇宙飛行士UI - InitSceneへ移動
+
+
     Camera GetCameraTitle() const { return camera_; }
    
     void OnEnter(World &world) override {
@@ -219,6 +222,8 @@ class TitleScene : public IScene {
         cameraBobOffsetY_ = 0.0f;
 
         CreateSkybox(world);
+
+
 
 #if defined(_DEBUG)
         static bool skyboxScaleTestsRan = false;
@@ -757,7 +762,9 @@ class TitleScene : public IScene {
         UpdateCameraBob(deltaTime);
         UpdateSkyboxRotation(deltaTime);
         UpdateSkyboxTransform(world);
+        UpdateSkyboxTransform(world);
         UpdateSkyboxTexture(world);
+
 
          if (!worldTicked) {
              world.Tick(deltaTime);
@@ -798,6 +805,7 @@ class TitleScene : public IScene {
             DEBUGLOG_ERROR("[TitkeScene] Failed to get RenderSystem from ServiceLocator");
         }
         if (isUiVisible_) {
+
             world.ForEach<UIRenderSystem>([&](Entity, UIRenderSystem &sys) {
                 MeshRenderer renderer;
                 sys.Render(world);
@@ -837,6 +845,9 @@ class TitleScene : public IScene {
         skyboxTexture_ = TextureManager::INVALID_TEXTURE;
         skyboxTextureApplied_ = false;
     }
+
+    // Astronaut methods moved to InitScene
+
 
 
 
@@ -965,6 +976,10 @@ class TitleScene : public IScene {
 
     // 複数壁を保持する配列
     std::vector<Entity> wallEntities_{};
+
+    // Entity astronautEntity_;
+    // float astronautAngle_ = 0.0f;
+
     // 配置を渡したい場合にセットする配列
     std::vector<Transform> wallTransforms_{};
  

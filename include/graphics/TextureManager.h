@@ -22,7 +22,9 @@
 #include <iomanip>
 #include <vector>
 #include <fstream>
+#include <fstream>
 #include <cstdio>
+#include <algorithm>
 
 #pragma comment(lib, "windowscodecs.lib")
 
@@ -131,12 +133,29 @@ public:
      * }
      * @endcode
      */
+    /**
+     * @brief ファイルからテクスチャを読み込み(BMP, PNG, JPGなど)
+     * @param[in] filepath 画像ファイルのパス
+     * @return TextureHandle テクスチャハンドル(失敗時は INVALID_TEXTURE)
+     */
     TextureHandle LoadFromFile(const char* filepath) {
+        // パスを正規化（簡易的）
+        std::string pathStr = filepath;
+        std::replace(pathStr.begin(), pathStr.end(), '\\', '/');
+
+        // キャッシュチェック
+        auto it = textureCache_.find(pathStr);
+        if (it != textureCache_.end()) {
+            return it->second;
+        }
+
         // WICを使用して画像を読み込む
         if (!wicFactory_) {
             DEBUGLOG_ERROR("TextureManager::LoadFromFile() - WIC factory not initialised");
             return INVALID_TEXTURE;
         }
+        
+        DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "Loading texture: " + pathStr);
 
         HRESULT hr = S_OK;
         // ワイド文字列に変換
@@ -186,17 +205,67 @@ public:
         hr = converter->GetSize(&width, &height);
         if (FAILED(hr)) return INVALID_TEXTURE;
 
-        // ピクセルデータを取得
-        std::vector<uint8_t> pixels(width * height * 4);
-        hr = converter->CopyPixels(
-            nullptr,
-            width * 4,
-            static_cast<UINT>(pixels.size()),
-            pixels.data()
-        );
-        if (FAILED(hr)) return INVALID_TEXTURE;
+        std::vector<uint8_t> pixels;
+        UINT maxDim = 16384; // DX11 Max Texture Size
 
-        return CreateTextureFromMemory(pixels.data(), width, height, 4);
+        if (width > maxDim || height > maxDim) {
+            float scale = 1.0f;
+            if (width > height) {
+                scale = static_cast<float>(maxDim) / width;
+            } else {
+                scale = static_cast<float>(maxDim) / height;
+            }
+            UINT newWidth = static_cast<UINT>(width * scale);
+            UINT newHeight = static_cast<UINT>(height * scale);
+
+            std::string msg = "Texture too large (" + std::to_string(width) + "x" + std::to_string(height) + "). Scaling down to (" + std::to_string(newWidth) + "x" + std::to_string(newHeight) + "): " + pathStr;
+            DEBUGLOG_WARNING(msg);
+
+            Microsoft::WRL::ComPtr<IWICBitmapScaler> scaler;
+            hr = wicFactory_->CreateBitmapScaler(&scaler);
+            if (FAILED(hr)) return INVALID_TEXTURE;
+
+            hr = scaler->Initialize(
+                converter.Get(),
+                newWidth,
+                newHeight,
+                WICBitmapInterpolationModeFant
+            );
+            if (FAILED(hr)) return INVALID_TEXTURE;
+
+            width = newWidth;
+            height = newHeight;
+            pixels.resize(width * height * 4);
+            hr = scaler->CopyPixels(
+                nullptr,
+                width * 4,
+                static_cast<UINT>(pixels.size()),
+                pixels.data()
+            );
+            
+             if (FAILED(hr)) { 
+                DEBUGLOG_ERROR("Failed to copy pixels from scaler");
+                return INVALID_TEXTURE;
+             }
+        } else {
+            // 通常読み込み
+            pixels.resize(width * height * 4);
+            hr = converter->CopyPixels(
+                nullptr,
+                width * 4,
+                static_cast<UINT>(pixels.size()),
+                pixels.data()
+            );
+            if (FAILED(hr)) return INVALID_TEXTURE;
+        }
+
+        TextureHandle handle = CreateTextureFromMemory(pixels.data(), width, height, 4);
+        if (handle != INVALID_TEXTURE) {
+            textureCache_[pathStr] = handle;
+            // DEBUGLOG_CATEGORYがコメントアウトされていたので復帰
+             DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "Texture loaded and cached: " + pathStr);
+        }
+        return handle;
     }
 
     /**
@@ -247,15 +316,27 @@ public:
         // InitDataを渡さずに作成
         HRESULT hr = gfx_->Dev()->CreateTexture2D(&texDesc, nullptr, &texture);
         if (FAILED(hr)) {
-            DEBUGLOG_ERROR("Failed to create texture2D (Mipmap enabled)");
+            // フォールバック: Mipmapなしで再試行
+            std::string msg = "Failed to create texture2D (Mipmap enabled). W: " + std::to_string(width) + " H: " + std::to_string(height) + ". Retrying without Mipmaps.";
+            DEBUGLOG_WARNING(msg); // ErrorではなくWarningに
+            
+            texDesc.MipLevels = 1;
+            texDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE; // RT外す
+            texDesc.MiscFlags = 0; // GenerateMips外す
+            
+            hr = gfx_->Dev()->CreateTexture2D(&texDesc, nullptr, &texture);
+            if (FAILED(hr)) {
+                std::string msg2 = "Failed to create texture2D (Fallback).";
+                DEBUGLOG_ERROR(msg2);
 #ifdef _DEBUG
-            MessageBoxA(nullptr, "Failed to create texture2D", "Texture Error", MB_OK | MB_ICONERROR);
+                MessageBoxA(nullptr, msg2.c_str(), "Texture Error", MB_OK | MB_ICONERROR);
 #endif
-            return INVALID_TEXTURE;
+                return INVALID_TEXTURE;
+            }
         }
 
         // 初期データ転送 (Mip Level 0)
-        // UpdateSubresourceを使用 (D3D11_USAGE_DEFAULTなので)
+        // UpdateSubresourceを使用
         gfx_->Ctx()->UpdateSubresource(
             texture.Get(),
             0, 
@@ -269,7 +350,11 @@ public:
         D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc{};
         srvDesc.Format = texDesc.Format;
         srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
-        srvDesc.Texture2D.MipLevels = -1; // 全レベルを使用
+        srvDesc.Texture2D.MipLevels = texDesc.MipLevels; // 作成されたMipLevelsを使用 (0なら-1相当だが、Create時は0指定でフルチェーン作成されるので、ここも合わせる必要がある)
+        // 注意: Fallbackした場合、MipLevels=1になっている。
+        // Original(MipLevels=0)の場合、SRVには-1(全レベル)を指定する。
+        // なので、texDesc.MipLevelsが0なら-1、それ以外ならtexDesc.MipLevelsを使う。
+        srvDesc.Texture2D.MipLevels = (texDesc.MipLevels == 0) ? -1 : texDesc.MipLevels;
         srvDesc.Texture2D.MostDetailedMip = 0;
 
         Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv;
@@ -279,8 +364,10 @@ public:
             return INVALID_TEXTURE;
         }
 
-        // ミップマップ生成
-        gfx_->Ctx()->GenerateMips(srv.Get());
+        // ミップマップ生成 (MiscFlagがある場合のみ)
+        if (texDesc.MiscFlags & D3D11_RESOURCE_MISC_GENERATE_MIPS) {
+            gfx_->Ctx()->GenerateMips(srv.Get());
+        }
 
         // テクスチャを登録
         TextureHandle handle = nextHandle_++;
@@ -395,6 +482,7 @@ public:
         DEBUGLOG_CATEGORY(DebugLog::Category::Graphics, "シェーダーリソースビュー: " + std::to_string(srvCount) + " 個");
         
         textures_.clear();
+        textureCache_.clear();
         wicFactory_.Reset();
         defaultWhiteTexture_ = INVALID_TEXTURE;
         gfx_ = nullptr;
@@ -549,6 +637,7 @@ private:
     TextureHandle nextHandle_ = 1;                      ///< 次に割り当てるハンドル
     TextureHandle defaultWhiteTexture_ = INVALID_TEXTURE; ///< デフォルト白テクスチャ
     std::unordered_map<TextureHandle, TextureData> textures_; ///< テクスチャマップ
+    std::unordered_map<std::string, TextureHandle> textureCache_; ///< パスによるキャッシュ
     bool isShutdown_ = false;                           ///< シャットダウン済みフラグ
 };
 

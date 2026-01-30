@@ -288,7 +288,7 @@ struct RenderSystem {
 
     /**
      * @brief 統計情報の取得
- * @return const Statistics& 統計情報への参照
+     * @return const Statistics& 統計情報への参照
      */
     const Statistics &GetStatistics() const {
         return stats_;

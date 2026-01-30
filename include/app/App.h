@@ -61,6 +61,7 @@
 #include "scenes/Game.h"
 #include "scenes/StageSelectScene.h"
 #include "scenes/title.h"
+#include "scenes/InitScene.h"
 #include "scenes/VideoScene.h"
 
 #include "graphics/Effect.h"
@@ -159,8 +160,13 @@ struct App {
         sceneManager_.RegisterScene("Title", std::move(titleScene));
         DEBUGLOG("Title registered to SceneManager");
 
-        sceneManager_.Init("Title", world_);
-        DEBUGLOG("SceneManager initialised with Game scene");
+        // Init Scene
+        auto initScene = std::make_unique<InitScene>();
+        sceneManager_.RegisterScene("Init", std::move(initScene));
+        DEBUGLOG("InitScene registered to SceneManager");
+
+        sceneManager_.Init("Init", world_);
+        DEBUGLOG("SceneManager initialised with Init scene");
 
         auto clearVideoScene = std::make_unique<VideoScene>();
         clearVideoScene->SetVideoPath("Assets/Textures/Still/gameclear.mov");

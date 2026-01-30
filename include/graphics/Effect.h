@@ -46,6 +46,13 @@ class EffekseerManager
 
    void Load();				///<読み込み処理（定義済みエフェクトを一括ロード）
 
+   struct EffectDef {
+       std::string name;
+       std::string path;
+   };
+   const std::vector<EffectDef>& GetEffectDefs() const { return predefined_; }
+   void LoadEffect(const std::string& name, const std::string& path);
+
    int PlayEffect(const std::string &effectName, DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 scale, bool loop = false); ///<エフェクト再生（従来API）
    std::optional<int> PlayEffectSafe(const std::string &effectName, DirectX::XMFLOAT3 pos, DirectX::XMFLOAT3 scale, bool loop = false); ///<見つからない場合はnulloptを返す
    void StopEffect();		///<エフェクト停止
@@ -80,10 +87,7 @@ class EffekseerManager
 
 	int32_t time = 0;
 
-    struct EffectDef {
-        std::string name;
-        std::string path;
-    };
+
 
     // エフェクトを名前で管理するためのマップ
     std::unordered_map<std::string, Effekseer::EffectRef> m_effects;
