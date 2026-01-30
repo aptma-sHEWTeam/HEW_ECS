@@ -30,6 +30,8 @@ struct UITransform : IComponent {
     DirectX::XMFLOAT2 size{100.0f, 50.0f};  ///< サイズ(幅, 高さ)
     DirectX::XMFLOAT2 anchor{0.0f, 0.0f};   ///< アンカー(0-1, 左上=0,0 右下=1,1)
     DirectX::XMFLOAT2 pivot{0.5f, 0.5f};    ///< ピボット(0-1, 中心=0.5,0.5)
+    DirectX::XMFLOAT2 titleNormalSize = {300.0f, 80.0f};
+    DirectX::XMFLOAT2 titleBigSize = {340.0f, 95.0f};
     float rotation = 0.0f;                  ///< 回転(度)
 
     /**
