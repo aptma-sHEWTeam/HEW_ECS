@@ -420,9 +420,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         if (auto *b = world.TryGet<UIButton>(pauseTitleBtn)) {
             b->onClick = [this, wptr]() {
                 wptr->ForEach<GameStatus>([](Entity, GameStatus &s) { s.isPaused = false; });
-                if (auto *mgr = ServiceLocator::TryGet<SceneManager>()) {
-                    mgr->ChangeScene("Title", *wptr);
-                }
+                BeginStageSelectFade("Title", *wptr);
             };
         }
         if (auto *b = world.TryGet<UIButton>(pauseSelectBtn)) {

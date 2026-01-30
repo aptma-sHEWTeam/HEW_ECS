@@ -520,9 +520,12 @@ class StageSelectScene : public IScene {
         nextStarSpawn_ = RandFloat(cfg_StarSpawnMinSeconds.Get(), cfg_StarSpawnMaxSeconds.Get());
         lastStageNameStage_ = -1;
 
-        isFading = false;
+        isFading = true;
+        isSceneFadeActive_ = false;
+        pendingSceneName_.clear();
 
-         CreatePlanet(world);
+        CreatePlanet(world);
+        StartFadeInNormal(world);
     }
 
     void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
@@ -547,6 +550,24 @@ class StageSelectScene : public IScene {
             return;
         }
 
+        if (isSceneFadeActive_) {
+            world.Tick(deltaTime);
+            bool fadeFinished = false;
+            if (auto *anim = world.TryGet<SpriteSheetAnimation>(fadeEntity_)) {
+                if (anim->isFinished && !anim->isPlaying) {
+                    fadeFinished = true;
+                }
+            } else {
+                fadeFinished = true;
+            }
+            if (fadeFinished) {
+                if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
+                    manager->ChangeScene(pendingSceneName_.c_str(), world);
+                }
+            }
+            return;
+        }
+
         bool fadeFinished = false;
         bool worldTicked = false;
         if (isFading) {
@@ -558,6 +579,9 @@ class StageSelectScene : public IScene {
                 }
             } else {
                 fadeFinished = true;
+            }
+            if (fadeFinished && !isTransitioning_) {
+                isFading = false;
             }
         }
 
@@ -573,7 +597,7 @@ class StageSelectScene : public IScene {
             if (trigger) {
                 isTransitioning_ = true;
                 zoomTimer_ = 0.0f;
-                StartFadeInNormal(world);
+                StartFadeOutNormal(world);
                 isFading = true;
                 DEBUGLOG("StageSelect Camera Zoom Start!");
             }
@@ -647,14 +671,15 @@ class StageSelectScene : public IScene {
                 dpadLeftPrev_ = dpadLeftNow;
             }
 
-            World *wptr = &world;
-            bool dpadStartNow = padsystem->GetButton(padsystem->Button_B);
-            if (dpadStartNow) {
+            bool backPressed = input.GetKeyDown('B');
+            if (padsystem && padsystem->GetButtonDown(GamepadSystem::Button_B)) {
+                backPressed = true;
+            }
+            if (backPressed && !isTransitioning_) {
                 SOUND_SYS.PlaySE(cfg_EnterMP3Pass,false);
-                    if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
-                        manager->ChangeScene("Title", *wptr);
-                    }
-           }
+                BeginSceneFade(world, "Title");
+                return;
+            }
 
             if (rightPressed) {
                 if (stats.selectStage < maxStage_) {
@@ -959,8 +984,22 @@ class StageSelectScene : public IScene {
         isFading = false;
     }
 
-    void StartFadeInNormal(World &world) {
+    void StartFadeOutNormal(World &world) {
         StartSpriteFade(world, fadeEntity_, 1, false);
+    }
+
+    void StartFadeInNormal(World &world) {
+        StartSpriteFade(world, fadeEntity_, -1, false);
+    }
+
+    void BeginSceneFade(World &world, const std::string &sceneName) {
+        if (sceneName.empty() || isSceneFadeActive_ || !world.IsAlive(fadeEntity_)) {
+            return;
+        }
+        pendingSceneName_ = sceneName;
+        StartFadeOutNormal(world);
+        isSceneFadeActive_ = true;
+        isFading = true;
     }
 
     void StartSpriteFade(World &world, Entity target, int direction, bool forceOpaque) {
@@ -1013,6 +1052,8 @@ class StageSelectScene : public IScene {
     float targetAngle_ = 0.0f;
     float rotateSpeed_ = 6.0f;
     bool isFading = false;
+    bool isSceneFadeActive_ = false;
+    std::string pendingSceneName_;
     WorldFadeState worldFadeState_ = WorldFadeState::None;
     TransitionDirection pendingWorldTransitionDir_ = TransitionDirection::None;
 

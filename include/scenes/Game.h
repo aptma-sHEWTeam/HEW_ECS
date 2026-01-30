@@ -378,6 +378,7 @@ class GameScene : public IScene {
         CreateUI(world, screenWidth, screenHeight);
 
         SetupStage(world, initialStage);
+        isFading = true;
         StartFadeInNormal(world);
 
         // シャドウマップ初期化
@@ -400,18 +401,30 @@ class GameScene : public IScene {
    
  void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
         if (isStageSelectFadeActive_) {
+            world.Tick(deltaTime);
+            bool fadeFinished = false;
             if (auto *anim = world.TryGet<SpriteSheetAnimation>(fadeAnimationEntity_)) {
                 if (anim->isFinished && !anim->isPlaying) {
-                    if (auto *mgr = ServiceLocator::TryGet<SceneManager>()) {
-                        mgr->ChangeScene(pendingStageSelectScene_.c_str(), world);
-                    }
-                    return;
+                    fadeFinished = true;
                 }
-            } else if (auto *mgr = ServiceLocator::TryGet<SceneManager>()) {
-                mgr->ChangeScene(pendingStageSelectScene_.c_str(), world);
-                return;
+            } else {
+                fadeFinished = true;
+            }
+            if (fadeFinished) {
+                if (auto *mgr = ServiceLocator::TryGet<SceneManager>()) {
+                    mgr->ChangeScene(pendingStageSelectScene_.c_str(), world);
+                }
+            }
+            return;
+        }
+
+    if (isFading) {
+        if (auto *anim = world.TryGet<SpriteSheetAnimation>(fadeAnimationEntity_)) {
+            if (anim->isFinished && !anim->isPlaying) {
+                isFading = false;
             }
         }
+    }
         // ゲームの一時停止/再開処理
         GamepadSystem *pad = ServiceLocator::TryGet<GamepadSystem>();
         world.ForEach<GameStatus>([&](Entity, GameStatus &stats) {
@@ -1360,6 +1373,7 @@ class GameScene : public IScene {
 
     void StartFadeOutNormal(World &world) {
         StartSpriteFade(world, fadeAnimationEntity_, 1, false);
+        isFading = true;
     }
     void StartFadeInNormal(World &world) {
         StartSpriteFade(world, fadeAnimationEntity_, -1, false);
@@ -3110,6 +3124,7 @@ class GameScene : public IScene {
 
     bool isDeathFadePending_ = false;
     bool isStartFadePending_ = true;
+    bool isFading = false;
     Entity chargeOverlayEntity_{};
     // 追加: ステージクリア用テキストエンティティと状態
     Entity stageClearTextEntity_{};

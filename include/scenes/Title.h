@@ -241,6 +241,8 @@ class TitleScene : public IScene {
         isTransitioning_ = false;
         zoomTimer_ = 0.0f;
         isUiVisible_ = true;
+        isFading = true;
+        StartFadeInNormal(world);
     }
     //プレイヤーの仮描画
     void CreatePlayer(World &world) {
@@ -590,6 +592,9 @@ class TitleScene : public IScene {
             } else {
                 fadeFinished = true;
             }
+            if (fadeFinished && !isTransitioning_) {
+                isFading = false;
+            }
         }
 
         GamepadSystem *pad = ServiceLocator::TryGet<GamepadSystem>();
@@ -711,7 +716,7 @@ class TitleScene : public IScene {
             if (trigger) {
                 isTransitioning_ = true;
                 zoomTimer_ = 0.0f;
-                StartFadeInNormal(world);
+                StartFadeOutNormal(world);
                 isFading = true;
                 DEBUGLOG("Camera Zoom Start!");
             }
@@ -869,8 +874,12 @@ class TitleScene : public IScene {
         camera_.Update();
     }
 
-    void StartFadeInNormal(World &world) {
+    void StartFadeOutNormal(World &world) {
         StartSpriteFade(world, fadeEntity_, 1, false);
+    }
+
+    void StartFadeInNormal(World &world) {
+        StartSpriteFade(world, fadeEntity_, -1, false);
     }
 
     void StartSpriteFade(World &world, Entity target, int direction, bool forceOpaque) {
