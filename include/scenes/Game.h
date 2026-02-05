@@ -439,7 +439,9 @@ class GameScene : public IScene {
             if (pad && pad->GetAnyButtonDown({
                     GamepadSystem::Button_Option,
                     GamepadSystem::Button_Start,
-                    GamepadSystem::Button_Back})) {
+                    GamepadSystem::Button_Back,
+                    GamepadSystem::Button_Y
+                })) {
                 togglePause = true;
             }
             if (togglePause) {
