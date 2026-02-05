@@ -347,7 +347,8 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     Entity pauseRetryBtn = createPauseButton(L"リトライ", 40.0f);
     Entity pauseTitleBtn = createPauseButton(L"タイトルへ", 110.0f);
     Entity pauseSelectBtn = createPauseButton(L"ステージセレクトへ", 180.0f);
-    Entity pauseQuitBtn = createPauseButton(L"終了", 250.0f);
+    Entity pauseOptionsBtn = createPauseButton(L"オプション", 250.0f);
+    Entity pauseQuitBtn = createPauseButton(L"終了", 320.0f);
 
     // 追加: ステージクリア表示（最初は非表示＝空文字）
     UITransform clearTransform;
@@ -391,6 +392,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         updater->pauseRetryButtonEntity_ = pauseRetryBtn;
         updater->pauseTitleButtonEntity_ = pauseTitleBtn;
         updater->pauseStageSelectButtonEntity_ = pauseSelectBtn;
+        updater->pauseOptionsButtonEntity_ = pauseOptionsBtn;
         updater->pauseQuitButtonEntity_ = pauseQuitBtn;
         updater->pauseMenuButtonSize_ = {360.0f, 60.0f};
     }
@@ -421,6 +423,14 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
             b->onClick = [this, wptr]() {
                 wptr->ForEach<GameStatus>([](Entity, GameStatus &s) { s.isPaused = false; });
                 BeginStageSelectFade("Title", *wptr);
+            };
+        }
+        if (auto *b = world.TryGet<UIButton>(pauseOptionsBtn)) {
+            b->onClick = [this, wptr]() {
+                wptr->ForEach<GameStatus>([](Entity, GameStatus &s) { s.isPaused = false; });
+                if (auto *mgr = ServiceLocator::TryGet<SceneManager>()) {
+                    mgr->ChangeSceneWithTransition("Options", *wptr, TransitionDirection::Right);
+                }
             };
         }
         if (auto *b = world.TryGet<UIButton>(pauseSelectBtn)) {
@@ -476,7 +486,8 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 
     UIImage fade{L"./Assets/Textures/Fade/tex_fade.png"};
     fade.opacity = 1.0f;
-    fade.keepAspect = false;
+    fade.keepAspect = true;
+    fade.aspectFill = true;
     fade.overlay = true;
 
     SpriteSheetDesc fadeDesc = SpriteSheetDesc::Grid(
@@ -500,7 +511,8 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     // tex_fade.png (通常のフェード用) で代用する。
     UIImage deathFade{L"./Assets/Textures/Fade/tex_fadekorigori.png"};
     deathFade.opacity = 1.0f;
-    deathFade.keepAspect = false;
+    deathFade.keepAspect = true;
+    deathFade.aspectFill = true;
     deathFade.overlay = true;
 
     SpriteSheetDesc deathFadeDesc = SpriteSheetDesc::Grid(
@@ -522,7 +534,8 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     // チャージ中の軽い暗転オーバーレイ（アルファをコード側で制御）
     UIImage chargeOverlay{L"./Assets/Textures/Fade/tex_fade_Charging.png"};
     chargeOverlay.opacity = 0.0f;
-    chargeOverlay.keepAspect = false;
+    chargeOverlay.keepAspect = true;
+    chargeOverlay.aspectFill = true;
     chargeOverlay.overlay = true;
 
     SpriteSheetDesc chargeDesc;

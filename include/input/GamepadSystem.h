@@ -80,7 +80,8 @@ class GamepadSystem {
         Button_DPad_Down = 11,  ///< 十字キー下
         Button_DPad_Left = 12,  ///< 十字キー左
         Button_DPad_Right = 13, ///< 十字キー右
-        Button_Count = 14       ///< ボタン総数
+        Button_Option = 14,    ///< オプションボタン
+        Button_Count = 15       ///< ボタン総数
     };
 
     /**

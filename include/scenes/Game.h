@@ -283,17 +283,21 @@ class GameScene : public IScene {
             return;
         }
 
+        // 画面サイズ (Design Resolution)
+        float screenWidth = 1280.0f;
+        float screenHeight = 720.0f;
+        
+        // 論理サイズを設定（リサイズ時のスケーリング基準: 1280x720）
+        textSystem_.SetLogicalSize(screenWidth, screenHeight);
+        imageSystem_.SetLogicalSize(screenWidth, screenHeight);
+
         // UI用のテキストフォーマットを作成
         CreateTextFormats();
-
-        // 画面サイズを取得
-        float screenWidth = static_cast<float>(gfx->Width());
-        float screenHeight = static_cast<float>(gfx->Height());
 
         // カメラを初期化（App設定を優先）
         camera_ = Camera::LookAtLH(
             baseFovY_,
-            screenWidth / screenHeight,
+            16.0f / 9.0f, // Fixed aspect for letterboxing
             cameraNear_,
             cameraFar_,
             cameraPosition_,
@@ -432,7 +436,10 @@ class GameScene : public IScene {
             auto *movement = world.TryGet<PlayerMovement>(playerEntity_);
 
             bool togglePause = input.GetKeyDown('P');
-            if (pad && pad->GetButtonDown(GamepadSystem::Button_Y)) {
+            if (pad && pad->GetAnyButtonDown({
+                    GamepadSystem::Button_Option,
+                    GamepadSystem::Button_Start,
+                    GamepadSystem::Button_Back})) {
                 togglePause = true;
             }
             if (togglePause) {
@@ -534,9 +541,9 @@ class GameScene : public IScene {
      * @param world ECSワ عالمへの参照
      */
     void OnRender(World &world) override {
+        // ... (existing code, snippet truncated for brevity)
         auto *gfx = ServiceLocator::TryGet<GfxDevice>();
-        if (!gfx)
-            return;
+        if (!gfx) return;
 
         // ライティング情報の更新
         RenderingSystem::GetInstance().UpdateLights(world, camera_.position);
@@ -569,6 +576,11 @@ class GameScene : public IScene {
         });
 
         SOUND_SYS.PlayBGM(cfg_GameMP3Pass);
+    }
+    
+    void OnResize(uint32_t width, uint32_t height) override {
+        textSystem_.OnResize();
+        imageSystem_.OnResize();
     }
 
     /**

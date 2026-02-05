@@ -54,6 +54,20 @@ void ImageSystem::BeginDraw() {
     if (d2dContext_) {
         if (!targetBitmap_) RefreshTargetBitmap();
         d2dContext_->BeginDraw();
+
+        // Calculate and apply scaling if logical size is set
+        baseTransform_ = D2D1::Matrix3x2F::Identity();
+        if (gfx_ && logicalWidth_ > 0.0f && logicalHeight_ > 0.0f) {
+            D3D11_VIEWPORT vp = gfx_->GetCurrentViewport();
+            // Scaling uniform to fit viewport width (Assuming logic AR == Viewport AR)
+            float scaleX = vp.Width / logicalWidth_;
+            float scaleY = vp.Height / logicalHeight_;
+            
+            // Apply scale and translation to Viewport Origin
+            baseTransform_ = D2D1::Matrix3x2F::Scale(scaleX, scaleY) * 
+                             D2D1::Matrix3x2F::Translation(vp.TopLeftX, vp.TopLeftY);
+        }
+        d2dContext_->SetTransform(baseTransform_);
     }
 }
 
@@ -230,7 +244,7 @@ bool ImageSystem::Draw(const Params &p) {
     if (p.keepAspect && (src.right - src.left) > 0 && (src.bottom - src.top) > 0) {
         float sx = dstW / (src.right - src.left);
         float sy = dstH / (src.bottom - src.top);
-        float s = sx < sy ? sx : sy;
+        float s = (p.aspectFill) ? (sx > sy ? sx : sy) : (sx < sy ? sx : sy);
         dstW = (src.right - src.left) * s;
         dstH = (src.bottom - src.top) * s;
         x += (p.width - dstW) * 0.5f;
@@ -241,13 +255,13 @@ bool ImageSystem::Draw(const Params &p) {
     
     if (p.rotation != 0.0f) {
         D2D1_POINT_2F center = { (dest.left + dest.right) * 0.5f, (dest.top + dest.bottom) * 0.5f };
-        d2dContext_->SetTransform(D2D1::Matrix3x2F::Rotation(p.rotation, center));
+        d2dContext_->SetTransform(D2D1::Matrix3x2F::Rotation(p.rotation, center) * baseTransform_);
     }
 
     d2dContext_->DrawBitmap(bmp.Get(), &dest, p.opacity, D2D1_BITMAP_INTERPOLATION_MODE_LINEAR, &src);
 
     if (p.rotation != 0.0f) {
-        d2dContext_->SetTransform(D2D1::Matrix3x2F::Identity());
+        d2dContext_->SetTransform(baseTransform_);
     }
     return true;
 }

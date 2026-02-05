@@ -313,6 +313,18 @@ void GamepadSystem::UpdateXInput(int index) {
     updateButton(Button_DPad_Down, XINPUT_GAMEPAD_DPAD_DOWN);
     updateButton(Button_DPad_Left, XINPUT_GAMEPAD_DPAD_LEFT);
     updateButton(Button_DPad_Right, XINPUT_GAMEPAD_DPAD_RIGHT);
+    {
+        bool backDown = (buttons & XINPUT_GAMEPAD_BACK) != 0;
+        bool startDown = (buttons & XINPUT_GAMEPAD_START) != 0;
+        bool optionDown = startDown || backDown;
+        ButtonState prevState = static_cast<ButtonState>(pad.prevButtons[Button_Option]);
+        bool wasDown = (prevState == Down || prevState == Pressed);
+        if (optionDown) {
+            pad.buttons[Button_Option] = static_cast<uint8_t>(wasDown ? Pressed : Down);
+        } else {
+            pad.buttons[Button_Option] = static_cast<uint8_t>(wasDown ? Up : None);
+        }
+    }
 
     // スティック値を正規化してデッドゾーン適用
     float rawLeftX = static_cast<float>(state.Gamepad.sThumbLX) / 32767.0f;
@@ -434,10 +446,13 @@ void GamepadSystem::UpdateDInput(int index) {
     updateButton(Button_Y, 3);  // Triangle → Y
     updateButton(Button_LB, 4);
     updateButton(Button_RB, 5);
-    updateButton(Button_Back, 6);
-    updateButton(Button_Start, 7);
-    updateButton(Button_LS, 8);
-    updateButton(Button_RS, 9);
+    
+    // DirectInput Standard Mapping (PS4/PS5/Logitech)
+    // 8: Share/Back, 9: Options/Start, 10: L3, 11: R3
+    updateButton(Button_Back, 8);
+    updateButton(Button_Start, 9);
+    updateButton(Button_LS, 10);
+    updateButton(Button_RS, 11);
 
     // POV(十字キー)の処理
     bool dpadUp = false, dpadDown = false, dpadLeft = false, dpadRight = false;
@@ -464,6 +479,28 @@ void GamepadSystem::UpdateDInput(int index) {
     updateDPad(Button_DPad_Down, dpadDown);
     updateDPad(Button_DPad_Left, dpadLeft);
     updateDPad(Button_DPad_Right, dpadRight);
+
+    {
+        // 従来の6/7に加えて、標準的な8/9(Share/Option)、さらに12(PSボタン)もチェック
+        bool btn6 = (js.rgbButtons[6] & 0x80) != 0;
+        bool btn7 = (js.rgbButtons[7] & 0x80) != 0;
+        bool btn8 = (js.rgbButtons[8] & 0x80) != 0; // Share
+        bool btn9 = (js.rgbButtons[9] & 0x80) != 0; // Options
+        bool btn12 = (js.rgbButtons[12] & 0x80) != 0; // PS Button
+
+        bool backDown = btn6 || btn8;
+        bool startDown = btn7 || btn9;
+        
+        bool optionDown = startDown || backDown || btn12;
+
+        ButtonState prevState = static_cast<ButtonState>(pad.prevButtons[Button_Option]);
+        bool wasDown = (prevState == Down || prevState == Pressed);
+        if (optionDown) {
+            pad.buttons[Button_Option] = static_cast<uint8_t>(wasDown ? Pressed : Down);
+        } else {
+            pad.buttons[Button_Option] = static_cast<uint8_t>(wasDown ? Up : None);
+        }
+    }
 
     // スティック値を正規化(-1.0 ～ +1.0)
     // DirectInputの軸範囲:0～65535、中央値:32767

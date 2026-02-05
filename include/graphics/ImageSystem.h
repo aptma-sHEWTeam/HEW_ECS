@@ -28,6 +28,7 @@ public:
         float height = 100.0f;  ///< 描画高さ
         float opacity = 1.0f;   ///< 透明(0..1)
         bool keepAspect = true; ///< アスペクト維持
+        bool aspectFill = false; ///< アスペクト維持(Fill)
         // 追加: ソース矩形(ピクセル)指定(スプライトシート用)。-1/-1/-1/-1 で未指定
         float srcX = -1.0f;
         float srcY = -1.0f;
@@ -42,12 +43,22 @@ public:
     void Shutdown();
     bool IsInitialized() const { return initialized_; }
 
+    void SetLogicalSize(float w, float h) {
+        logicalWidth_ = w;
+        logicalHeight_ = h;
+    }
+
+    void OnResize() {
+        targetBitmap_.Reset();
+        if (d2dContext_) d2dContext_->SetTarget(nullptr);
+    }
+
     // 既存: ファイルパスで描画(ソース矩形対応)
     bool Draw(const Params &p);
 
     // 追加: TextureManagerのハンドルで描画(ソース矩形対応)
     bool Draw(TextureManager::TextureHandle handle, float x, float y, float width, float height, float opacity = 1.0f, bool keepAspect = true,
-              const D2D1_RECT_F *srcOverride = nullptr, float rotation = 0.0f) {
+              const D2D1_RECT_F *srcOverride = nullptr, float rotation = 0.0f, bool aspectFill = false) {
         if (!initialized_ || !d2dContext_) return false;
         if (handle == TextureManager::INVALID_TEXTURE) return false;
 
@@ -68,7 +79,7 @@ public:
         if (keepAspect) {
             float sx = width / (src.right - src.left);
             float sy = height / (src.bottom - src.top);
-            float s = sx < sy ? sx : sy;
+            float s = (aspectFill) ? (sx > sy ? sx : sy) : (sx < sy ? sx : sy);
             float dw = (src.right - src.left) * s;
             float dh = (src.bottom - src.top) * s;
             float ox = x + (width - dw) * 0.5f;
@@ -78,13 +89,13 @@ public:
 
         if (rotation != 0.0f) {
             D2D1_POINT_2F center = { (dst.left + dst.right) * 0.5f, (dst.top + dst.bottom) * 0.5f };
-            d2dContext_->SetTransform(D2D1::Matrix3x2F::Rotation(rotation, center));
+            d2dContext_->SetTransform(D2D1::Matrix3x2F::Rotation(rotation, center) * baseTransform_);
         }
 
         d2dContext_->DrawBitmap(bmp.Get(), &dst, opacity, D2D1_BITMAP_INTERPOLATION_MODE_LINEAR, &src);
 
         if (rotation != 0.0f) {
-            d2dContext_->SetTransform(D2D1::Matrix3x2F::Identity());
+            d2dContext_->SetTransform(baseTransform_);
         }
         return true;
     }
@@ -101,6 +112,9 @@ private:
 
     bool initialized_ = false;
     GfxDevice *gfx_ = nullptr;
+    float logicalWidth_ = 0.0f;
+    float logicalHeight_ = 0.0f;
+    D2D1_MATRIX_3X2_F baseTransform_ = D2D1::Matrix3x2F::Identity();
 
     void RefreshTargetBitmap();
     bool LoadBitmap(const std::wstring &filePath, Microsoft::WRL::ComPtr<ID2D1Bitmap1> &out);

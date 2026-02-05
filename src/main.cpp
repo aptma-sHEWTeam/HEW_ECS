@@ -59,6 +59,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE, LPSTR lpCmdLine, int) {
     // Configs
     static ConfigVar<int> cfg_WindowWidth{"App.Window", "Width", 1280};
     static ConfigVar<int> cfg_WindowHeight{"App.Window", "Height", 720};
+    static ConfigVar<bool> cfg_FullScreen{"App.Window", "FullScreen", true};
 
     // Check for bake argument
     std::string cmdLine = lpCmdLine;
@@ -72,7 +73,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE, LPSTR lpCmdLine, int) {
     App app;
 
     // 初期化
-    if (!app.Init(hInst, cfg_WindowWidth, cfg_WindowHeight)) {
+    if (!app.Init(hInst, cfg_WindowWidth, cfg_WindowHeight, cfg_FullScreen)) {
         MessageBoxA(nullptr, "Initialization failed!\nCheck DirectX 11 support.", "Error", MB_ICONERROR | MB_OK);
         return -1;
     }

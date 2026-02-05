@@ -221,12 +221,13 @@ struct App {
      * @param[in] hInst アプリケーションのインスタンスハンドル
      * @param[in] width ウィンドウの幅
      * @param[in] height ウィンドウの高さ
-     * @return bool 初期化が成功した場合は true, それ以外は false
+     * @param[in] fullscreen フルスクリーン起動するかどうか
+     * @return bool 初期化が成功した場合は true
      */
-    bool Init(HINSTANCE hInst, int width = 1080, int height = 720) {
+    bool Init(HINSTANCE hInst, int width = 1080, int height = 720, bool fullscreen = false) {
         DEBUGLOG("========================================");
         DEBUGLOG("App::Init() 開始");
-        DEBUGLOG("ウィンドウサイズ: " + std::to_string(width) + "x" + std::to_string(height));
+        DEBUGLOG("ウィンドウサイズ: " + std::to_string(width) + "x" + std::to_string(height) + " フルスクリーン: " + (fullscreen ? "Yes" : "No"));
 
         // ConfigManager を最初に初期化して config.toml を生成/読み込み
         // 実行フォルダ直下に Assets がある前提。無ければこの呼び出しだけで
@@ -245,12 +246,23 @@ struct App {
             return false;
         }
 
-        if (!CreateAppWindow(hInst, width, height)) {
+        if (!CreateAppWindow(hInst, width, height, fullscreen)) {
             DEBUGLOG("[ERROR] CreateAppWindow() 失敗");
             return false;
         }
 
-        if (!InitializeGraphics(width, height)) {
+        // ボーダーレスウィンドウの場合、実際のクライアントサイズ（画面全体）を取得してレンダリング解像度とする
+        RECT rcClient;
+        GetClientRect(hwnd_, &rcClient);
+        int realWidth = rcClient.right - rcClient.left;
+        int realHeight = rcClient.bottom - rcClient.top;
+        if (realWidth > 0 && realHeight > 0) {
+            width = realWidth;
+            height = realHeight;
+        }
+
+        // InitializeGraphicsには常にfullscreen=falseを渡す（DX11側はWindowedモードで初期化し、ウィンドウ側でボーダーレスにする）
+        if (!InitializeGraphics(width, height, false)) {
             DEBUGLOG("[ERROR] InitializeGraphics() 失敗");
             return false;
         }
@@ -667,9 +679,10 @@ struct App {
      * @param[in] hInst インスタンスハンドル
      * @param[in] width 幅
      * @param[in] height 高さ
+     * @param[in] fullscreen フルスクリーンかどうか
      * @return bool 成功した場合は true
      */
-    bool CreateAppWindow(HINSTANCE hInst, int width, int height) {
+    bool CreateAppWindow(HINSTANCE hInst, int width, int height, bool fullscreen) {
         DEBUGLOG("CreateAppWindow() 開始");
 
         WNDCLASSEX wc{sizeof(WNDCLASSEX)};
@@ -691,17 +704,33 @@ struct App {
         }
         DEBUGLOG("ウィンドウクラスを正常に登録");
 
-        RECT rc{0, 0, width, height};
-        AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
+        DWORD style = WS_OVERLAPPEDWINDOW;
+        int x = CW_USEDEFAULT;
+        int y = CW_USEDEFAULT;
+        int w = width;
+        int h = height;
 
-        DEBUGLOG("ウィンドウサイズを調整: " + std::to_string(rc.right - rc.left) + "x" + std::to_string(rc.bottom - rc.top));
+        if (fullscreen) {
+            style = WS_POPUP; // borderless
+            w = GetSystemMetrics(SM_CXSCREEN);
+            h = GetSystemMetrics(SM_CYSCREEN);
+            x = 0;
+            y = 0;
+            DEBUGLOG("ボーダーレスフルウィンドウ設定: " + std::to_string(w) + "x" + std::to_string(h));
+        } else {
+            RECT rc{0, 0, width, height};
+            AdjustWindowRect(&rc, style, FALSE);
+            w = rc.right - rc.left;
+            h = rc.bottom - rc.top;
+            DEBUGLOG("ウィンドウサイズを調整: " + std::to_string(w) + "x" + std::to_string(h));
+        }
 
         hwnd_ = CreateWindowW(
             wc.lpszClassName,
             L"Flip Escape",
-            WS_OVERLAPPEDWINDOW,
-            CW_USEDEFAULT, CW_USEDEFAULT,
-            rc.right - rc.left, rc.bottom - rc.top,
+            style,
+            x, y,
+            w, h,
             nullptr, nullptr, hInst, this);
 
         if (!hwnd_) {
@@ -724,12 +753,13 @@ struct App {
      * @brief グラフィックス関連の初期化
      * @param[in] width 幅
      * @param[in] height 高さ
+     * @param[in] fullscreen フルスクリーンかどうか
      * @return bool 成功した場合は true
      */
-    bool InitializeGraphics(int width, int height) {
+    bool InitializeGraphics(int width, int height, bool fullscreen) {
         DEBUGLOG("InitializeGraphics() 開始");
 
-        if (!gfx_.Init(hwnd_, width, height)) {
+        if (!gfx_.Init(hwnd_, width, height, fullscreen)) {
             DEBUGLOG("[CRITICAL ERROR] GfxDevice::Init() 失敗");
             MessageBoxA(nullptr, "DirectX11の初期化に失敗", "エラー", MB_OK | MB_ICONERROR);
             return false;
@@ -1017,6 +1047,29 @@ struct App {
             case WM_DESTROY:
                 DEBUGLOG_CATEGORY(DebugLog::Category::System, "WM_DESTROYを受信 - 終了メッセージを投稿");
                 PostQuitMessage(0);
+                return 0;
+
+            case WM_SIZE:
+                if (wp != SIZE_MINIMIZED && gfx_.Width() > 0) { // Only resize if initialized
+                   int width = LOWORD(lp);
+                   int height = HIWORD(lp);
+                   if (width > 0 && height > 0) {
+                      // First notify scenes to release D2D targets
+                      sceneManager_.OnResize(width, height);
+
+                      // Then resize D3D buffers
+                      gfx_.Resize(width, height);
+                      
+                      // Also update camera aspect ratio since we are letterboxing?
+                      // Actually, if we are strictly letterboxing to 16:9, the Aspect Ratio of the Viewport REMAINS 16:9.
+                      // So we DON'T need to update the camera aspect ratio if we want to keep the same FOV/View.
+                      // If we were resizing the view to match the window AR, we would need to update.
+                      // BUT, GfxDevice::BeginFrame calculates viewport to be 16:9.
+                      // So Camera Aspect Ratio should remain fixed at 16:9?
+                      // SetupCamera() uses (width/height). 
+                      // If we resize, we should probably re-run logic that depends on effective resolution if any.
+                   }
+                }
                 return 0;
 
             case WM_MOUSEWHEEL:

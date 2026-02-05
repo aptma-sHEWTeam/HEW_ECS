@@ -115,6 +115,16 @@ class TextSystem {
      */
     bool Init(GfxDevice &gfx);
 
+    void SetLogicalSize(float w, float h) {
+        logicalWidth_ = w;
+        logicalHeight_ = h;
+    }
+
+    void OnResize() {
+        targetBitmap_.Reset();
+        if (d2dContext_) d2dContext_->SetTarget(nullptr);
+    }
+
     /**
      * @brief テキストフォーマットを作成
      * @param[in] id フォーマットID
@@ -202,6 +212,9 @@ class TextSystem {
 
     bool initialized_ = false;
     GfxDevice *gfx_ = nullptr;
+    float logicalWidth_ = 0.0f;
+    float logicalHeight_ = 0.0f;
+    D2D1_MATRIX_3X2_F baseTransform_ = D2D1::Matrix3x2F::Identity();
 
     ID2D1SolidColorBrush *GetOrCreateBrush(const DirectX::XMFLOAT4 &color);
     ID2D1BitmapBrush *GetOrCreateBitmapBrush(const std::wstring &filePath);

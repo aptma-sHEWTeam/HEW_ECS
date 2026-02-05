@@ -281,6 +281,11 @@ class StageSelectScene : public IScene {
             ms[worldNumber_ - 1].Stage_Num = maxStage_;
         }
     }
+    
+    void OnResize(uint32_t width, uint32_t height) override {
+        textSystem_.OnResize();
+        imageSystem_.OnResize();
+    }
 
     void OnEnter(World &world) override {
         Entity dirLightEntity = world.Create().With<DirectionalLight>().Build();
@@ -323,8 +328,11 @@ class StageSelectScene : public IScene {
             return;
         }
 
-        float screenWidth = static_cast<float>(gfx->Width());
-        float screenHeight = static_cast<float>(gfx->Height());
+        float screenWidth = 1280.0f;
+        float screenHeight = 720.0f;
+
+        textSystem_.SetLogicalSize(screenWidth, screenHeight);
+        imageSystem_.SetLogicalSize(screenWidth, screenHeight);
 
         RefreshMaxStage();
 
@@ -386,7 +394,7 @@ class StageSelectScene : public IScene {
 
         camera_ = Camera::LookAtLH(
             baseFovY_,
-            screenWidth / screenHeight,
+            16.0f / 9.0f, // Fixed aspect for letterboxing
             cameraNear_,
             cameraFar_,
             cameraPosition_,
@@ -773,6 +781,9 @@ class StageSelectScene : public IScene {
 
     void OnRender(World &world) override {
         auto &renderer = ServiceLocator::Get<RenderSystem>();
+        
+        float screenWidth = 1280.0f;
+        float screenHeight = 720.0f;
 
         // トランジション中のオフセット値を取得
         float transitionOffset = 0.0f;
@@ -866,8 +877,7 @@ class StageSelectScene : public IScene {
 
         // UI描画時にもオフセットを適用
         auto *gfx = ServiceLocator::TryGet<GfxDevice>();
-        float screenWidth = gfx ? static_cast<float>(gfx->Width()) : 1280.0f;
-        float screenHeight = gfx ? static_cast<float>(gfx->Height()) : 720.0f;
+        // screenWidth/screenHeight already defined at top of function as 1280/720
         float uiOffsetX = -transitionOffset * screenWidth;
 
         SceneManager *manager = ServiceLocator::TryGet<SceneManager>();

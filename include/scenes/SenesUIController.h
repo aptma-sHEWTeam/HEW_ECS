@@ -40,6 +40,7 @@ struct GameUIUpdater : Behaviour {
     Entity pauseRetryButtonEntity_;
     Entity pauseTitleButtonEntity_;
     Entity pauseStageSelectButtonEntity_;
+    Entity pauseOptionsButtonEntity_;
     Entity pauseQuitButtonEntity_;
 
     DirectX::XMFLOAT2 pauseMenuButtonSize_{360.0f, 60.0f};
@@ -201,6 +202,7 @@ struct GameUIUpdater : Behaviour {
             setButtonVisible(pauseRetryButtonEntity_, showPauseMenu);
             setButtonVisible(pauseTitleButtonEntity_, showPauseMenu);
             setButtonVisible(pauseStageSelectButtonEntity_, showPauseMenu);
+            setButtonVisible(pauseOptionsButtonEntity_, showPauseMenu);
             setButtonVisible(pauseQuitButtonEntity_, showPauseMenu);
         });
 

@@ -546,6 +546,18 @@ void TextSystem::BeginDraw() {
             RefreshTargetBitmap();
         }
         d2dContext_->BeginDraw();
+
+        // Calculate and apply scaling if logical size is set
+        baseTransform_ = D2D1::Matrix3x2F::Identity();
+        if (gfx_ && logicalWidth_ > 0.0f && logicalHeight_ > 0.0f) {
+            D3D11_VIEWPORT vp = gfx_->GetCurrentViewport();
+            float scaleX = vp.Width / logicalWidth_;
+            float scaleY = vp.Height / logicalHeight_;
+            
+            baseTransform_ = D2D1::Matrix3x2F::Scale(scaleX, scaleY) * 
+                             D2D1::Matrix3x2F::Translation(vp.TopLeftX, vp.TopLeftY);
+        }
+        d2dContext_->SetTransform(baseTransform_);
     }
 }
 

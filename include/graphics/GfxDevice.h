@@ -63,14 +63,10 @@ public:
      * @param[in] hwnd ウィンドウハンドル
      * @param[in] w 幅(ピクセル単位)
      * @param[in] h 高さ(ピクセル単位)
+     * @param[in] fullscreen フルスクリーンかどうか
      * @return bool 初期化が成功した場合は true
-     *
-     * @details
-     * DirectX11デバイス、スワップチェイン、レンダーターゲット、
-     * 深度バッファを作成します。
-     * デバッグビルドではデバッグレイヤーが有効になります。
      */
-    bool Init(HWND hwnd, uint32_t w, uint32_t h) {
+    bool Init(HWND hwnd, uint32_t w, uint32_t h, bool fullscreen) {
         width_ = w;
         height_ = h;
         isShutdown_ = false;
@@ -84,7 +80,7 @@ public:
         sd.OutputWindow = hwnd;
         sd.SampleDesc.Count = 1; // SwapChain自体はMSAAなし
         sd.SampleDesc.Quality = 0;
-        sd.Windowed = TRUE;
+        sd.Windowed = fullscreen ? FALSE : TRUE;
         sd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD; // FLIP_DISCARD
 
         UINT flags = 0;
@@ -124,38 +120,78 @@ public:
      * @param[in] b 青成分
      * @param[in] a アルファ成分
      */
-    void BeginFrame(float r = 0.1f, float g = 0.1f, float b = 0.12f, float a = 1.0f) {
+    void BeginFrame(float r = 0.0f, float g = 0.0f, float b = 0.0f, float a = 1.0f) {
         msaaResolved_ = false;
 
-        float c[4] = { r, g, b, a };
+        // Clear full window to black (or specified color for bars)
+        float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f }; // Always black bars
         context_->OMSetRenderTargets(1, rtv_.GetAddressOf(), dsv_.Get());
-        context_->ClearRenderTargetView(rtv_.Get(), c);
+        context_->ClearRenderTargetView(rtv_.Get(), clearColor);
         context_->ClearDepthStencilView(dsv_.Get(), D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
 
-        D3D11_VIEWPORT vp{};
-        vp.Width = static_cast<FLOAT>(width_);
-        vp.Height = static_cast<FLOAT>(height_);
-        vp.MinDepth = 0.0f;
-        vp.MaxDepth = 1.0f;
-        vp.TopLeftX = 0;
-        vp.TopLeftY = 0;
-        context_->RSSetViewports(1, &vp);
+        // Calculate 16:9 Aspect Ratio Viewport
+        float targetAspect = 16.0f / 9.0f;
+        float windowAspect = static_cast<float>(width_) / static_cast<float>(height_);
+
+        if (windowAspect > targetAspect) {
+            // Window is wider than 16:9 (Pillarbox)
+            viewport_.Height = static_cast<float>(height_);
+            viewport_.Width = viewport_.Height * targetAspect;
+            viewport_.TopLeftX = (width_ - viewport_.Width) / 2.0f;
+            viewport_.TopLeftY = 0.0f;
+        } else {
+            // Window is narrower than 16:9 (Letterbox)
+            viewport_.Width = static_cast<float>(width_);
+            viewport_.Height = viewport_.Width / targetAspect;
+            viewport_.TopLeftX = 0.0f;
+            viewport_.TopLeftY = (height_ - viewport_.Height) / 2.0f;
+        }
+        viewport_.MinDepth = 0.0f;
+        viewport_.MaxDepth = 1.0f;
+
+        // Clear the game area with the requested color (optional, but typical for "scene background")
+        // Since we already cleared everything to black, we might want to clear the viewport area 
+        // to the requested color if it is different from black. 
+        // But ClearRenderTargetView clears the whole RT. We can't clear just a rect comfortably here without extensive setup.
+        // Assuming the game draws a skybox or background, so the "black" clear is fine for the background.
+        // If 'r,g,b' was meant to be the background color of the scene, it won't be applied to just the viewport here easily.
+        // However, we MUST set the viewport for rendering.
+        context_->RSSetViewports(1, &viewport_);
     }
+
+    void Resize(uint32_t w, uint32_t h) {
+        if (width_ == w && height_ == h) return;
+        width_ = w;
+        height_ = h;
+
+        if (context_) {
+            context_->OMSetRenderTargets(0, nullptr, nullptr);
+            rtv_.Reset();
+            dsv_.Reset();
+            backBufferTex_.Reset();
+            msaaTex_.Reset();
+            
+            context_->Flush();
+        }
+
+        if (swap_) {
+            HRESULT hr = swap_->ResizeBuffers(0, w, h, DXGI_FORMAT_UNKNOWN, 0);
+            if (FAILED(hr)) {
+                DEBUGLOG_ERROR("Failed to resize swap chain buffers");
+                return;
+            }
+            createBackbufferResources();
+        }
+    }
+
+    D3D11_VIEWPORT GetViewport() const { return viewport_; }
 
     /**
      * @brief バックバッファへの描画を復元
      */
     void RestoreBackBuffer() {
         context_->OMSetRenderTargets(1, rtv_.GetAddressOf(), dsv_.Get());
-
-        D3D11_VIEWPORT vp{};
-        vp.Width = static_cast<FLOAT>(width_);
-        vp.Height = static_cast<FLOAT>(height_);
-        vp.MinDepth = 0.0f;
-        vp.MaxDepth = 1.0f;
-        vp.TopLeftX = 0;
-        vp.TopLeftY = 0;
-        context_->RSSetViewports(1, &vp);
+        context_->RSSetViewports(1, &viewport_);
     }
 
     /**
@@ -186,7 +222,9 @@ public:
         if (!msaaResolved_) {
             Resolve();
         }
-        swap_->Present(0, 0);
+        // Present interval: if VSync is desired, use 1, else 0.
+        // Assuming 1 for now or 0 depending on prefs. Original code sent 0,0.
+        swap_->Present(1, 0); 
     }
 
     ID3D11Device* Dev() const { return device_.Get(); }
@@ -194,6 +232,7 @@ public:
     uint32_t Width() const { return width_; }
     uint32_t Height() const { return height_; }
     IDXGISwapChain* GetSwapChain() const { return swap_.Get(); }
+    D3D11_VIEWPORT GetCurrentViewport() const { return viewport_; }
 
     void Shutdown() {
         if (isShutdown_) return;
@@ -250,7 +289,7 @@ private:
             msaaEnabled_ = false;
             sampleCount = 1;
             msaaQuality = 0;
-            DEBUGLOG_WARNING("MSAA 4x not supported. Falling back to 1x.");
+            // DEBUGLOG_WARNING("MSAA 4x not supported. Falling back to 1x.");
         }
 
         // 3. レンダーターゲットビュー(RTV)の作成
@@ -319,7 +358,6 @@ private:
     }
 
     void logEnvironment(D3D_FEATURE_LEVEL fl, const DXGI_SWAP_CHAIN_DESC& sd) {
-        // ... (Existing logs omitted for brevity, keeping it simple as before)
         DEBUGLOG(std::string("MSAA: ") + (msaaEnabled_ ? "Enabled (4x)" : "Disabled"));
     }
 
@@ -341,6 +379,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D11Texture2D> backBufferTex_; ///< SwapChain BackBuffer (Resolve先)
     bool msaaEnabled_ = false;                              ///< MSAA有効フラグ
     bool msaaResolved_ = false;                             ///< フレーム内でResolve済みか
+    D3D11_VIEWPORT viewport_{};                             ///< Current Viewport
 
     bool isShutdown_ = false;
 };

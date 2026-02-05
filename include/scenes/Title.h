@@ -174,8 +174,11 @@ class TitleScene : public IScene {
             DEBUGLOG_ERROR("[TitleScene] Failed to init RenderSystem");
         }
 
-        float screenWidth = static_cast<float>(gfx->Width());
-        float screenHeight = static_cast<float>(gfx->Height());
+        // 論理サイズを設定 (Design Resolution: 1280x720)
+        float screenWidth = 1280.0f;
+        float screenHeight = 720.0f;
+        textSystem_.SetLogicalSize(screenWidth, screenHeight);
+        imageSystem_.SetLogicalSize(screenWidth, screenHeight);
 
         // UICanvas & Systems
         Entity canvas = world.Create().With<UICanvas>().With<SceneOwnedTag>().Build();
@@ -210,7 +213,8 @@ class TitleScene : public IScene {
         CreateTitleSelectUI(world);
        
         //カメラの詳細設定
-        float aspect = static_cast<float>(gfx->Width()) / gfx->Height();
+        // Viewport is letterboxed to 16:9, so Camera must use 16:9 aspect regardless of window size
+        float aspect = 16.0f / 9.0f;
         camera_ = Camera::LookAtLH(
             DirectX::XM_PIDIV4, aspect, 0.1f, 10000.0f,
             {-2, 1, -3}, {0, 0, 1}, {0, 2, 0});
@@ -784,6 +788,12 @@ class TitleScene : public IScene {
         }
 
         SOUND_SYS.PlayBGM(cfg_TitleMP3Pass);
+    }
+    
+    void OnResize(uint32_t width, uint32_t height) override {
+        // 現在の論理サイズを維持するため、ここではSetLogicalSizeせずリソースリセットのみ
+        textSystem_.OnResize();
+        imageSystem_.OnResize();
     }
 
     void OnExit(World &world) override {

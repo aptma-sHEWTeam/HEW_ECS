@@ -45,6 +45,7 @@ class IScene {
     virtual void OnUpdate(World &world, InputSystem &input, float deltaTime) = 0;
     virtual void OnRender(World &world) {} // デフォルト空実装
     virtual void OnExit(World &world) = 0;
+    virtual void OnResize(uint32_t width, uint32_t height) {} // Optional
 
     virtual bool ShouldChangeScene() const {
         return false;
@@ -60,7 +61,16 @@ class IScene {
  */
 class SceneManager {
   public:
-    // 遷移設定
+    // ... (Existing code) ...
+
+    /**
+     * @brief ウィンドウリサイズ通知
+     */
+    void OnResize(uint32_t width, uint32_t height) {
+        if (currentScene_) {
+            currentScene_->OnResize(width, height);
+        }
+    }
     static constexpr float TRANSITION_DURATION = 0.8f; // スライドアウト/インの合計時間（演出確認用に長め）
     static constexpr float SCREEN_WIDTH_FACTOR = 1.2f; // スライドする距離（1.0 = 画面幅）
     /**
