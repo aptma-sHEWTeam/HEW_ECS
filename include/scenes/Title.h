@@ -89,7 +89,7 @@ class TitleScene : public IScene {
     inline static ConfigVar<float> cfg_WindowRotY{"Title.Window", "RotY", 90.0f, "タイトル: Window 回転Y"};
     inline static ConfigVar<float> cfg_WindowRotZ{"Title.Window", "RotZ", 0.0f, "タイトル: Window 回転Z"};
 
-    inline static ConfigVar<float> cfg_PlayerPosX{"Title.Player", "PosX", 0.95f, "タイトル: Player 位置X"};
+    inline static ConfigVar<float> cfg_PlayerPosX{"Title.Player", "PosX", 0.8f, "タイトル: Player 位置X"};
     inline static ConfigVar<float> cfg_PlayerPosY{"Title.Player", "PosY", -0.5f, "タイトル: Player 位置Y"};
     inline static ConfigVar<float> cfg_PlayerPosZ{"Title.Player", "PosZ", -1.1f, "タイトル: Player 位置Z"};
     inline static ConfigVar<float> cfg_PlayerScaleX{"Title.Player", "ScaleX", 1.2f, "タイトル: Player スケールX"};
@@ -102,7 +102,7 @@ class TitleScene : public IScene {
     inline static ConfigVar<std::string> cfg_SkyboxTexturePath{"Title.Skybox", "TexturePath", "Assets/Textures/Skybox/Sky_Box.png", "タイトル: Skybox テクスチャパス"};
     inline static ConfigVar<float> cfg_SkyboxScale{"Title.Skybox", "Scale", 200.0f, "タイトル: Skybox スケール"};
     inline static ConfigVar<float> cfg_SkyboxSpeed{"Skybox", "Speed", 0.05f, "スカイボックスの回転速度(rad/sec)"};
-    inline static ConfigVar<float> cfg_CameraBobAmplitude{"Title.Camera", "BobAmplitude", 0.2f, "Title: Camera bob amplitude"};
+    inline static ConfigVar<float> cfg_CameraBobAmplitude{"Title.Camera", "BobAmplitude", 0.1f, "Title: Camera bob amplitude"};
     inline static ConfigVar<float> cfg_CameraBobSpeed{"Title.Camera", "BobSpeed", 1.0f, "Title: Camera bob speed (rad/sec)"};
 
     // 壁見た目
@@ -217,7 +217,7 @@ class TitleScene : public IScene {
         float aspect = 16.0f / 9.0f;
         camera_ = Camera::LookAtLH(
             DirectX::XM_PIDIV4, aspect, 0.1f, 10000.0f,
-            {-2, 1, -3}, {0, 0, 1}, {0, 2, 0});
+            {-2, 0.9, -3}, {0, 0.1, 1}, {0, 2, 0});
         cameraBobPhase_ = 0.0f;
         cameraBobOffsetY_ = 0.0f;
 
