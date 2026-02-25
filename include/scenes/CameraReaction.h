@@ -52,6 +52,43 @@ inline ConfigVar<float> cfg_WallHitShakeIntensity{"Camera.Reaction.WallHit", "Wa
 inline ConfigVar<float> cfg_WallHitShakeDuration{"Camera.Reaction.WallHit", "WallHitShakeDuration", 0.3f, "壁に衝突したときのカメラシェイク継続時間"};
 /** @brief 壁衝突後、プレイヤーがリスポーンするまでの遅延時間 */
 inline ConfigVar<float> cfg_WallHitRespawnDelay{"Camera.Reaction.WallHit", "WallHitRespawnDelay", 1.0f, "壁衝突後にプレイヤーをリスポーンさせるまでの遅延時間"};
+/** @brief 壁衝突時色収差強度 */
+inline ConfigVar<float> cfg_WallHitChromaticIntensity{"Camera.Reaction.WallHit", "WallHitChromaticIntensity", 0.130f, "壁衝突時色収差強度"};
+/** @brief 壁衝突時色収差継続時間 */
+inline ConfigVar<float> cfg_WallHitChromaticDuration{"Camera.Reaction.WallHit", "WallHitChromaticDuration", 0.120f, "壁衝突時色収差継続時間"};
+/** @brief 壁衝突時色収差UVオフセット量 */
+inline ConfigVar<float> cfg_WallHitChromaticSampleOffset{"Camera.Reaction.WallHit", "WallHitChromaticSampleOffset", 0.0052f, "壁衝突時色収差UVオフセット量"};
+/** @brief 壁衝突時色収差の半径倍率 */
+inline ConfigVar<float> cfg_WallHitChromaticRadialScale{"Camera.Reaction.WallHit", "WallHitChromaticRadialScale", 1.25f, "壁衝突時色収差の半径倍率"};
+/** @brief 壁衝突時インパルス強度 */
+inline ConfigVar<float> cfg_WallHitImpulseIntensity{"Camera.Reaction.WallHit", "WallHitImpulseIntensity", 0.260f, "壁衝突時インパルス強度"};
+/** @brief 壁衝突時インパルス継続時間 */
+inline ConfigVar<float> cfg_WallHitImpulseDuration{"Camera.Reaction.WallHit", "WallHitImpulseDuration", 0.070f, "壁衝突時インパルス継続時間"};
+/** @brief 壁衝突時振動強度 */
+inline ConfigVar<float> cfg_WallHitRumbleStrength{"Camera.Reaction.WallHit", "WallHitRumbleStrength", 0.850f, "壁衝突時振動強度"};
+/** @brief 壁衝突時振動継続時間 */
+inline ConfigVar<float> cfg_WallHitRumbleDuration{"Camera.Reaction.WallHit", "WallHitRumbleDuration", 0.280f, "壁衝突時振動継続時間"};
+
+/** @brief タイムアップ時シェイク強度 */
+inline ConfigVar<float> cfg_TimeUpShakeIntensity{"Camera.Reaction.TimeUp", "ShakeIntensity", 0.420f, "タイムアップ時シェイク強度"};
+/** @brief タイムアップ時シェイク継続時間 */
+inline ConfigVar<float> cfg_TimeUpShakeDuration{"Camera.Reaction.TimeUp", "ShakeDuration", 0.320f, "タイムアップ時シェイク継続時間"};
+/** @brief タイムアップ時色収差強度 */
+inline ConfigVar<float> cfg_TimeUpChromaticIntensity{"Camera.Reaction.TimeUp", "ChromaticIntensity", 0.180f, "タイムアップ時色収差強度"};
+/** @brief タイムアップ時色収差継続時間 */
+inline ConfigVar<float> cfg_TimeUpChromaticDuration{"Camera.Reaction.TimeUp", "ChromaticDuration", 0.180f, "タイムアップ時色収差継続時間"};
+/** @brief タイムアップ時色収差UVオフセット量 */
+inline ConfigVar<float> cfg_TimeUpChromaticSampleOffset{"Camera.Reaction.TimeUp", "ChromaticSampleOffset", 0.0060f, "タイムアップ時色収差UVオフセット量"};
+/** @brief タイムアップ時色収差の半径倍率 */
+inline ConfigVar<float> cfg_TimeUpChromaticRadialScale{"Camera.Reaction.TimeUp", "ChromaticRadialScale", 1.35f, "タイムアップ時色収差の半径倍率"};
+/** @brief タイムアップ時インパルス強度 */
+inline ConfigVar<float> cfg_TimeUpImpulseIntensity{"Camera.Reaction.TimeUp", "ImpulseIntensity", 0.180f, "タイムアップ時インパルス強度"};
+/** @brief タイムアップ時インパルス継続時間 */
+inline ConfigVar<float> cfg_TimeUpImpulseDuration{"Camera.Reaction.TimeUp", "ImpulseDuration", 0.100f, "タイムアップ時インパルス継続時間"};
+/** @brief タイムアップ時振動強度 */
+inline ConfigVar<float> cfg_TimeUpRumbleStrength{"Camera.Reaction.TimeUp", "RumbleStrength", 0.700f, "タイムアップ時振動強度"};
+/** @brief タイムアップ時振動継続時間 */
+inline ConfigVar<float> cfg_TimeUpRumbleDuration{"Camera.Reaction.TimeUp", "RumbleDuration", 0.320f, "タイムアップ時振動継続時間"};
 
 /** @brief チャージ解放時シェイクの基本強度 */
 inline ConfigVar<float> cfg_ChargeReleaseShakeBaseIntensity{"Camera.Reaction.ChargeRelease", "ShakeBaseIntensity", 0.03f, "チャージ解放時シェイクの基本強度"};
@@ -59,6 +96,14 @@ inline ConfigVar<float> cfg_ChargeReleaseShakeBaseIntensity{"Camera.Reaction.Cha
 inline ConfigVar<float> cfg_ChargeReleaseShakeChargeScale{"Camera.Reaction.ChargeRelease", "ShakeChargeScale", 0.12f, "チャージ量に応じて加算するシェイク強度"};
 /** @brief チャージ解放時シェイクの継続時間 */
 inline ConfigVar<float> cfg_ChargeReleaseShakeDuration{"Camera.Reaction.ChargeRelease", "ShakeDuration", 0.25f, "チャージ解放時シェイクの継続時間"};
+/** @brief チャージ解放時ズームの基本量 */
+inline ConfigVar<float> cfg_ChargeReleaseZoomBaseAmount{"Camera.Reaction.ChargeRelease", "ZoomBaseAmount", 0.020f, "チャージ解放時ズームの基本量"};
+/** @brief チャージ量に応じて加算するズーム量 */
+inline ConfigVar<float> cfg_ChargeReleaseZoomChargeScale{"Camera.Reaction.ChargeRelease", "ZoomChargeScale", 0.080f, "チャージ量に応じて加算するズーム量"};
+/** @brief チャージ解放時ズーム量の上限 */
+inline ConfigVar<float> cfg_ChargeReleaseZoomMaxAmount{"Camera.Reaction.ChargeRelease", "ZoomMaxAmount", 0.120f, "チャージ解放時ズーム量の上限"};
+/** @brief チャージ解放時ズーム継続時間 */
+inline ConfigVar<float> cfg_ChargeReleaseZoomDuration{"Camera.Reaction.ChargeRelease", "ZoomDuration", 0.140f, "チャージ解放時ズーム継続時間"};
 /** @brief チャージ解放時に色収差を有効化するフラグ */
 inline ConfigVar<bool> cfg_ChargeReleaseChromaticEnabled{"Camera.Reaction.ChargeRelease", "ChromaticEnabled", true, "チャージ解放時に色収差を有効化する"};
 /** @brief チャージ解放時色収差の基本強度 */
@@ -73,6 +118,18 @@ inline ConfigVar<float> cfg_ChargeReleaseChromaticDuration{"Camera.Reaction.Char
 inline ConfigVar<float> cfg_ChargeReleaseChromaticSampleOffset{"Camera.Reaction.ChargeRelease", "ChromaticSampleOffset", 0.006f, "色収差のUVオフセット量"};
 /** @brief 画面中心から離れるほど強める倍率 */
 inline ConfigVar<float> cfg_ChargeReleaseChromaticRadialScale{"Camera.Reaction.ChargeRelease", "ChromaticRadialScale", 1.5f, "画面中心から離れるほど強める倍率"};
+/** @brief チャージ解放時インパルスの基本強度 */
+inline ConfigVar<float> cfg_ChargeReleaseImpulseBaseIntensity{"Camera.Reaction.ChargeRelease", "ImpulseBaseIntensity", 0.060f, "チャージ解放時インパルスの基本強度"};
+/** @brief チャージ量に応じて加算するインパルス強度 */
+inline ConfigVar<float> cfg_ChargeReleaseImpulseChargeScale{"Camera.Reaction.ChargeRelease", "ImpulseChargeScale", 0.140f, "チャージ量に応じて加算するインパルス強度"};
+/** @brief チャージ解放時インパルス継続時間 */
+inline ConfigVar<float> cfg_ChargeReleaseImpulseDuration{"Camera.Reaction.ChargeRelease", "ImpulseDuration", 0.090f, "チャージ解放時インパルス継続時間"};
+/** @brief チャージ解放時の振動最小強度 */
+inline ConfigVar<float> cfg_ChargeReleaseRumbleMin{"Camera.Reaction.ChargeRelease", "RumbleMin", 0.250f, "チャージ解放時の振動最小強度"};
+/** @brief チャージ解放時の振動最大強度 */
+inline ConfigVar<float> cfg_ChargeReleaseRumbleMax{"Camera.Reaction.ChargeRelease", "RumbleMax", 0.950f, "チャージ解放時の振動最大強度"};
+/** @brief チャージ解放時の振動継続時間 */
+inline ConfigVar<float> cfg_ChargeReleaseRumbleDuration{"Camera.Reaction.ChargeRelease", "RumbleDuration", 0.220f, "チャージ解放時の振動継続時間"};
 
 /** @brief ブースト開始時演出の有効フラグ */
 inline ConfigVar<bool> cfg_BoostBurstEnabled{"Camera.Reaction.BoostBurst", "Enabled", true, "ブースト開始時の演出を有効化する"};
@@ -149,9 +206,9 @@ inline ConfigVar<float> cfg_CollisionMaxConcurrentZoom{"Camera.Reaction.Collisio
 /** @brief ゴール吸引開始時演出の有効フラグ */
 inline ConfigVar<bool> cfg_GoalInFxEnabled{"Camera.Reaction.GoalIn", "Enabled", true, "ゴール吸引開始時演出を有効化する"};
 /** @brief ゴール吸引開始時ズーム量 */
-inline ConfigVar<float> cfg_GoalInZoomAmount{"Camera.Reaction.GoalIn", "ZoomAmount", 0.12f, "ゴール吸引開始時ズーム量"};
+inline ConfigVar<float> cfg_GoalInZoomAmount{"Camera.Reaction.GoalIn", "ZoomAmount", 0.06f, "ゴール吸引開始時ズーム量"};
 /** @brief ゴール吸引開始時ズーム継続時間 */
-inline ConfigVar<float> cfg_GoalInZoomDuration{"Camera.Reaction.GoalIn", "ZoomDuration", 0.18f, "ゴール吸引開始時ズーム継続時間"};
+inline ConfigVar<float> cfg_GoalInZoomDuration{"Camera.Reaction.GoalIn", "ZoomDuration", 0.32f, "ゴール吸引開始時ズーム継続時間"};
 /** @brief ゴール吸引開始時色収差強度 */
 inline ConfigVar<float> cfg_GoalInChromaticIntensity{"Camera.Reaction.GoalIn", "ChromaticIntensity", 0.09f, "ゴール吸引開始時色収差強度"};
 /** @brief ゴール吸引開始時色収差継続時間 */
@@ -160,20 +217,24 @@ inline ConfigVar<float> cfg_GoalInChromaticDuration{"Camera.Reaction.GoalIn", "C
 inline ConfigVar<float> cfg_GoalInChromaticSampleOffset{"Camera.Reaction.GoalIn", "ChromaticSampleOffset", 0.0048f, "ゴール吸引開始時色収差UVオフセット量"};
 /** @brief ゴール吸引開始時色収差の半径倍率 */
 inline ConfigVar<float> cfg_GoalInChromaticRadialScale{"Camera.Reaction.GoalIn", "ChromaticRadialScale", 1.25f, "ゴール吸引開始時色収差の半径倍率"};
+/** @brief ゴール吸引開始時振動強度 */
+inline ConfigVar<float> cfg_GoalInRumbleStrength{"Camera.Reaction.GoalIn", "RumbleStrength", 0.350f, "ゴール吸引開始時振動強度"};
+/** @brief ゴール吸引開始時振動継続時間 */
+inline ConfigVar<float> cfg_GoalInRumbleDuration{"Camera.Reaction.GoalIn", "RumbleDuration", 0.240f, "ゴール吸引開始時振動継続時間"};
 /** @brief ゴール吸引中にプレイヤーへ寄るカメラ演出を有効化する */
 inline ConfigVar<bool> cfg_GoalInPlayerCameraEnabled{"Camera.Reaction.GoalIn", "PlayerCameraEnabled", true, "ゴール吸引中にプレイヤーへ寄るカメラ演出を有効化する"};
 /** @brief ゴール吸引中カメラのXオフセット */
 inline ConfigVar<float> cfg_GoalInPlayerCameraOffsetX{"Camera.Reaction.GoalIn", "PlayerCameraOffsetX", 0.0f, "ゴール吸引中カメラのXオフセット"};
 /** @brief ゴール吸引中カメラのYオフセット */
-inline ConfigVar<float> cfg_GoalInPlayerCameraOffsetY{"Camera.Reaction.GoalIn", "PlayerCameraOffsetY", 3.8f, "ゴール吸引中カメラのYオフセット"};
+inline ConfigVar<float> cfg_GoalInPlayerCameraOffsetY{"Camera.Reaction.GoalIn", "PlayerCameraOffsetY", 4.8f, "ゴール吸引中カメラのYオフセット"};
 /** @brief ゴール吸引中カメラのZオフセット */
-inline ConfigVar<float> cfg_GoalInPlayerCameraOffsetZ{"Camera.Reaction.GoalIn", "PlayerCameraOffsetZ", -1.0f, "ゴール吸引中カメラのZオフセット"};
+inline ConfigVar<float> cfg_GoalInPlayerCameraOffsetZ{"Camera.Reaction.GoalIn", "PlayerCameraOffsetZ", -1.8f, "ゴール吸引中カメラのZオフセット"};
 /** @brief ゴール吸引中カメラの注視点Y補正 */
 inline ConfigVar<float> cfg_GoalInPlayerCameraLookAtYOffset{"Camera.Reaction.GoalIn", "PlayerCameraLookAtYOffset", 1.0f, "ゴール吸引中カメラの注視点Y補正"};
 /** @brief ゴール吸引中カメラFOV(度) */
-inline ConfigVar<float> cfg_GoalInPlayerCameraFovDegrees{"Camera.Reaction.GoalIn", "PlayerCameraFovDegrees", 14.0f, "ゴール吸引中カメラFOV(度)"};
+inline ConfigVar<float> cfg_GoalInPlayerCameraFovDegrees{"Camera.Reaction.GoalIn", "PlayerCameraFovDegrees", 20.0f, "ゴール吸引中カメラFOV(度)"};
 /** @brief ゴール吸引中カメラの補間速度 */
-inline ConfigVar<float> cfg_GoalInPlayerCameraBlendSpeed{"Camera.Reaction.GoalIn", "PlayerCameraBlendSpeed", 12.0f, "ゴール吸引中カメラの補間速度"};
+inline ConfigVar<float> cfg_GoalInPlayerCameraBlendSpeed{"Camera.Reaction.GoalIn", "PlayerCameraBlendSpeed", 4.5f, "ゴール吸引中カメラの補間速度"};
 
 /** @brief スクリーンFXディレクター有効フラグ */
 inline ConfigVar<bool> cfg_ScreenFxDirectorEnabled{"Camera.Reaction.ScreenFXDirector", "Enabled", true, "スクリーンFXディレクターを有効化する"};

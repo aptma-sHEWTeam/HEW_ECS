@@ -167,6 +167,9 @@ class GameScene : public IScene {
         }
         wasBoosting_ = false;
         wasGoalAttracting_ = false;
+        vibrationLeft_ = 0.0f;
+        vibrationRight_ = 0.0f;
+        vibrationTimer_ = 0.0f;
         urgencyPulseTimer_ = 0.0f;
         startIntroActive_ = false;
         startIntroElapsed_ = 0.0f;
@@ -564,6 +567,9 @@ class GameScene : public IScene {
         if (vibrationTimer_ > 0.0f) {
             vibrationTimer_ -= deltaTime;
             if (vibrationTimer_ <= 0.0f) {
+                vibrationTimer_ = 0.0f;
+                vibrationLeft_ = 0.0f;
+                vibrationRight_ = 0.0f;
                 GetGamepad().SetVibration(0.0f, 0.0f);
             }
         }
@@ -650,6 +656,8 @@ class GameScene : public IScene {
         // シーン退出時に振動を確実に停止
         GetGamepad().SetVibration(0.0f, 0.0f);
         vibrationTimer_ = 0.0f;
+        vibrationLeft_ = 0.0f;
+        vibrationRight_ = 0.0f;
         //EffekseerManager::GetInstance().StopEffect(); // エフェクトを全停止
         
         // エフェクトが次のシーンに残らないよう、マネージャごと強制リセットする
@@ -845,6 +853,9 @@ class GameScene : public IScene {
         float chargeClamped = std::clamp(chargeAmount01, 0.0f, 1.0f);
         float shakeIntensity = cfg_ChargeReleaseShakeBaseIntensity.Get() + chargeClamped * cfg_ChargeReleaseShakeChargeScale.Get();
         float shakeDuration = std::max(0.0f, cfg_ChargeReleaseShakeDuration.Get());
+        float zoomAmount = cfg_ChargeReleaseZoomBaseAmount.Get() + chargeClamped * cfg_ChargeReleaseZoomChargeScale.Get();
+        zoomAmount = std::clamp(zoomAmount, 0.0f, std::max(0.0f, cfg_ChargeReleaseZoomMaxAmount.Get()));
+        float zoomDuration = std::max(0.0f, cfg_ChargeReleaseZoomDuration.Get());
         float chromaticIntensity = 0.0f;
         float chromaticDuration = 0.0f;
         float chromaticSampleOffset = 0.0f;
@@ -859,20 +870,28 @@ class GameScene : public IScene {
         TriggerScreenFXEvent(ScreenFXEventType::ChargeRelease,
                              shakeIntensity,
                              shakeDuration,
-                             0.0f,
-                             0.0f,
+                             zoomAmount,
+                             zoomDuration,
                              chromaticIntensity,
                              chromaticDuration,
                              chromaticSampleOffset,
                              chromaticRadialScale);
+        float impulseIntensity = cfg_ChargeReleaseImpulseBaseIntensity.Get() + chargeClamped * cfg_ChargeReleaseImpulseChargeScale.Get();
+        TriggerDirectionalImpulseFromVelocity(world,
+                                              playerEntity_,
+                                              std::max(0.0f, impulseIntensity),
+                                              std::max(0.0f, cfg_ChargeReleaseImpulseDuration.Get()));
+
+        float rumbleMin = std::clamp(cfg_ChargeReleaseRumbleMin.Get(), 0.0f, 1.0f);
+        float rumbleMax = std::clamp(cfg_ChargeReleaseRumbleMax.Get(), rumbleMin, 1.0f);
+        float rumbleStrength = rumbleMin + (rumbleMax - rumbleMin) * chargeClamped;
+        TriggerGamepadRumble(rumbleStrength,
+                             rumbleStrength,
+                             std::max(0.0f, cfg_ChargeReleaseRumbleDuration.Get()));
+
         PlayPlayerAnimation(world, AnimationConfig::Clips::PlayerChargeOut, false);
 
         SOUND_SYS.PlaySE(cfg_Fire1MP3Pass.Get(),true);
-
-        // はじき時の振動（強さはチャージ量に比例）
-        float vibStr = std::clamp(chargeAmount01, 0.2f, 1.0f);
-        GetGamepad().SetVibration(vibStr, vibStr);
-        vibrationTimer_ = 0.2f;
     }
 
     void UpdateDeathFade(World &world, float dt /*dt*/) {
@@ -1012,6 +1031,10 @@ class GameScene : public IScene {
                                  std::max(0.0f, cfg_GoalInChromaticDuration.Get()),
                                  std::max(0.0f, cfg_GoalInChromaticSampleOffset.Get()),
                                  std::max(0.0f, cfg_GoalInChromaticRadialScale.Get()));
+            float goalRumble = std::clamp(cfg_GoalInRumbleStrength.Get(), 0.0f, 1.0f);
+            TriggerGamepadRumble(goalRumble,
+                                 goalRumble,
+                                 std::max(0.0f, cfg_GoalInRumbleDuration.Get()));
         }
         wasGoalAttracting_ = goalAttractingNow;
     }
@@ -1218,7 +1241,7 @@ class GameScene : public IScene {
 
     /** @brief プレイヤーを弾いたときの画面の揺れ */
     void ChargCameraAction(World &world) {
-        world.ForEach<PlayerMovement>([&](Entity e, PlayerMovement &player) {
+        world.ForEach<PlayerMovement>([&](Entity, PlayerMovement &player) {
             float gx = player.gamepad_->GetLeftStickX();
             float gy = player.gamepad_->GetLeftStickY();
             float mag = std::sqrt(gx * gx + gy * gy);
@@ -1226,31 +1249,6 @@ class GameScene : public IScene {
             if (mag > PlayerConstants::EPSILON) {
                 player.lastStickDir_.x = -(gx / mag);
                 player.lastStickDir_.y = -(gy / mag);
-            }
-
-            const float releaseThreshold = cfg_ReleaseThreshold;
-            bool chargingNowLocal = (mag > releaseThreshold);
-
-            bool releasedSys = player.gamepad_->IsLeftStickReleased();
-            bool releasedLocal = (player.wasCharging_ && !chargingNowLocal);
-
-            if (releasedSys || releasedLocal) {
-                if (auto *pv = world.TryGet<PlayerVelocity>(playerEntity_)) {
-                    const float vx = pv->velocity.x;
-                    const float vy = pv->velocity.y;
-                    const float len = std::hypot(vx, vy);
-                    if (len > 1e-5f) {
-                        const float dirX = vx / len;
-                        const float dirY = vy / len;
-                        TriggerCameraImpulse(dirX, 0.0f, dirY, 0.2f, 0.1f);
-                        if (static_cast<bool>(pv->velocity.x + pv->velocity.y)) {
-                            float vecX = pv->velocity.x / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
-                            float vecY = pv->velocity.y / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
-
-                            TriggerCameraImpulse(vecX, 0.0f, vecY, 0.1f, 0.07f);
-                        }
-                    };
-                }
             }
         });
     }
@@ -1276,10 +1274,17 @@ class GameScene : public IScene {
                              std::max(0.0f, cfg_WallHitShakeDuration.Get()),
                              collisionZoomAmount,
                              collisionZoomDuration,
-                             0.0f,
-                             0.0f,
-                             0.0f,
-                             0.0f);
+                             std::max(0.0f, cfg_WallHitChromaticIntensity.Get()),
+                             std::max(0.0f, cfg_WallHitChromaticDuration.Get()),
+                             std::max(0.0f, cfg_WallHitChromaticSampleOffset.Get()),
+                             std::max(0.0f, cfg_WallHitChromaticRadialScale.Get()));
+        TriggerDirectionalImpulseFromVelocity(world,
+                                              player,
+                                              std::max(0.0f, cfg_WallHitImpulseIntensity.Get()),
+                                              std::max(0.0f, cfg_WallHitImpulseDuration.Get()));
+        TriggerGamepadRumble(std::clamp(cfg_WallHitRumbleStrength.Get(), 0.0f, 1.0f),
+                             std::clamp(cfg_WallHitRumbleStrength.Get(), 0.0f, 1.0f),
+                             std::max(0.0f, cfg_WallHitRumbleDuration.Get()));
 
         // 再生用フェードアニメーションを開始
         deathFadeTimer_ = cfg_DeathAnimationFadeTime;
@@ -1289,14 +1294,6 @@ class GameScene : public IScene {
 
         if (auto *playerStatus = world.TryGet<PlayerStatus>(playerEntity_)) {
             UpdateWallHitState(*playerStatus, PlayerStatus::WallHitState::Shaking, "WallHit");
-        }
-
-        if (auto *pv = world.TryGet<PlayerVelocity>(playerEntity_)) {
-            if (static_cast<bool>(pv->velocity.x + pv->velocity.y)) {
-                float vecX = pv->velocity.x / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
-                float vecY = pv->velocity.y / (pv->velocity.x + pv->velocity.y) * impulseIntensity_;
-                TriggerCameraImpulse(vecX, 0.0f, vecY, 0.2f, 0.04f);
-            }
         }
 
         if (world_ && world_->IsAlive(player)) {
@@ -1333,14 +1330,21 @@ class GameScene : public IScene {
             collisionZoomDuration = std::max(0.0f, cfg_TimeUpZoomDuration.Get());
         }
         TriggerScreenFXEvent(ScreenFXEventType::TimeUp,
-                             std::max(0.0f, cfg_WallHitShakeIntensity.Get()) * 0.8f,
-                             std::max(0.0f, cfg_WallHitShakeDuration.Get()),
+                             std::max(0.0f, cfg_TimeUpShakeIntensity.Get()),
+                             std::max(0.0f, cfg_TimeUpShakeDuration.Get()),
                              collisionZoomAmount,
                              collisionZoomDuration,
-                             0.0f,
-                             0.0f,
-                             0.0f,
-                             0.0f);
+                             std::max(0.0f, cfg_TimeUpChromaticIntensity.Get()),
+                             std::max(0.0f, cfg_TimeUpChromaticDuration.Get()),
+                             std::max(0.0f, cfg_TimeUpChromaticSampleOffset.Get()),
+                             std::max(0.0f, cfg_TimeUpChromaticRadialScale.Get()));
+        TriggerDirectionalImpulseFromVelocity(world,
+                                              player,
+                                              std::max(0.0f, cfg_TimeUpImpulseIntensity.Get()),
+                                              std::max(0.0f, cfg_TimeUpImpulseDuration.Get()));
+        TriggerGamepadRumble(std::clamp(cfg_TimeUpRumbleStrength.Get(), 0.0f, 1.0f),
+                             std::clamp(cfg_TimeUpRumbleStrength.Get(), 0.0f, 1.0f),
+                             std::max(0.0f, cfg_TimeUpRumbleDuration.Get()));
 
         deathFadeTimer_ = cfg_DeathAnimationFadeTime;
         isDeathFadePending_ = true;
@@ -1404,6 +1408,52 @@ class GameScene : public IScene {
         TimeUp,
         Count
     };
+
+    bool TryGetVelocityDirection(World &world, Entity entity, float &dirX, float &dirY) const {
+        dirX = 0.0f;
+        dirY = 0.0f;
+        if (!world.IsAlive(entity)) {
+            return false;
+        }
+        auto *velocity = world.TryGet<PlayerVelocity>(entity);
+        if (!velocity) {
+            return false;
+        }
+        const float vx = velocity->velocity.x;
+        const float vy = velocity->velocity.y;
+        const float len = std::hypot(vx, vy);
+        if (len <= 1e-5f) {
+            return false;
+        }
+        dirX = vx / len;
+        dirY = vy / len;
+        return true;
+    }
+
+    void TriggerDirectionalImpulseFromVelocity(World &world, Entity entity, float intensity, float duration) {
+        if (intensity <= 0.0f || duration <= 0.0f) {
+            return;
+        }
+        float dirX = 0.0f;
+        float dirY = 0.0f;
+        if (!TryGetVelocityDirection(world, entity, dirX, dirY)) {
+            return;
+        }
+        TriggerCameraImpulse(dirX, 0.0f, dirY, intensity, duration);
+    }
+
+    void TriggerGamepadRumble(float leftMotor, float rightMotor, float duration) {
+        leftMotor = std::clamp(leftMotor, 0.0f, 1.0f);
+        rightMotor = std::clamp(rightMotor, 0.0f, 1.0f);
+        duration = std::max(0.0f, duration);
+        if (duration <= 0.0f || (leftMotor <= 0.0f && rightMotor <= 0.0f)) {
+            return;
+        }
+        vibrationLeft_ = std::max(vibrationLeft_, leftMotor);
+        vibrationRight_ = std::max(vibrationRight_, rightMotor);
+        vibrationTimer_ = std::max(vibrationTimer_, duration);
+        GetGamepad().SetVibration(vibrationLeft_, vibrationRight_);
+    }
 
     static DirectX::XMFLOAT3 LerpFloat3(const DirectX::XMFLOAT3 &a, const DirectX::XMFLOAT3 &b, float t) {
         const float clampedT = std::clamp(t, 0.0f, 1.0f);
@@ -3742,6 +3792,8 @@ class GameScene : public IScene {
     DirectX::XMFLOAT3 baseTarget_ = {0.0f, 0.0f, 0.0f};
     float skyboxRotation_ = 0.0f;
     float vibrationTimer_ = 0.0f;   ///< はじき振動の残り時間
+    float vibrationLeft_ = 0.0f;
+    float vibrationRight_ = 0.0f;
     float sirenTimer_ = 0.0f;       ///< サイレン点滅用タイマー
     bool wasBoosting_ = false;
     bool wasGoalAttracting_ = false;
