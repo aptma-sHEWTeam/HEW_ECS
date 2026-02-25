@@ -28,6 +28,7 @@
 #include "graphics/Camera.h"
 #include "graphics/ImageSystem.h"
 #include "input/GamepadSystem.h"
+#include "graphics/StageSave.h"
 #include "systems/UISystem.h"
 #include "app/ServiceLocator.h"
 #include "app/ResourceManager.h"
@@ -334,6 +335,7 @@ class StageSelectScene : public IScene {
         textSystem_.SetLogicalSize(screenWidth, screenHeight);
         imageSystem_.SetLogicalSize(screenWidth, screenHeight);
 
+        StageSave::Load(); // セーブデータを確実に読み込み（解放判定に必要）
         RefreshMaxStage();
 
         // ワールド移動時のステージ番号初期化
@@ -420,8 +422,8 @@ class StageSelectScene : public IScene {
         inputProtectionTimer_ = 0.5f;
 
         world.ForEach<StageProgress>([&](Entity, StageProgress &stats) {
-            const int stage = std::clamp(stats.selectStage, 1, maxStage_);
-            const float step = DirectX::XM_2PI / static_cast<float>(std::max(maxStage_, 1));
+            const int stage = std::clamp(stats.selectStage, 1, unlockedStageCount_);
+            const float step = DirectX::XM_2PI / static_cast<float>(std::max(unlockedStageCount_, 1));
             targetAngle_ = -step * static_cast<float>(stage - 1);
             currentAngle_ = targetAngle_;
             skyboxYawDeg_ = DirectX::XMConvertToDegrees(currentAngle_);
@@ -430,6 +432,7 @@ class StageSelectScene : public IScene {
             }
             DEBUGLOG("[StageSelect] Init camera angle world=" + std::to_string(worldNumber_) +
                      " stage=" + std::to_string(stage) +
+                     " unlocked=" + std::to_string(unlockedStageCount_) +
                      " angle=" + std::to_string(currentAngle_));
         });
 
@@ -478,10 +481,21 @@ class StageSelectScene : public IScene {
             }
         }
 
+        // 解放済みステージ数を計算（未解放ステージは表示しない）
+        int unlockedCount = 0;
+        for (int i = 0; i < stageCount; ++i) {
+            if (StageSave::IsStageUnlocked(worldNumber_, i + 1)) {
+                ++unlockedCount;
+            }
+        }
+        // 解放済みステージ数で上書き（maxStage_は変えない。選択制限は別途行う）
+        unlockedStageCount_ = unlockedCount;
+
         std::string fallbackPath = cfg_StationFallbackModelPath.Get();
         const float radius = cfg_StationRadius.Get();
-        for (int i = 0; i < stageCount; ++i) {
-            float angle = static_cast<float>(i) * DirectX::XM_2PI / static_cast<float>(stageCount);
+        // 解放済みステージのみStationモデルを生成
+        for (int i = 0; i < unlockedCount; ++i) {
+            float angle = static_cast<float>(i) * DirectX::XM_2PI / static_cast<float>(std::max(unlockedCount, 1));
             float x = cosf(angle) * radius;
             float z = sinf(angle) * radius;
 
@@ -690,17 +704,20 @@ class StageSelectScene : public IScene {
             }
 
             if (rightPressed) {
-                if (stats.selectStage < maxStage_) {
+                // 解放済みステージ数で制限
+                if (stats.selectStage < unlockedStageCount_) {
                     stats.selectStage++;
-                    targetAngle_ -= DirectX::XM_2PI / maxStage_;
+                    targetAngle_ -= DirectX::XM_2PI / std::max(unlockedStageCount_, 1);
                     SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
                     if (worldNumber_ >= 1 && worldNumber_ <= 4) {
                         s_lastSelected[worldNumber_ - 1] = stats.selectStage;
                     }
                     uiRotationTarget_ -= cfg_StageUiSpinAmount.Get(); // Spin (Stage++)
                     idleSpinDir_ = -1.0f;
-                } else if (stats.selectStage == maxStage_) {
-                    if (stats.worldCount != cfg_WorldCount.Get()) {
+                } else if (stats.selectStage == unlockedStageCount_) {
+                    // 次のワールドが解放済みの場合のみ移動可能
+                    if (stats.worldCount != cfg_WorldCount.Get() &&
+                        StageSave::IsWorldUnlocked(worldNumber_ + 1)) {
                         SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
                         // 次のワールドへ
                         stats.IsWorldBack = false;
@@ -712,7 +729,7 @@ class StageSelectScene : public IScene {
             if (leftPressed) {
                 if (stats.selectStage > 1) {
                     stats.selectStage--;
-                    targetAngle_ += DirectX::XM_2PI / maxStage_;
+                    targetAngle_ += DirectX::XM_2PI / std::max(unlockedStageCount_, 1);
                     SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
                     if (worldNumber_ >= 1 && worldNumber_ <= 4) {
                         s_lastSelected[worldNumber_ - 1] = stats.selectStage;
@@ -729,9 +746,9 @@ class StageSelectScene : public IScene {
                 }
             }
 
-            stats.selectStage = std::clamp(stats.selectStage, 1, maxStage_);
+            stats.selectStage = std::clamp(stats.selectStage, 1, unlockedStageCount_);
 
-            stats.selectStage = std::clamp(stats.selectStage, 1, maxStage_);
+            stats.selectStage = std::clamp(stats.selectStage, 1, unlockedStageCount_);
             
             // UpdateStageNameTexture removed (now handled at init/static strings)
         });
@@ -1038,6 +1055,7 @@ class StageSelectScene : public IScene {
 
     int worldNumber_;
     int maxStage_;
+    int unlockedStageCount_ = 1; // 解放済みステージ数（OnEnterで計算）
 
     std::vector<Entity> stageNameEntities_{};
     std::vector<Entity> stageSterEntities_{};

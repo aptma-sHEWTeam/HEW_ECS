@@ -21,6 +21,7 @@
 #include "systems/UISystem.h"
 #include <algorithm>
 #include "components/StageComponents.h"
+#include "graphics/StageSave.h"
 
 #include <d3d11.h>
 #include <wrl/client.h>
@@ -204,6 +205,9 @@ class VideoScene : public IScene {
                 return;
             }
         }
+        // ランク/デスUIフェードイン処理
+        UpdateRankFadeIn(world, deltaTime);
+
         world.Tick(deltaTime);
     }
 
@@ -311,6 +315,53 @@ class VideoScene : public IScene {
 
         Entity crossImageEntity = world.Create().With<UITransform>(crossImgTr).With<UIImage>(crossImg).Build();
         uiOwnedEntities_.push_back(crossImageEntity);
+
+        // === デス回数 + ランクUI ===
+        int deaths = StageSave::GetLastSavedDeaths();
+        std::wstring rankStr = StageSave::GetRankW(deaths);
+
+        TextSystem::TextFormat rankFmt;
+        rankFmt.fontSize = 72.0f;
+        rankFmt.fontFamily = L"Mamelon-5-Hi-Regular.otf";
+        rankFmt.alignment = DWRITE_TEXT_ALIGNMENT_CENTER;
+        textSystem_.CreateTextFormat("rank", rankFmt);
+
+        TextSystem::TextFormat deathFmt;
+        deathFmt.fontSize = 36.0f;
+        deathFmt.fontFamily = L"Mamelon-5-Hi-Regular.otf";
+        deathFmt.alignment = DWRITE_TEXT_ALIGNMENT_CENTER;
+        textSystem_.CreateTextFormat("death", deathFmt);
+
+        // ランク表示（右下）
+        UITransform rankTr;
+        rankTr.position = {screenW - 200.0f, screenH - 180.0f};
+        rankTr.size = {180.0f, 90.0f};
+        rankTr.anchor = {0.0f, 0.0f};
+        rankTr.pivot = {0.0f, 0.0f};
+
+        UIText rankText{L"RANK: " + rankStr};
+        rankText.color = {1.0f, 0.85f, 0.0f, 0.0f}; // 初期透明（フェードイン用）
+        rankText.formatId = "rank";
+
+        rankEntity_ = world.Create().With<UITransform>(rankTr).With<UIText>(rankText).Build();
+        uiOwnedEntities_.push_back(rankEntity_);
+
+        // デス回数表示（ランクの下）
+        UITransform deathTr;
+        deathTr.position = {screenW - 200.0f, screenH - 90.0f};
+        deathTr.size = {180.0f, 50.0f};
+        deathTr.anchor = {0.0f, 0.0f};
+        deathTr.pivot = {0.0f, 0.0f};
+
+        std::wstring deathStr = L"DEATH: " + std::to_wstring(deaths);
+        UIText deathText{deathStr};
+        deathText.color = {1.0f, 1.0f, 1.0f, 0.0f}; // 初期透明
+        deathText.formatId = "death";
+
+        deathEntity_ = world.Create().With<UITransform>(deathTr).With<UIText>(deathText).Build();
+        uiOwnedEntities_.push_back(deathEntity_);
+
+        rankFadeTimer_ = 0.0f;
     }
 
     void ShutdownUI(World &world) {
@@ -551,4 +602,34 @@ class VideoScene : public IScene {
     bool bgmPathSet_ = false;
 
     Entity fadeEntity_;
+
+    // ランクUIフェードイン用
+    Entity rankEntity_;
+    Entity deathEntity_;
+    float rankFadeTimer_ = 0.0f;
+    static constexpr float kRankFadeDelay = 1.5f;    // 表示開始までの遅延（秒）
+    static constexpr float kRankFadeDuration = 1.0f; // フェードイン時間（秒）
+
+    /// easeOutCubic: 滞らかに減速して完了
+    static float EaseOutCubic(float t) {
+        float f = 1.0f - t;
+        return 1.0f - f * f * f;
+    }
+
+    /// ランク/デステキストのフェードイン更新
+    void UpdateRankFadeIn(World &world, float dt) {
+        rankFadeTimer_ += dt;
+        float elapsed = rankFadeTimer_ - kRankFadeDelay;
+        if (elapsed < 0.0f) return; // 遅延中
+
+        float t = std::clamp(elapsed / kRankFadeDuration, 0.0f, 1.0f);
+        float alpha = EaseOutCubic(t);
+
+        if (auto *rankText = world.TryGet<UIText>(rankEntity_)) {
+            rankText->color.w = alpha; // 金色のalpha
+        }
+        if (auto *deathText = world.TryGet<UIText>(deathEntity_)) {
+            deathText->color.w = alpha;
+        }
+    }
 };

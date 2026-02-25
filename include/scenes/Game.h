@@ -114,6 +114,7 @@ class GameScene : public IScene {
         });
         world.ForEach<GameStatus>([&](Entity, GameStatus &stats) {
             stats.isPaused = false;
+            stats.deathCount = 0; // ステージ開始時にデスカウントリセット
 
             if (stats.isDead &&
                 !mgr->IsTransitioning() &&
@@ -454,7 +455,10 @@ class GameScene : public IScene {
             }
         });
 
-        // Debug cheatを無効化（誤爆による即クリア防止）
+        // Debug: Ctrl+Z+X+C+V で強制ゴール
+        if (IsGoalCheatTriggered(input)) {
+            TriggerGoalCheat(world);
+        }
 
         // ステージクリア待機中の処理
         if (stageClearActive_) {
@@ -465,7 +469,14 @@ class GameScene : public IScene {
             }
             // 一定時間経過でクリア動画へ
             if (stageClearTimer_ >= cfg_StageClearWait.Get()) {
-               
+                // デスカウントを保存
+                world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+                    int pss = GetPssNumber(sp.worldCount, sp.currentStage);
+                    int deaths = 0;
+                    world.ForEach<GameStatus>([&](Entity, GameStatus &s) { deaths = s.deathCount; });
+                    StageSave::SaveDeathCount(pss, deaths);
+                });
+
                 if (auto *mgr = ServiceLocator::TryGet<SceneManager>()) {
                     mgr->ChangeScene("ClearVideo", world);
                     return;
@@ -532,6 +543,16 @@ class GameScene : public IScene {
             }
         EffekseerManager::GetInstance().Update();
 
+        // 振動タイマー管理
+        if (vibrationTimer_ > 0.0f) {
+            vibrationTimer_ -= deltaTime;
+            if (vibrationTimer_ <= 0.0f) {
+                GetGamepad().SetVibration(0.0f, 0.0f);
+            }
+        }
+
+        // 蛍光灯サイレン演出（残り時間切迫時に点滅）
+        UpdateWallLightSiren(world, deltaTime);
 
         //ゴールの見た目変更
         UpdateGoal(world);
@@ -596,6 +617,10 @@ class GameScene : public IScene {
         RenderingSystem::GetInstance().Shutdown();
         StopGoalEffect();
         StopGoalEffect();
+
+        // シーン退出時に振動を確実に停止
+        GetGamepad().SetVibration(0.0f, 0.0f);
+        vibrationTimer_ = 0.0f;
         //EffekseerManager::GetInstance().StopEffect(); // エフェクトを全停止
         
         // エフェクトが次のシーンに残らないよう、マネージャごと強制リセットする
@@ -779,6 +804,11 @@ class GameScene : public IScene {
         PlayPlayerAnimation(world, AnimationConfig::Clips::PlayerChargeOut, false);
 
         SOUND_SYS.PlaySE(cfg_Fire1MP3Pass.Get(),true);
+
+        // はじき時の振動（強さはチャージ量に比例）
+        float vibStr = std::clamp(chargeAmount01, 0.2f, 1.0f);
+        GetGamepad().SetVibration(vibStr, vibStr);
+        vibrationTimer_ = 0.2f;
     }
 
     void UpdateDeathFade(World &world, float dt /*dt*/) {
@@ -825,6 +855,56 @@ class GameScene : public IScene {
                 }
             }
         }
+    }
+
+    /**
+     * @brief 残り時間切迫時に蛍光灯をサイレン風に赤白点滅させる
+     * @details 残り時間30%以下で発動。切迫度に応じて点滅速度が速くなる。
+     */
+    void UpdateWallLightSiren(World &world, float dt) {
+        float timeRatio = 1.0f; // 1.0=余裕, 0.0=時間切れ
+        bool timerActive = false;
+        world.ForEach<GameStatus>([&](Entity, GameStatus &stats) {
+            if (!stats.timerRunning) return;
+            timerActive = true;
+            if (cfg_LimitTime.Get() > 0.0f) {
+                timeRatio = std::clamp(stats.elapsedTime / cfg_LimitTime.Get(), 0.0f, 1.0f);
+            }
+        });
+
+        // 通常色に戻す（タイマー未作動時やまだ余裕がある時）
+        const DirectX::XMFLOAT3 normalColor{1.0f, 0.7f, 0.5f};
+        const float threshold = 0.3f;
+
+        if (!timerActive || timeRatio >= threshold) {
+            world.ForEach<WallLightTag, PointLight>([&](Entity, WallLightTag &, PointLight &light) {
+                light.color = normalColor;
+            });
+            return;
+        }
+
+        // 切迫度 0→1 (余裕→時間切れ)
+        float urgency = 1.0f - (timeRatio / threshold);
+
+        // 点滅速度: 切迫度に応じて2Hz→8Hzに加速
+        float blinkFreq = 2.0f + urgency * 6.0f;
+        // sin波で0〜1を生成（サイレンの明滅）
+        float blinkPhase = std::sinf(sirenTimer_ * blinkFreq * DirectX::XM_2PI);
+        float blinkFactor = (blinkPhase + 1.0f) * 0.5f; // 0〜1
+
+        // 警告色 (赤) と通常色の間を点滅
+        DirectX::XMFLOAT3 urgentColor{1.0f, 0.1f, 0.1f};
+        DirectX::XMFLOAT3 color{
+            normalColor.x + (urgentColor.x - normalColor.x) * blinkFactor * urgency,
+            normalColor.y + (urgentColor.y - normalColor.y) * blinkFactor * urgency,
+            normalColor.z + (urgentColor.z - normalColor.z) * blinkFactor * urgency
+        };
+
+        world.ForEach<WallLightTag, PointLight>([&](Entity, WallLightTag &, PointLight &light) {
+            light.color = color;
+        });
+
+        sirenTimer_ += dt;
     }
 
     static constexpr bool IsGoalCheatCombo(
@@ -930,6 +1010,8 @@ class GameScene : public IScene {
             if (sp.currentRoom < maxRoom) {
 
                 sp.currentRoom++;
+                // ルーム遷移時にプレイ位置を保存
+                StageSave::SaveProgress(sp.worldCount, sp.currentStage);
                 return;
             }
 
@@ -940,6 +1022,8 @@ class GameScene : public IScene {
             if (pssNumber > StageSave::GetMaxClearedPss()) {
                 StageSave::MarkPssCleared(pssNumber);
             }
+            // ステージクリア時にプレイ位置を保存
+            StageSave::SaveProgress(sp.worldCount, sp.currentStage);
 
             sp.requestAdvance = true;
         });
@@ -1045,6 +1129,9 @@ class GameScene : public IScene {
             }
         }
 
+        // デスカウント加算
+        world.ForEach<GameStatus>([](Entity, GameStatus &s) { s.deathCount++; });
+
         pendingRespawn_ = true;
         respawnPlayer_ = player;
         respawnTimer_ = cfg_WallHitRespawnDelay.Get() + deathFadeTimer_;
@@ -1079,6 +1166,9 @@ class GameScene : public IScene {
 
         SOUND_SYS.PlaySE(cfg_DeathMP3Pass.Get(),false);
         SOUND_SYS.StopSE(cfg_DriftMP3Pass.Get());
+
+        // デスカウント加算
+        world.ForEach<GameStatus>([](Entity, GameStatus &s) { s.deathCount++; });
 
         pendingRespawn_ = true;
         respawnPlayer_ = player;
@@ -2888,7 +2978,10 @@ class GameScene : public IScene {
     }
 
     void UpdateSkyboxRotation(float dt) {
-        (void)dt;
+        skyboxRotation_ += cfg_SkyboxSpeed.Get() * dt;
+        if (skyboxRotation_ > DirectX::XM_2PI) {
+            skyboxRotation_ -= DirectX::XM_2PI;
+        }
     }
 
     bool EnsureSkyboxTextureLoaded() {
@@ -3198,6 +3291,8 @@ class GameScene : public IScene {
 
     DirectX::XMFLOAT3 baseTarget_ = {0.0f, 0.0f, 0.0f};
     float skyboxRotation_ = 0.0f;
+    float vibrationTimer_ = 0.0f;   ///< はじき振動の残り時間
+    float sirenTimer_ = 0.0f;       ///< サイレン点滅用タイマー
 };
 
 // =========================================

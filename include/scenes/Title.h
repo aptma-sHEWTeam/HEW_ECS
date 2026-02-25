@@ -702,19 +702,25 @@ class TitleScene : public IScene {
                 switch (currentSelect) {
                     case Start:
                         SOUND_SYS.PlaySE(cfg_EnterMP3Pass,false);
-                        StageSave::Load(); 
-                        DEBUGLOG("Enter pressed!");
+                        StageSave::Load();
+                        // 保存ワールドに応じた遷移先を設定
+                        pendingSelectScene_ = "World" + std::to_string(StageSave::GetLastWorld()) + "_StageSelect";
+                        DEBUGLOG("Start: 遷移先=" + pendingSelectScene_);
                         trigger = true;
                         break;
                     case Restart:
-                        StageSave::Delete(); 
-                        StageSave::Load();   
+                        SOUND_SYS.PlaySE(cfg_EnterMP3Pass,false);
+                        StageSave::Delete();
+                        StageSave::Load();
+                        // 新規開始は常にWorld1
+                        pendingSelectScene_ = "World1_StageSelect";
+                        DEBUGLOG("Restart: データ削除→World1");
+                        trigger = true;
                         break;
                     case Exit:
                         DEBUGLOG("Game End!");
                         PostQuitMessage(0);
                         break;
-
                 }
             }
             if (trigger) {
@@ -728,7 +734,7 @@ class TitleScene : public IScene {
             bool zoomFinished = UpdateCameraZoom(world, deltaTime);
             if (zoomFinished && (!isFading || fadeFinished)) {
                 if (auto *manager = ServiceLocator::TryGet<SceneManager>()) {
-                    manager->ChangeSceneWithTransition("World1_StageSelect", world, TransitionDirection::Forward);
+                    manager->ChangeSceneWithTransition(pendingSelectScene_.c_str(), world, TransitionDirection::Forward);
                 }
                 return;
             }
@@ -949,6 +955,7 @@ class TitleScene : public IScene {
     bool isTransitioning_ = false;
     float zoomTimer_ = 0.0f;
     bool isUiVisible_ = true;
+    std::string pendingSelectScene_ = "World1_StageSelect"; // Start/Restartで設定される遷移先
 
     int currentSelect = 0;
     bool stickUpPrev_ = false;

@@ -22,6 +22,7 @@ struct GameStatus : IComponent {
  bool waitingForPlayerMove = true; //動き出すまでタイマーを停止
 
  bool isDead = false;
+ int deathCount = 0;       // 現在ステージでのデス回数
  bool fadeFinished = false;
  bool resetDone = false;
 };

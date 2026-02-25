@@ -275,6 +275,12 @@ struct PlayerCollisionHandler : ICollisionHandler {
                 progress->goalTransitioning = true;
             if (goalTag)
                 goalTag->consumed = true;
+
+            // ゴール到達時にタイマーを即座に停止
+            w.ForEach<GameStatus>([](Entity, GameStatus &stats) {
+                stats.timerRunning = false;
+            });
+
             GameScene_ResetChargeState(); // チャージ中のフェードとズームをリセット
             DEBUGLOG("Player reached goal");
 
