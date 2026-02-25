@@ -369,6 +369,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     UIPanel pauseMenuPanel;
     pauseMenuPanel.color = {0.0f, 0.0f, 0.0f, 0.55f};
     pauseMenuPanel.visible = false;
+    pauseMenuPanel.drawBeforeImages = true;
 
     Entity pauseMenuPanelEntity = world.Create()
                                      .With<UITransform>(pauseMenuPanelTr)
@@ -389,6 +390,10 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 
         UIButton btn;
         btn.enabled = false;
+        btn.normalColor = {0.0f, 0.0f, 0.0f, 0.0f};
+        btn.hoverColor = {0.0f, 0.0f, 0.0f, 0.0f};
+        btn.pressedColor = {0.0f, 0.0f, 0.0f, 0.0f};
+        btn.disabledColor = {0.0f, 0.0f, 0.0f, 0.0f};
 
         Entity e = world.Create().With<UITransform>(tr).With<UIButton>(btn).With<UIImage>(img).Build();
         ownedEntities_.push_back(e);

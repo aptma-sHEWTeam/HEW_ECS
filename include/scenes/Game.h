@@ -19,6 +19,8 @@
 #include <algorithm>
 #include <vector>
 #include <cassert>
+#include <array>
+#include <cstdint>
 
 // 追加: IScene 定義を利用するためにシーンマネージャのヘッダーをインクルード
 #include "scenes/SceneManager.h"
@@ -164,7 +166,15 @@ class GameScene : public IScene {
             renderer->ClearScreenEffects();
         }
         wasBoosting_ = false;
+        wasGoalAttracting_ = false;
         urgencyPulseTimer_ = 0.0f;
+        startIntroActive_ = false;
+        startIntroElapsed_ = 0.0f;
+        goalInCameraBlend_ = 0.0f;
+        screenFxClock_ = 0.0f;
+        frameFxPriority_ = -1;
+        screenFxSmoothedDt_ = 1.0f / 60.0f;
+        screenFxNextAllowed_.fill(0.0f);
 
         // ステージクリア状態の初期化
         stageClearActive_ = false;
@@ -390,6 +400,7 @@ class GameScene : public IScene {
         SetupStage(world, initialStage);
         isFading = true;
         StartFadeInNormal(world);
+        StartStartIntroCamera(world);
 
         // シャドウマップ初期化
         if (!shadowMap_.Init(gfx->Dev(), 1024)) {
@@ -435,6 +446,7 @@ class GameScene : public IScene {
             }
         }
     }
+        BeginScreenFXFrame(deltaTime);
         // ゲームの一時停止/再開処理
         GamepadSystem *pad = ServiceLocator::TryGet<GamepadSystem>();
         world.ForEach<GameStatus>([&](Entity, GameStatus &stats) {
@@ -560,6 +572,7 @@ class GameScene : public IScene {
         UpdateWallLightSiren(world, deltaTime);
         UpdateUrgencyScreenFX(world, deltaTime);
         UpdateBoostBurstFX(world);
+        UpdateGoalInFX(world);
 
         //ゴールの見た目変更
         UpdateGoal(world);
@@ -627,6 +640,9 @@ class GameScene : public IScene {
         if (auto *renderer = ServiceLocator::TryGet<RenderSystem>()) {
             renderer->ClearScreenEffects();
         }
+        startIntroActive_ = false;
+        startIntroElapsed_ = 0.0f;
+        goalInCameraBlend_ = 0.0f;
         RenderingSystem::GetInstance().Shutdown();
         StopGoalEffect();
         StopGoalEffect();
@@ -760,10 +776,21 @@ class GameScene : public IScene {
      * @brief カメラズームを開始する
      */
     void TriggerCameraZoom(float zoomAmount, float duration) {
-        zoomAmount_ = zoomAmount;
-        zoomTime_ = duration;
+        zoomAmount = std::max(0.0f, zoomAmount);
+        duration = std::max(0.0f, duration);
+        if (zoomAmount <= 0.0f || duration <= 0.0f) {
+            return;
+        }
+        if (!zoomActive_) {
+            zoomAmount_ = zoomAmount;
+            zoomTime_ = duration;
+            zoomElapsed_ = 0.0f;
+            zoomActive_ = true;
+            return;
+        }
+        zoomAmount_ = std::max(zoomAmount_, zoomAmount);
+        zoomTime_ = std::max(zoomTime_, duration);
         zoomElapsed_ = 0.0f;
-        zoomActive_ = true;
     }
 
     /**
@@ -778,6 +805,9 @@ class GameScene : public IScene {
         zoomElapsed_ = zoomTime_ = 0.0f;
         stickZoomTarget_ = 0.0f;
         stickZoomCurrent_ = 0.0f;
+        startIntroActive_ = false;
+        startIntroElapsed_ = 0.0f;
+        goalInCameraBlend_ = 0.0f;
         camera_.position = cameraPosition_;
         camera_.target = baseTarget_;
         camera_.fovY = baseFovY_;
@@ -815,17 +845,26 @@ class GameScene : public IScene {
         float chargeClamped = std::clamp(chargeAmount01, 0.0f, 1.0f);
         float shakeIntensity = cfg_ChargeReleaseShakeBaseIntensity.Get() + chargeClamped * cfg_ChargeReleaseShakeChargeScale.Get();
         float shakeDuration = std::max(0.0f, cfg_ChargeReleaseShakeDuration.Get());
-        TriggerCameraShake(shakeIntensity, shakeDuration);
+        float chromaticIntensity = 0.0f;
+        float chromaticDuration = 0.0f;
+        float chromaticSampleOffset = 0.0f;
+        float chromaticRadialScale = 0.0f;
         if (cfg_ChargeReleaseChromaticEnabled.Get()) {
-            if (auto *renderer = ServiceLocator::TryGet<RenderSystem>()) {
-                float chromaticIntensity = cfg_ChargeReleaseChromaticBaseIntensity.Get() + chargeClamped * cfg_ChargeReleaseChromaticChargeScale.Get();
-                chromaticIntensity = std::clamp(chromaticIntensity, 0.0f, std::max(0.0f, cfg_ChargeReleaseChromaticMaxIntensity.Get()));
-                renderer->TriggerChromaticAberration(chromaticIntensity,
-                                                     std::max(0.0f, cfg_ChargeReleaseChromaticDuration.Get()),
-                                                     std::max(0.0f, cfg_ChargeReleaseChromaticSampleOffset.Get()),
-                                                     std::max(0.0f, cfg_ChargeReleaseChromaticRadialScale.Get()));
-            }
+            chromaticIntensity = cfg_ChargeReleaseChromaticBaseIntensity.Get() + chargeClamped * cfg_ChargeReleaseChromaticChargeScale.Get();
+            chromaticIntensity = std::clamp(chromaticIntensity, 0.0f, std::max(0.0f, cfg_ChargeReleaseChromaticMaxIntensity.Get()));
+            chromaticDuration = std::max(0.0f, cfg_ChargeReleaseChromaticDuration.Get());
+            chromaticSampleOffset = std::max(0.0f, cfg_ChargeReleaseChromaticSampleOffset.Get());
+            chromaticRadialScale = std::max(0.0f, cfg_ChargeReleaseChromaticRadialScale.Get());
         }
+        TriggerScreenFXEvent(ScreenFXEventType::ChargeRelease,
+                             shakeIntensity,
+                             shakeDuration,
+                             0.0f,
+                             0.0f,
+                             chromaticIntensity,
+                             chromaticDuration,
+                             chromaticSampleOffset,
+                             chromaticRadialScale);
         PlayPlayerAnimation(world, AnimationConfig::Clips::PlayerChargeOut, false);
 
         SOUND_SYS.PlaySE(cfg_Fire1MP3Pass.Get(),true);
@@ -947,23 +986,34 @@ class GameScene : public IScene {
         if (boostingNow && !wasBoosting_ && cfg_BoostBurstEnabled.Get()) {
             float influence = std::clamp(cfg_BoostBurstSpeedInfluence.Get(), 0.0f, 1.0f);
             float scale = 1.0f + speedScale * influence;
-
-            float shakeIntensity = std::max(0.0f, cfg_BoostBurstShakeIntensity.Get()) * scale;
-            float shakeDuration = std::max(0.0f, cfg_BoostBurstShakeDuration.Get());
-            if (shakeIntensity > 0.0f && shakeDuration > 0.0f) {
-                TriggerCameraShake(shakeIntensity, shakeDuration);
-            }
-
-            if (auto *renderer = ServiceLocator::TryGet<RenderSystem>()) {
-                float chromaticIntensity = std::max(0.0f, cfg_BoostBurstChromaticIntensity.Get()) * scale;
-                renderer->TriggerChromaticAberration(chromaticIntensity,
-                                                     std::max(0.0f, cfg_BoostBurstChromaticDuration.Get()),
-                                                     std::max(0.0f, cfg_BoostBurstChromaticSampleOffset.Get()),
-                                                     std::max(0.0f, cfg_BoostBurstChromaticRadialScale.Get()));
-            }
+            TriggerScreenFXEvent(ScreenFXEventType::BoostBurst,
+                                 std::max(0.0f, cfg_BoostBurstShakeIntensity.Get()) * scale,
+                                 std::max(0.0f, cfg_BoostBurstShakeDuration.Get()),
+                                 0.0f,
+                                 0.0f,
+                                 std::max(0.0f, cfg_BoostBurstChromaticIntensity.Get()) * scale,
+                                 std::max(0.0f, cfg_BoostBurstChromaticDuration.Get()),
+                                 std::max(0.0f, cfg_BoostBurstChromaticSampleOffset.Get()),
+                                 std::max(0.0f, cfg_BoostBurstChromaticRadialScale.Get()));
         }
 
         wasBoosting_ = boostingNow;
+    }
+
+    void UpdateGoalInFX(World &world) {
+        bool goalAttractingNow = world.IsAlive(playerEntity_) && world.Has<GoalAttractor>(playerEntity_);
+        if (goalAttractingNow && !wasGoalAttracting_ && cfg_GoalInFxEnabled.Get()) {
+            TriggerScreenFXEvent(ScreenFXEventType::GoalIn,
+                                 0.0f,
+                                 0.0f,
+                                 std::max(0.0f, cfg_GoalInZoomAmount.Get()),
+                                 std::max(0.0f, cfg_GoalInZoomDuration.Get()),
+                                 std::max(0.0f, cfg_GoalInChromaticIntensity.Get()),
+                                 std::max(0.0f, cfg_GoalInChromaticDuration.Get()),
+                                 std::max(0.0f, cfg_GoalInChromaticSampleOffset.Get()),
+                                 std::max(0.0f, cfg_GoalInChromaticRadialScale.Get()));
+        }
+        wasGoalAttracting_ = goalAttractingNow;
     }
 
     void UpdateUrgencyScreenFX(World &world, float dt) {
@@ -1004,19 +1054,18 @@ class GameScene : public IScene {
         float shakeMax = cfg_UrgencyFxShakeMaxIntensity.Get();
         float shakeIntensity = std::max(0.0f, shakeMin + (shakeMax - shakeMin) * urgency);
         float shakeDuration = std::max(0.0f, cfg_UrgencyFxShakeDuration.Get());
-        if (shakeIntensity > 0.0f && shakeDuration > 0.0f) {
-            TriggerCameraShake(shakeIntensity, shakeDuration);
-        }
-
-        if (auto *renderer = ServiceLocator::TryGet<RenderSystem>()) {
-            float chromaMin = cfg_UrgencyFxChromaticMinIntensity.Get();
-            float chromaMax = cfg_UrgencyFxChromaticMaxIntensity.Get();
-            float chromaticIntensity = std::max(0.0f, chromaMin + (chromaMax - chromaMin) * urgency);
-            renderer->TriggerChromaticAberration(chromaticIntensity,
-                                                 std::max(0.0f, cfg_UrgencyFxChromaticDuration.Get()),
-                                                 std::max(0.0f, cfg_UrgencyFxChromaticSampleOffset.Get()),
-                                                 std::max(0.0f, cfg_UrgencyFxChromaticRadialScale.Get()));
-        }
+        float chromaMin = cfg_UrgencyFxChromaticMinIntensity.Get();
+        float chromaMax = cfg_UrgencyFxChromaticMaxIntensity.Get();
+        float chromaticIntensity = std::max(0.0f, chromaMin + (chromaMax - chromaMin) * urgency);
+        TriggerScreenFXEvent(ScreenFXEventType::UrgencyPulse,
+                             shakeIntensity,
+                             shakeDuration,
+                             0.0f,
+                             0.0f,
+                             chromaticIntensity,
+                             std::max(0.0f, cfg_UrgencyFxChromaticDuration.Get()),
+                             std::max(0.0f, cfg_UrgencyFxChromaticSampleOffset.Get()),
+                             std::max(0.0f, cfg_UrgencyFxChromaticRadialScale.Get()));
     }
 
     static constexpr bool IsGoalCheatCombo(
@@ -1213,6 +1262,24 @@ class GameScene : public IScene {
         if (pendingRespawn_)
             return;
         ResetChargeState();
+        startIntroActive_ = false;
+        startIntroElapsed_ = 0.0f;
+
+        float collisionZoomAmount = 0.0f;
+        float collisionZoomDuration = 0.0f;
+        if (cfg_CollisionZoomEnabled.Get()) {
+            collisionZoomAmount = std::clamp(std::max(0.0f, cfg_WallHitZoomAmount.Get()), 0.0f, std::max(0.0f, cfg_CollisionMaxConcurrentZoom.Get()));
+            collisionZoomDuration = std::max(0.0f, cfg_WallHitZoomDuration.Get());
+        }
+        TriggerScreenFXEvent(ScreenFXEventType::WallHit,
+                             std::max(0.0f, cfg_WallHitShakeIntensity.Get()),
+                             std::max(0.0f, cfg_WallHitShakeDuration.Get()),
+                             collisionZoomAmount,
+                             collisionZoomDuration,
+                             0.0f,
+                             0.0f,
+                             0.0f,
+                             0.0f);
 
         // 再生用フェードアニメーションを開始
         deathFadeTimer_ = cfg_DeathAnimationFadeTime;
@@ -1256,6 +1323,24 @@ class GameScene : public IScene {
         if (pendingRespawn_)
             return;
         ResetChargeState();
+        startIntroActive_ = false;
+        startIntroElapsed_ = 0.0f;
+
+        float collisionZoomAmount = 0.0f;
+        float collisionZoomDuration = 0.0f;
+        if (cfg_CollisionZoomEnabled.Get()) {
+            collisionZoomAmount = std::clamp(std::max(0.0f, cfg_TimeUpZoomAmount.Get()), 0.0f, std::max(0.0f, cfg_CollisionMaxConcurrentZoom.Get()));
+            collisionZoomDuration = std::max(0.0f, cfg_TimeUpZoomDuration.Get());
+        }
+        TriggerScreenFXEvent(ScreenFXEventType::TimeUp,
+                             std::max(0.0f, cfg_WallHitShakeIntensity.Get()) * 0.8f,
+                             std::max(0.0f, cfg_WallHitShakeDuration.Get()),
+                             collisionZoomAmount,
+                             collisionZoomDuration,
+                             0.0f,
+                             0.0f,
+                             0.0f,
+                             0.0f);
 
         deathFadeTimer_ = cfg_DeathAnimationFadeTime;
         isDeathFadePending_ = true;
@@ -1295,6 +1380,8 @@ class GameScene : public IScene {
     }
 
     void BeginStageSelectFade(const std::string &sceneName, World &world) {
+        startIntroActive_ = false;
+        startIntroElapsed_ = 0.0f;
         pendingStageSelectScene_ = sceneName;
         if (!pendingStageSelectScene_.empty()) {
             StartFadeOutNormal(world);
@@ -1308,6 +1395,246 @@ class GameScene : public IScene {
     }
 
   private:
+    enum class ScreenFXEventType : uint8_t {
+        BoostBurst = 0,
+        ChargeRelease,
+        GoalIn,
+        UrgencyPulse,
+        WallHit,
+        TimeUp,
+        Count
+    };
+
+    static DirectX::XMFLOAT3 LerpFloat3(const DirectX::XMFLOAT3 &a, const DirectX::XMFLOAT3 &b, float t) {
+        const float clampedT = std::clamp(t, 0.0f, 1.0f);
+        return {
+            a.x + (b.x - a.x) * clampedT,
+            a.y + (b.y - a.y) * clampedT,
+            a.z + (b.z - a.z) * clampedT};
+    }
+
+    static float EaseOutCubic(float t) {
+        const float clampedT = std::clamp(t, 0.0f, 1.0f);
+        const float inv = 1.0f - clampedT;
+        return 1.0f - inv * inv * inv;
+    }
+
+    static size_t ToScreenFXIndex(ScreenFXEventType type) {
+        return static_cast<size_t>(type);
+    }
+
+    int GetScreenFXPriority(ScreenFXEventType type) const {
+        switch (type) {
+            case ScreenFXEventType::WallHit:
+                return 50;
+            case ScreenFXEventType::TimeUp:
+                return 45;
+            case ScreenFXEventType::GoalIn:
+                return 40;
+            case ScreenFXEventType::ChargeRelease:
+                return 30;
+            case ScreenFXEventType::UrgencyPulse:
+                return 20;
+            case ScreenFXEventType::BoostBurst:
+                return 10;
+            default:
+                return 0;
+        }
+    }
+
+    float GetScreenFXCooldown(ScreenFXEventType type) const {
+        switch (type) {
+            case ScreenFXEventType::BoostBurst:
+                return std::max(0.0f, cfg_ScreenFxCooldownBoostBurst.Get());
+            case ScreenFXEventType::ChargeRelease:
+                return std::max(0.0f, cfg_ScreenFxCooldownChargeRelease.Get());
+            case ScreenFXEventType::GoalIn:
+                return std::max(0.0f, cfg_ScreenFxCooldownGoalIn.Get());
+            case ScreenFXEventType::UrgencyPulse:
+                return std::max(0.0f, cfg_ScreenFxCooldownUrgency.Get());
+            case ScreenFXEventType::WallHit:
+                return std::max(0.0f, cfg_ScreenFxCooldownWallHit.Get());
+            case ScreenFXEventType::TimeUp:
+                return std::max(0.0f, cfg_ScreenFxCooldownTimeUp.Get());
+            default:
+                return 0.0f;
+        }
+    }
+
+    void BeginScreenFXFrame(float dt) {
+        const float safeDt = std::max(0.0f, dt);
+        screenFxClock_ += safeDt;
+        const float smooth = 1.0f - std::exp(-8.0f * safeDt);
+        screenFxSmoothedDt_ += (safeDt - screenFxSmoothedDt_) * smooth;
+        frameFxPriority_ = -1;
+    }
+
+    float GetScreenFXBudgetScale() const {
+        if (!cfg_ScreenFxDirectorEnabled.Get()) {
+            return 1.0f;
+        }
+        float scale = 1.0f;
+        const std::string preset = cfg_ScreenFxPreset.Get();
+        if (preset == "Competitive") {
+            scale *= 0.72f;
+        } else if (preset == "Cinematic") {
+            scale *= 1.15f;
+        }
+        const float fps = 1.0f / std::max(1e-4f, screenFxSmoothedDt_);
+        const float lowFpsStart = std::max(1.0f, cfg_ScreenFxLowFpsStart.Get());
+        if (fps < lowFpsStart) {
+            const float ratio = std::clamp(fps / lowFpsStart, 0.0f, 1.0f);
+            const float minScale = std::clamp(cfg_ScreenFxLowFpsMinScale.Get(), 0.0f, 1.0f);
+            scale *= minScale + (1.0f - minScale) * ratio;
+        }
+        if (isFading || stageClearActive_ || isStageSelectFadeActive_) {
+            scale *= std::clamp(cfg_ScreenFxUiScale.Get(), 0.0f, 1.0f);
+        }
+        return std::clamp(scale, 0.0f, 1.0f);
+    }
+
+    bool AcquireScreenFXEvent(ScreenFXEventType type) {
+        if (!cfg_ScreenFxDirectorEnabled.Get()) {
+            return true;
+        }
+        const size_t index = ToScreenFXIndex(type);
+        if (index >= screenFxNextAllowed_.size()) {
+            return false;
+        }
+        if (screenFxClock_ < screenFxNextAllowed_[index]) {
+            return false;
+        }
+        const int priority = GetScreenFXPriority(type);
+        if (priority < frameFxPriority_) {
+            return false;
+        }
+        frameFxPriority_ = priority;
+        screenFxNextAllowed_[index] = screenFxClock_ + GetScreenFXCooldown(type);
+        return true;
+    }
+
+    void TriggerScreenFXEvent(
+        ScreenFXEventType type,
+        float shakeIntensity,
+        float shakeDuration,
+        float zoomAmount,
+        float zoomDuration,
+        float chromaticIntensity,
+        float chromaticDuration,
+        float chromaticSampleOffset,
+        float chromaticRadialScale) {
+        if (!AcquireScreenFXEvent(type)) {
+            return;
+        }
+
+        const float budgetScale = GetScreenFXBudgetScale();
+        const float maxShake = std::max(0.0f, cfg_ScreenFxMaxShake.Get());
+        const float maxZoom = std::max(0.0f, cfg_ScreenFxMaxZoom.Get());
+        const float maxChromatic = std::max(0.0f, cfg_ScreenFxMaxChromatic.Get());
+
+        const float finalShake = std::clamp(std::max(0.0f, shakeIntensity) * budgetScale, 0.0f, maxShake);
+        const float finalZoom = std::clamp(std::max(0.0f, zoomAmount) * budgetScale, 0.0f, maxZoom);
+        const float finalChromatic = std::clamp(std::max(0.0f, chromaticIntensity) * budgetScale, 0.0f, maxChromatic);
+        const float finalShakeDuration = std::max(0.0f, shakeDuration);
+        const float finalZoomDuration = std::max(0.0f, zoomDuration);
+        const float finalChromaticDuration = std::max(0.0f, chromaticDuration);
+
+        if (finalShake > 0.0f && finalShakeDuration > 0.0f) {
+            TriggerCameraShake(finalShake, finalShakeDuration);
+        }
+        if (finalZoom > 0.0f && finalZoomDuration > 0.0f) {
+            TriggerCameraZoom(finalZoom, finalZoomDuration);
+        }
+        if (finalChromatic > 0.0f && finalChromaticDuration > 0.0f) {
+            if (auto *renderer = ServiceLocator::TryGet<RenderSystem>()) {
+                renderer->TriggerChromaticAberration(finalChromatic,
+                                                     finalChromaticDuration,
+                                                     std::max(0.0f, chromaticSampleOffset),
+                                                     std::max(0.0f, chromaticRadialScale));
+            }
+        }
+    }
+
+    void StartStartIntroCamera(World &world) {
+        if (!cfg_StartIntroEnabled.Get()) {
+            startIntroActive_ = false;
+            startIntroElapsed_ = 0.0f;
+            return;
+        }
+        if (!world.IsAlive(playerEntity_)) {
+            startIntroActive_ = false;
+            return;
+        }
+        auto *playerTransform = world.TryGet<Transform>(playerEntity_);
+        if (!playerTransform) {
+            startIntroActive_ = false;
+            return;
+        }
+
+        DirectX::XMFLOAT3 introTarget = playerTransform->position;
+        introTarget.y += cfg_StartIntroLookAtYOffset.Get();
+        startIntroFromTarget_ = introTarget;
+        startIntroFromPos_ = {
+            introTarget.x + cfg_StartIntroOffsetX.Get(),
+            introTarget.y + cfg_StartIntroOffsetY.Get(),
+            introTarget.z + cfg_StartIntroOffsetZ.Get()};
+        startIntroFromFov_ = DirectX::XMConvertToRadians(cfg_StartIntroFovDegrees.Get());
+        startIntroDuration_ = std::max(0.01f, cfg_StartIntroDuration.Get());
+        startIntroElapsed_ = 0.0f;
+        startIntroActive_ = true;
+    }
+
+    void ApplyStartIntroCamera(float dt, DirectX::XMFLOAT3 &cameraBasePos, DirectX::XMFLOAT3 &cameraBaseTarget, float &cameraBaseFov) {
+        if (!startIntroActive_) {
+            return;
+        }
+        startIntroElapsed_ += std::max(0.0f, dt);
+        const float t = std::clamp(startIntroElapsed_ / std::max(0.01f, startIntroDuration_), 0.0f, 1.0f);
+        const float ease = EaseOutCubic(t);
+        cameraBasePos = LerpFloat3(startIntroFromPos_, cameraBasePos, ease);
+        cameraBaseTarget = LerpFloat3(startIntroFromTarget_, cameraBaseTarget, ease);
+        cameraBaseFov = startIntroFromFov_ + (cameraBaseFov - startIntroFromFov_) * ease;
+        if (t >= 1.0f) {
+            startIntroActive_ = false;
+            startIntroElapsed_ = 0.0f;
+        }
+    }
+
+    void ApplyGoalInPlayerCamera(World &world, float dt, DirectX::XMFLOAT3 &cameraBasePos, DirectX::XMFLOAT3 &cameraBaseTarget, float &cameraBaseFov) {
+        const bool goalCameraActive = cfg_GoalInPlayerCameraEnabled.Get() &&
+                                      world.IsAlive(playerEntity_) &&
+                                      world.Has<GoalAttractor>(playerEntity_);
+        const float targetBlend = goalCameraActive ? 1.0f : 0.0f;
+        const float blendSpeed = std::max(0.0f, cfg_GoalInPlayerCameraBlendSpeed.Get());
+        const float safeDt = std::max(0.0f, dt);
+        const float blendLerp = 1.0f - std::exp(-blendSpeed * safeDt);
+        goalInCameraBlend_ += (targetBlend - goalInCameraBlend_) * blendLerp;
+        goalInCameraBlend_ = std::clamp(goalInCameraBlend_, 0.0f, 1.0f);
+        if (goalInCameraBlend_ <= 1e-4f) {
+            goalInCameraBlend_ = 0.0f;
+            return;
+        }
+        auto *playerTransform = world.TryGet<Transform>(playerEntity_);
+        if (!playerTransform) {
+            return;
+        }
+
+        const DirectX::XMFLOAT3 goalCameraTarget{
+            playerTransform->position.x,
+            playerTransform->position.y + cfg_GoalInPlayerCameraLookAtYOffset.Get(),
+            playerTransform->position.z};
+        const DirectX::XMFLOAT3 goalCameraPos{
+            goalCameraTarget.x + cfg_GoalInPlayerCameraOffsetX.Get(),
+            goalCameraTarget.y + cfg_GoalInPlayerCameraOffsetY.Get(),
+            goalCameraTarget.z + cfg_GoalInPlayerCameraOffsetZ.Get()};
+        cameraBasePos = LerpFloat3(cameraBasePos, goalCameraPos, goalInCameraBlend_);
+        cameraBaseTarget = LerpFloat3(cameraBaseTarget, goalCameraTarget, goalInCameraBlend_);
+
+        const float goalFovDeg = std::max(1.0f, cfg_GoalInPlayerCameraFovDegrees.Get());
+        const float goalFovRad = DirectX::XMConvertToRadians(goalFovDeg);
+        cameraBaseFov = cameraBaseFov + (goalFovRad - cameraBaseFov) * goalInCameraBlend_;
+    }
+
     static float GetCameraYawDeg(const Camera &cam) {
         using namespace DirectX;
         const XMVECTOR pos = XMLoadFloat3(&cam.position);
@@ -1529,6 +1856,8 @@ class GameScene : public IScene {
                 pendingStageAdvance_.nextRoomPath = *nextRoomPath;
                 stageAdvanceTimer_ = 0.0f;
                 pendingStageAdvance_.stageResetPending = false;
+                startIntroActive_ = false;
+                startIntroElapsed_ = 0.0f;
 
                 StartFadeOutNormal(world);
                 DEBUGLOG("同一ステージ内で次のルームへ進行(フェード演出開始): Stage" + std::to_string(sp.currentStage) + ", room" + std::to_string(pendingStageAdvance_.nextRoom));
@@ -1575,6 +1904,7 @@ class GameScene : public IScene {
                 pendingStageAdvance_.stageResetPending = false;
                 pendingStageAdvance_.stageBuilt = true;
                 StartFadeInNormal(world);
+                StartStartIntroCamera(world);
             }
             return;
         }
@@ -2861,6 +3191,9 @@ class GameScene : public IScene {
         if (respawnTimer_ <= 0.0f) {
             ResetPlayerToStart(world, respawnPlayer_, true);
             StartFadeInNormal(world);
+            if (cfg_StartIntroPlayOnRespawn.Get()) {
+                StartStartIntroCamera(world);
+            }
             deathFadeVisible_ = false;
             if (auto *playerStatus = world.TryGet<PlayerStatus>(playerEntity_)) {
                 UpdateWallHitState(*playerStatus, PlayerStatus::WallHitState::Idle, "RespawnComplete");
@@ -3049,10 +3382,15 @@ class GameScene : public IScene {
 
         // Use the smoothed currentTarget_ as the effective target to apply
         effectiveTarget = currentTarget_;
+        DirectX::XMFLOAT3 cameraBasePos = cameraPosition_;
+        DirectX::XMFLOAT3 cameraBaseTarget = effectiveTarget;
+        float cameraBaseFov = baseFovY_;
+        ApplyStartIntroCamera(dt, cameraBasePos, cameraBaseTarget, cameraBaseFov);
+        ApplyGoalInPlayerCamera(world, dt, cameraBasePos, cameraBaseTarget, cameraBaseFov);
 
-        camera_.position = {cameraPosition_.x + posOffset.x, cameraPosition_.y + posOffset.y, cameraPosition_.z + posOffset.z};
-        camera_.target = {effectiveTarget.x + targetOffset.x, effectiveTarget.y + targetOffset.y, effectiveTarget.z + targetOffset.z};
-        camera_.fovY = std::clamp(baseFovY_ + fovDelta + stickZoomDelta, DirectX::XM_PIDIV4 * 0.25f, DirectX::XM_PIDIV2 * 1.5f);
+        camera_.position = {cameraBasePos.x + posOffset.x, cameraBasePos.y + posOffset.y, cameraBasePos.z + posOffset.z};
+        camera_.target = {cameraBaseTarget.x + targetOffset.x, cameraBaseTarget.y + targetOffset.y, cameraBaseTarget.z + targetOffset.z};
+        camera_.fovY = std::clamp(cameraBaseFov + fovDelta + stickZoomDelta, DirectX::XM_PIDIV4 * 0.25f, DirectX::XM_PIDIV2 * 1.5f);
         camera_.up = upVec;
 
         camera_.Proj = DirectX::XMMatrixPerspectiveFovLH(camera_.fovY, camera_.aspect, camera_.nearZ, camera_.farZ);
@@ -3406,7 +3744,19 @@ class GameScene : public IScene {
     float vibrationTimer_ = 0.0f;   ///< はじき振動の残り時間
     float sirenTimer_ = 0.0f;       ///< サイレン点滅用タイマー
     bool wasBoosting_ = false;
+    bool wasGoalAttracting_ = false;
+    float goalInCameraBlend_ = 0.0f;
     float urgencyPulseTimer_ = 0.0f;
+    bool startIntroActive_ = false;
+    float startIntroElapsed_ = 0.0f;
+    float startIntroDuration_ = 1.2f;
+    DirectX::XMFLOAT3 startIntroFromPos_ = {0.0f, 0.0f, 0.0f};
+    DirectX::XMFLOAT3 startIntroFromTarget_ = {0.0f, 0.0f, 0.0f};
+    float startIntroFromFov_ = DirectX::XM_PIDIV4;
+    float screenFxClock_ = 0.0f;
+    float screenFxSmoothedDt_ = 1.0f / 60.0f;
+    int frameFxPriority_ = -1;
+    std::array<float, static_cast<size_t>(ScreenFXEventType::Count)> screenFxNextAllowed_{};
 };
 
 // =========================================

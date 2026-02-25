@@ -8,6 +8,7 @@
 #pragma once
 
 #include "config/ConfigVar.h"
+#include <string>
 
 /**
  * @brief カメラリアクションタイプ
@@ -114,3 +115,91 @@ inline ConfigVar<float> cfg_UrgencyFxChromaticDuration{"Camera.Reaction.Urgency"
 inline ConfigVar<float> cfg_UrgencyFxChromaticSampleOffset{"Camera.Reaction.Urgency", "ChromaticSampleOffset", 0.004f, "切迫演出色収差UVオフセット量"};
 /** @brief 切迫演出色収差の半径倍率 */
 inline ConfigVar<float> cfg_UrgencyFxChromaticRadialScale{"Camera.Reaction.Urgency", "ChromaticRadialScale", 1.3f, "切迫演出色収差の半径倍率"};
+
+/** @brief スタートイントロ演出の有効フラグ */
+inline ConfigVar<bool> cfg_StartIntroEnabled{"Camera.Reaction.StartIntro", "Enabled", true, "スタートイントロ演出を有効化する"};
+/** @brief スタートイントロ演出の継続時間 */
+inline ConfigVar<float> cfg_StartIntroDuration{"Camera.Reaction.StartIntro", "Duration", 1.2f, "スタートイントロ演出の継続時間"};
+/** @brief スタートイントロ時のカメラXオフセット */
+inline ConfigVar<float> cfg_StartIntroOffsetX{"Camera.Reaction.StartIntro", "OffsetX", 0.0f, "スタートイントロ時のカメラXオフセット"};
+/** @brief スタートイントロ時のカメラYオフセット */
+inline ConfigVar<float> cfg_StartIntroOffsetY{"Camera.Reaction.StartIntro", "OffsetY", 6.0f, "スタートイントロ時のカメラYオフセット"};
+/** @brief スタートイントロ時のカメラZオフセット */
+inline ConfigVar<float> cfg_StartIntroOffsetZ{"Camera.Reaction.StartIntro", "OffsetZ", -2.2f, "スタートイントロ時のカメラZオフセット"};
+/** @brief スタートイントロ時の注視点Y補正 */
+inline ConfigVar<float> cfg_StartIntroLookAtYOffset{"Camera.Reaction.StartIntro", "LookAtYOffset", 1.0f, "スタートイントロ時の注視点Y補正"};
+/** @brief スタートイントロ開始時のFOV(度) */
+inline ConfigVar<float> cfg_StartIntroFovDegrees{"Camera.Reaction.StartIntro", "IntroFovDegrees", 38.0f, "スタートイントロ開始時のFOV(度)"};
+/** @brief リスポーン時にスタートイントロを再生するか */
+inline ConfigVar<bool> cfg_StartIntroPlayOnRespawn{"Camera.Reaction.StartIntro", "PlayOnRespawn", false, "リスポーン時にスタートイントロを再生する"};
+
+/** @brief 衝突ズーム演出の有効フラグ */
+inline ConfigVar<bool> cfg_CollisionZoomEnabled{"Camera.Reaction.CollisionZoom", "Enabled", true, "衝突ズーム演出を有効化する"};
+/** @brief 壁衝突時ズーム量 */
+inline ConfigVar<float> cfg_WallHitZoomAmount{"Camera.Reaction.CollisionZoom", "WallHitZoomAmount", 0.10f, "壁衝突時ズーム量"};
+/** @brief 壁衝突時ズーム継続時間 */
+inline ConfigVar<float> cfg_WallHitZoomDuration{"Camera.Reaction.CollisionZoom", "WallHitZoomDuration", 0.16f, "壁衝突時ズーム継続時間"};
+/** @brief タイムアップ時ズーム量 */
+inline ConfigVar<float> cfg_TimeUpZoomAmount{"Camera.Reaction.CollisionZoom", "TimeUpZoomAmount", 0.14f, "タイムアップ時ズーム量"};
+/** @brief タイムアップ時ズーム継続時間 */
+inline ConfigVar<float> cfg_TimeUpZoomDuration{"Camera.Reaction.CollisionZoom", "TimeUpZoomDuration", 0.20f, "タイムアップ時ズーム継続時間"};
+/** @brief 同時ズーム時の最大ズーム量 */
+inline ConfigVar<float> cfg_CollisionMaxConcurrentZoom{"Camera.Reaction.CollisionZoom", "MaxConcurrentZoom", 0.22f, "同時ズーム時の最大ズーム量"};
+
+/** @brief ゴール吸引開始時演出の有効フラグ */
+inline ConfigVar<bool> cfg_GoalInFxEnabled{"Camera.Reaction.GoalIn", "Enabled", true, "ゴール吸引開始時演出を有効化する"};
+/** @brief ゴール吸引開始時ズーム量 */
+inline ConfigVar<float> cfg_GoalInZoomAmount{"Camera.Reaction.GoalIn", "ZoomAmount", 0.12f, "ゴール吸引開始時ズーム量"};
+/** @brief ゴール吸引開始時ズーム継続時間 */
+inline ConfigVar<float> cfg_GoalInZoomDuration{"Camera.Reaction.GoalIn", "ZoomDuration", 0.18f, "ゴール吸引開始時ズーム継続時間"};
+/** @brief ゴール吸引開始時色収差強度 */
+inline ConfigVar<float> cfg_GoalInChromaticIntensity{"Camera.Reaction.GoalIn", "ChromaticIntensity", 0.09f, "ゴール吸引開始時色収差強度"};
+/** @brief ゴール吸引開始時色収差継続時間 */
+inline ConfigVar<float> cfg_GoalInChromaticDuration{"Camera.Reaction.GoalIn", "ChromaticDuration", 0.16f, "ゴール吸引開始時色収差継続時間"};
+/** @brief ゴール吸引開始時色収差UVオフセット量 */
+inline ConfigVar<float> cfg_GoalInChromaticSampleOffset{"Camera.Reaction.GoalIn", "ChromaticSampleOffset", 0.0048f, "ゴール吸引開始時色収差UVオフセット量"};
+/** @brief ゴール吸引開始時色収差の半径倍率 */
+inline ConfigVar<float> cfg_GoalInChromaticRadialScale{"Camera.Reaction.GoalIn", "ChromaticRadialScale", 1.25f, "ゴール吸引開始時色収差の半径倍率"};
+/** @brief ゴール吸引中にプレイヤーへ寄るカメラ演出を有効化する */
+inline ConfigVar<bool> cfg_GoalInPlayerCameraEnabled{"Camera.Reaction.GoalIn", "PlayerCameraEnabled", true, "ゴール吸引中にプレイヤーへ寄るカメラ演出を有効化する"};
+/** @brief ゴール吸引中カメラのXオフセット */
+inline ConfigVar<float> cfg_GoalInPlayerCameraOffsetX{"Camera.Reaction.GoalIn", "PlayerCameraOffsetX", 0.0f, "ゴール吸引中カメラのXオフセット"};
+/** @brief ゴール吸引中カメラのYオフセット */
+inline ConfigVar<float> cfg_GoalInPlayerCameraOffsetY{"Camera.Reaction.GoalIn", "PlayerCameraOffsetY", 3.8f, "ゴール吸引中カメラのYオフセット"};
+/** @brief ゴール吸引中カメラのZオフセット */
+inline ConfigVar<float> cfg_GoalInPlayerCameraOffsetZ{"Camera.Reaction.GoalIn", "PlayerCameraOffsetZ", -1.0f, "ゴール吸引中カメラのZオフセット"};
+/** @brief ゴール吸引中カメラの注視点Y補正 */
+inline ConfigVar<float> cfg_GoalInPlayerCameraLookAtYOffset{"Camera.Reaction.GoalIn", "PlayerCameraLookAtYOffset", 1.0f, "ゴール吸引中カメラの注視点Y補正"};
+/** @brief ゴール吸引中カメラFOV(度) */
+inline ConfigVar<float> cfg_GoalInPlayerCameraFovDegrees{"Camera.Reaction.GoalIn", "PlayerCameraFovDegrees", 14.0f, "ゴール吸引中カメラFOV(度)"};
+/** @brief ゴール吸引中カメラの補間速度 */
+inline ConfigVar<float> cfg_GoalInPlayerCameraBlendSpeed{"Camera.Reaction.GoalIn", "PlayerCameraBlendSpeed", 12.0f, "ゴール吸引中カメラの補間速度"};
+
+/** @brief スクリーンFXディレクター有効フラグ */
+inline ConfigVar<bool> cfg_ScreenFxDirectorEnabled{"Camera.Reaction.ScreenFXDirector", "Enabled", true, "スクリーンFXディレクターを有効化する"};
+/** @brief スクリーンFXプリセット名 */
+inline ConfigVar<std::string> cfg_ScreenFxPreset{"Camera.Reaction.ScreenFXDirector", "Preset", "Default", "スクリーンFXプリセット(Competitive/Default/Cinematic)"};
+/** @brief 低FPS判定開始値 */
+inline ConfigVar<float> cfg_ScreenFxLowFpsStart{"Camera.Reaction.ScreenFXDirector", "LowFpsStart", 50.0f, "低FPS判定開始値"};
+/** @brief 低FPS時の最低演出係数 */
+inline ConfigVar<float> cfg_ScreenFxLowFpsMinScale{"Camera.Reaction.ScreenFXDirector", "LowFpsMinScale", 0.45f, "低FPS時の最低演出係数"};
+/** @brief UI/フェード中の演出係数 */
+inline ConfigVar<float> cfg_ScreenFxUiScale{"Camera.Reaction.ScreenFXDirector", "UiScale", 0.70f, "UI/フェード中の演出係数"};
+/** @brief 演出ごとの最大シェイク量 */
+inline ConfigVar<float> cfg_ScreenFxMaxShake{"Camera.Reaction.ScreenFXDirector", "MaxShake", 0.08f, "演出ごとの最大シェイク量"};
+/** @brief 演出ごとの最大ズーム量 */
+inline ConfigVar<float> cfg_ScreenFxMaxZoom{"Camera.Reaction.ScreenFXDirector", "MaxZoom", 0.22f, "演出ごとの最大ズーム量"};
+/** @brief 演出ごとの最大色収差量 */
+inline ConfigVar<float> cfg_ScreenFxMaxChromatic{"Camera.Reaction.ScreenFXDirector", "MaxChromatic", 0.35f, "演出ごとの最大色収差量"};
+/** @brief ブーストバーストのクールダウン */
+inline ConfigVar<float> cfg_ScreenFxCooldownBoostBurst{"Camera.Reaction.ScreenFXDirector", "CooldownBoostBurst", 0.08f, "ブーストバーストのクールダウン"};
+/** @brief チャージ解放のクールダウン */
+inline ConfigVar<float> cfg_ScreenFxCooldownChargeRelease{"Camera.Reaction.ScreenFXDirector", "CooldownChargeRelease", 0.06f, "チャージ解放のクールダウン"};
+/** @brief 切迫パルスのクールダウン */
+inline ConfigVar<float> cfg_ScreenFxCooldownUrgency{"Camera.Reaction.ScreenFXDirector", "CooldownUrgency", 0.10f, "切迫パルスのクールダウン"};
+/** @brief 壁衝突のクールダウン */
+inline ConfigVar<float> cfg_ScreenFxCooldownWallHit{"Camera.Reaction.ScreenFXDirector", "CooldownWallHit", 0.08f, "壁衝突のクールダウン"};
+/** @brief タイムアップのクールダウン */
+inline ConfigVar<float> cfg_ScreenFxCooldownTimeUp{"Camera.Reaction.ScreenFXDirector", "CooldownTimeUp", 0.10f, "タイムアップのクールダウン"};
+/** @brief ゴール吸引開始のクールダウン */
+inline ConfigVar<float> cfg_ScreenFxCooldownGoalIn{"Camera.Reaction.ScreenFXDirector", "CooldownGoalIn", 0.10f, "ゴール吸引開始のクールダウン"};

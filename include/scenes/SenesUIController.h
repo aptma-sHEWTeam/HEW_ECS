@@ -50,7 +50,7 @@ struct GameUIUpdater : Behaviour {
     DirectX::XMFLOAT2 pauseMenuButtonSize_{360.0f, 60.0f};
     DirectX::XMFLOAT2 pauseTitleImgSize_{400.0f, 100.0f};
     DirectX::XMFLOAT2 pauseLineImgSize_{15.0f, 350.0f};
-    DirectX::XMFLOAT2 pauseSelectImgSize_{120.0f, 15.0f}; // select.pngのサイズ指定
+    DirectX::XMFLOAT2 pauseSelectImgSize_{320.0f, 40.0f}; // select.pngのサイズ指定
 
     void OnUpdate(World &w, Entity self, float dt) override {
         w.ForEach<GameStatus>([&](Entity e, GameStatus &stats) {
@@ -240,7 +240,7 @@ struct GameUIUpdater : Behaviour {
                             if (auto *selectTr = w.TryGet<UITransform>(pauseSelectIndicatorEntity_)) {
                                 if (auto *btnTr = w.TryGet<UITransform>(buttonEntity)) {
                                     // 少し右、少し下に配置
-                                    selectTr->position = {btnTr->position.x + 20.0f, btnTr->position.y + 20.0f};
+                                    selectTr->position = {btnTr->position.x + 20.0f, btnTr->position.y + 45.0f};
                                 }
                             }
                         }
