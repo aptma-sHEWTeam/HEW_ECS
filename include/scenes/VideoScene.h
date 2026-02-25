@@ -73,6 +73,8 @@ class VideoScene : public IScene {
         }
 
         gfx_ = gfx;
+        
+        // 実際の解像度はgfxから取得するが、UIの配置などは1280x720(論理解像度)基準に行う
         screenWidth_ = static_cast<float>(gfx->Width());
         screenHeight_ = static_cast<float>(gfx->Height());
 
@@ -108,7 +110,11 @@ class VideoScene : public IScene {
         if (!textSystem_.Init(*gfx) || !imageSystem_.Init(*gfx)) {
             DEBUGLOG_ERROR("VideoScene: Text/ImageSystem init failed");
         } else {
-            CreateUI(world, screenWidth_, screenHeight_);
+            // 論理解像度を設定(1280x720)
+            textSystem_.SetLogicalSize(1280.0f, 720.0f);
+            imageSystem_.SetLogicalSize(1280.0f, 720.0f);
+            
+            CreateUI(world, 1280.0f, 720.0f);
         }
 
         UITransform FadeAnimation;
@@ -180,7 +186,7 @@ class VideoScene : public IScene {
             return;
         }
 
-        if (skipEnabled_ && CheckExitInput(input)) {
+        if (skipEnabled_ && isPlaying_ && CheckExitInput(input)) {
             StartFadeInNormal(world);
             isFading = true;
             return;
@@ -193,13 +199,14 @@ class VideoScene : public IScene {
             }
         }
 
+        // 動画終了後（ループ中、あるいはループなしの完了後）の待機処理
         if (!isPlaying_) {
             if (!loopPlaying_ && !loopVideoPath_.empty()) {
                 StartLoopVideo();
-                return;
+                // ループ再生を開始しても、このフレームは抜けない
             }
-            if (!loopPlaying_) {
-                //TransitionToNextScene(world);
+            // 動画本編が終わった後は、ループ中・非ループ中にかかわらず、ボタン入力で遷移
+            if (CheckExitInput(input)) {
                 StartFadeInNormal(world);
                 isFading = true;
                 return;
@@ -253,7 +260,9 @@ class VideoScene : public IScene {
             return;
         if (loopVideoPath_.empty())
             return;
-        player_.Stop();
+        
+        player_.Close(); // 前の動画リソースを解放する
+        
         if (!player_.Open(*gfx_, loopVideoPath_.c_str())) {
             shouldExit_ = true;
             return;
@@ -316,50 +325,158 @@ class VideoScene : public IScene {
         Entity crossImageEntity = world.Create().With<UITransform>(crossImgTr).With<UIImage>(crossImg).Build();
         uiOwnedEntities_.push_back(crossImageEntity);
 
-        // === デス回数 + ランクUI ===
-        int deaths = StageSave::GetLastSavedDeaths();
-        std::wstring rankStr = StageSave::GetRankW(deaths);
+        // === ランク・デスUI ===
+        int pss = StageSave::GetLastSavedPss();
+        int currentDeaths = StageSave::GetLastSavedDeaths();
+        bool isNewRecord = StageSave::IsNewRecord();
+        std::vector<int> topDeaths = StageSave::GetTopDeaths(pss);
+
+        // フォントフォーマット作成
+        TextSystem::TextFormat recordFmt;
+        recordFmt.fontSize = 80.0f;
+        recordFmt.fontFamily = L"Mamelon-5-Hi-Regular.otf"; // またはインパクトのあるフォント
+        textSystem_.CreateTextFormat("record", recordFmt);
+
+        TextSystem::TextFormat youFmt;
+        youFmt.fontSize = 60.0f;
+        youFmt.fontFamily = L"Mamelon-5-Hi-Regular.otf";
+        textSystem_.CreateTextFormat("you", youFmt);
+
+        TextSystem::TextFormat numFmt;
+        numFmt.fontSize = 90.0f;
+        numFmt.fontFamily = L"ShipporiMincho-Bold.ttf";
+        textSystem_.CreateTextFormat("num", numFmt);
+
+        TextSystem::TextFormat redFmt;
+        redFmt.fontSize = 50.0f;
+        redFmt.fontFamily = L"Mamelon-5-Hi-Regular.otf";
+        textSystem_.CreateTextFormat("redText", redFmt);
+
+        TextSystem::TextFormat topNumFmt;
+        topNumFmt.fontSize = 65.0f;
+        topNumFmt.fontFamily = L"ShipporiMincho-Bold.ttf";
+        textSystem_.CreateTextFormat("topNum", topNumFmt);
 
         TextSystem::TextFormat rankFmt;
-        rankFmt.fontSize = 72.0f;
+        rankFmt.fontSize = 35.0f;
         rankFmt.fontFamily = L"Mamelon-5-Hi-Regular.otf";
-        rankFmt.alignment = DWRITE_TEXT_ALIGNMENT_CENTER;
         textSystem_.CreateTextFormat("rank", rankFmt);
 
-        TextSystem::TextFormat deathFmt;
-        deathFmt.fontSize = 36.0f;
-        deathFmt.fontFamily = L"Mamelon-5-Hi-Regular.otf";
-        deathFmt.alignment = DWRITE_TEXT_ALIGNMENT_CENTER;
-        textSystem_.CreateTextFormat("death", deathFmt);
+        TextSystem::TextFormat promptFmt;
+        promptFmt.fontSize = 40.0f;
+        promptFmt.fontFamily = L"Mamelon-5-Hi-Regular.otf";
+        promptFmt.alignment = DWRITE_TEXT_ALIGNMENT_CENTER;
+        textSystem_.CreateTextFormat("prompt", promptFmt);
 
-        // ランク表示（右下）
-        UITransform rankTr;
-        rankTr.position = {screenW - 200.0f, screenH - 180.0f};
-        rankTr.size = {180.0f, 90.0f};
-        rankTr.anchor = {0.0f, 0.0f};
-        rankTr.pivot = {0.0f, 0.0f};
+        // 【1】 New Record!!! （左上、条件付き）
+        if (isNewRecord) {
+            UITransform nrTr;
+            nrTr.position = {30.0f, 30.0f};
+            nrTr.size = {600.0f, 100.0f};
+            nrTr.anchor = {0.0f, 0.0f};
+            nrTr.pivot = {0.0f, 0.0f};
+            
+            UIText nrText{L"New Record!!!"};
+            nrText.color = {1.0f, 1.0f, 0.0f, 0.0f}; // 最初は透明
+            nrText.formatId = "record";
+            newRecordEntity_ = world.Create().With<UITransform>(nrTr).With<UIText>(nrText).Build();
+            uiOwnedEntities_.push_back(newRecordEntity_);
+        }
 
-        UIText rankText{L"RANK: " + rankStr};
-        rankText.color = {1.0f, 0.85f, 0.0f, 0.0f}; // 初期透明（フェードイン用）
-        rankText.formatId = "rank";
+        // 【2】 You (右下やや上) + 今回のデス数 + "death"（下配置）
+        float youBaseX = screenW - 350.0f;
+        float youBaseY = screenH - 220.0f;
+        
+        // "You"
+        UITransform youTr;
+        youTr.position = {youBaseX, youBaseY};
+        youTr.size = {150.0f, 80.0f};
+        youTr.anchor = {0.0f, 0.0f};
+        youTr.pivot = {0.0f, 0.0f};
 
-        rankEntity_ = world.Create().With<UITransform>(rankTr).With<UIText>(rankText).Build();
-        uiOwnedEntities_.push_back(rankEntity_);
+        UIText youText{L"You"};
+        youText.color = {1.0f, 1.0f, 1.0f, 0.0f};
+        youText.formatId = "you";
+        Entity youEnt = world.Create().With<UITransform>(youTr).With<UIText>(youText).Build();
+        uiOwnedEntities_.push_back(youEnt);
+        rankDataEntities_.push_back(youEnt);
 
-        // デス回数表示（ランクの下）
-        UITransform deathTr;
-        deathTr.position = {screenW - 200.0f, screenH - 90.0f};
-        deathTr.size = {180.0f, 50.0f};
-        deathTr.anchor = {0.0f, 0.0f};
-        deathTr.pivot = {0.0f, 0.0f};
+        // 今回の数値
+        UITransform currNumTr;
+        currNumTr.position = {youBaseX + 130.0f, youBaseY - 10.0f};
+        currNumTr.size = {150.0f, 100.0f};
+        currNumTr.anchor = {0.0f, 0.0f};
+        currNumTr.pivot = {0.0f, 0.0f};
 
-        std::wstring deathStr = L"DEATH: " + std::to_wstring(deaths);
-        UIText deathText{deathStr};
-        deathText.color = {1.0f, 1.0f, 1.0f, 0.0f}; // 初期透明
-        deathText.formatId = "death";
+        UIText currNumText{std::to_wstring(currentDeaths)};
+        currNumText.color = {1.0f, 1.0f, 1.0f, 0.0f};
+        currNumText.formatId = "num";
+        Entity currNumEnt = world.Create().With<UITransform>(currNumTr).With<UIText>(currNumText).Build();
+        uiOwnedEntities_.push_back(currNumEnt);
+        rankDataEntities_.push_back(currNumEnt);
 
-        deathEntity_ = world.Create().With<UITransform>(deathTr).With<UIText>(deathText).Build();
-        uiOwnedEntities_.push_back(deathEntity_);
+        // "death"（赤字で少し下に配置）
+        UITransform redTr;
+        redTr.position = {youBaseX + 180.0f, youBaseY + 70.0f};
+        redTr.size = {150.0f, 60.0f};
+        redTr.anchor = {0.0f, 0.0f};
+        redTr.pivot = {0.0f, 0.0f};
+
+        UIText redText{L"death"};
+        redText.color = {1.0f, 0.0f, 0.0f, 0.0f}; // 赤、透明
+        redText.formatId = "redText";
+        Entity redEnt = world.Create().With<UITransform>(redTr).With<UIText>(redText).Build();
+        uiOwnedEntities_.push_back(redEnt);
+        rankDataEntities_.push_back(redEnt);
+
+        // 【3】 Top 3 ランキング（画面下部、横並び）
+        float rankBaseX = screenW * 0.35f; // 真ん中やや左寄りから開始
+        float rankBaseY = screenH - 100.0f;
+        float xOffset = 200.0f; // 1st, 2nd, 3rd の間隔
+
+        for (size_t i = 0; i < topDeaths.size() && i < 3; ++i) {
+            float curX = rankBaseX + (i * xOffset);
+            
+            // 数値
+            UITransform topNumTr;
+            topNumTr.position = {curX, rankBaseY};
+            topNumTr.size = {80.0f, 80.0f};
+            topNumTr.anchor = {0.0f, 0.0f};
+            topNumTr.pivot = {0.0f, 0.0f};
+
+            UIText topNumText{std::to_wstring(topDeaths[i])};
+            topNumText.color = {0.0f, 0.0f, 0.0f, 0.0f}; // 黒字（透明）
+            topNumText.outlineColor = {1.0f, 1.0f, 1.0f, 0.0f}; // 白いアウトライン
+            topNumText.outlineThickness = 2.5f; 
+            topNumText.formatId = "topNum";
+            Entity topNumEnt = world.Create().With<UITransform>(topNumTr).With<UIText>(topNumText).Build();
+            uiOwnedEntities_.push_back(topNumEnt);
+            rankDataEntities_.push_back(topNumEnt);
+
+            // "1st" のようなサフィックス
+            std::wstring suffix[] = { L"1st", L"2nd", L"3rd" };
+            DirectX::XMFLOAT4 colors[] = { 
+                {1.0f, 0.84f, 0.0f, 0.0f}, // 金（透明）
+                {0.75f, 0.75f, 0.75f, 0.0f}, // 銀（透明）
+                {0.8f, 0.5f, 0.2f, 0.0f}  // 銅（透明）
+            };
+
+            UITransform sufTr;
+            sufTr.position = {curX + 45.0f, rankBaseY + 25.0f}; // 数値のすぐ右隣
+            sufTr.size = {60.0f, 40.0f};
+            sufTr.anchor = {0.0f, 0.0f};
+            sufTr.pivot = {0.0f, 0.0f};
+            
+            UIText sufText{suffix[i]};
+            sufText.color = colors[i];
+            sufText.outlineColor = {1.0f, 1.0f, 1.0f, 0.0f}; // 白いアウトライン
+            sufText.outlineThickness = 2.0f;
+            sufText.formatId = "rank";
+
+            Entity sufEnt = world.Create().With<UITransform>(sufTr).With<UIText>(sufText).Build();
+            uiOwnedEntities_.push_back(sufEnt);
+            rankDataEntities_.push_back(sufEnt);
+        }
 
         rankFadeTimer_ = 0.0f;
     }
@@ -603,9 +720,10 @@ class VideoScene : public IScene {
 
     Entity fadeEntity_;
 
-    // ランクUIフェードイン用
-    Entity rankEntity_;
-    Entity deathEntity_;
+    // ランクUIフェードイン・管理用
+    Entity newRecordEntity_; // 「New Record!!!」表示エンティティ
+    std::vector<Entity> rankDataEntities_; // デス数、You表記などのエンティティリスト
+    
     float rankFadeTimer_ = 0.0f;
     static constexpr float kRankFadeDelay = 1.5f;    // 表示開始までの遅延（秒）
     static constexpr float kRankFadeDuration = 1.0f; // フェードイン時間（秒）
@@ -616,20 +734,33 @@ class VideoScene : public IScene {
         return 1.0f - f * f * f;
     }
 
-    /// ランク/デステキストのフェードイン更新
+    /// @brief ランク/デステキストのフェードイン処理
+    /// @param world ECSワールド
+    /// @param dt デルタタイム
     void UpdateRankFadeIn(World &world, float dt) {
         rankFadeTimer_ += dt;
         float elapsed = rankFadeTimer_ - kRankFadeDelay;
-        if (elapsed < 0.0f) return; // 遅延中
+        if (elapsed < 0.0f) return; // 遅延中はスキップ
 
         float t = std::clamp(elapsed / kRankFadeDuration, 0.0f, 1.0f);
         float alpha = EaseOutCubic(t);
 
-        if (auto *rankText = world.TryGet<UIText>(rankEntity_)) {
-            rankText->color.w = alpha; // 金色のalpha
+        // 「New Record!!!」のフェードイン（点滅や演出は別途考慮）
+        if (world.IsAlive(newRecordEntity_)) {
+            if (auto *nrText = world.TryGet<UIText>(newRecordEntity_)) {
+                nrText->color.w = alpha;
+            }
         }
-        if (auto *deathText = world.TryGet<UIText>(deathEntity_)) {
-            deathText->color.w = alpha;
+
+        // You や 1st, 2nd, 数値テキストのフェードイン
+        for (Entity e : rankDataEntities_) {
+            if (world.IsAlive(e)) {
+                if (auto *uText = world.TryGet<UIText>(e)) {
+                    // RGBカラーは維持し、Alpha値(W)だけ更新する
+                    uText->color.w = alpha; 
+                    uText->outlineColor.w = alpha; // アウトラインの透明度もフェードインさせる
+                }
+            }
         }
     }
 };

@@ -274,88 +274,67 @@ struct UIInteractionSystem : Behaviour {
             return a.screenY < b.screenY;
         });
 
-        float mx = static_cast<float>(input_->GetMouseX());
-        float my = static_cast<float>(input_->GetMouseY());
-        const bool mouseClick = input_->GetMouseButtonDown(InputSystem::Left);
-        const bool mouseHeld = input_->GetMouseButton(InputSystem::Left);
-
-        int hoverIndex = -1;
-        for (size_t i = 0; i < buttons.size(); ++i) {
-            auto *t = w.TryGet<UITransform>(buttons[i].e);
-            if (!t)
-                continue;
-            if (t->Contains(mx, my, screenWidth_, screenHeight_)) {
-                hoverIndex = static_cast<int>(i);
-                break;
-            }
-        }
-
         bool submitDown = false;
         bool submitHeld = false;
 
-        if (hoverIndex >= 0) {
-            selectedIndex_ = hoverIndex;
-            submitDown = mouseClick;
-            submitHeld = mouseHeld;
+        bool up = false;
+        bool down = false;
+
+        auto *pad = ServiceLocator::TryGet<GamepadSystem>();
+        if (pad) {
+            const float threshold = 0.8f;
+            const float ay = pad->GetLeftStickY();
+
+            const bool stickUpNow = ay > threshold;
+            const bool stickDownNow = ay < -threshold;
+            const bool dpadUpNow = pad->GetButton(GamepadSystem::Button_DPad_Up);
+            const bool dpadDownNow = pad->GetButton(GamepadSystem::Button_DPad_Down);
+
+            if (stickUpNow && !stickUpPrev_)
+                up = true;
+            if (stickDownNow && !stickDownPrev_)
+                down = true;
+            if (dpadUpNow && !dpadUpPrev_)
+                up = true;
+            if (dpadDownNow && !dpadDownPrev_)
+                down = true;
+
+            stickUpPrev_ = stickUpNow;
+            stickDownPrev_ = stickDownNow;
+            dpadUpPrev_ = dpadUpNow;
+            dpadDownPrev_ = dpadDownNow;
+
+            submitDown = pad->GetButtonDown(GamepadSystem::Button_A);
+            submitHeld = pad->GetButton(GamepadSystem::Button_A);
         } else {
-            bool up = false;
-            bool down = false;
+            stickUpPrev_ = stickDownPrev_ = false;
+            dpadUpPrev_ = dpadDownPrev_ = false;
+        }
 
-            auto *pad = ServiceLocator::TryGet<GamepadSystem>();
-            if (pad) {
-                const float threshold = 0.8f;
-                const float ay = pad->GetLeftStickY();
+        const int buttonCount = static_cast<int>(buttons.size());
+        if (selectedIndex_ < -1 || selectedIndex_ >= buttonCount) {
+            selectedIndex_ = -1;
+        }
 
-                const bool stickUpNow = ay > threshold;
-                const bool stickDownNow = ay < -threshold;
-                const bool dpadUpNow = pad->GetButton(GamepadSystem::Button_DPad_Up);
-                const bool dpadDownNow = pad->GetButton(GamepadSystem::Button_DPad_Down);
-
-                if (stickUpNow && !stickUpPrev_)
-                    up = true;
-                if (stickDownNow && !stickDownPrev_)
-                    down = true;
-                if (dpadUpNow && !dpadUpPrev_)
-                    up = true;
-                if (dpadDownNow && !dpadDownPrev_)
-                    down = true;
-
-                stickUpPrev_ = stickUpNow;
-                stickDownPrev_ = stickDownNow;
-                dpadUpPrev_ = dpadUpNow;
-                dpadDownPrev_ = dpadDownNow;
-
-                submitDown = pad->GetButtonDown(GamepadSystem::Button_A);
-                submitHeld = pad->GetButton(GamepadSystem::Button_A);
+        if (up) {
+            if (selectedIndex_ < 0) {
+                selectedIndex_ = buttonCount - 1;
             } else {
-                stickUpPrev_ = stickDownPrev_ = false;
-                dpadUpPrev_ = dpadDownPrev_ = false;
-            }
-
-            const int buttonCount = static_cast<int>(buttons.size());
-            if (selectedIndex_ < -1 || selectedIndex_ >= buttonCount) {
-                selectedIndex_ = -1;
-            }
-
-            if (up) {
-                if (selectedIndex_ < 0) {
-                    selectedIndex_ = buttonCount - 1;
-                } else {
-                    selectedIndex_ = (selectedIndex_ - 1 + buttonCount) % buttonCount;
-                }
-            }
-            if (down) {
-                if (selectedIndex_ < 0) {
-                    selectedIndex_ = 0;
-                } else {
-                    selectedIndex_ = (selectedIndex_ + 1) % buttonCount;
-                }
-            }
-
-            if ((submitDown || submitHeld) && selectedIndex_ < 0) {
-                selectedIndex_ = 0;
+                selectedIndex_ = (selectedIndex_ - 1 + buttonCount) % buttonCount;
             }
         }
+        if (down) {
+            if (selectedIndex_ < 0) {
+                selectedIndex_ = 0;
+            } else {
+                selectedIndex_ = (selectedIndex_ + 1) % buttonCount;
+            }
+        }
+
+        if ((submitDown || submitHeld) && selectedIndex_ < 0) {
+            selectedIndex_ = 0;
+        }
+
 
         for (size_t i = 0; i < buttons.size(); ++i) {
             auto *b = w.TryGet<UIButton>(buttons[i].e);

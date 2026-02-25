@@ -334,6 +334,7 @@ bool TextSystem::InitCustomFontCollection() {
     customFontFiles_.clear();
     customFontFiles_.push_back(L"./Assets/Fonts/Mamelon-5-Hi-Regular.otf");
     customFontFiles_.push_back(L"./Assets/Fonts/Kinkakuji-Normal.ttf");
+    customFontFiles_.push_back(L"./Assets/Fonts/ShipporiMincho-Bold.ttf");
 
     auto *loader = new (std::nothrow) FontCollectionLoader(customFontFiles_);
     if (!loader) {

@@ -26,9 +26,11 @@ struct StageClearData {
     int maxClearedPss = 0;
     int lastWorld = 1;   // 最後にプレイしていたワールド (1-4)
     int lastStage = 1;   // 最後にプレイしていたステージ (1-based)
-    std::map<int, int> deathCounts; // PSS番号 → デス回数
+    std::map<int, int> deathCounts; // PSS番号 → 直近のデス回数（互換用）
+    std::map<int, std::vector<int>> topDeaths; // PSS番号 → トップ3のデス回数
     int lastSavedPss = 0;           // 最後に保存したPSS（VideoScene表示用）
     int lastSavedDeaths = 0;        // 最後に保存したデス回数（VideoScene表示用）
+    bool isNewRecord = false;       // 今回のプレイが新記録だったか
 };
 
 class StageSave {
@@ -106,8 +108,10 @@ class StageSave {
         s_data.lastWorld = 1;
         s_data.lastStage = 1;
         s_data.deathCounts.clear();
+        s_data.topDeaths.clear();
         s_data.lastSavedPss = 0;
         s_data.lastSavedDeaths = 0;
+        s_data.isNewRecord = false;
         if (std::filesystem::exists("Assets/Save/stage.txt"))
             std::filesystem::remove("Assets/Save/stage.txt");
         if (std::filesystem::exists("Assets/Save/deaths.txt"))
@@ -138,12 +142,30 @@ class StageSave {
         return s_data.maxClearedPss >= prevPss;
     }
 
-    /// デスカウントを保存（PSS番号ごと）
+    /// デスカウントを保存（PSS番号ごと、トップ3更新）
+    /// @param pss PSS番号
+    /// @param count 今回のデス回数
     static inline void SaveDeathCount(int pss, int count) {
         if (pss <= 0) return;
+        
         s_data.deathCounts[pss] = count;
         s_data.lastSavedPss = pss;
         s_data.lastSavedDeaths = count;
+
+        auto &tops = s_data.topDeaths[pss];
+        s_data.isNewRecord = false;
+
+        // 今回の記録が1位かどうか判定（未プレイ、または1位以上の記録を出したか）
+        if (tops.empty() || count <= tops.front()) {
+            s_data.isNewRecord = true;
+        }
+
+        tops.push_back(count);
+        std::sort(tops.begin(), tops.end());
+        if (tops.size() > 3) {
+            tops.resize(3);
+        }
+
         SaveDeathCounts();
     }
 
@@ -155,8 +177,30 @@ class StageSave {
     }
 
     /// 最後に保存したデス回数を取得（VideoScene表示用）
+    /// @return 最後に保存したデス回数
     static inline int GetLastSavedDeaths() {
         return s_data.lastSavedDeaths;
+    }
+
+    /// 最後に保存したPSS番号を取得（VideoScene表示用）
+    /// @return 最後に保存したPSS番号
+    static inline int GetLastSavedPss() {
+        return s_data.lastSavedPss;
+    }
+
+    /// 直近のプレイが新記録だったかを取得
+    /// @return 新記録だった場合はtrue
+    static inline bool IsNewRecord() {
+        return s_data.isNewRecord;
+    }
+
+    /// 指定PSSのトップ3のデス回数を取得
+    /// @param pss PSS番号
+    /// @return デス回数の昇順リスト (最大3要素)
+    static inline std::vector<int> GetTopDeaths(int pss) {
+        auto it = s_data.topDeaths.find(pss);
+        if (it != s_data.topDeaths.end()) return it->second;
+        return {};
     }
 
     /// デス回数からランクを判定 (S/A/B/C)
@@ -192,13 +236,20 @@ class StageSave {
         ofs << std::to_string(s_data.lastStage) << "\n";
     }
 
-    /// デスカウントファイルを保存（pss:count形式）
+    /// デスカウントファイルを保存（pss:count,top1,top2,top3 形式）
     static inline void SaveDeathCounts() {
         std::filesystem::create_directories("Assets/Save");
         std::ofstream ofs("Assets/Save/deaths.txt", std::ios::out);
         if (!ofs) return;
         for (const auto &[pss, count] : s_data.deathCounts) {
-            ofs << pss << ":" << count << "\n";
+            ofs << pss << ":" << count;
+            auto it = s_data.topDeaths.find(pss);
+            if (it != s_data.topDeaths.end()) {
+                for (int td : it->second) {
+                    ofs << "," << td;
+                }
+            }
+            ofs << "\n";
         }
     }
 
@@ -207,14 +258,35 @@ class StageSave {
         std::ifstream ifs("Assets/Save/deaths.txt");
         if (!ifs) return;
         s_data.deathCounts.clear();
+        s_data.topDeaths.clear();
         std::string line;
         while (std::getline(ifs, line)) {
             auto colonPos = line.find(':');
             if (colonPos == std::string::npos) continue;
             try {
                 int pss = std::stoi(line.substr(0, colonPos));
-                int count = std::stoi(line.substr(colonPos + 1));
-                if (pss > 0) s_data.deathCounts[pss] = count;
+                if (pss <= 0) continue;
+
+                std::string dataPart = line.substr(colonPos + 1);
+                auto commaPos = dataPart.find(',');
+                
+                if (commaPos == std::string::npos) {
+                    // 古いフォーマット: pss:count
+                    int count = std::stoi(dataPart);
+                    s_data.deathCounts[pss] = count;
+                    s_data.topDeaths[pss].push_back(count);
+                } else {
+                    // 新しいフォーマット: pss:count,top1,top2,top3
+                    int count = std::stoi(dataPart.substr(0, commaPos));
+                    s_data.deathCounts[pss] = count;
+
+                    std::string topStr = dataPart.substr(commaPos + 1);
+                    std::stringstream ss(topStr);
+                    std::string token;
+                    while (std::getline(ss, token, ',')) {
+                        s_data.topDeaths[pss].push_back(std::stoi(token));
+                    }
+                }
             } catch (...) {}
         }
     }

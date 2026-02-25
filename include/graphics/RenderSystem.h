@@ -88,6 +88,8 @@ struct RenderSystem {
         DirectX::XMFLOAT3 reflectionColor; ///< 反射カラー
         float reflectance;               ///< 反射率(F0相当)
         float paddingEnd[3] = {0.0f, 0.0f, 0.0f}; ///< 16バイト境界合わせ
+        DirectX::XMFLOAT4 chromaticParams; ///< x:強度 y:オフセット z:半径倍率
+        DirectX::XMFLOAT4 chromaticScreen; ///< x:幅 y:高さ
     };
 
     /**
@@ -275,9 +277,11 @@ struct RenderSystem {
         psLightCb_.Reset();
         rasterState_.Reset();
         samplerState_.Reset();
+        samplerStateClamp_.Reset();
         shadowMapSRV_ = nullptr;
         dummyShadowTex_.Reset();
         dummyShadowSRV_.Reset();
+        ClearScreenEffects();
 
         meshCache_.clear();
 
@@ -328,6 +332,44 @@ struct RenderSystem {
             DEBUGLOG_WARNING("[RenderSystem] SetShadowMap: Invalid SRV detected, resetting to nullptr");
             shadowMapSRV_ = nullptr;
         }
+    }
+
+    void TriggerChromaticAberration(float intensity, float duration, float sampleOffset, float radialScale) {
+        chromaticSampleOffset_ = std::max(0.0f, sampleOffset);
+        chromaticRadialScale_ = std::max(0.0f, radialScale);
+        intensity = std::max(0.0f, intensity);
+        duration = std::max(0.0f, duration);
+        if (intensity <= 0.0f || duration <= 0.0f) {
+            ClearScreenEffects();
+            return;
+        }
+        chromaticStartIntensity_ = intensity;
+        chromaticIntensityCurrent_ = intensity;
+        chromaticDuration_ = duration;
+        chromaticElapsed_ = 0.0f;
+        chromaticActive_ = true;
+    }
+
+    void UpdateScreenEffects(float dt) {
+        if (!chromaticActive_) {
+            return;
+        }
+        chromaticElapsed_ += std::max(0.0f, dt);
+        if (chromaticElapsed_ >= chromaticDuration_) {
+            ClearScreenEffects();
+            return;
+        }
+        float t = chromaticElapsed_ / std::max(0.001f, chromaticDuration_);
+        float fade = 1.0f - t;
+        chromaticIntensityCurrent_ = chromaticStartIntensity_ * fade * fade;
+    }
+
+    void ClearScreenEffects() {
+        chromaticActive_ = false;
+        chromaticStartIntensity_ = 0.0f;
+        chromaticIntensityCurrent_ = 0.0f;
+        chromaticDuration_ = 0.0f;
+        chromaticElapsed_ = 0.0f;
     }
 
   private:
@@ -440,6 +482,13 @@ struct RenderSystem {
     // 状態管理
     bool initialized_ = false;
     Statistics stats_;
+    bool chromaticActive_ = false;
+    float chromaticStartIntensity_ = 0.0f;
+    float chromaticIntensityCurrent_ = 0.0f;
+    float chromaticDuration_ = 0.0f;
+    float chromaticElapsed_ = 0.0f;
+    float chromaticSampleOffset_ = 0.0f;
+    float chromaticRadialScale_ = 0.0f;
 
     /**
      * @brief シェーダーのコンパイル
@@ -545,6 +594,8 @@ struct RenderSystem {
                 float3 gReflectionColor;
                 float gReflectance;
                 float3 gPaddingEnd;
+                float4 gChromaticParams;
+                float4 gChromaticScreen;
             };
 
             cbuffer PerFrameLighting : register(b1) {
@@ -681,7 +732,20 @@ struct RenderSystem {
 
                 float4 base = gColor;
                 if (gUseTexture > 0.5) {
-                    base *= gTexture.Sample(gSampler, i.tex);
+                    float2 uv = i.tex;
+                    float4 texel = gTexture.Sample(gSampler, uv);
+                    if (gChromaticParams.x > 0.0001 && gChromaticScreen.x > 1.0 && gChromaticScreen.y > 1.0) {
+                        float2 screenUV = i.pos.xy / gChromaticScreen.xy;
+                        float2 centerDir = screenUV - float2(0.5, 0.5);
+                        float centerLen = length(centerDir);
+                        float2 dir = (centerLen > 1e-5) ? (centerDir / centerLen) : float2(0.0, 0.0);
+                        float2 offset = dir * gChromaticParams.y * gChromaticParams.x * (1.0 + centerLen * gChromaticParams.z);
+                        float2 uvR = saturate(uv + offset);
+                        float2 uvB = saturate(uv - offset);
+                        texel.r = gTexture.Sample(gSampler, uvR).r;
+                        texel.b = gTexture.Sample(gSampler, uvB).b;
+                    }
+                    base *= texel;
                 }
 
                 float3 viewDir = normalize(gEyePos - i.worldPos);
@@ -1456,6 +1520,9 @@ struct RenderSystem {
         psCbuf.reflectionColor = reflectionColor;
         psCbuf.reflectance = reflectance;
         psCbuf.paddingEnd[0] = psCbuf.paddingEnd[1] = psCbuf.paddingEnd[2] = 0.0f;
+        psCbuf.chromaticParams = DirectX::XMFLOAT4{chromaticIntensityCurrent_, chromaticSampleOffset_, chromaticRadialScale_, 0.0f};
+        D3D11_VIEWPORT viewport = gfx.GetCurrentViewport();
+        psCbuf.chromaticScreen = DirectX::XMFLOAT4{std::max(1.0f, viewport.Width), std::max(1.0f, viewport.Height), 0.0f, 0.0f};
 
         gfx.Ctx()->UpdateSubresource(psCb_.Get(), 0, nullptr, &psCbuf, 0, 0);
     }

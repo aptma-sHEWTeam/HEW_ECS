@@ -160,6 +160,11 @@ class GameScene : public IScene {
 
         // このシーンインスタンスへのグローバルポインタを設定
         g_GameScene = this;
+        if (auto *renderer = ServiceLocator::TryGet<RenderSystem>()) {
+            renderer->ClearScreenEffects();
+        }
+        wasBoosting_ = false;
+        urgencyPulseTimer_ = 0.0f;
 
         // ステージクリア状態の初期化
         stageClearActive_ = false;
@@ -553,9 +558,14 @@ class GameScene : public IScene {
 
         // 蛍光灯サイレン演出（残り時間切迫時に点滅）
         UpdateWallLightSiren(world, deltaTime);
+        UpdateUrgencyScreenFX(world, deltaTime);
+        UpdateBoostBurstFX(world);
 
         //ゴールの見た目変更
         UpdateGoal(world);
+        if (auto *renderer = ServiceLocator::TryGet<RenderSystem>()) {
+            renderer->UpdateScreenEffects(deltaTime * timeScale);
+        }
 
     }
 
@@ -614,6 +624,9 @@ class GameScene : public IScene {
         DEBUGLOG("GameWithUIScene::OnExit() 開始");
 
         g_GameScene = nullptr;
+        if (auto *renderer = ServiceLocator::TryGet<RenderSystem>()) {
+            renderer->ClearScreenEffects();
+        }
         RenderingSystem::GetInstance().Shutdown();
         StopGoalEffect();
         StopGoalEffect();
@@ -799,8 +812,20 @@ class GameScene : public IScene {
         SetStickZoomActive(false);
         // Disabled gray fade overlay on charge release
         // (previously adjusted chargeOverlayCurrent_/Target_/Visible here)
-        float impulse = std::clamp(chargeAmount01, 0.15f, 1.0f) * 0.12f;
-        TriggerCameraShake(0.03f + impulse, 0.25f);
+        float chargeClamped = std::clamp(chargeAmount01, 0.0f, 1.0f);
+        float shakeIntensity = cfg_ChargeReleaseShakeBaseIntensity.Get() + chargeClamped * cfg_ChargeReleaseShakeChargeScale.Get();
+        float shakeDuration = std::max(0.0f, cfg_ChargeReleaseShakeDuration.Get());
+        TriggerCameraShake(shakeIntensity, shakeDuration);
+        if (cfg_ChargeReleaseChromaticEnabled.Get()) {
+            if (auto *renderer = ServiceLocator::TryGet<RenderSystem>()) {
+                float chromaticIntensity = cfg_ChargeReleaseChromaticBaseIntensity.Get() + chargeClamped * cfg_ChargeReleaseChromaticChargeScale.Get();
+                chromaticIntensity = std::clamp(chromaticIntensity, 0.0f, std::max(0.0f, cfg_ChargeReleaseChromaticMaxIntensity.Get()));
+                renderer->TriggerChromaticAberration(chromaticIntensity,
+                                                     std::max(0.0f, cfg_ChargeReleaseChromaticDuration.Get()),
+                                                     std::max(0.0f, cfg_ChargeReleaseChromaticSampleOffset.Get()),
+                                                     std::max(0.0f, cfg_ChargeReleaseChromaticRadialScale.Get()));
+            }
+        }
         PlayPlayerAnimation(world, AnimationConfig::Clips::PlayerChargeOut, false);
 
         SOUND_SYS.PlaySE(cfg_Fire1MP3Pass.Get(),true);
@@ -905,6 +930,93 @@ class GameScene : public IScene {
         });
 
         sirenTimer_ += dt;
+    }
+
+    void UpdateBoostBurstFX(World &world) {
+        bool boostingNow = false;
+        float speedScale = 0.0f;
+        if (world.IsAlive(playerEntity_)) {
+            if (auto *v = world.TryGet<PlayerVelocity>(playerEntity_)) {
+                boostingNow = v->isBoosting;
+                float baseSpeed = std::max(0.001f, v->speed);
+                float boostRatio = std::max(0.0f, v->boostSpeed / baseSpeed);
+                speedScale = std::clamp(boostRatio - 1.0f, 0.0f, 1.0f);
+            }
+        }
+
+        if (boostingNow && !wasBoosting_ && cfg_BoostBurstEnabled.Get()) {
+            float influence = std::clamp(cfg_BoostBurstSpeedInfluence.Get(), 0.0f, 1.0f);
+            float scale = 1.0f + speedScale * influence;
+
+            float shakeIntensity = std::max(0.0f, cfg_BoostBurstShakeIntensity.Get()) * scale;
+            float shakeDuration = std::max(0.0f, cfg_BoostBurstShakeDuration.Get());
+            if (shakeIntensity > 0.0f && shakeDuration > 0.0f) {
+                TriggerCameraShake(shakeIntensity, shakeDuration);
+            }
+
+            if (auto *renderer = ServiceLocator::TryGet<RenderSystem>()) {
+                float chromaticIntensity = std::max(0.0f, cfg_BoostBurstChromaticIntensity.Get()) * scale;
+                renderer->TriggerChromaticAberration(chromaticIntensity,
+                                                     std::max(0.0f, cfg_BoostBurstChromaticDuration.Get()),
+                                                     std::max(0.0f, cfg_BoostBurstChromaticSampleOffset.Get()),
+                                                     std::max(0.0f, cfg_BoostBurstChromaticRadialScale.Get()));
+            }
+        }
+
+        wasBoosting_ = boostingNow;
+    }
+
+    void UpdateUrgencyScreenFX(World &world, float dt) {
+        if (!cfg_UrgencyFxEnabled.Get()) {
+            urgencyPulseTimer_ = 0.0f;
+            return;
+        }
+
+        bool timerActive = false;
+        float timeRatio = 1.0f;
+        world.ForEach<GameStatus>([&](Entity, GameStatus &stats) {
+            if (!stats.timerRunning) {
+                return;
+            }
+            timerActive = true;
+            float limit = std::max(0.01f, cfg_LimitTime.Get());
+            timeRatio = std::clamp(stats.elapsedTime / limit, 0.0f, 1.0f);
+        });
+
+        float threshold = std::clamp(cfg_UrgencyFxThreshold.Get(), 0.05f, 1.0f);
+        if (!timerActive || timeRatio >= threshold) {
+            urgencyPulseTimer_ = 0.0f;
+            return;
+        }
+
+        float urgency = std::clamp(1.0f - (timeRatio / threshold), 0.0f, 1.0f);
+        float minInterval = std::max(0.01f, cfg_UrgencyFxPulseMinInterval.Get());
+        float maxInterval = std::max(minInterval, cfg_UrgencyFxPulseMaxInterval.Get());
+        float pulseInterval = maxInterval + (minInterval - maxInterval) * urgency;
+
+        urgencyPulseTimer_ += std::max(0.0f, dt);
+        if (urgencyPulseTimer_ < pulseInterval) {
+            return;
+        }
+        urgencyPulseTimer_ = 0.0f;
+
+        float shakeMin = cfg_UrgencyFxShakeMinIntensity.Get();
+        float shakeMax = cfg_UrgencyFxShakeMaxIntensity.Get();
+        float shakeIntensity = std::max(0.0f, shakeMin + (shakeMax - shakeMin) * urgency);
+        float shakeDuration = std::max(0.0f, cfg_UrgencyFxShakeDuration.Get());
+        if (shakeIntensity > 0.0f && shakeDuration > 0.0f) {
+            TriggerCameraShake(shakeIntensity, shakeDuration);
+        }
+
+        if (auto *renderer = ServiceLocator::TryGet<RenderSystem>()) {
+            float chromaMin = cfg_UrgencyFxChromaticMinIntensity.Get();
+            float chromaMax = cfg_UrgencyFxChromaticMaxIntensity.Get();
+            float chromaticIntensity = std::max(0.0f, chromaMin + (chromaMax - chromaMin) * urgency);
+            renderer->TriggerChromaticAberration(chromaticIntensity,
+                                                 std::max(0.0f, cfg_UrgencyFxChromaticDuration.Get()),
+                                                 std::max(0.0f, cfg_UrgencyFxChromaticSampleOffset.Get()),
+                                                 std::max(0.0f, cfg_UrgencyFxChromaticRadialScale.Get()));
+        }
     }
 
     static constexpr bool IsGoalCheatCombo(
@@ -3293,6 +3405,8 @@ class GameScene : public IScene {
     float skyboxRotation_ = 0.0f;
     float vibrationTimer_ = 0.0f;   ///< はじき振動の残り時間
     float sirenTimer_ = 0.0f;       ///< サイレン点滅用タイマー
+    bool wasBoosting_ = false;
+    float urgencyPulseTimer_ = 0.0f;
 };
 
 // =========================================

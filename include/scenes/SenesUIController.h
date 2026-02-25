@@ -34,6 +34,7 @@ struct GameUIUpdater : Behaviour {
     Entity warningOverlayEntity_;
     //Entity warningTextEntity_;
     float warningBlinkTimer_ = 0.0f;
+    Entity currDeathEntity_;
 
     Entity pauseMenuPanelEntity_;
     Entity pauseResumeButtonEntity_;
@@ -43,7 +44,13 @@ struct GameUIUpdater : Behaviour {
     Entity pauseOptionsButtonEntity_;
     Entity pauseQuitButtonEntity_;
 
+    Entity pauseLineEntity_;
+    Entity pauseSelectIndicatorEntity_; // 新規追加
+
     DirectX::XMFLOAT2 pauseMenuButtonSize_{360.0f, 60.0f};
+    DirectX::XMFLOAT2 pauseTitleImgSize_{400.0f, 100.0f};
+    DirectX::XMFLOAT2 pauseLineImgSize_{15.0f, 350.0f};
+    DirectX::XMFLOAT2 pauseSelectImgSize_{120.0f, 15.0f}; // select.pngのサイズ指定
 
     void OnUpdate(World &w, Entity self, float dt) override {
         w.ForEach<GameStatus>([&](Entity e, GameStatus &stats) {
@@ -100,6 +107,11 @@ struct GameUIUpdater : Behaviour {
                 ss << L" " << std::setw(2) << std::setfill(L'0') << minutes
                    << L":" << std::setw(2) << std::setfill(L'0') << seconds;
                 timeText->text = ss.str();*/
+            }
+
+            // 現在のデス数の更新
+            if (auto *deathText = w.TryGet<UIText>(currDeathEntity_)) {
+                deathText->text = std::to_wstring(stats.deathCount);
             }
 
             const bool shouldWarn = IsTimeWarningActive(stats.elapsedTime, stats.timerRunning, stats.isPaused);
@@ -171,15 +183,28 @@ struct GameUIUpdater : Behaviour {
             }
 
             //ポーズ表示の更新
-            if (auto *pauseText = w.TryGet<UIText>(pauseTextEntity_)) {
+            if (auto *pauseImg = w.TryGet<UIImage>(pauseTextEntity_)) {
                 auto *pauseTransform = w.TryGet<UITransform>(pauseTextEntity_);
                 if (pauseTransform) {
                     if (stats.isPaused) {
-                        pauseText->text = L"PAUSED";
-                        pauseTransform->size = {400.0f, 100.0f};
+                        pauseImg->opacity = 1.0f;
+                        pauseTransform->size = pauseTitleImgSize_;
                     } else {
-                        pauseText->text = L"";
+                        pauseImg->opacity = 0.0f;
                         pauseTransform->size = {0.0f, 0.0f};
+                    }
+                }
+            }
+
+            // 縦線の更新
+            if (auto *lineImg = w.TryGet<UIImage>(pauseLineEntity_)) {
+                if (auto *lineTr = w.TryGet<UITransform>(pauseLineEntity_)) {
+                    if (stats.isPaused) {
+                        lineImg->opacity = 1.0f;
+                        lineTr->size = pauseLineImgSize_;
+                    } else {
+                        lineImg->opacity = 0.0f;
+                        lineTr->size = {0.0f, 0.0f};
                     }
                 }
             }
@@ -189,21 +214,58 @@ struct GameUIUpdater : Behaviour {
                 panel->visible = showPauseMenu;
             }
 
-            auto setButtonVisible = [&](Entity buttonEntity, bool visible) {
+            bool anyHovered = false;
+            auto updateButtonVisible = [&](Entity buttonEntity, const std::wstring& normalPath, const std::wstring& hoverPath) {
                 if (auto *tr = w.TryGet<UITransform>(buttonEntity)) {
-                    tr->size = visible ? pauseMenuButtonSize_ : DirectX::XMFLOAT2{0.0f, 0.0f};
+                    tr->size = showPauseMenu ? pauseMenuButtonSize_ : DirectX::XMFLOAT2{0.0f, 0.0f};
                 }
                 if (auto *btn = w.TryGet<UIButton>(buttonEntity)) {
-                    btn->enabled = visible;
+                    btn->enabled = showPauseMenu;
+                }
+                if (auto *img = w.TryGet<UIImage>(buttonEntity)) {
+                    img->opacity = showPauseMenu ? 1.0f : 0.0f;
+                    
+                    if (showPauseMenu) {
+                        bool isHoveredOrPressed = false;
+                        if (auto *btnInfo = w.TryGet<UIButton>(buttonEntity)) {
+                            isHoveredOrPressed = (btnInfo->state == UIButton::State::Hovered || btnInfo->state == UIButton::State::Pressed);
+                        }
+                        
+                        // 画像切り替え
+                        img->filePath = isHoveredOrPressed ? hoverPath : normalPath;
+                        
+                        if (isHoveredOrPressed) {
+                            anyHovered = true;
+                            // selectインジケーター位置更新
+                            if (auto *selectTr = w.TryGet<UITransform>(pauseSelectIndicatorEntity_)) {
+                                if (auto *btnTr = w.TryGet<UITransform>(buttonEntity)) {
+                                    // 少し右、少し下に配置
+                                    selectTr->position = {btnTr->position.x + 20.0f, btnTr->position.y + 20.0f};
+                                }
+                            }
+                        }
+                    }
                 }
             };
 
-            setButtonVisible(pauseResumeButtonEntity_, showPauseMenu);
-            setButtonVisible(pauseRetryButtonEntity_, showPauseMenu);
-            setButtonVisible(pauseTitleButtonEntity_, showPauseMenu);
-            setButtonVisible(pauseStageSelectButtonEntity_, showPauseMenu);
-            setButtonVisible(pauseOptionsButtonEntity_, showPauseMenu);
-            setButtonVisible(pauseQuitButtonEntity_, showPauseMenu);
+            // オプションと終了は無効化されているため何もしないか、仮のパスを与える
+            updateButtonVisible(pauseResumeButtonEntity_, L"./Assets/Textures/UI/PausedUI/BackGame.png", L"./Assets/Textures/UI/PausedUI/BackGame1.png");
+            updateButtonVisible(pauseRetryButtonEntity_, L"./Assets/Textures/UI/PausedUI/Retray.png", L"./Assets/Textures/UI/PausedUI/Retray1.png");
+            updateButtonVisible(pauseStageSelectButtonEntity_, L"./Assets/Textures/UI/PausedUI/StageSelect.png", L"./Assets/Textures/UI/PausedUI/StageSelect1.png");
+            updateButtonVisible(pauseTitleButtonEntity_, L"./Assets/Textures/UI/PausedUI/BackTitle.png", L"./Assets/Textures/UI/PausedUI/BackTitle1.png");
+            
+            // 選択インジケーターの表示更新
+            if (auto *selectImg = w.TryGet<UIImage>(pauseSelectIndicatorEntity_)) {
+                if (auto *selectTr = w.TryGet<UITransform>(pauseSelectIndicatorEntity_)) {
+                    if (showPauseMenu && anyHovered) {
+                        selectImg->opacity = 1.0f;
+                        selectTr->size = pauseSelectImgSize_;
+                    } else {
+                        selectImg->opacity = 0.0f;
+                        selectTr->size = {0.0f, 0.0f};
+                    }
+                }
+            }
         });
 
         // ステージの更新

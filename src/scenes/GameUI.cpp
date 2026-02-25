@@ -13,6 +13,7 @@
 #include "animation/Animation.h" // cfg_ChargingFade / SpriteSheetAnimation など
 #include "animation/AnimationTools.h"
 #include "animation/AnimationConfig.h"
+#include "graphics/StageSave.h"
 #include <algorithm>
 
 inline static ConfigVar<float> cfg_FadeFrameTime{"Fade.Out", "FadeFrameTime", 0.01f, "フェードアウト1フレームの時間（秒）"};
@@ -49,10 +50,31 @@ void GameScene::CreateTextFormats() {
     titleFormat.paragraphAlignment = DWRITE_PARAGRAPH_ALIGNMENT_FAR;
     textSystem_.CreateTextFormat("title", titleFormat);
 
-    TextSystem::TextFormat roomNumberFormat = hudFormat;
-    roomNumberFormat.fontFamily = L"Kinkakuji-Normal";
-    roomNumberFormat.weight = DWRITE_FONT_WEIGHT_BOLD;
-    textSystem_.CreateTextFormat("roomNumber", roomNumberFormat);
+    // デス数・ランキング表示用
+    TextSystem::TextFormat youFmt;
+    youFmt.fontSize = 45.0f;
+    youFmt.fontFamily = L"Mamelon-5-Hi-Regular.otf";
+    textSystem_.CreateTextFormat("you", youFmt);
+
+    TextSystem::TextFormat numFmt;
+    numFmt.fontSize = 75.0f;
+    numFmt.fontFamily = L"ShipporiMincho-Bold.ttf";
+    textSystem_.CreateTextFormat("num", numFmt);
+
+    TextSystem::TextFormat redFmt;
+    redFmt.fontSize = 30.0f;
+    redFmt.fontFamily = L"Mamelon-5-Hi-Regular.otf";
+    textSystem_.CreateTextFormat("redText", redFmt);
+
+    TextSystem::TextFormat topNumFmt;
+    topNumFmt.fontSize = 55.0f;
+    topNumFmt.fontFamily = L"ShipporiMincho-Bold.ttf";
+    textSystem_.CreateTextFormat("topNum", topNumFmt);
+
+    TextSystem::TextFormat rankFmt;
+    rankFmt.fontSize = 35.0f;
+    rankFmt.fontFamily = L"Mamelon-5-Hi-Regular.otf";
+    textSystem_.CreateTextFormat("rank", rankFmt);
 }
 
 void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
@@ -293,20 +315,50 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     }
 
     UITransform pauseTransform;
-    pauseTransform.position = {0.0f, -180.0f};
-    pauseTransform.size = {0.0f, 0.0f};
-    pauseTransform.anchor = {0.5f, 0.5f};
-    pauseTransform.pivot = {0.5f, 0.5f};
+    pauseTransform.position = {60.0f, -120.0f}; // 左側の中央よりやや上
+    pauseTransform.size = {0.0f, 0.0f}; // 表示時に拡大する
+    pauseTransform.anchor = {0.0f, 0.5f};
+    pauseTransform.pivot = {0.0f, 0.5f};
 
-    UIText pauseText{L""};
-    pauseText.color = {1.0f, 0.0f, 0.0f, 1.0f};
-    pauseText.formatId = "pause";
+    UIImage pauseImg{L"./Assets/Textures/UI/PausedUI/PAUSED.png"};
+    pauseImg.opacity = 0.0f;
+    pauseImg.keepAspect = true;
 
     Entity pauseEntity = world.Create()
                              .With<UITransform>(pauseTransform)
-                             .With<UIText>(pauseText)
+                             .With<UIImage>(pauseImg)
                              .Build();
     ownedEntities_.push_back(pauseEntity);
+
+    // 縦線 LeftLin.png
+    UITransform lineTr;
+    lineTr.position = {80.0f, 80.0f}; // ボタンの横
+    lineTr.size = {0.0f, 0.0f};       // isPaused時に展開
+    lineTr.anchor = {0.0f, 0.5f};
+    lineTr.pivot = {0.0f, 0.5f};
+    UIImage lineImg{L"./Assets/Textures/UI/PausedUI/LeftLin.png"};
+    lineImg.opacity = 0.0f;
+    lineImg.keepAspect = true;
+    Entity lineEntity = world.Create()
+                            .With<UITransform>(lineTr)
+                            .With<UIImage>(lineImg)
+                            .Build();
+    ownedEntities_.push_back(lineEntity);
+
+    // 選択インジケーター select.png
+    UITransform selectTr;
+    selectTr.position = {0.0f, 0.0f};
+    selectTr.size = {0.0f, 0.0f}; 
+    selectTr.anchor = {0.0f, 0.5f};
+    selectTr.pivot = {0.0f, 0.5f};
+    UIImage selectImg{L"./Assets/Textures/UI/PausedUI/select.png"};
+    selectImg.opacity = 0.0f;
+    selectImg.keepAspect = true;
+    Entity selectEntity = world.Create()
+                            .With<UITransform>(selectTr)
+                            .With<UIImage>(selectImg)
+                            .Build();
+    ownedEntities_.push_back(selectEntity);
 
     UITransform pauseMenuPanelTr;
     pauseMenuPanelTr.position = {0.0f, 0.0f};
@@ -324,31 +376,31 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                                      .Build();
     ownedEntities_.push_back(pauseMenuPanelEntity);
 
-    auto createPauseButton = [&](const std::wstring &label, float yOffset) {
+    auto createPauseButton = [&](const std::wstring &imagePath, float yOffset) {
         UITransform tr;
-        tr.position = {0.0f, yOffset};
+        tr.position = {120.0f, yOffset}; // 線の右側
         tr.size = {0.0f, 0.0f};
-        tr.anchor = {0.5f, 0.5f};
-        tr.pivot = {0.5f, 0.5f};
+        tr.anchor = {0.0f, 0.5f};
+        tr.pivot = {0.0f, 0.5f};
 
-        UIText txt{label};
-        txt.color = {1.0f, 1.0f, 1.0f, 1.0f};
-        txt.formatId = "button";
+        UIImage img{imagePath};
+        img.keepAspect = true;
+        img.opacity = 0.0f; // 初期は非表示
 
         UIButton btn;
         btn.enabled = false;
 
-        Entity e = world.Create().With<UITransform>(tr).With<UIButton>(btn).With<UIText>(txt).Build();
+        Entity e = world.Create().With<UITransform>(tr).With<UIButton>(btn).With<UIImage>(img).Build();
         ownedEntities_.push_back(e);
         return e;
     };
 
-    Entity pauseResumeBtn = createPauseButton(L"再開", -30.0f);
-    Entity pauseRetryBtn = createPauseButton(L"リトライ", 40.0f);
-    Entity pauseTitleBtn = createPauseButton(L"タイトルへ", 110.0f);
-    Entity pauseSelectBtn = createPauseButton(L"ステージセレクトへ", 180.0f);
-    Entity pauseOptionsBtn = createPauseButton(L"オプション", 250.0f);
-    Entity pauseQuitBtn = createPauseButton(L"終了", 320.0f);
+    Entity pauseResumeBtn = createPauseButton(L"./Assets/Textures/UI/PausedUI/BackGame.png", -20.0f);
+    Entity pauseRetryBtn  = createPauseButton(L"./Assets/Textures/UI/PausedUI/Retray.png", 60.0f);
+    Entity pauseSelectBtn = createPauseButton(L"./Assets/Textures/UI/PausedUI/StageSelect.png", 140.0f);
+    Entity pauseTitleBtn  = createPauseButton(L"./Assets/Textures/UI/PausedUI/BackTitle.png", 220.0f);
+    Entity pauseOptionsBtn = Entity(); // 無効化
+    Entity pauseQuitBtn = Entity();    // 無効化
 
     // 追加: ステージクリア表示（最初は非表示＝空文字）
     UITransform clearTransform;
@@ -368,6 +420,99 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     ownedEntities_.push_back(clearEntity);
     stageClearTextEntity_ = clearEntity;
 
+    // ==========================================
+    // ランキング・デスカウントUI要素の追加
+    // ==========================================
+    
+    // 【左側】 You (画像) + デス数 (白) + death (画像)
+    float youBaseX = 120.0f;
+    float youBaseY = 240.0f;
+
+    UITransform youTr;
+    youTr.position = {youBaseX, youBaseY};
+    youTr.size = {120.0f, 60.0f}; // 画像サイズに合わせて調整可
+    UIImage youImg{L"./Assets/Textures/UI/EndRankUI/You.png"};
+    youImg.opacity = 1.0f;
+    youImg.keepAspect = true;
+    Entity youEnt = world.Create().With<UITransform>(youTr).With<UIImage>(youImg).Build();
+    ownedEntities_.push_back(youEnt);
+
+    UITransform currDeathTr;
+    currDeathTr.position = {youBaseX + 130.0f, youBaseY - 30.0f};
+    currDeathTr.size = {120.0f, 100.0f};
+    UIText currDeathText{L"0"};
+    currDeathText.color = {1.0f, 1.0f, 1.0f, 1.0f};
+    currDeathText.formatId = "num";
+    Entity currDeathEnt = world.Create().With<UITransform>(currDeathTr).With<UIText>(currDeathText).Build();
+    ownedEntities_.push_back(currDeathEnt);
+
+    UITransform currDeathRedTr;
+    currDeathRedTr.position = {youBaseX + 220.0f, youBaseY + 5.0f};
+    currDeathRedTr.size = {160.0f, 50.0f}; // 画像サイズに合わせて調整可
+    UIImage deathImg{L"./Assets/Textures/UI/EndRankUI/Death.png"};
+    deathImg.opacity = 1.0f;
+    deathImg.keepAspect = true;
+    Entity currDeathRedEnt = world.Create().With<UITransform>(currDeathRedTr).With<UIImage>(deathImg).Build();
+    ownedEntities_.push_back(currDeathRedEnt);
+
+
+    // 【右側】 Top 3 ランキング (1st 23 death ...)
+    float rankBaseX = screenWidth - 350.0f; // もっと右に寄せる
+    float rankBaseY = 240.0f;
+    float yOffset = 85.0f;
+
+    int pss = 0;
+    world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+        pss = GetPssNumber(sp.worldCount, sp.currentStage);
+    });
+    if (pss <= 0) {
+        pss = StageSave::GetLastSavedPss();
+    }
+    std::vector<int> topDeaths = StageSave::GetTopDeaths(pss);
+    std::wstring topDeathLabels[3] = {L"--", L"--", L"--"};
+    for (size_t i = 0; i < topDeaths.size() && i < 3; ++i) {
+        topDeathLabels[i] = std::to_wstring(topDeaths[i]);
+    }
+
+    std::wstring suffixStrs[] = { L"./Assets/Textures/UI/EndRankUI/1st.png", L"./Assets/Textures/UI/EndRankUI/2nd.png", L"./Assets/Textures/UI/EndRankUI/3rd.png" };
+
+    for (size_t i = 0; i < 3; ++i) {
+        float curY = rankBaseY + (i * yOffset);
+        
+        // 1st / 2nd / 3rd (画像)
+        UITransform sufTr;
+        sufTr.position = {rankBaseX, curY};
+        sufTr.size = {80.0f, 60.0f};
+        UIImage sufImg{suffixStrs[i]};
+        sufImg.opacity = 1.0f;
+        sufImg.keepAspect = true;
+        Entity sufEnt = world.Create().With<UITransform>(sufTr).With<UIImage>(sufImg).Build();
+        ownedEntities_.push_back(sufEnt);
+
+        // 数値 (白・アウトライン付テキスト)
+        UITransform topNumTr;
+        topNumTr.position = {rankBaseX + 90.0f, curY - 25.0f};
+        topNumTr.size = {120.0f, 80.0f};
+        UIText topNumText{topDeathLabels[i]};
+        topNumText.color = {1.0f, 1.0f, 1.0f, 1.0f}; // 白字
+        topNumText.formatId = "topNum";
+        topNumText.outlineColor = {1.0f, 1.0f, 1.0f, 1.0f};
+        topNumText.outlineThickness = 1.0f;
+        Entity topNumEnt = world.Create().With<UITransform>(topNumTr).With<UIText>(topNumText).Build();
+        ownedEntities_.push_back(topNumEnt);
+
+        // death (画像)
+        UITransform suffixRedTr;
+        suffixRedTr.position = {rankBaseX + 160.0f, curY + 5.0f};
+        suffixRedTr.size = {160.0f, 50.0f};
+        UIImage suffixRedImg{L"./Assets/Textures/UI/EndRankUI/Death.png"};
+        suffixRedImg.opacity = 1.0f;
+        suffixRedImg.keepAspect = true;
+        Entity suffixRedEnt = world.Create().With<UITransform>(suffixRedTr).With<UIImage>(suffixRedImg).Build();
+        ownedEntities_.push_back(suffixRedEnt);
+    }
+    // ==========================================
+
     Entity uiUpdater = world.Create()
                            .With<GameUIUpdater>()
                            .Build();
@@ -378,6 +523,8 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         updater->fpsTextEntity_ = fpsEntity;
 #endif // !_DEBUG
         updater->pauseTextEntity_ = pauseEntity;
+        updater->pauseLineEntity_ = lineEntity; 
+        updater->pauseSelectIndicatorEntity_ = selectEntity; // 新規追加
         updater->stageTextEntity_[0] = stageEntity[0];
         updater->stageTextEntity_[1] = stageEntity[1];
         //  updater->numEntity_ = numEntity;
@@ -385,6 +532,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         updater->startplayer_ = startImageEntity;
         updater->startChargeBarEntity_ = startChargeBarEntity;
         updater->warningOverlayEntity_ = warningOverlayEntity;
+        updater->currDeathEntity_ = currDeathEnt;
         //updater->warningTextEntity_ = warningTextEntity;
 
         updater->pauseMenuPanelEntity_ = pauseMenuPanelEntity;
@@ -394,7 +542,9 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         updater->pauseStageSelectButtonEntity_ = pauseSelectBtn;
         updater->pauseOptionsButtonEntity_ = pauseOptionsBtn;
         updater->pauseQuitButtonEntity_ = pauseQuitBtn;
-        updater->pauseMenuButtonSize_ = {360.0f, 60.0f};
+        updater->pauseMenuButtonSize_ = {300.0f, 50.0f}; // 画像ごとのサイズを大まかに
+        updater->pauseTitleImgSize_ = {400.0f, 100.0f};  // PAUSEDのサイズ
+        updater->pauseLineImgSize_ = {15.0f, 350.0f};    // LeftLinのサイズ
     }
     ownedEntities_.push_back(uiUpdater);
 
