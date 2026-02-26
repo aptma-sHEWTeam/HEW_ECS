@@ -326,6 +326,9 @@ struct UIInteractionSystem : Behaviour {
             selectedIndex_ = -1;
         }
         const int previousSelectedIndex = selectedIndex_;
+        if (selectedIndex_ < 0) {
+            selectedIndex_ = 0;
+        }
 
         if (up) {
             if (selectedIndex_ < 0) {

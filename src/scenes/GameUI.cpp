@@ -79,7 +79,7 @@ inline static ConfigVar<float> cfg_GameUI_StageCounterOutline{"Game.UI.StageCoun
 
 inline static ConfigVar<float> cfg_GameUI_PauseTitlePosX{"Game.UI.Pause.Title", "PosX", 470.0f, "ゲームUI: PauseタイトルX"};
 inline static ConfigVar<float> cfg_GameUI_PauseTitlePosY{"Game.UI.Pause.Title", "PosY", -20.0f, "ゲームUI: PauseタイトルY"};
-inline static ConfigVar<float> cfg_GameUI_PauseLinePosX{"Game.UI.Pause.Line", "PosX", 50.0f, "ゲームUI: PauseラインX"};
+inline static ConfigVar<float> cfg_GameUI_PauseLinePosX{"Game.UI.Pause.Line", "PosX", 60.0f, "ゲームUI: PauseラインX"};
 inline static ConfigVar<float> cfg_GameUI_PauseLinePosY{"Game.UI.Pause.Line", "PosY", 120.0f, "ゲームUI: PauseラインY"};
 inline static ConfigVar<float> cfg_GameUI_PauseButtonPosX{"Game.UI.Pause.Button", "PosX", 70.0f, "ゲームUI: PauseボタンX"};
 inline static ConfigVar<float> cfg_GameUI_PauseButtonStepY{"Game.UI.Pause.Button", "StepY", 80.0f, "ゲームUI: PauseボタンY間隔"};
@@ -460,6 +460,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     UIImage lineImg{L"./Assets/Textures/UI/PausedUI/LeftLin.png"};
     lineImg.opacity = 0.0f;
     lineImg.keepAspect = true;
+    lineImg.aspectAlignLeft = true;
     Entity lineEntity = world.Create()
                             .With<UITransform>(lineTr)
                             .With<UIImage>(lineImg)
@@ -475,6 +476,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     UIImage selectImg{L"./Assets/Textures/UI/PausedUI/select.png"};
     selectImg.opacity = 0.0f;
     selectImg.keepAspect = true;
+    selectImg.aspectAlignLeft = true;
     Entity selectEntity = world.Create()
                             .With<UITransform>(selectTr)
                             .With<UIImage>(selectImg)

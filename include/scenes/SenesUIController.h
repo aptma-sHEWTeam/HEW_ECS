@@ -60,8 +60,13 @@ struct GameUIUpdater : Behaviour {
     inline static ConfigVar<float> cfg_GameUIWarningOverlayAlpha{"Game.UI.Warning", "OverlayAlpha", 0.35f, "ゲームUI: 警告オーバーレイアルファ"};
     inline static ConfigVar<float> cfg_GameUIStartChargeMaxTime{"Game.UI.StartChargeBar", "MaxChargeTime", 0.6f, "ゲームUI: チャージバー最大時間(秒)"};
     inline static ConfigVar<float> cfg_GameUIStartChargeMaxWidth{"Game.UI.StartChargeBar", "MaxWidth", 250.0f, "ゲームUI: チャージバー最大幅"};
-    inline static ConfigVar<float> cfg_GameUIPauseSelectOffsetX{"Game.UI.Pause.Select", "HoverOffsetX", 20.0f, "ゲームUI: Pauseセレクト表示Xオフセット"};
+    inline static ConfigVar<float> cfg_GameUIPauseSelectOffsetX{"Game.UI.Pause.Select", "HoverOffsetX", -8.0f, "ゲームUI: Pauseセレクト表示Xオフセット"};
     inline static ConfigVar<float> cfg_GameUIPauseSelectOffsetY{"Game.UI.Pause.Select", "HoverOffsetY", 45.0f, "ゲームUI: Pauseセレクト表示Yオフセット"};
+    inline static ConfigVar<float> cfg_GameUIPauseSelectMoveStartScale{"Game.UI.Pause.Select", "MoveStartScale", 0.0f, "ゲームUI: Pauseセレクト移動開始時スケール"};
+    inline static ConfigVar<float> cfg_GameUIPauseSelectMoveOvershootScale{"Game.UI.Pause.Select", "MoveOvershootScale", 1.15f, "ゲームUI: Pauseセレクト移動時の最大スケール"};
+    inline static ConfigVar<float> cfg_GameUIPauseSelectMoveOvershootX{"Game.UI.Pause.Select", "MoveOvershootX", 28.0f, "ゲームUI: Pauseセレクト移動時の右方向オフセット"};
+    inline static ConfigVar<float> cfg_GameUIPauseSelectMoveStage1Duration{"Game.UI.Pause.Select", "MoveStage1Duration", 0.400f, "ゲームUI: Pauseセレクト移動1段階目の時間"};
+    inline static ConfigVar<float> cfg_GameUIPauseSelectMoveStage2Duration{"Game.UI.Pause.Select", "MoveStage2Duration", 0.180f, "ゲームUI: Pauseセレクト移動2段階目の時間"};
     inline static ConfigVar<float> cfg_GameUIPauseNonPauseOpacity{"Game.UI.Pause", "NonPauseOpacity", 0.35f, "ゲームUI: ポーズ中の非ポーズUI不透明度"};
     std::vector<Entity> pauseDimmableEntities_;
     bool pauseDimApplied_ = false;
@@ -69,6 +74,15 @@ struct GameUIUpdater : Behaviour {
     std::unordered_map<Entity, float> pauseBaseTextAlpha_;
     std::unordered_map<Entity, float> pauseBaseTextOutlineAlpha_;
     std::unordered_map<Entity, float> pauseBasePanelAlpha_;
+    bool pauseMenuVisiblePrev_ = false;
+    bool pauseSelectInitialized_ = false;
+    int pauseSelectAnimPhase_ = 0;
+    float pauseSelectAnimTime_ = 0.0f;
+    float pauseSelectScale_ = 1.0f;
+    DirectX::XMFLOAT2 pauseSelectCurrentPos_{0.0f, 0.0f};
+    DirectX::XMFLOAT2 pauseSelectTargetPos_{0.0f, 0.0f};
+    DirectX::XMFLOAT2 pauseSelectAnimStartPos_{0.0f, 0.0f};
+    DirectX::XMFLOAT2 pauseSelectAnimOvershootPos_{0.0f, 0.0f};
 
     void OnUpdate(World &w, Entity self, float dt) override {
         w.ForEach<GameStatus>([&](Entity e, GameStatus &stats) {
@@ -233,6 +247,8 @@ struct GameUIUpdater : Behaviour {
             }
 
             bool anyHovered = false;
+            bool hasSelectTarget = false;
+            DirectX::XMFLOAT2 selectTargetPos{0.0f, 0.0f};
             auto updateButtonVisible = [&](Entity buttonEntity, const std::wstring& normalPath, const std::wstring& hoverPath) {
                 if (auto *tr = w.TryGet<UITransform>(buttonEntity)) {
                     tr->size = showPauseMenu ? pauseMenuButtonSize_ : DirectX::XMFLOAT2{0.0f, 0.0f};
@@ -254,11 +270,10 @@ struct GameUIUpdater : Behaviour {
                         
                         if (isHoveredOrPressed) {
                             anyHovered = true;
-                            // selectインジケーター位置更新
-                            if (auto *selectTr = w.TryGet<UITransform>(pauseSelectIndicatorEntity_)) {
-                                if (auto *btnTr = w.TryGet<UITransform>(buttonEntity)) {
-                                    selectTr->position = {btnTr->position.x + cfg_GameUIPauseSelectOffsetX.Get(), btnTr->position.y + cfg_GameUIPauseSelectOffsetY.Get()};
-                                }
+                            if (auto *btnTr = w.TryGet<UITransform>(buttonEntity)) {
+                                selectTargetPos = {btnTr->position.x + cfg_GameUIPauseSelectOffsetX.Get(),
+                                                   btnTr->position.y + cfg_GameUIPauseSelectOffsetY.Get()};
+                                hasSelectTarget = true;
                             }
                         }
                     }
@@ -271,18 +286,20 @@ struct GameUIUpdater : Behaviour {
             updateButtonVisible(pauseStageSelectButtonEntity_, L"./Assets/Textures/UI/PausedUI/StageSelect1.png", L"./Assets/Textures/UI/PausedUI/StageSelect.png");
             updateButtonVisible(pauseTitleButtonEntity_, L"./Assets/Textures/UI/PausedUI/BackTitle1.png", L"./Assets/Textures/UI/PausedUI/BackTitle.png");
             
-            // 選択インジケーターの表示更新
-            if (auto *selectImg = w.TryGet<UIImage>(pauseSelectIndicatorEntity_)) {
-                if (auto *selectTr = w.TryGet<UITransform>(pauseSelectIndicatorEntity_)) {
-                    if (showPauseMenu && anyHovered) {
-                        selectImg->opacity = 1.0f;
-                        selectTr->size = pauseSelectImgSize_;
-                    } else {
-                        selectImg->opacity = 0.0f;
-                        selectTr->size = {0.0f, 0.0f};
-                    }
+            if (showPauseMenu && !anyHovered) {
+                if (auto *resumeBtn = w.TryGet<UIButton>(pauseResumeButtonEntity_)) {
+                    resumeBtn->state = UIButton::State::Hovered;
+                }
+                if (auto *resumeImg = w.TryGet<UIImage>(pauseResumeButtonEntity_)) {
+                    resumeImg->filePath = L"./Assets/Textures/UI/PausedUI/BackGame.png";
+                }
+                if (auto *resumeTr = w.TryGet<UITransform>(pauseResumeButtonEntity_)) {
+                    selectTargetPos = {resumeTr->position.x + cfg_GameUIPauseSelectOffsetX.Get(),
+                                       resumeTr->position.y + cfg_GameUIPauseSelectOffsetY.Get()};
+                    hasSelectTarget = true;
                 }
             }
+            UpdatePauseSelectIndicator(w, showPauseMenu, hasSelectTarget, selectTargetPos, dt);
             UpdateNonPauseUiOpacity(w, showPauseMenu);
         });
 
@@ -307,6 +324,108 @@ struct GameUIUpdater : Behaviour {
     }
 
   private:
+    static float EaseOutCubic(float t) {
+        const float v = std::clamp(t, 0.0f, 1.0f);
+        const float inv = 1.0f - v;
+        return 1.0f - inv * inv * inv;
+    }
+
+    static float EaseInOutCubic(float t) {
+        const float v = std::clamp(t, 0.0f, 1.0f);
+        if (v < 0.5f) {
+            return 4.0f * v * v * v;
+        }
+        const float inv = -2.0f * v + 2.0f;
+        return 1.0f - (inv * inv * inv) * 0.5f;
+    }
+
+    static float LerpFloat(float a, float b, float t) {
+        return a + (b - a) * std::clamp(t, 0.0f, 1.0f);
+    }
+
+    static DirectX::XMFLOAT2 LerpFloat2(const DirectX::XMFLOAT2 &a, const DirectX::XMFLOAT2 &b, float t) {
+        return {LerpFloat(a.x, b.x, t), LerpFloat(a.y, b.y, t)};
+    }
+
+    void BeginPauseSelectAnimation(const DirectX::XMFLOAT2 &targetPos, bool fromSmall) {
+        pauseSelectTargetPos_ = targetPos;
+        pauseSelectAnimStartPos_ = (fromSmall || !pauseSelectInitialized_) ? targetPos : pauseSelectCurrentPos_;
+        pauseSelectAnimOvershootPos_ = targetPos;
+        pauseSelectAnimTime_ = 0.0f;
+        pauseSelectAnimPhase_ = 1;
+        if (fromSmall || !pauseSelectInitialized_) {
+            pauseSelectScale_ = std::clamp(cfg_GameUIPauseSelectMoveStartScale.Get(), 0.0f, 1.0f);
+            pauseSelectCurrentPos_ = pauseSelectAnimStartPos_;
+        }
+        pauseSelectInitialized_ = true;
+    }
+
+    void UpdatePauseSelectIndicator(World &w, bool showPauseMenu, bool hasTarget, const DirectX::XMFLOAT2 &targetPos, float dt) {
+        auto *selectImg = w.TryGet<UIImage>(pauseSelectIndicatorEntity_);
+        auto *selectTr = w.TryGet<UITransform>(pauseSelectIndicatorEntity_);
+        if (!selectImg || !selectTr) {
+            pauseMenuVisiblePrev_ = showPauseMenu;
+            return;
+        }
+
+        if (!showPauseMenu || !hasTarget) {
+            selectImg->opacity = 0.0f;
+            selectTr->size = {0.0f, 0.0f};
+            pauseSelectAnimPhase_ = 0;
+            pauseSelectAnimTime_ = 0.0f;
+            pauseSelectInitialized_ = false;
+            pauseMenuVisiblePrev_ = false;
+            return;
+        }
+
+        const bool openedNow = !pauseMenuVisiblePrev_;
+        const bool targetChanged = !pauseSelectInitialized_ ||
+                                   targetPos.x < pauseSelectTargetPos_.x - 0.5f ||
+                                   targetPos.x > pauseSelectTargetPos_.x + 0.5f ||
+                                   targetPos.y < pauseSelectTargetPos_.y - 0.5f ||
+                                   targetPos.y > pauseSelectTargetPos_.y + 0.5f;
+        if (openedNow || targetChanged) {
+            BeginPauseSelectAnimation(targetPos, openedNow);
+        }
+
+        const float stage1Duration = std::max(0.001f, cfg_GameUIPauseSelectMoveStage1Duration.Get());
+        const float stage2Duration = std::max(0.001f, cfg_GameUIPauseSelectMoveStage2Duration.Get());
+        const float startScale = std::clamp(cfg_GameUIPauseSelectMoveStartScale.Get(), 0.0f, 1.0f);
+        const float overshootScale = std::max(1.0f, cfg_GameUIPauseSelectMoveOvershootScale.Get());
+
+        pauseSelectAnimTime_ += std::max(0.0f, dt);
+        if (pauseSelectAnimPhase_ == 1) {
+            const float t = std::clamp(pauseSelectAnimTime_ / stage1Duration, 0.0f, 1.0f);
+            const float eased = EaseInOutCubic(t);
+            pauseSelectCurrentPos_ = LerpFloat2(pauseSelectAnimStartPos_, pauseSelectAnimOvershootPos_, eased);
+            pauseSelectScale_ = LerpFloat(startScale, overshootScale, eased);
+            if (t >= 1.0f) {
+                pauseSelectAnimPhase_ = 2;
+                pauseSelectAnimTime_ = 0.0f;
+            }
+        } else if (pauseSelectAnimPhase_ == 2) {
+            const float t = std::clamp(pauseSelectAnimTime_ / stage2Duration, 0.0f, 1.0f);
+            const float eased = EaseInOutCubic(t);
+            pauseSelectCurrentPos_ = LerpFloat2(pauseSelectAnimOvershootPos_, pauseSelectTargetPos_, eased);
+            pauseSelectScale_ = LerpFloat(overshootScale, 1.0f, eased);
+            if (t >= 1.0f) {
+                pauseSelectAnimPhase_ = 0;
+                pauseSelectAnimTime_ = 0.0f;
+                pauseSelectCurrentPos_ = pauseSelectTargetPos_;
+                pauseSelectScale_ = 1.0f;
+            }
+        } else {
+            pauseSelectCurrentPos_ = pauseSelectTargetPos_;
+            pauseSelectScale_ = 1.0f;
+        }
+
+        selectImg->opacity = 1.0f;
+        selectTr->position = pauseSelectCurrentPos_;
+        const float scale = std::max(0.0f, pauseSelectScale_);
+        selectTr->size = {pauseSelectImgSize_.x * scale, pauseSelectImgSize_.y * scale};
+        pauseMenuVisiblePrev_ = true;
+    }
+
     void UpdateNonPauseUiOpacity(World &w, bool showPauseMenu) {
         if (showPauseMenu) {
             if (!pauseDimApplied_) {
