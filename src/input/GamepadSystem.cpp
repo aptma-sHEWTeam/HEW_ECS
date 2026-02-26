@@ -14,6 +14,8 @@
 #include <sstream>
 #include <chrono>
 #include <comdef.h>
+#include <algorithm>
+#include <iomanip>
 
 #pragma comment(lib, "wbemuuid.lib")
 #pragma comment(lib, "oleaut32.lib")
@@ -38,12 +40,50 @@
     }
 #endif
 
+namespace {
+struct ForceFeedbackAxisContext {
+    DWORD axes[2]{};
+    int count = 0;
+};
+
+std::string GuidToHexString(const GUID &guid) {
+    std::ostringstream oss;
+    oss << std::hex << std::uppercase << std::setfill('0')
+        << '{'
+        << std::setw(8) << static_cast<unsigned long>(guid.Data1) << '-'
+        << std::setw(4) << static_cast<unsigned int>(guid.Data2) << '-'
+        << std::setw(4) << static_cast<unsigned int>(guid.Data3) << '-'
+        << std::setw(2) << static_cast<unsigned int>(guid.Data4[0])
+        << std::setw(2) << static_cast<unsigned int>(guid.Data4[1]) << '-'
+        << std::setw(2) << static_cast<unsigned int>(guid.Data4[2])
+        << std::setw(2) << static_cast<unsigned int>(guid.Data4[3])
+        << std::setw(2) << static_cast<unsigned int>(guid.Data4[4])
+        << std::setw(2) << static_cast<unsigned int>(guid.Data4[5])
+        << std::setw(2) << static_cast<unsigned int>(guid.Data4[6])
+        << std::setw(2) << static_cast<unsigned int>(guid.Data4[7])
+        << '}';
+    return oss.str();
+}
+
+BOOL CALLBACK EnumForceFeedbackAxesCallback(const DIDEVICEOBJECTINSTANCE *lpddoi, LPVOID pvRef) {
+    if (!lpddoi || !pvRef) {
+        return DIENUM_STOP;
+    }
+    auto *context = static_cast<ForceFeedbackAxisContext *>(pvRef);
+    if (context->count >= 2) {
+        return DIENUM_STOP;
+    }
+    context->axes[context->count++] = lpddoi->dwType;
+    return (context->count < 2) ? DIENUM_CONTINUE : DIENUM_STOP;
+}
+} // namespace
+
 // ========================================================
 // コンストラクタ / デストラクタ
 // ========================================================
 
 GamepadSystem::GamepadSystem()
-    : dinput_(nullptr), nextDInputSlot_(0), deltaTime_(0.0f) {
+    : dinput_(nullptr), windowHandle_(nullptr), nextDInputSlot_(0), deltaTime_(0.0f) {
 }
 
 GamepadSystem::~GamepadSystem() {
@@ -64,23 +104,6 @@ bool GamepadSystem::Init() {
         gamepads_[i] = GamepadState();
     }
 
-    //まず現在接続されているXInputデバイスを検出して、スロットを予約
-    for (DWORD i = 0; i < XUSER_MAX_COUNT && i < MAX_GAMEPADS; ++i) {
-        XINPUT_STATE state;
-        ZeroMemory(&state, sizeof(state));
-        DWORD result = XInputGetState(i, &state);
-        if (result == ERROR_SUCCESS) {
-            gamepads_[i].type = Type_XInput;
-            gamepads_[i].connected = true; // 初期状態として接続済みを予約
-            gamepads_[i].xinputIndex = i;
-#ifdef _DEBUG
-            std::ostringstream oss;
-            oss << "GamepadSystem::Init - XInput slot reserved: Index=" << i;
-            GAMEPAD_TRACE_CATEGORY(DebugLog::Category::Input, oss.str());
-#endif
-        }
-    }
-
     // DirectInput8の作成
     HRESULT hr = DirectInput8Create(
         GetModuleHandle(nullptr),
@@ -96,12 +119,16 @@ bool GamepadSystem::Init() {
         return false;
     }
 
-    // DirectInputデバイスを列挙
-    hr = dinput_->EnumDevices(
-        DI8DEVCLASS_GAMECTRL,
-        EnumDevicesCallback,
-        this,
-        DIEDFL_ATTACHEDONLY);
+    auto enumerateDInput = [&](DWORD deviceClass) {
+        return dinput_->EnumDevices(
+            deviceClass,
+            EnumDevicesCallback,
+            this,
+            DIEDFL_ATTACHEDONLY);
+    };
+
+    // DirectInputデバイスを列挙（通常クラス）
+    hr = enumerateDInput(DI8DEVCLASS_GAMECTRL);
 
     if (FAILED(hr)) {
         std::ostringstream oss;
@@ -109,6 +136,41 @@ bool GamepadSystem::Init() {
         DEBUGLOG_ERROR(oss.str());
         return false;
     }
+
+    int dinputCount = 0;
+    for (int i = 0; i < MAX_GAMEPADS; ++i) {
+        if (gamepads_[i].type == Type_DInput && gamepads_[i].dinputDevice != nullptr) {
+            ++dinputCount;
+        }
+    }
+
+    // 通常クラスで見つからない場合は全クラス列挙を試す
+    if (dinputCount == 0) {
+        HRESULT allEnumHr = enumerateDInput(DI8DEVCLASS_ALL);
+        if (FAILED(allEnumHr)) {
+            std::ostringstream oss;
+            oss << "GamepadSystem::Init() - 全クラス列挙に失敗: HRESULT=0x" << std::hex << allEnumHr;
+            DEBUGLOG_WARNING(oss.str());
+        }
+
+        dinputCount = 0;
+        for (int i = 0; i < MAX_GAMEPADS; ++i) {
+            if (gamepads_[i].type == Type_DInput && gamepads_[i].dinputDevice != nullptr) {
+                ++dinputCount;
+            }
+        }
+    }
+
+#ifdef _DEBUG
+    {
+        std::ostringstream oss;
+        oss << "GamepadSystem::Init() - DInput検出数: " << dinputCount;
+        DEBUGLOG_CATEGORY(DebugLog::Category::Input, oss.str());
+    }
+    if (dinputCount == 0) {
+        DEBUGLOG_WARNING("GamepadSystem::Init() - DInput検出数が0です。EnumDeviceログのdwDevType/GUIDを確認してください。");
+    }
+#endif
 
 #ifdef _DEBUG
     GAMEPAD_TRACE_CATEGORY(DebugLog::Category::Input, "GamepadSystem::Init() - 初期化完了");
@@ -124,6 +186,10 @@ void GamepadSystem::Shutdown() {
 
     //すべてのDirectInputデバイスを解放
     for (int i = 0; i < MAX_GAMEPADS; ++i) {
+        if (gamepads_[i].dinputEffect) {
+            gamepads_[i].dinputEffect->Stop();
+            SAFE_RELEASE(gamepads_[i].dinputEffect);
+        }
         if (gamepads_[i].dinputDevice) {
             gamepads_[i].dinputDevice->Unacquire();
             SAFE_RELEASE(gamepads_[i].dinputDevice);
@@ -163,8 +229,22 @@ void GamepadSystem::Update() {
     deltaTime_ = elapsed.count();
     lastTime = currentTime;
 
-    // XInputデバイスを最初にチェック(0-3のスロット)
+    // DirectInput優先: DirectInputが占有済みのスロットはXInputで上書きしない
     for (DWORD i = 0; i < XUSER_MAX_COUNT; ++i) {
+        if (i >= MAX_GAMEPADS) {
+            break;
+        }
+        if (gamepads_[i].type == Type_DInput && gamepads_[i].dinputDevice != nullptr) {
+#ifdef _DEBUG
+            if (shouldLog) {
+                std::ostringstream oss;
+                oss << " XInput Slot " << i << ": SKIPPED (DirectInput prioritized)";
+                GAMEPAD_TRACE_LOG(oss.str());
+            }
+#endif
+            continue;
+        }
+
         XINPUT_STATE state;
         ZeroMemory(&state, sizeof(XINPUT_STATE));
 
@@ -186,38 +266,8 @@ void GamepadSystem::Update() {
 #endif
 
         if (result == ERROR_SUCCESS) {
-            // XInputデバイスが接続されている
             if (gamepads_[i].type != Type_XInput) {
-                // 衝突しているDirectInputデバイスがこのスロットにある場合は移動または解放
-                if (gamepads_[i].type == Type_DInput && gamepads_[i].dinputDevice) {
-                    int target = -1;
-                    for (int j = 0; j < MAX_GAMEPADS; ++j) {
-                        if (j == (int) i)
-                            continue;
-                        if (gamepads_[j].type == Type_None && !gamepads_[j].connected && gamepads_[j].dinputDevice == nullptr) {
-                            target = j;
-                            break;
-                        }
-                    }
-                    if (target >= 0) {
-#ifdef _DEBUG
-                        std::ostringstream oss;
-                        oss << "Migrating DInput device from slot " << i << " to slot " << target << " due to XInput connection";
-                        GAMEPAD_TRACE_CATEGORY(DebugLog::Category::Input, oss.str());
-#endif
-                        GamepadState moved = gamepads_[i];
-                        gamepads_[i] = GamepadState();
-                        gamepads_[target] = moved;
-                    } else {
-#ifdef _DEBUG
-                        DEBUGLOG_WARNING("No free slot to migrate DInput device; releasing it to make room for XInput");
-#endif
-                        gamepads_[i].dinputDevice->Unacquire();
-                        SAFE_RELEASE(gamepads_[i].dinputDevice);
-                        gamepads_[i] = GamepadState();
-                    }
-                }
-
+                gamepads_[i] = GamepadState();
                 gamepads_[i].type = Type_XInput;
                 gamepads_[i].connected = true;
                 gamepads_[i].xinputIndex = i;
@@ -228,20 +278,62 @@ void GamepadSystem::Update() {
 #endif
             }
             UpdateXInput(static_cast<int>(i));
+            UpdateChargeSystem(static_cast<int>(i), deltaTime_);
         } else {
-            // XInputデバイスが切断された
             if (gamepads_[i].type == Type_XInput) {
-                gamepads_[i].connected = false;
 #ifdef _DEBUG
                 std::ostringstream oss;
                 oss << "GamepadSystem::Update - XInput device disconnected: Index=" << i;
                 GAMEPAD_TRACE_CATEGORY(DebugLog::Category::Input, oss.str());
 #endif
+                gamepads_[i] = GamepadState();
             }
         }
+    }
 
-        // チャージシステムを更新
-        UpdateChargeSystem(static_cast<int>(i), deltaTime_);
+    bool hasDInputDevice = false;
+    for (int i = 0; i < MAX_GAMEPADS; ++i) {
+        if (gamepads_[i].type == Type_DInput && gamepads_[i].dinputDevice) {
+            hasDInputDevice = true;
+            break;
+        }
+    }
+
+    if (!hasDInputDevice && dinput_) {
+        static float dinputReenumCooldown = 0.0f;
+        dinputReenumCooldown -= deltaTime_;
+        if (dinputReenumCooldown <= 0.0f) {
+            dinputReenumCooldown = 1.0f;
+            auto reenumDInput = [&](DWORD deviceClass) {
+                return dinput_->EnumDevices(
+                    deviceClass,
+                    EnumDevicesCallback,
+                    this,
+                    DIEDFL_ATTACHEDONLY);
+            };
+
+            HRESULT enumHr = reenumDInput(DI8DEVCLASS_GAMECTRL);
+            bool foundAfterGameCtrlEnum = false;
+            for (int i = 0; i < MAX_GAMEPADS; ++i) {
+                if (gamepads_[i].type == Type_DInput && gamepads_[i].dinputDevice != nullptr) {
+                    foundAfterGameCtrlEnum = true;
+                    break;
+                }
+            }
+            if (!foundAfterGameCtrlEnum) {
+                HRESULT allEnumHr = reenumDInput(DI8DEVCLASS_ALL);
+                if (FAILED(allEnumHr)) {
+                    enumHr = allEnumHr;
+                }
+            }
+#ifdef _DEBUG
+            if (FAILED(enumHr)) {
+                std::ostringstream oss;
+                oss << "GamepadSystem::Update - DirectInput再列挙に失敗: HRESULT=0x" << std::hex << enumHr;
+                DEBUGLOG_WARNING(oss.str());
+            }
+#endif
+        }
     }
 
     // DirectInputデバイスを更新（全スロットをチェック）
@@ -353,29 +445,90 @@ void GamepadSystem::UpdateDInput(int index) {
     GamepadState &pad = gamepads_[index];
     if (!pad.dinputDevice)
         return;
+    auto releaseDInputSlot = [&pad]() {
+        if (pad.dinputEffect) {
+            pad.dinputEffect->Stop();
+            SAFE_RELEASE(pad.dinputEffect);
+        }
+        if (pad.dinputDevice) {
+            pad.dinputDevice->Unacquire();
+            SAFE_RELEASE(pad.dinputDevice);
+        }
+        pad = GamepadState();
+    };
+#ifdef _DEBUG
+    static int acquireFailureLogCount = 0;
+    static int stateFailureLogCount = 0;
+#endif
 
     // デバイスを取得
     HRESULT hr = pad.dinputDevice->Poll();
     if (FAILED(hr)) {
-        hr = pad.dinputDevice->Acquire();
+        HRESULT acquireHr = pad.dinputDevice->Acquire();
+        if (FAILED(acquireHr)) {
+#ifdef _DEBUG
+            if (acquireFailureLogCount < 20) {
+                std::ostringstream oss;
+                oss << "DInput: Failed to Acquire device, HRESULT=0x" << std::hex << acquireHr;
+                DEBUGLOG_WARNING(oss.str());
+                acquireFailureLogCount++;
+            }
+#endif
+            if (acquireHr == DIERR_DEVICENOTREG || acquireHr == DIERR_NOTINITIALIZED || acquireHr == HRESULT_FROM_WIN32(ERROR_READ_FAULT)) {
+                releaseDInputSlot();
+                return;
+            }
+            pad.connected = false;
+            return;
+        }
+        hr = pad.dinputDevice->Poll();
         if (FAILED(hr)) {
 #ifdef _DEBUG
-            DEBUGLOG_WARNING("DInput: Failed to Acquire device");
+            if (stateFailureLogCount < 20) {
+                std::ostringstream oss;
+                oss << "DInput: Failed to Poll after Acquire, HRESULT=0x" << std::hex << hr;
+                DEBUGLOG_WARNING(oss.str());
+                stateFailureLogCount++;
+            }
 #endif
             pad.connected = false;
             return;
         }
-        pad.dinputDevice->Poll();
     }
 
-    DIJOYSTATE2 js;
+    DIJOYSTATE2 js{};
     hr = pad.dinputDevice->GetDeviceState(sizeof(DIJOYSTATE2), &js);
+    if (FAILED(hr) && (hr == DIERR_INPUTLOST || hr == DIERR_NOTACQUIRED)) {
+        HRESULT reacquireHr = pad.dinputDevice->Acquire();
+        if (SUCCEEDED(reacquireHr)) {
+            hr = pad.dinputDevice->Poll();
+            if (SUCCEEDED(hr)) {
+                hr = pad.dinputDevice->GetDeviceState(sizeof(DIJOYSTATE2), &js);
+            }
+        } else {
+#ifdef _DEBUG
+            if (acquireFailureLogCount < 20) {
+                std::ostringstream oss;
+                oss << "DInput: Re-acquire failed after lost state, HRESULT=0x" << std::hex << reacquireHr;
+                DEBUGLOG_WARNING(oss.str());
+                acquireFailureLogCount++;
+            }
+#endif
+        }
+    }
     if (FAILED(hr)) {
 #ifdef _DEBUG
-        std::ostringstream oss;
-        oss << "DInput: Failed to GetDeviceState, HRESULT=0x" << std::hex << hr;
-        DEBUGLOG_WARNING(oss.str());
+        if (stateFailureLogCount < 20) {
+            std::ostringstream oss;
+            oss << "DInput: Failed to GetDeviceState, HRESULT=0x" << std::hex << hr;
+            DEBUGLOG_WARNING(oss.str());
+            stateFailureLogCount++;
+        }
 #endif
+        if (hr == DIERR_DEVICENOTREG || hr == DIERR_NOTINITIALIZED || hr == HRESULT_FROM_WIN32(ERROR_READ_FAULT)) {
+            releaseDInputSlot();
+            return;
+        }
         pad.connected = false;
         return;
     }
@@ -915,13 +1068,108 @@ void GamepadSystem::SetVibration(float leftMotor, float rightMotor) {
     vibration.wLeftMotorSpeed = static_cast<WORD>(leftMotor * 65535.0f);
     vibration.wRightMotorSpeed = static_cast<WORD>(rightMotor * 65535.0f);
 
-    //すべてのXInputデバイスに振動を設定
-    for (int i = 0; i < MAX_GAMEPADS; ++i) {
-        const GamepadState &pad = gamepads_[i];
-        if (pad.type == Type_XInput && pad.connected) {
-            XInputSetState(pad.xinputIndex, &vibration);
+    const bool stopRequested = (leftMotor <= 0.0f && rightMotor <= 0.0f);
+    bool applied = false;
+    DWORD xinputConnectedCount = 0;
+    DWORD xinputAppliedCount = 0;
+    int dinputConnectedCount = 0;
+    int dinputCandidateCount = 0;
+    HRESULT lastDInputAcquireHr = S_OK;
+    HRESULT lastDInputSetHr = S_OK;
+
+    // すべてのXInputスロットに適用（内部状態に依存しない）
+    for (DWORD i = 0; i < XUSER_MAX_COUNT; ++i) {
+        XINPUT_STATE state;
+        ZeroMemory(&state, sizeof(XINPUT_STATE));
+        if (XInputGetState(i, &state) == ERROR_SUCCESS) {
+            ++xinputConnectedCount;
+        }
+        if (XInputSetState(i, &vibration) == ERROR_SUCCESS) {
+            applied = true;
+            ++xinputAppliedCount;
         }
     }
+
+    // DirectInputのフォースフィードバックへフォールバック
+    const float maxMotor = std::max(leftMotor, rightMotor);
+    const LONG magnitude = static_cast<LONG>(maxMotor * static_cast<float>(DI_FFNOMINALMAX));
+    for (int i = 0; i < MAX_GAMEPADS; ++i) {
+        GamepadState &pad = gamepads_[i];
+        if (pad.type == Type_DInput && pad.dinputDevice) {
+            ++dinputConnectedCount;
+        }
+        if (pad.type != Type_DInput || !pad.dinputForceFeedbackSupported || !pad.dinputEffect || !pad.dinputDevice) {
+            continue;
+        }
+        ++dinputCandidateCount;
+
+        if (stopRequested || magnitude <= 0) {
+            HRESULT stopHr = pad.dinputDevice->Acquire();
+            lastDInputAcquireHr = stopHr;
+            if (SUCCEEDED(stopHr)) {
+                pad.dinputEffect->Stop();
+            }
+            applied = true;
+            continue;
+        }
+
+        HRESULT hr = pad.dinputDevice->Acquire();
+        if (FAILED(hr)) {
+            hr = pad.dinputDevice->Acquire();
+        }
+        lastDInputAcquireHr = hr;
+        if (FAILED(hr) && hr != DIERR_OTHERAPPHASPRIO) {
+            continue;
+        }
+        pad.connected = true;
+        pad.dinputDevice->SendForceFeedbackCommand(DISFFC_SETACTUATORSON);
+        pad.dinputEffect->Download();
+
+        DICONSTANTFORCE constantForce{};
+        constantForce.lMagnitude = magnitude;
+        DIEFFECT effect{};
+        effect.dwSize = sizeof(DIEFFECT);
+        effect.cbTypeSpecificParams = sizeof(DICONSTANTFORCE);
+        effect.lpvTypeSpecificParams = &constantForce;
+
+        hr = pad.dinputEffect->SetParameters(&effect, DIEP_TYPESPECIFICPARAMS | DIEP_START);
+        if (FAILED(hr)) {
+            if (SUCCEEDED(pad.dinputDevice->Acquire())) {
+                pad.dinputEffect->Download();
+                hr = pad.dinputEffect->SetParameters(&effect, DIEP_TYPESPECIFICPARAMS | DIEP_START);
+            }
+        }
+        if (FAILED(hr)) {
+            hr = pad.dinputEffect->SetParameters(&effect, DIEP_TYPESPECIFICPARAMS);
+            if (SUCCEEDED(hr)) {
+                hr = pad.dinputEffect->Start(1, 0);
+            }
+        }
+        if (SUCCEEDED(hr)) {
+            applied = true;
+            lastDInputSetHr = S_OK;
+        } else {
+            lastDInputSetHr = hr;
+        }
+    }
+
+#ifdef _DEBUG
+    if (!applied && !stopRequested && xinputConnectedCount == 0 && dinputConnectedCount == 0) {
+        static int warningCount = 0;
+        if (warningCount < 5) {
+            std::ostringstream oss;
+            oss << "GamepadSystem::SetVibration - 振動適用先が見つかりませんでした"
+                << " (XInputConnected=" << xinputConnectedCount
+                << ", XInputApplied=" << xinputAppliedCount
+                << ", DInputConnected=" << dinputConnectedCount
+                << ", DInputCandidates=" << dinputCandidateCount
+                << ", LastAcquireHr=0x" << std::hex << static_cast<unsigned long>(lastDInputAcquireHr)
+                << ", LastSetHr=0x" << std::hex << static_cast<unsigned long>(lastDInputSetHr) << ")";
+            DEBUGLOG_WARNING(oss.str());
+            warningCount++;
+        }
+    }
+#endif
 }
 
 // ========================================================
@@ -962,15 +1210,35 @@ BOOL CALLBACK GamepadSystem::EnumDevicesCallback(LPCDIDEVICEINSTANCE lpddi, LPVO
     if (!pThis)
         return DIENUM_STOP;
 
-    // XInputデバイスはスキップ
-    if (IsXInputDevice(&lpddi->guidProduct)) {
+#ifdef _DEBUG
+    static int enumDiagnosticLogCount = 0;
+    if (enumDiagnosticLogCount < 64) {
+        std::ostringstream oss;
+        oss << "GamepadSystem::EnumDevicesCallback() - EnumDevice"
+            << " Name=" << lpddi->tszProductName
+            << ", dwDevType=0x" << std::hex << static_cast<unsigned long>(lpddi->dwDevType)
+            << ", BaseType=0x" << std::hex << static_cast<unsigned long>(GET_DIDEVICE_TYPE(lpddi->dwDevType))
+            << ", guidInstance=" << GuidToHexString(lpddi->guidInstance)
+            << ", guidProduct=" << GuidToHexString(lpddi->guidProduct);
+        DEBUGLOG_CATEGORY(DebugLog::Category::Input, oss.str());
+        enumDiagnosticLogCount++;
+    }
+#endif
+
+    const DWORD deviceType = GET_DIDEVICE_TYPE(lpddi->dwDevType);
+    const bool isControllerType =
+        (deviceType == DI8DEVTYPE_JOYSTICK) ||
+        (deviceType == DI8DEVTYPE_GAMEPAD) ||
+        (deviceType == DI8DEVTYPE_1STPERSON) ||
+        (deviceType == DI8DEVTYPE_DRIVING) ||
+        (deviceType == DI8DEVTYPE_FLIGHT);
+    if (!isControllerType) {
         return DIENUM_CONTINUE;
     }
 
-    // 空きスロットを探す（XInput予約スロットは使用しない）
+    // 空きスロットを探す（DirectInput優先）
     int slot = -1;
     for (int i = 0; i < MAX_GAMEPADS; ++i) {
-        // Type_None のスロットのみ使用（XInputと競合しない）
         if (pThis->gamepads_[i].type == Type_None) {
             slot = i;
             break;
@@ -1003,8 +1271,42 @@ BOOL CALLBACK GamepadSystem::EnumDevicesCallback(LPCDIDEVICEINSTANCE lpddi, LPVO
         return DIENUM_CONTINUE;
     }
 
-    // 協調レベルを設定(バックグラウンドでも動作、排他的でない)
-    hr = device->SetCooperativeLevel(GetActiveWindow(), DISCL_BACKGROUND | DISCL_NONEXCLUSIVE);
+    // 振動対応可否を確認
+    bool forceFeedbackSupported = false;
+    ForceFeedbackAxisContext ffAxisContext{};
+    DIDEVCAPS caps{};
+    caps.dwSize = sizeof(DIDEVCAPS);
+    if (SUCCEEDED(device->GetCapabilities(&caps))) {
+        forceFeedbackSupported = (caps.dwFlags & DIDC_FORCEFEEDBACK) != 0;
+    }
+    if (forceFeedbackSupported) {
+        hr = device->EnumObjects(
+            EnumForceFeedbackAxesCallback,
+            &ffAxisContext,
+            DIDFT_AXIS | DIDFT_FFACTUATOR);
+        if (FAILED(hr) || ffAxisContext.count == 0) {
+            forceFeedbackSupported = false;
+        }
+    }
+
+    // 協調レベルを設定（入力安定性優先で NONEXCLUSIVE を先に試す）
+    HWND hwnd = pThis->windowHandle_;
+    if (!hwnd) {
+        hwnd = GetActiveWindow();
+    }
+    if (!hwnd) {
+        hwnd = GetForegroundWindow();
+    }
+    DWORD coopFlags = DISCL_BACKGROUND | DISCL_NONEXCLUSIVE;
+    hr = device->SetCooperativeLevel(hwnd, coopFlags);
+    if (FAILED(hr) && hwnd) {
+        coopFlags = DISCL_FOREGROUND | DISCL_NONEXCLUSIVE;
+        hr = device->SetCooperativeLevel(hwnd, coopFlags);
+    }
+    if (FAILED(hr) && forceFeedbackSupported && hwnd) {
+        coopFlags = DISCL_FOREGROUND | DISCL_EXCLUSIVE;
+        hr = device->SetCooperativeLevel(hwnd, coopFlags);
+    }
     if (FAILED(hr)) {
         std::ostringstream oss;
         oss << "GamepadSystem::EnumDevicesCallback() - 協調レベル設定失敗: HRESULT=0x" << std::hex << hr;
@@ -1039,18 +1341,71 @@ BOOL CALLBACK GamepadSystem::EnumDevicesCallback(LPCDIDEVICEINSTANCE lpddi, LPVO
 #ifdef _DEBUG
         DEBUGLOG_WARNING("DirectInputデバイスの初回Acquireに失敗（後で再取得を試みます）");
 #endif
+    } else if (forceFeedbackSupported) {
+        device->SendForceFeedbackCommand(DISFFC_RESET);
+        device->SendForceFeedbackCommand(DISFFC_SETACTUATORSON);
+    }
+
+    LPDIRECTINPUTEFFECT ffEffect = nullptr;
+    if (forceFeedbackSupported) {
+        DIPROPDWORD autoCenterProp{};
+        autoCenterProp.diph.dwSize = sizeof(DIPROPDWORD);
+        autoCenterProp.diph.dwHeaderSize = sizeof(DIPROPHEADER);
+        autoCenterProp.diph.dwObj = 0;
+        autoCenterProp.diph.dwHow = DIPH_DEVICE;
+        autoCenterProp.dwData = FALSE;
+        device->SetProperty(DIPROP_AUTOCENTER, &autoCenterProp.diph);
+
+        DIPROPDWORD ffGainProp{};
+        ffGainProp.diph.dwSize = sizeof(DIPROPDWORD);
+        ffGainProp.diph.dwHeaderSize = sizeof(DIPROPHEADER);
+        ffGainProp.diph.dwObj = 0;
+        ffGainProp.diph.dwHow = DIPH_DEVICE;
+        ffGainProp.dwData = DI_FFNOMINALMAX;
+        device->SetProperty(DIPROP_FFGAIN, &ffGainProp.diph);
+
+        DWORD axes[2] = {ffAxisContext.axes[0], ffAxisContext.count > 1 ? ffAxisContext.axes[1] : ffAxisContext.axes[0]};
+        LONG directions[2] = {DI_FFNOMINALMAX, 0};
+        DICONSTANTFORCE constantForce{};
+        constantForce.lMagnitude = 0;
+
+        DIEFFECT effect{};
+        effect.dwSize = sizeof(DIEFFECT);
+        effect.dwFlags = DIEFF_CARTESIAN | DIEFF_OBJECTIDS;
+        effect.cAxes = static_cast<DWORD>(ffAxisContext.count > 1 ? 2 : 1);
+        effect.rgdwAxes = axes;
+        effect.rglDirection = directions;
+        effect.lpEnvelope = nullptr;
+        effect.cbTypeSpecificParams = sizeof(DICONSTANTFORCE);
+        effect.lpvTypeSpecificParams = &constantForce;
+        effect.dwDuration = INFINITE;
+        effect.dwGain = DI_FFNOMINALMAX;
+        effect.dwTriggerButton = DIEB_NOTRIGGER;
+        effect.dwTriggerRepeatInterval = 0;
+        effect.dwStartDelay = 0;
+
+        hr = device->CreateEffect(GUID_ConstantForce, &effect, &ffEffect, nullptr);
+        if (FAILED(hr)) {
+            forceFeedbackSupported = false;
+        } else {
+            ffEffect->Download();
+            ffEffect->Stop();
+        }
     }
 
     // ゲームパッド状態に設定
     pThis->gamepads_[slot].type = Type_DInput;
     pThis->gamepads_[slot].connected = true;
     pThis->gamepads_[slot].dinputDevice = device;
+    pThis->gamepads_[slot].dinputEffect = ffEffect;
+    pThis->gamepads_[slot].dinputForceFeedbackSupported = (forceFeedbackSupported && ffEffect != nullptr);
 
 #ifdef _DEBUG
     std::ostringstream oss;
     oss << "GamepadSystem::EnumDevicesCallback() - DirectInputデバイス登録: Slot=" << slot
-        << ", Name=" << lpddi->tszProductName;
-    GAMEPAD_TRACE_CATEGORY(DebugLog::Category::Input, oss.str());
+        << ", Name=" << lpddi->tszProductName
+        << ", FF=" << (pThis->gamepads_[slot].dinputForceFeedbackSupported ? "ON" : "OFF");
+    DEBUGLOG_CATEGORY(DebugLog::Category::Input, oss.str());
 #endif
 
     return DIENUM_CONTINUE;

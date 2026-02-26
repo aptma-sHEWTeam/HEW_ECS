@@ -603,7 +603,7 @@ class GameScene : public IScene {
             }
         }
 
-        // 蛍光灯サイレン演出（残り時間切迫時に点滅）
+        // 蛍光灯サイレン演出（常時）
         UpdateWallLightSiren(world, deltaTime);
         UpdateUrgencyScreenFX(world, deltaTime);
         UpdateBoostBurstFX(world);
@@ -1057,53 +1057,40 @@ class GameScene : public IScene {
     }
 
     /**
-     * @brief 残り時間切迫時に蛍光灯をサイレン風に赤白点滅させる
-     * @details 残り時間30%以下で発動。切迫度に応じて点滅速度が速くなる。
+     * @brief 蛍光灯を常時サイレン調で色変化させる
+     * @details 常時ゆらぎに加え、残り時間が少ないほど変化速度と赤寄りの強さを上げる。
      */
     void UpdateWallLightSiren(World &world, float dt) {
-        float timeRatio = 1.0f; // 1.0=余裕, 0.0=時間切れ
-        bool timerActive = false;
+        float urgency = 0.0f;
         world.ForEach<GameStatus>([&](Entity, GameStatus &stats) {
-            if (!stats.timerRunning) return;
-            timerActive = true;
-            if (cfg_LimitTime.Get() > 0.0f) {
-                timeRatio = std::clamp(stats.elapsedTime / cfg_LimitTime.Get(), 0.0f, 1.0f);
-            }
+            if (!stats.timerRunning || cfg_LimitTime.Get() <= 0.0f) return;
+            const float ratio = std::clamp(stats.elapsedTime / cfg_LimitTime.Get(), 0.0f, 1.0f);
+            urgency = std::max(urgency, ratio);
         });
 
-        // 通常色に戻す（タイマー未作動時やまだ余裕がある時）
+        const float safeDt = std::max(0.0f, dt);
+        const float baseFreq = 1.6f;
+        const float urgencyBoost = 3.8f;
+        const float freq = baseFreq + urgency * urgencyBoost;
+        const float phase = sirenTimer_ * freq * DirectX::XM_2PI;
+        const float primary = (std::sinf(phase) + 1.0f) * 0.5f;
+        const float secondary = (std::sinf(phase * 1.92f + DirectX::XM_PIDIV2) + 1.0f) * 0.5f;
+        const float strobe = std::pow((std::sinf(phase * 3.4f) + 1.0f) * 0.5f, 3.0f);
+        const float blend = std::clamp(0.18f + primary * 0.36f + secondary * 0.22f + strobe * 0.24f + urgency * 0.18f, 0.0f, 1.0f);
+
         const DirectX::XMFLOAT3 normalColor{1.0f, 0.7f, 0.5f};
-        const float threshold = 0.3f;
-
-        if (!timerActive || timeRatio >= threshold) {
-            world.ForEach<WallLightTag, PointLight>([&](Entity, WallLightTag &, PointLight &light) {
-                light.color = normalColor;
-            });
-            return;
-        }
-
-        // 切迫度 0→1 (余裕→時間切れ)
-        float urgency = 1.0f - (timeRatio / threshold);
-
-        // 点滅速度: 切迫度に応じて2Hz→8Hzに加速
-        float blinkFreq = 2.0f + urgency * 6.0f;
-        // sin波で0〜1を生成（サイレンの明滅）
-        float blinkPhase = std::sinf(sirenTimer_ * blinkFreq * DirectX::XM_2PI);
-        float blinkFactor = (blinkPhase + 1.0f) * 0.5f; // 0〜1
-
-        // 警告色 (赤) と通常色の間を点滅
-        DirectX::XMFLOAT3 urgentColor{1.0f, 0.1f, 0.1f};
-        DirectX::XMFLOAT3 color{
-            normalColor.x + (urgentColor.x - normalColor.x) * blinkFactor * urgency,
-            normalColor.y + (urgentColor.y - normalColor.y) * blinkFactor * urgency,
-            normalColor.z + (urgentColor.z - normalColor.z) * blinkFactor * urgency
+        const DirectX::XMFLOAT3 urgentColor{1.0f, 0.1f, 0.1f};
+        const DirectX::XMFLOAT3 color{
+            normalColor.x + (urgentColor.x - normalColor.x) * blend,
+            normalColor.y + (urgentColor.y - normalColor.y) * blend,
+            normalColor.z + (urgentColor.z - normalColor.z) * blend
         };
 
         world.ForEach<WallLightTag, PointLight>([&](Entity, WallLightTag &, PointLight &light) {
             light.color = color;
         });
 
-        sirenTimer_ += dt;
+        sirenTimer_ += safeDt;
     }
 
     void UpdateBoostBurstFX(World &world) {
@@ -1400,6 +1387,12 @@ class GameScene : public IScene {
                              std::max(0.0f, cfg_WallHitChromaticDuration.Get()),
                              std::max(0.0f, cfg_WallHitChromaticSampleOffset.Get()),
                              std::max(0.0f, cfg_WallHitChromaticRadialScale.Get()));
+        if (cfg_WallHitCrtNoiseEnabled.Get()) {
+            if (auto *renderer = ServiceLocator::TryGet<RenderSystem>()) {
+                renderer->TriggerCrtNoise(std::max(0.0f, cfg_WallHitCrtNoiseIntensity.Get()),
+                                          std::max(0.0f, cfg_WallHitCrtNoiseDuration.Get()));
+            }
+        }
         TriggerScenicMicroFlash(std::max(0.0f, cfg_ScenicMicroFlashCollisionIntensity.Get()),
                                 std::max(0.0f, cfg_ScenicMicroFlashCollisionDuration.Get()));
         TriggerScenicSpeedLineBurst(world,

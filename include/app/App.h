@@ -741,6 +741,7 @@ struct App {
         DEBUGLOG("ウィンドウ作成成功 (HWND: 0x" + std::to_string(reinterpret_cast<uintptr_t>(hwnd_)) + ")");
 
         input_.SetWindowHandle(hwnd_);
+        gamepad_.SetWindowHandle(hwnd_);
         ShowWindow(hwnd_, SW_SHOW);
         SendMessage(hwnd_, WM_SETICON, ICON_BIG, (LPARAM) wc.hIcon);
         SendMessage(hwnd_, WM_SETICON, ICON_SMALL, (LPARAM) wc.hIconSm);

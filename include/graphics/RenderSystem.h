@@ -957,9 +957,9 @@ struct RenderSystem {
                     float grainSigned = (grain - 0.5) * 2.0;
                     float scanline = sin((uv.y * screenSize.y + gStylizeParams2.z * 210.0) * 0.25);
                     float scanlineMask = 0.5 + 0.5 * scanline;
-                    float flicker = 0.88 + 0.12 * sin(gStylizeParams2.z * 160.0);
-                    color += grainSigned * crtNoise * 0.10;
-                    color *= 1.0 - crtNoise * 0.12 + scanlineMask * crtNoise * 0.08;
+                    float flicker = 0.82 + 0.18 * sin(gStylizeParams2.z * 160.0);
+                    color += grainSigned * crtNoise * 0.16;
+                    color *= 1.0 - crtNoise * 0.18 + scanlineMask * crtNoise * 0.14;
                     color *= flicker;
                 }
 

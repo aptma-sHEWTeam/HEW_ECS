@@ -68,6 +68,12 @@ inline ConfigVar<float> cfg_WallHitImpulseDuration{"Camera.Reaction.WallHit", "W
 inline ConfigVar<float> cfg_WallHitRumbleStrength{"Camera.Reaction.WallHit", "WallHitRumbleStrength", 0.850f, "壁衝突時振動強度"};
 /** @brief 壁衝突時振動継続時間 */
 inline ConfigVar<float> cfg_WallHitRumbleDuration{"Camera.Reaction.WallHit", "WallHitRumbleDuration", 0.280f, "壁衝突時振動継続時間"};
+/** @brief 壁衝突時にブラウン管ノイズを有効化するフラグ */
+inline ConfigVar<bool> cfg_WallHitCrtNoiseEnabled{"Camera.Reaction.WallHit", "WallHitCrtNoiseEnabled", true, "壁衝突時にブラウン管ノイズを有効化する"};
+/** @brief 壁衝突時ブラウン管ノイズ強度 */
+inline ConfigVar<float> cfg_WallHitCrtNoiseIntensity{"Camera.Reaction.WallHit", "WallHitCrtNoiseIntensity", 0.68f, "壁衝突時ブラウン管ノイズ強度"};
+/** @brief 壁衝突時ブラウン管ノイズ継続時間 */
+inline ConfigVar<float> cfg_WallHitCrtNoiseDuration{"Camera.Reaction.WallHit", "WallHitCrtNoiseDuration", 0.16f, "壁衝突時ブラウン管ノイズ継続時間"};
 
 /** @brief タイムアップ時シェイク強度 */
 inline ConfigVar<float> cfg_TimeUpShakeIntensity{"Camera.Reaction.TimeUp", "ShakeIntensity", 0.16f, "タイムアップ時シェイク強度"};
@@ -91,17 +97,17 @@ inline ConfigVar<float> cfg_TimeUpRumbleStrength{"Camera.Reaction.TimeUp", "Rumb
 inline ConfigVar<float> cfg_TimeUpRumbleDuration{"Camera.Reaction.TimeUp", "RumbleDuration", 0.320f, "タイムアップ時振動継続時間"};
 
 /** @brief チャージ解放時シェイクの基本強度 */
-inline ConfigVar<float> cfg_ChargeReleaseShakeBaseIntensity{"Camera.Reaction.ChargeRelease", "ShakeBaseIntensity", 0.015f, "チャージ解放時シェイクの基本強度"};
+inline ConfigVar<float> cfg_ChargeReleaseShakeBaseIntensity{"Camera.Reaction.ChargeRelease", "ShakeBaseIntensity", 0.003f, "チャージ解放時シェイクの基本強度"};
 /** @brief チャージ量に応じて加算するシェイク強度 */
-inline ConfigVar<float> cfg_ChargeReleaseShakeChargeScale{"Camera.Reaction.ChargeRelease", "ShakeChargeScale", 0.060f, "チャージ量に応じて加算するシェイク強度"};
+inline ConfigVar<float> cfg_ChargeReleaseShakeChargeScale{"Camera.Reaction.ChargeRelease", "ShakeChargeScale", 0.012f, "チャージ量に応じて加算するシェイク強度"};
 /** @brief チャージ解放時シェイクの継続時間 */
 inline ConfigVar<float> cfg_ChargeReleaseShakeDuration{"Camera.Reaction.ChargeRelease", "ShakeDuration", 0.25f, "チャージ解放時シェイクの継続時間"};
 /** @brief チャージ解放時ズームの基本量 */
-inline ConfigVar<float> cfg_ChargeReleaseZoomBaseAmount{"Camera.Reaction.ChargeRelease", "ZoomBaseAmount", 0.020f, "チャージ解放時ズームの基本量"};
+inline ConfigVar<float> cfg_ChargeReleaseZoomBaseAmount{"Camera.Reaction.ChargeRelease", "ZoomBaseAmount", 0.004f, "チャージ解放時ズームの基本量"};
 /** @brief チャージ量に応じて加算するズーム量 */
-inline ConfigVar<float> cfg_ChargeReleaseZoomChargeScale{"Camera.Reaction.ChargeRelease", "ZoomChargeScale", 0.080f, "チャージ量に応じて加算するズーム量"};
+inline ConfigVar<float> cfg_ChargeReleaseZoomChargeScale{"Camera.Reaction.ChargeRelease", "ZoomChargeScale", 0.016f, "チャージ量に応じて加算するズーム量"};
 /** @brief チャージ解放時ズーム量の上限 */
-inline ConfigVar<float> cfg_ChargeReleaseZoomMaxAmount{"Camera.Reaction.ChargeRelease", "ZoomMaxAmount", 0.120f, "チャージ解放時ズーム量の上限"};
+inline ConfigVar<float> cfg_ChargeReleaseZoomMaxAmount{"Camera.Reaction.ChargeRelease", "ZoomMaxAmount", 0.024f, "チャージ解放時ズーム量の上限"};
 /** @brief チャージ解放時ズーム継続時間 */
 inline ConfigVar<float> cfg_ChargeReleaseZoomDuration{"Camera.Reaction.ChargeRelease", "ZoomDuration", 0.140f, "チャージ解放時ズーム継続時間"};
 /** @brief チャージ解放時に色収差を有効化するフラグ */
@@ -121,13 +127,13 @@ inline ConfigVar<float> cfg_ChargeReleaseChromaticRadialScale{"Camera.Reaction.C
 /** @brief チャージ解放時にブラウン管ノイズを有効化するフラグ */
 inline ConfigVar<bool> cfg_ChargeReleaseCrtNoiseEnabled{"Camera.Reaction.ChargeRelease", "CrtNoiseEnabled", true, "チャージ解放時にブラウン管ノイズを有効化する"};
 /** @brief チャージ解放時ブラウン管ノイズの基本強度 */
-inline ConfigVar<float> cfg_ChargeReleaseCrtNoiseBaseIntensity{"Camera.Reaction.ChargeRelease", "CrtNoiseBaseIntensity", 0.18f, "チャージ解放時ブラウン管ノイズの基本強度"};
+inline ConfigVar<float> cfg_ChargeReleaseCrtNoiseBaseIntensity{"Camera.Reaction.ChargeRelease", "CrtNoiseBaseIntensity", 0.30f, "チャージ解放時ブラウン管ノイズの基本強度"};
 /** @brief チャージ量に応じて加算するブラウン管ノイズ強度 */
-inline ConfigVar<float> cfg_ChargeReleaseCrtNoiseChargeScale{"Camera.Reaction.ChargeRelease", "CrtNoiseChargeScale", 0.28f, "チャージ量に応じて加算するブラウン管ノイズ強度"};
+inline ConfigVar<float> cfg_ChargeReleaseCrtNoiseChargeScale{"Camera.Reaction.ChargeRelease", "CrtNoiseChargeScale", 0.42f, "チャージ量に応じて加算するブラウン管ノイズ強度"};
 /** @brief ブラウン管ノイズ強度の上限 */
-inline ConfigVar<float> cfg_ChargeReleaseCrtNoiseMaxIntensity{"Camera.Reaction.ChargeRelease", "CrtNoiseMaxIntensity", 0.52f, "ブラウン管ノイズ強度の上限"};
+inline ConfigVar<float> cfg_ChargeReleaseCrtNoiseMaxIntensity{"Camera.Reaction.ChargeRelease", "CrtNoiseMaxIntensity", 0.80f, "ブラウン管ノイズ強度の上限"};
 /** @brief ブラウン管ノイズの継続時間 */
-inline ConfigVar<float> cfg_ChargeReleaseCrtNoiseDuration{"Camera.Reaction.ChargeRelease", "CrtNoiseDuration", 0.11f, "ブラウン管ノイズの継続時間"};
+inline ConfigVar<float> cfg_ChargeReleaseCrtNoiseDuration{"Camera.Reaction.ChargeRelease", "CrtNoiseDuration", 0.18f, "ブラウン管ノイズの継続時間"};
 /** @brief チャージ中の持続色収差を有効化するフラグ */
 inline ConfigVar<bool> cfg_ChargeHoldChromaticEnabled{"Camera.Reaction.ChargeHold", "ChromaticEnabled", true, "チャージ中の持続色収差を有効化する"};
 /** @brief チャージ中の持続色収差強度 */
@@ -139,9 +145,9 @@ inline ConfigVar<float> cfg_ChargeHoldChromaticRadialScale{"Camera.Reaction.Char
 /** @brief チャージ中の持続色収差を維持する更新間隔(秒) */
 inline ConfigVar<float> cfg_ChargeHoldChromaticRefreshDuration{"Camera.Reaction.ChargeHold", "ChromaticRefreshDuration", 0.08f, "チャージ中の持続色収差を維持する更新間隔(秒)"};
 /** @brief チャージ解放時インパルスの基本強度 */
-inline ConfigVar<float> cfg_ChargeReleaseImpulseBaseIntensity{"Camera.Reaction.ChargeRelease", "ImpulseBaseIntensity", 0.060f, "チャージ解放時インパルスの基本強度"};
+inline ConfigVar<float> cfg_ChargeReleaseImpulseBaseIntensity{"Camera.Reaction.ChargeRelease", "ImpulseBaseIntensity", 0.012f, "チャージ解放時インパルスの基本強度"};
 /** @brief チャージ量に応じて加算するインパルス強度 */
-inline ConfigVar<float> cfg_ChargeReleaseImpulseChargeScale{"Camera.Reaction.ChargeRelease", "ImpulseChargeScale", 0.140f, "チャージ量に応じて加算するインパルス強度"};
+inline ConfigVar<float> cfg_ChargeReleaseImpulseChargeScale{"Camera.Reaction.ChargeRelease", "ImpulseChargeScale", 0.028f, "チャージ量に応じて加算するインパルス強度"};
 /** @brief チャージ解放時インパルス継続時間 */
 inline ConfigVar<float> cfg_ChargeReleaseImpulseDuration{"Camera.Reaction.ChargeRelease", "ImpulseDuration", 0.090f, "チャージ解放時インパルス継続時間"};
 /** @brief チャージ解放時の振動最小強度 */

@@ -8,13 +8,16 @@
  * 
  * @details
  * XInput と DirectInput を統合し、最大4つのゲームパッドの入力を管理します。
- * XInputデバイスを優先的に使用し、XInputで認識されないデバイスはDirectInputで処理します。
+ * DirectInputデバイスを優先し、空きスロットにXInputデバイスを割り当てます。
  */
 
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <Windows.h>
 #include <Xinput.h>
+#ifndef DIRECTINPUT_VERSION
+#define DIRECTINPUT_VERSION 0x0800
+#endif
 #include <dinput.h>
 #include <cstdint>
 #include <cstring>
@@ -102,6 +105,12 @@ class GamepadSystem {
      * DirectInputの初期化とゲームパッドの列挙を行います。
      */
     bool Init();
+
+    /**
+     * @brief 協調レベル設定に使用するウィンドウハンドルを設定
+     * @param[in] hwnd メインウィンドウハンドル
+     */
+    void SetWindowHandle(HWND hwnd) { windowHandle_ = hwnd; }
 
     /**
      * @brief ゲームパッドシステムのシャットダウン
@@ -349,6 +358,8 @@ class GamepadSystem {
         float leftTrigger;                 ///< 左トリガー
         float rightTrigger;                ///< 右トリガー
         LPDIRECTINPUTDEVICE8 dinputDevice; ///< DirectInputデバイス
+        LPDIRECTINPUTEFFECT dinputEffect;  ///< DirectInput振動エフェクト
+        bool dinputForceFeedbackSupported; ///< DirectInput振動対応有無
         DWORD xinputIndex;                 ///< XInputインデックス
 
         // チャージ&リリースシステム用
@@ -374,6 +385,8 @@ class GamepadSystem {
             rightStickX = rightStickY = 0.0f;
             leftTrigger = rightTrigger = 0.0f;
             dinputDevice = nullptr;
+            dinputEffect = nullptr;
+            dinputForceFeedbackSupported = false;
             xinputIndex = 0;
 
             // チャージシステム初期化
@@ -444,6 +457,7 @@ class GamepadSystem {
 
     GamepadState gamepads_[MAX_GAMEPADS]; ///< ゲームパッド状態
     LPDIRECTINPUT8 dinput_;               ///< DirectInput8インターフェース
+    HWND windowHandle_;                   ///< 協調レベル設定用ウィンドウハンドル
     int nextDInputSlot_;                  ///< 次に使用するDirectInputスロット
     float deltaTime_;                     ///< 前フレームのデルタタイム
 
