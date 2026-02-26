@@ -360,6 +360,8 @@ class GamepadSystem {
         LPDIRECTINPUTDEVICE8 dinputDevice; ///< DirectInputデバイス
         LPDIRECTINPUTEFFECT dinputEffect;  ///< DirectInput振動エフェクト
         bool dinputForceFeedbackSupported; ///< DirectInput振動対応有無
+        HANDLE dualSenseHidHandle;         ///< DualSense HIDハンドル
+        bool dualSenseHidRumbleSupported;  ///< DualSense HID振動対応有無
         DWORD xinputIndex;                 ///< XInputインデックス
 
         // チャージ&リリースシステム用
@@ -387,6 +389,8 @@ class GamepadSystem {
             dinputDevice = nullptr;
             dinputEffect = nullptr;
             dinputForceFeedbackSupported = false;
+            dualSenseHidHandle = INVALID_HANDLE_VALUE;
+            dualSenseHidRumbleSupported = false;
             xinputIndex = 0;
 
             // チャージシステム初期化

@@ -1002,7 +1002,7 @@ class GameScene : public IScene {
         float chargeAmount = std::clamp(pad->GetLeftStickChargeAmount(maxCharge), 0.0f, 1.0f);
         float rumbleMin = std::clamp(cfg_ChargeHoldRumbleMin.Get(), 0.0f, 1.0f);
         float rumbleMax = std::clamp(cfg_ChargeHoldRumbleMax.Get(), rumbleMin, 1.0f);
-        float strength = rumbleMin + (rumbleMax - rumbleMin) * chargeAmount;
+        float strength = (rumbleMin + (rumbleMax - rumbleMin) * chargeAmount) * 0.5f;
         TriggerGamepadRumble(strength,
                              strength,
                              std::max(0.0f, cfg_ChargeHoldRumbleDuration.Get()));

@@ -11,14 +11,19 @@
 #include "app/ServiceLocator.h"
 #include <wbemidl.h>
 #include <oleauto.h>
+#include <setupapi.h>
+#include <hidsdi.h>
 #include <sstream>
 #include <chrono>
 #include <comdef.h>
 #include <algorithm>
 #include <iomanip>
+#include <vector>
 
 #pragma comment(lib, "wbemuuid.lib")
 #pragma comment(lib, "oleaut32.lib")
+#pragma comment(lib, "setupapi.lib")
+#pragma comment(lib, "hid.lib")
 
 #if !defined(GAMEPAD_TRACE_LOG)
 #if defined(ENABLE_VERBOSE_INPUT_LOG) && ENABLE_VERBOSE_INPUT_LOG
@@ -63,6 +68,184 @@ std::string GuidToHexString(const GUID &guid) {
         << std::setw(2) << static_cast<unsigned int>(guid.Data4[7])
         << '}';
     return oss.str();
+}
+
+unsigned short ProductVid(const GUID &guid) {
+    return LOWORD(guid.Data1);
+}
+
+unsigned short ProductPid(const GUID &guid) {
+    return HIWORD(guid.Data1);
+}
+
+bool IsDualSensePid(unsigned short pid) {
+    return (pid == 0x0CE6) || (pid == 0x0DF2);
+}
+
+bool IsGamepadUsage(USHORT usagePage, USHORT usage) {
+    return usagePage == 0x01 && (usage == 0x04 || usage == 0x05);
+}
+
+uint32_t ComputeCrc32(const unsigned char *data, size_t size) {
+    uint32_t crc = 0xFFFFFFFFu;
+    for (size_t i = 0; i < size; ++i) {
+        crc ^= static_cast<uint32_t>(data[i]);
+        for (int bit = 0; bit < 8; ++bit) {
+            const uint32_t mask = static_cast<uint32_t>(-(static_cast<int>(crc & 1u)));
+            crc = (crc >> 1) ^ (0xEDB88320u & mask);
+        }
+    }
+    return ~crc;
+}
+
+HANDLE OpenDualSenseHidHandle(unsigned short vid, unsigned short pid) {
+    GUID hidGuid{};
+    HidD_GetHidGuid(&hidGuid);
+
+    HDEVINFO deviceInfo = SetupDiGetClassDevs(
+        &hidGuid,
+        nullptr,
+        nullptr,
+        DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
+    if (deviceInfo == INVALID_HANDLE_VALUE) {
+        return INVALID_HANDLE_VALUE;
+    }
+
+    HANDLE foundHandle = INVALID_HANDLE_VALUE;
+    SP_DEVICE_INTERFACE_DATA interfaceData{};
+    interfaceData.cbSize = sizeof(SP_DEVICE_INTERFACE_DATA);
+
+    for (DWORD index = 0; SetupDiEnumDeviceInterfaces(deviceInfo, nullptr, &hidGuid, index, &interfaceData); ++index) {
+        DWORD requiredSize = 0;
+        SetupDiGetDeviceInterfaceDetail(deviceInfo, &interfaceData, nullptr, 0, &requiredSize, nullptr);
+        if (requiredSize == 0) {
+            continue;
+        }
+
+        std::vector<unsigned char> detailBuffer(requiredSize);
+        auto *detailData = reinterpret_cast<SP_DEVICE_INTERFACE_DETAIL_DATA *>(detailBuffer.data());
+        detailData->cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA);
+        if (!SetupDiGetDeviceInterfaceDetail(deviceInfo, &interfaceData, detailData, requiredSize, nullptr, nullptr)) {
+            continue;
+        }
+
+        HANDLE handle = CreateFile(
+            detailData->DevicePath,
+            GENERIC_READ | GENERIC_WRITE,
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            nullptr,
+            OPEN_EXISTING,
+            FILE_ATTRIBUTE_NORMAL,
+            nullptr);
+        if (handle == INVALID_HANDLE_VALUE) {
+            continue;
+        }
+
+        HIDD_ATTRIBUTES attributes{};
+        attributes.Size = sizeof(HIDD_ATTRIBUTES);
+        if (!HidD_GetAttributes(handle, &attributes)) {
+            CloseHandle(handle);
+            continue;
+        }
+        if (attributes.VendorID != vid || attributes.ProductID != pid) {
+            CloseHandle(handle);
+            continue;
+        }
+
+        PHIDP_PREPARSED_DATA preparsedData = nullptr;
+        if (!HidD_GetPreparsedData(handle, &preparsedData) || preparsedData == nullptr) {
+            CloseHandle(handle);
+            continue;
+        }
+        HIDP_CAPS caps{};
+        const NTSTATUS capsStatus = HidP_GetCaps(preparsedData, &caps);
+        HidD_FreePreparsedData(preparsedData);
+        if (capsStatus != HIDP_STATUS_SUCCESS || !IsGamepadUsage(caps.UsagePage, caps.Usage) || caps.OutputReportByteLength < 5) {
+            CloseHandle(handle);
+            continue;
+        }
+
+        foundHandle = handle;
+        break;
+    }
+
+    SetupDiDestroyDeviceInfoList(deviceInfo);
+    return foundHandle;
+}
+
+bool SendDualSenseHidVibration(HANDLE handle, float leftMotor, float rightMotor, DWORD *lastErrorOut) {
+    if (lastErrorOut) {
+        *lastErrorOut = ERROR_SUCCESS;
+    }
+    if (handle == nullptr || handle == INVALID_HANDLE_VALUE) {
+        if (lastErrorOut) {
+            *lastErrorOut = ERROR_INVALID_HANDLE;
+        }
+        return false;
+    }
+
+    PHIDP_PREPARSED_DATA preparsedData = nullptr;
+    if (!HidD_GetPreparsedData(handle, &preparsedData) || preparsedData == nullptr) {
+        if (lastErrorOut) {
+            *lastErrorOut = GetLastError();
+        }
+        return false;
+    }
+
+    HIDP_CAPS caps{};
+    const NTSTATUS capsStatus = HidP_GetCaps(preparsedData, &caps);
+    HidD_FreePreparsedData(preparsedData);
+    if (capsStatus != HIDP_STATUS_SUCCESS || caps.OutputReportByteLength < 5) {
+        if (lastErrorOut) {
+            *lastErrorOut = ERROR_NOT_SUPPORTED;
+        }
+        return false;
+    }
+
+    const unsigned char weakMotor = static_cast<unsigned char>(std::clamp(rightMotor, 0.0f, 1.0f) * 255.0f);
+    const unsigned char strongMotor = static_cast<unsigned char>(std::clamp(leftMotor, 0.0f, 1.0f) * 255.0f);
+
+    std::vector<unsigned char> report(static_cast<size_t>(caps.OutputReportByteLength), 0);
+    if (report.size() >= 78) {
+        report[0] = 0x31;
+        report[1] = 0x02;
+        report[2] = 0x03;
+        report[3] = 0x00;
+        report[4] = 0x00;
+        report[5] = weakMotor;
+        report[6] = strongMotor;
+
+        std::vector<unsigned char> crcInput((report.size() - 4) + 1, 0);
+        crcInput[0] = 0xA2;
+        memcpy(crcInput.data() + 1, report.data(), report.size() - 4);
+        const uint32_t crc = ComputeCrc32(crcInput.data(), crcInput.size());
+        report[report.size() - 4] = static_cast<unsigned char>(crc & 0xFFu);
+        report[report.size() - 3] = static_cast<unsigned char>((crc >> 8) & 0xFFu);
+        report[report.size() - 2] = static_cast<unsigned char>((crc >> 16) & 0xFFu);
+        report[report.size() - 1] = static_cast<unsigned char>((crc >> 24) & 0xFFu);
+    } else {
+        report[0] = 0x02;
+        report[1] = 0x03;
+        report[2] = 0x00;
+        report[3] = weakMotor;
+        report[4] = strongMotor;
+    }
+
+    DWORD written = 0;
+    if (WriteFile(handle, report.data(), static_cast<DWORD>(report.size()), &written, nullptr) == TRUE) {
+        return true;
+    }
+    const DWORD writeError = GetLastError();
+
+    if (HidD_SetOutputReport(handle, report.data(), static_cast<ULONG>(report.size())) == TRUE) {
+        return true;
+    }
+
+    if (lastErrorOut) {
+        const DWORD hidError = GetLastError();
+        *lastErrorOut = (hidError != ERROR_SUCCESS) ? hidError : writeError;
+    }
+    return false;
 }
 
 BOOL CALLBACK EnumForceFeedbackAxesCallback(const DIDEVICEOBJECTINSTANCE *lpddoi, LPVOID pvRef) {
@@ -193,6 +376,10 @@ void GamepadSystem::Shutdown() {
         if (gamepads_[i].dinputDevice) {
             gamepads_[i].dinputDevice->Unacquire();
             SAFE_RELEASE(gamepads_[i].dinputDevice);
+        }
+        if (gamepads_[i].dualSenseHidHandle != INVALID_HANDLE_VALUE && gamepads_[i].dualSenseHidHandle != nullptr) {
+            CloseHandle(gamepads_[i].dualSenseHidHandle);
+            gamepads_[i].dualSenseHidHandle = INVALID_HANDLE_VALUE;
         }
         gamepads_[i] = GamepadState();
     }
@@ -453,6 +640,10 @@ void GamepadSystem::UpdateDInput(int index) {
         if (pad.dinputDevice) {
             pad.dinputDevice->Unacquire();
             SAFE_RELEASE(pad.dinputDevice);
+        }
+        if (pad.dualSenseHidHandle != INVALID_HANDLE_VALUE && pad.dualSenseHidHandle != nullptr) {
+            CloseHandle(pad.dualSenseHidHandle);
+            pad.dualSenseHidHandle = INVALID_HANDLE_VALUE;
         }
         pad = GamepadState();
     };
@@ -1074,8 +1265,11 @@ void GamepadSystem::SetVibration(float leftMotor, float rightMotor) {
     DWORD xinputAppliedCount = 0;
     int dinputConnectedCount = 0;
     int dinputCandidateCount = 0;
+    int dualSenseHidConnectedCount = 0;
+    int dualSenseHidAppliedCount = 0;
     HRESULT lastDInputAcquireHr = S_OK;
     HRESULT lastDInputSetHr = S_OK;
+    DWORD lastDualSenseHidError = ERROR_SUCCESS;
 
     // すべてのXInputスロットに適用（内部状態に依存しない）
     for (DWORD i = 0; i < XUSER_MAX_COUNT; ++i) {
@@ -1095,10 +1289,26 @@ void GamepadSystem::SetVibration(float leftMotor, float rightMotor) {
     const LONG magnitude = static_cast<LONG>(maxMotor * static_cast<float>(DI_FFNOMINALMAX));
     for (int i = 0; i < MAX_GAMEPADS; ++i) {
         GamepadState &pad = gamepads_[i];
-        if (pad.type == Type_DInput && pad.dinputDevice) {
+        if (pad.type != Type_DInput) {
+            continue;
+        }
+
+        if (pad.dinputDevice) {
             ++dinputConnectedCount;
         }
-        if (pad.type != Type_DInput || !pad.dinputForceFeedbackSupported || !pad.dinputEffect || !pad.dinputDevice) {
+
+        if (pad.dualSenseHidRumbleSupported && pad.dualSenseHidHandle != INVALID_HANDLE_VALUE && pad.dualSenseHidHandle != nullptr) {
+            ++dualSenseHidConnectedCount;
+            DWORD hidError = ERROR_SUCCESS;
+            if (SendDualSenseHidVibration(pad.dualSenseHidHandle, leftMotor, rightMotor, &hidError)) {
+                applied = true;
+                ++dualSenseHidAppliedCount;
+                continue;
+            }
+            lastDualSenseHidError = hidError;
+        }
+
+        if (!pad.dinputForceFeedbackSupported || !pad.dinputEffect || !pad.dinputDevice) {
             continue;
         }
         ++dinputCandidateCount;
@@ -1154,19 +1364,44 @@ void GamepadSystem::SetVibration(float leftMotor, float rightMotor) {
     }
 
 #ifdef _DEBUG
-    if (!applied && !stopRequested && xinputConnectedCount == 0 && dinputConnectedCount == 0) {
-        static int warningCount = 0;
-        if (warningCount < 5) {
-            std::ostringstream oss;
-            oss << "GamepadSystem::SetVibration - 振動適用先が見つかりませんでした"
-                << " (XInputConnected=" << xinputConnectedCount
-                << ", XInputApplied=" << xinputAppliedCount
-                << ", DInputConnected=" << dinputConnectedCount
-                << ", DInputCandidates=" << dinputCandidateCount
-                << ", LastAcquireHr=0x" << std::hex << static_cast<unsigned long>(lastDInputAcquireHr)
-                << ", LastSetHr=0x" << std::hex << static_cast<unsigned long>(lastDInputSetHr) << ")";
-            DEBUGLOG_WARNING(oss.str());
-            warningCount++;
+    if (!applied && !stopRequested) {
+        static int noTargetWarningCount = 0;
+        static int noFfWarningCount = 0;
+
+        if (xinputConnectedCount == 0 && dinputConnectedCount == 0) {
+            if (noTargetWarningCount < 5) {
+                std::ostringstream oss;
+                oss << "GamepadSystem::SetVibration - 振動適用先が見つかりませんでした"
+                    << " (XInputConnected=" << xinputConnectedCount
+                    << ", XInputApplied=" << xinputAppliedCount
+                    << ", DInputConnected=" << dinputConnectedCount
+                    << ", DualSenseHidConnected=" << dualSenseHidConnectedCount
+                    << ", DualSenseHidApplied=" << dualSenseHidAppliedCount
+                    << ", DInputCandidates=" << dinputCandidateCount
+                    << ", LastAcquireHr=0x" << std::hex << static_cast<unsigned long>(lastDInputAcquireHr)
+                    << ", LastSetHr=0x" << std::hex << static_cast<unsigned long>(lastDInputSetHr)
+                    << ", LastDualSenseHidError=" << std::dec << lastDualSenseHidError << ")";
+                DEBUGLOG_WARNING(oss.str());
+                noTargetWarningCount++;
+            }
+        } else if (xinputConnectedCount == 0 && dualSenseHidConnectedCount > 0 && dualSenseHidAppliedCount == 0) {
+            if (noFfWarningCount < 5) {
+                std::ostringstream oss;
+                oss << "GamepadSystem::SetVibration - DualSense HID振動の送信に失敗しました"
+                    << " (DualSenseHidConnected=" << dualSenseHidConnectedCount
+                    << ", LastDualSenseHidError=" << std::dec << lastDualSenseHidError << ")";
+                DEBUGLOG_WARNING(oss.str());
+                noFfWarningCount++;
+            }
+        } else if (xinputConnectedCount == 0 && dinputConnectedCount > 0 && dinputCandidateCount == 0 && dualSenseHidConnectedCount == 0) {
+            if (noFfWarningCount < 5) {
+                std::ostringstream oss;
+                oss << "GamepadSystem::SetVibration - DirectInputデバイスは検出済みですが、フォースフィードバック非対応のため振動できません"
+                    << " (DInputConnected=" << dinputConnectedCount
+                    << ", DInputCandidates=" << dinputCandidateCount << ")";
+                DEBUGLOG_WARNING(oss.str());
+                noFfWarningCount++;
+            }
         }
     }
 #endif
@@ -1210,14 +1445,21 @@ BOOL CALLBACK GamepadSystem::EnumDevicesCallback(LPCDIDEVICEINSTANCE lpddi, LPVO
     if (!pThis)
         return DIENUM_STOP;
 
+    const unsigned short productVid = ProductVid(lpddi->guidProduct);
+    const unsigned short productPid = ProductPid(lpddi->guidProduct);
+
 #ifdef _DEBUG
     static int enumDiagnosticLogCount = 0;
     if (enumDiagnosticLogCount < 64) {
+        const unsigned int vid = static_cast<unsigned int>(productVid);
+        const unsigned int pid = static_cast<unsigned int>(productPid);
         std::ostringstream oss;
         oss << "GamepadSystem::EnumDevicesCallback() - EnumDevice"
             << " Name=" << lpddi->tszProductName
             << ", dwDevType=0x" << std::hex << static_cast<unsigned long>(lpddi->dwDevType)
             << ", BaseType=0x" << std::hex << static_cast<unsigned long>(GET_DIDEVICE_TYPE(lpddi->dwDevType))
+            << ", VID=0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << vid
+            << ", PID=0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << pid
             << ", guidInstance=" << GuidToHexString(lpddi->guidInstance)
             << ", guidProduct=" << GuidToHexString(lpddi->guidProduct);
         DEBUGLOG_CATEGORY(DebugLog::Category::Input, oss.str());
@@ -1271,24 +1513,6 @@ BOOL CALLBACK GamepadSystem::EnumDevicesCallback(LPCDIDEVICEINSTANCE lpddi, LPVO
         return DIENUM_CONTINUE;
     }
 
-    // 振動対応可否を確認
-    bool forceFeedbackSupported = false;
-    ForceFeedbackAxisContext ffAxisContext{};
-    DIDEVCAPS caps{};
-    caps.dwSize = sizeof(DIDEVCAPS);
-    if (SUCCEEDED(device->GetCapabilities(&caps))) {
-        forceFeedbackSupported = (caps.dwFlags & DIDC_FORCEFEEDBACK) != 0;
-    }
-    if (forceFeedbackSupported) {
-        hr = device->EnumObjects(
-            EnumForceFeedbackAxesCallback,
-            &ffAxisContext,
-            DIDFT_AXIS | DIDFT_FFACTUATOR);
-        if (FAILED(hr) || ffAxisContext.count == 0) {
-            forceFeedbackSupported = false;
-        }
-    }
-
     // 協調レベルを設定（入力安定性優先で NONEXCLUSIVE を先に試す）
     HWND hwnd = pThis->windowHandle_;
     if (!hwnd) {
@@ -1303,7 +1527,7 @@ BOOL CALLBACK GamepadSystem::EnumDevicesCallback(LPCDIDEVICEINSTANCE lpddi, LPVO
         coopFlags = DISCL_FOREGROUND | DISCL_NONEXCLUSIVE;
         hr = device->SetCooperativeLevel(hwnd, coopFlags);
     }
-    if (FAILED(hr) && forceFeedbackSupported && hwnd) {
+    if (FAILED(hr) && hwnd) {
         coopFlags = DISCL_FOREGROUND | DISCL_EXCLUSIVE;
         hr = device->SetCooperativeLevel(hwnd, coopFlags);
     }
@@ -1341,9 +1565,30 @@ BOOL CALLBACK GamepadSystem::EnumDevicesCallback(LPCDIDEVICEINSTANCE lpddi, LPVO
 #ifdef _DEBUG
         DEBUGLOG_WARNING("DirectInputデバイスの初回Acquireに失敗（後で再取得を試みます）");
 #endif
-    } else if (forceFeedbackSupported) {
-        device->SendForceFeedbackCommand(DISFFC_RESET);
-        device->SendForceFeedbackCommand(DISFFC_SETACTUATORSON);
+    }
+
+    // 振動対応可否を確認（ドライバ差異を考慮し、軸列挙結果を優先）
+    DWORD ffCapsFlags = 0;
+    bool forceFeedbackSupported = false;
+    ForceFeedbackAxisContext ffAxisContext{};
+    DIDEVCAPS caps{};
+    caps.dwSize = sizeof(DIDEVCAPS);
+    if (SUCCEEDED(device->GetCapabilities(&caps))) {
+        ffCapsFlags = caps.dwFlags;
+    }
+    HRESULT ffEnumHr = device->EnumObjects(
+        EnumForceFeedbackAxesCallback,
+        &ffAxisContext,
+        DIDFT_AXIS | DIDFT_FFACTUATOR);
+    if (SUCCEEDED(ffEnumHr) && ffAxisContext.count > 0) {
+        forceFeedbackSupported = true;
+    }
+
+    if (forceFeedbackSupported) {
+        if (SUCCEEDED(device->Acquire())) {
+            device->SendForceFeedbackCommand(DISFFC_RESET);
+            device->SendForceFeedbackCommand(DISFFC_SETACTUATORSON);
+        }
     }
 
     LPDIRECTINPUTEFFECT ffEffect = nullptr;
@@ -1384,7 +1629,21 @@ BOOL CALLBACK GamepadSystem::EnumDevicesCallback(LPCDIDEVICEINSTANCE lpddi, LPVO
         effect.dwTriggerRepeatInterval = 0;
         effect.dwStartDelay = 0;
 
-        hr = device->CreateEffect(GUID_ConstantForce, &effect, &ffEffect, nullptr);
+        auto createConstantEffect = [&]() {
+            return device->CreateEffect(GUID_ConstantForce, &effect, &ffEffect, nullptr);
+        };
+
+        hr = createConstantEffect();
+        if (FAILED(hr) && hwnd && coopFlags != (DISCL_FOREGROUND | DISCL_EXCLUSIVE)) {
+            device->Unacquire();
+            HRESULT coopHr = device->SetCooperativeLevel(hwnd, DISCL_FOREGROUND | DISCL_EXCLUSIVE);
+            if (SUCCEEDED(coopHr)) {
+                coopFlags = DISCL_FOREGROUND | DISCL_EXCLUSIVE;
+                if (SUCCEEDED(device->Acquire())) {
+                    hr = createConstantEffect();
+                }
+            }
+        }
         if (FAILED(hr)) {
             forceFeedbackSupported = false;
         } else {
@@ -1393,18 +1652,34 @@ BOOL CALLBACK GamepadSystem::EnumDevicesCallback(LPCDIDEVICEINSTANCE lpddi, LPVO
         }
     }
 
+    HANDLE dualSenseHidHandle = INVALID_HANDLE_VALUE;
+    bool dualSenseHidRumbleSupported = false;
+    if (!forceFeedbackSupported && productVid == 0x054C && IsDualSensePid(productPid)) {
+        dualSenseHidHandle = OpenDualSenseHidHandle(productVid, productPid);
+        dualSenseHidRumbleSupported = (dualSenseHidHandle != INVALID_HANDLE_VALUE && dualSenseHidHandle != nullptr);
+    }
+
     // ゲームパッド状態に設定
     pThis->gamepads_[slot].type = Type_DInput;
     pThis->gamepads_[slot].connected = true;
     pThis->gamepads_[slot].dinputDevice = device;
     pThis->gamepads_[slot].dinputEffect = ffEffect;
     pThis->gamepads_[slot].dinputForceFeedbackSupported = (forceFeedbackSupported && ffEffect != nullptr);
+    pThis->gamepads_[slot].dualSenseHidHandle = dualSenseHidHandle;
+    pThis->gamepads_[slot].dualSenseHidRumbleSupported = dualSenseHidRumbleSupported;
 
 #ifdef _DEBUG
+    const unsigned int vid = static_cast<unsigned int>(productVid);
+    const unsigned int pid = static_cast<unsigned int>(productPid);
     std::ostringstream oss;
     oss << "GamepadSystem::EnumDevicesCallback() - DirectInputデバイス登録: Slot=" << slot
         << ", Name=" << lpddi->tszProductName
-        << ", FF=" << (pThis->gamepads_[slot].dinputForceFeedbackSupported ? "ON" : "OFF");
+        << ", FF=" << (pThis->gamepads_[slot].dinputForceFeedbackSupported ? "ON" : "OFF")
+        << ", DualSenseHid=" << (pThis->gamepads_[slot].dualSenseHidRumbleSupported ? "ON" : "OFF")
+        << ", FFCaps=0x" << std::hex << static_cast<unsigned long>(ffCapsFlags)
+        << ", FFAxes=" << std::dec << ffAxisContext.count
+        << ", VID=0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << vid
+        << ", PID=0x" << std::hex << std::uppercase << std::setfill('0') << std::setw(4) << pid;
     DEBUGLOG_CATEGORY(DebugLog::Category::Input, oss.str());
 #endif
 
