@@ -247,7 +247,9 @@ bool ImageSystem::Draw(const Params &p) {
         float s = (p.aspectFill) ? (sx > sy ? sx : sy) : (sx < sy ? sx : sy);
         dstW = (src.right - src.left) * s;
         dstH = (src.bottom - src.top) * s;
-        x += (p.width - dstW) * 0.5f;
+        if (!p.aspectAlignLeft) {
+            x += (p.width - dstW) * 0.5f;
+        }
         y += (p.height - dstH) * 0.5f;
     }
 

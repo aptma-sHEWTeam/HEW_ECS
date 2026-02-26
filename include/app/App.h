@@ -186,6 +186,7 @@ struct App {
         stage1IntroVideoScene->SetSkipEnabled(true);
         stage1IntroVideoScene->SetLoopVideoPath("");
         stage1IntroVideoScene->SetBgmPath("");
+        stage1IntroVideoScene->SetRankUIEnabled(false);
         DEBUGLOG("Stage1IntroVideo scene instance created");
 
         sceneManager_.RegisterScene("Stage1IntroVideo", std::move(stage1IntroVideoScene));

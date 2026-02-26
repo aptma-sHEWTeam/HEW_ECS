@@ -14,6 +14,7 @@ struct UIImage : IComponent {
     float opacity = 1.0f;            ///< 透過(0..1)
     bool keepAspect = true;          ///< アスペクト維持
     bool aspectFill = false;         ///< アスペクト維持(Fill)
+    bool aspectAlignLeft = false;    ///< keepAspect時に左揃え
     DirectX::XMFLOAT4 tint{1,1,1,1}; ///< 画像へのカラー乗算
 
     std::array<float, 4> uvRect = {0, 0, 1, 1};

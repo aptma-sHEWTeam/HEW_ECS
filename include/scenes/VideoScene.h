@@ -59,6 +59,9 @@ class VideoScene : public IScene {
         bgmPath_ = path;
         bgmPathSet_ = true;
     }
+    void SetRankUIEnabled(bool enabled) {
+        rankUIEnabled_ = enabled;
+    }
 
     void OnEnter(World &world) override {
         DEBUGLOG("VideoScene::OnEnter() start");
@@ -219,7 +222,9 @@ class VideoScene : public IScene {
             }
         }
         // ランク/デスUIフェードイン処理
-        UpdateRankFadeIn(world, deltaTime);
+        if (rankUIEnabled_) {
+            UpdateRankFadeIn(world, deltaTime);
+        }
 
         world.Tick(deltaTime);
     }
@@ -331,6 +336,13 @@ class VideoScene : public IScene {
 
         Entity crossImageEntity = world.Create().With<UITransform>(crossImgTr).With<UIImage>(crossImg).Build();
         uiOwnedEntities_.push_back(crossImageEntity);
+
+        rankDataEntities_.clear();
+        newRecordEntity_ = Entity{};
+        rankFadeTimer_ = 0.0f;
+        if (!rankUIEnabled_) {
+            return;
+        }
 
         // === ランク・デスUI ===
         int pss = StageSave::GetLastSavedPss();
@@ -746,6 +758,7 @@ class VideoScene : public IScene {
     bool shouldExit_ = false;
     bool loopPlaying_ = false;
     bool isFading = false;
+    bool rankUIEnabled_ = true;
     float menuRumbleTimer_ = 0.0f;
     bool menuRumbleActive_ = false;
 

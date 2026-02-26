@@ -82,8 +82,13 @@ inline static ConfigVar<float> cfg_StickZoomTargetSpeed{"Camera.Stick", "StickZo
 inline static ConfigVar<float> cfg_ChargeHoldRumbleMin{"Gamepad.Rumble.ChargeHold", "Min", 0.080f, "チャージ中振動の最小強度"};
 inline static ConfigVar<float> cfg_ChargeHoldRumbleMax{"Gamepad.Rumble.ChargeHold", "Max", 0.240f, "チャージ中振動の最大強度"};
 inline static ConfigVar<float> cfg_ChargeHoldRumbleDuration{"Gamepad.Rumble.ChargeHold", "Duration", 0.080f, "チャージ中振動の継続時間"};
+inline static ConfigVar<float> cfg_ChargeHoldRumbleOutputScale{"Gamepad.Rumble.ChargeHold", "OutputScale", 0.500f, "チャージ中振動強度の最終倍率"};
 inline static ConfigVar<float> cfg_StageEnterRumbleStrength{"Gamepad.Rumble.StageEnter", "Strength", 0.320f, "ステージ開始時振動強度"};
 inline static ConfigVar<float> cfg_StageEnterRumbleDuration{"Gamepad.Rumble.StageEnter", "Duration", 0.220f, "ステージ開始時振動継続時間"};
+inline static ConfigVar<float> cfg_UrgencyRumbleStrengthBaseScale{"Gamepad.Rumble.Urgency", "StrengthBaseScale", 0.150f, "切迫演出時振動強度の基本倍率"};
+inline static ConfigVar<float> cfg_UrgencyRumbleStrengthUrgencyScale{"Gamepad.Rumble.Urgency", "StrengthUrgencyScale", 0.550f, "切迫演出時振動強度の緊迫度倍率"};
+inline static ConfigVar<float> cfg_UrgencyRumbleDurationBaseScale{"Gamepad.Rumble.Urgency", "DurationBaseScale", 0.400f, "切迫演出時振動時間の基本倍率"};
+inline static ConfigVar<float> cfg_UrgencyRumbleDurationPanicScale{"Gamepad.Rumble.Urgency", "DurationPanicScale", 0.450f, "切迫演出時振動時間のパニック倍率"};
 // 追加: ステージクリア待機時間
 inline static ConfigVar<float> cfg_StageClearWait{"UI.StageClear", "WaitSeconds", 0.5f, "ステージクリア表示後にシーン遷移するまでの待機時間"};
 inline static ConfigVar<float> cfg_SkyboxSpeed{"Skybox", "Speed", 0.05f, "スカイボックスの回転速度(rad/sec)"};
@@ -937,14 +942,6 @@ class GameScene : public IScene {
                              chromaticDuration,
                              chromaticSampleOffset,
                              chromaticRadialScale);
-        if (cfg_ChargeReleaseCrtNoiseEnabled.Get()) {
-            if (auto *renderer = ServiceLocator::TryGet<RenderSystem>()) {
-                float crtNoiseIntensity = cfg_ChargeReleaseCrtNoiseBaseIntensity.Get() + chargeClamped * cfg_ChargeReleaseCrtNoiseChargeScale.Get();
-                crtNoiseIntensity = std::clamp(crtNoiseIntensity, 0.0f, std::max(0.0f, cfg_ChargeReleaseCrtNoiseMaxIntensity.Get()));
-                renderer->TriggerCrtNoise(crtNoiseIntensity,
-                                          std::max(0.0f, cfg_ChargeReleaseCrtNoiseDuration.Get()));
-            }
-        }
         const float scenicScale = 0.6f + 0.4f * chargeClamped;
         TriggerScenicMicroFlash(std::max(0.0f, cfg_ScenicMicroFlashBoostIntensity.Get()) * scenicScale,
                                 std::max(0.0f, cfg_ScenicMicroFlashBoostDuration.Get()));
@@ -1009,7 +1006,7 @@ class GameScene : public IScene {
         float chargeAmount = std::clamp(pad->GetLeftStickChargeAmount(maxCharge), 0.0f, 1.0f);
         float rumbleMin = std::clamp(cfg_ChargeHoldRumbleMin.Get(), 0.0f, 1.0f);
         float rumbleMax = std::clamp(cfg_ChargeHoldRumbleMax.Get(), rumbleMin, 1.0f);
-        float strength = (rumbleMin + (rumbleMax - rumbleMin) * chargeAmount) * 0.5f;
+        float strength = (rumbleMin + (rumbleMax - rumbleMin) * chargeAmount) * std::max(0.0f, cfg_ChargeHoldRumbleOutputScale.Get());
         TriggerGamepadRumble(strength,
                              strength,
                              std::max(0.0f, cfg_ChargeHoldRumbleDuration.Get()));
@@ -1218,8 +1215,12 @@ class GameScene : public IScene {
                                     std::max(0.0f, cfg_ScenicSpeedLineBurstDuration.Get()) * (0.85f + panic * 0.35f));
         TriggerScenicSERipple(0.30f + urgency * 1.20f);
 
-        const float rumble = std::clamp(std::max(0.0f, cfg_WallHitRumbleStrength.Get()) * (0.15f + urgency * 0.55f), 0.0f, 1.0f);
-        const float rumbleDuration = std::max(0.0f, cfg_WallHitRumbleDuration.Get()) * (0.40f + panic * 0.45f);
+        const float rumbleStrengthScale = std::max(0.0f, cfg_UrgencyRumbleStrengthBaseScale.Get()) +
+                                          urgency * std::max(0.0f, cfg_UrgencyRumbleStrengthUrgencyScale.Get());
+        const float rumbleDurationScale = std::max(0.0f, cfg_UrgencyRumbleDurationBaseScale.Get()) +
+                                          panic * std::max(0.0f, cfg_UrgencyRumbleDurationPanicScale.Get());
+        const float rumble = std::clamp(std::max(0.0f, cfg_WallHitRumbleStrength.Get()) * rumbleStrengthScale, 0.0f, 1.0f);
+        const float rumbleDuration = std::max(0.0f, cfg_WallHitRumbleDuration.Get()) * rumbleDurationScale;
         TriggerGamepadRumble(rumble, rumble, rumbleDuration);
 
         if (auto *renderer = ServiceLocator::TryGet<RenderSystem>()) {

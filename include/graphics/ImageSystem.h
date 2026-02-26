@@ -29,6 +29,7 @@ public:
         float opacity = 1.0f;   ///< 透明(0..1)
         bool keepAspect = true; ///< アスペクト維持
         bool aspectFill = false; ///< アスペクト維持(Fill)
+        bool aspectAlignLeft = false; ///< keepAspect時に左揃え
         // 追加: ソース矩形(ピクセル)指定(スプライトシート用)。-1/-1/-1/-1 で未指定
         float srcX = -1.0f;
         float srcY = -1.0f;
@@ -58,7 +59,7 @@ public:
 
     // 追加: TextureManagerのハンドルで描画(ソース矩形対応)
     bool Draw(TextureManager::TextureHandle handle, float x, float y, float width, float height, float opacity = 1.0f, bool keepAspect = true,
-              const D2D1_RECT_F *srcOverride = nullptr, float rotation = 0.0f, bool aspectFill = false) {
+              const D2D1_RECT_F *srcOverride = nullptr, float rotation = 0.0f, bool aspectFill = false, bool aspectAlignLeft = false) {
         if (!initialized_ || !d2dContext_) return false;
         if (handle == TextureManager::INVALID_TEXTURE) return false;
 
@@ -82,7 +83,7 @@ public:
             float s = (aspectFill) ? (sx > sy ? sx : sy) : (sx < sy ? sx : sy);
             float dw = (src.right - src.left) * s;
             float dh = (src.bottom - src.top) * s;
-            float ox = x + (width - dw) * 0.5f;
+            float ox = aspectAlignLeft ? x : x + (width - dw) * 0.5f;
             float oy = y + (height - dh) * 0.5f;
             dst = D2D1::RectF(ox, oy, ox + dw, oy + dh);
         }

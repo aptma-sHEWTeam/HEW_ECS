@@ -10,6 +10,8 @@
 #include <algorithm>
 #include <sstream>
 #include <iomanip>
+#include <unordered_map>
+#include <vector>
 #include "components/PlayerComponents.h"
 #include "config/ConfigVar.h"
 
@@ -60,6 +62,13 @@ struct GameUIUpdater : Behaviour {
     inline static ConfigVar<float> cfg_GameUIStartChargeMaxWidth{"Game.UI.StartChargeBar", "MaxWidth", 250.0f, "ゲームUI: チャージバー最大幅"};
     inline static ConfigVar<float> cfg_GameUIPauseSelectOffsetX{"Game.UI.Pause.Select", "HoverOffsetX", 20.0f, "ゲームUI: Pauseセレクト表示Xオフセット"};
     inline static ConfigVar<float> cfg_GameUIPauseSelectOffsetY{"Game.UI.Pause.Select", "HoverOffsetY", 45.0f, "ゲームUI: Pauseセレクト表示Yオフセット"};
+    inline static ConfigVar<float> cfg_GameUIPauseNonPauseOpacity{"Game.UI.Pause", "NonPauseOpacity", 0.35f, "ゲームUI: ポーズ中の非ポーズUI不透明度"};
+    std::vector<Entity> pauseDimmableEntities_;
+    bool pauseDimApplied_ = false;
+    std::unordered_map<Entity, float> pauseBaseImageOpacity_;
+    std::unordered_map<Entity, float> pauseBaseTextAlpha_;
+    std::unordered_map<Entity, float> pauseBaseTextOutlineAlpha_;
+    std::unordered_map<Entity, float> pauseBasePanelAlpha_;
 
     void OnUpdate(World &w, Entity self, float dt) override {
         w.ForEach<GameStatus>([&](Entity e, GameStatus &stats) {
@@ -274,6 +283,7 @@ struct GameUIUpdater : Behaviour {
                     }
                 }
             }
+            UpdateNonPauseUiOpacity(w, showPauseMenu);
         });
 
         // ステージの更新
@@ -297,6 +307,98 @@ struct GameUIUpdater : Behaviour {
     }
 
   private:
+    void UpdateNonPauseUiOpacity(World &w, bool showPauseMenu) {
+        if (showPauseMenu) {
+            if (!pauseDimApplied_) {
+                CaptureNonPauseUiBaseOpacity(w);
+                pauseDimApplied_ = true;
+            }
+            ApplyNonPauseUiOpacity(w, std::clamp(cfg_GameUIPauseNonPauseOpacity.Get(), 0.0f, 1.0f));
+            return;
+        }
+        if (pauseDimApplied_) {
+            RestoreNonPauseUiOpacity(w);
+            pauseBaseImageOpacity_.clear();
+            pauseBaseTextAlpha_.clear();
+            pauseBaseTextOutlineAlpha_.clear();
+            pauseBasePanelAlpha_.clear();
+            pauseDimApplied_ = false;
+        }
+    }
+
+    void CaptureNonPauseUiBaseOpacity(World &w) {
+        pauseBaseImageOpacity_.clear();
+        pauseBaseTextAlpha_.clear();
+        pauseBaseTextOutlineAlpha_.clear();
+        pauseBasePanelAlpha_.clear();
+        for (const Entity &entity : pauseDimmableEntities_) {
+            if (auto *img = w.TryGet<UIImage>(entity)) {
+                pauseBaseImageOpacity_[entity] = std::clamp(img->opacity, 0.0f, 1.0f);
+            }
+            if (auto *text = w.TryGet<UIText>(entity)) {
+                pauseBaseTextAlpha_[entity] = std::clamp(text->color.w, 0.0f, 1.0f);
+                pauseBaseTextOutlineAlpha_[entity] = std::clamp(text->outlineColor.w, 0.0f, 1.0f);
+            }
+            if (auto *panel = w.TryGet<UIPanel>(entity)) {
+                pauseBasePanelAlpha_[entity] = std::clamp(panel->color.w, 0.0f, 1.0f);
+            }
+        }
+    }
+
+    void ApplyNonPauseUiOpacity(World &w, float opacityScale) {
+        for (const Entity &entity : pauseDimmableEntities_) {
+            if (auto *img = w.TryGet<UIImage>(entity)) {
+                auto it = pauseBaseImageOpacity_.find(entity);
+                if (it != pauseBaseImageOpacity_.end()) {
+                    img->opacity = std::clamp(it->second * opacityScale, 0.0f, 1.0f);
+                }
+            }
+            if (auto *text = w.TryGet<UIText>(entity)) {
+                auto colorIt = pauseBaseTextAlpha_.find(entity);
+                if (colorIt != pauseBaseTextAlpha_.end()) {
+                    text->color.w = std::clamp(colorIt->second * opacityScale, 0.0f, 1.0f);
+                }
+                auto outlineIt = pauseBaseTextOutlineAlpha_.find(entity);
+                if (outlineIt != pauseBaseTextOutlineAlpha_.end()) {
+                    text->outlineColor.w = std::clamp(outlineIt->second * opacityScale, 0.0f, 1.0f);
+                }
+            }
+            if (auto *panel = w.TryGet<UIPanel>(entity)) {
+                auto it = pauseBasePanelAlpha_.find(entity);
+                if (it != pauseBasePanelAlpha_.end()) {
+                    panel->color.w = std::clamp(it->second * opacityScale, 0.0f, 1.0f);
+                }
+            }
+        }
+    }
+
+    void RestoreNonPauseUiOpacity(World &w) {
+        for (const Entity &entity : pauseDimmableEntities_) {
+            if (auto *img = w.TryGet<UIImage>(entity)) {
+                auto it = pauseBaseImageOpacity_.find(entity);
+                if (it != pauseBaseImageOpacity_.end()) {
+                    img->opacity = std::clamp(it->second, 0.0f, 1.0f);
+                }
+            }
+            if (auto *text = w.TryGet<UIText>(entity)) {
+                auto colorIt = pauseBaseTextAlpha_.find(entity);
+                if (colorIt != pauseBaseTextAlpha_.end()) {
+                    text->color.w = std::clamp(colorIt->second, 0.0f, 1.0f);
+                }
+                auto outlineIt = pauseBaseTextOutlineAlpha_.find(entity);
+                if (outlineIt != pauseBaseTextOutlineAlpha_.end()) {
+                    text->outlineColor.w = std::clamp(outlineIt->second, 0.0f, 1.0f);
+                }
+            }
+            if (auto *panel = w.TryGet<UIPanel>(entity)) {
+                auto it = pauseBasePanelAlpha_.find(entity);
+                if (it != pauseBasePanelAlpha_.end()) {
+                    panel->color.w = std::clamp(it->second, 0.0f, 1.0f);
+                }
+            }
+        }
+    }
+
     static bool IsTimeWarningActive(float elapsedTime, bool timerRunning, bool isPaused) {
         return timerRunning && !isPaused && elapsedTime > 0.0f &&
                elapsedTime <= cfg_GameUIWarningThresholdSeconds.Get();

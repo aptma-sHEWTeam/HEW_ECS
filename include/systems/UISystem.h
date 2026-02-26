@@ -206,7 +206,7 @@ struct UIRenderSystem {
                 src = D2D1::RectF(sx, sy, sx + sw, sy + sh);
                 srcPtr = &src;
             }
-            imageSystem_->Draw(img.textureHandle, pos.x, pos.y, transform.size.x, transform.size.y, img.opacity, img.keepAspect, srcPtr, transform.rotation, img.aspectFill);
+            imageSystem_->Draw(img.textureHandle, pos.x, pos.y, transform.size.x, transform.size.y, img.opacity, img.keepAspect, srcPtr, transform.rotation, img.aspectFill, img.aspectAlignLeft);
         } else {
             ImageSystem::Params p;
             p.filePath = img.filePath;
@@ -217,6 +217,7 @@ struct UIRenderSystem {
             p.opacity = img.opacity;
             p.keepAspect = img.keepAspect;
             p.aspectFill = img.aspectFill;
+            p.aspectAlignLeft = img.aspectAlignLeft;
             p.srcX = uv[0];
             p.srcY = uv[1];
             p.srcW = uv[2];

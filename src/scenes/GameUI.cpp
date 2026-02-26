@@ -214,6 +214,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         interactionSys->SetScreenSize(screenWidth, screenHeight);
     }
     ownedEntities_.push_back(uiInteractionSystem);
+    std::vector<Entity> pauseDimmableEntities;
 
     /* UITransform scoreTransform;
     scoreTransform.position = {20.0f, 20.0f};
@@ -247,6 +248,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                             .With<UIText>(timeText)
                             .Build();
     ownedEntities_.push_back(timeEntity);
+    pauseDimmableEntities.push_back(timeEntity);
 
     UITransform timerImgTr;
     timerImgTr.position = {cfg_GameUI_TimerPosX.Get(), cfg_GameUI_TimerPosY.Get()};
@@ -274,6 +276,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                                   .Build();
 
     ownedEntities_.push_back(timerImageEntity);
+    pauseDimmableEntities.push_back(timerImageEntity);
 
     UITransform warningOverlayTransform;
     warningOverlayTransform.position = {0.0f, 0.0f};
@@ -321,6 +324,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                                   .With<UIImage>(startImg)
                                   .Build();
     ownedEntities_.push_back(startImageEntity);
+    pauseDimmableEntities.push_back(startImageEntity);
 
     UITransform barTr;
     barTr.position = {cfg_GameUI_ChargeBarPosX.Get(), cfg_GameUI_ChargeBarPosY.Get()};
@@ -336,6 +340,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                                     .With<UIPanel>(barPanel)
                                     .Build();
     ownedEntities_.push_back(startChargeBarEntity);
+    pauseDimmableEntities.push_back(startChargeBarEntity);
 
     /* UITransform starttimeTransform;
     starttimeTransform.position = {600.0f, 250.0f};
@@ -371,6 +376,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                            .With<UIText>(fpsText)
                            .Build();
     ownedEntities_.push_back(fpsEntity);
+    pauseDimmableEntities.push_back(fpsEntity);
 #endif // !_DEBUG
 
     UITransform roomImgTr;
@@ -389,6 +395,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                                  .Build();
 
     ownedEntities_.push_back(roomImageEntity);
+    pauseDimmableEntities.push_back(roomImageEntity);
 
     UIText stageText[2];
 
@@ -425,6 +432,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                              .With<UIText>(stageText[i])
                              .Build();
         ownedEntities_.push_back(stageEntity[i]);
+        pauseDimmableEntities.push_back(stageEntity[i]);
     }
 
     UITransform pauseTransform;
@@ -499,6 +507,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 
         UIImage img{imagePath};
         img.keepAspect = true;
+        img.aspectAlignLeft = true;
         img.opacity = 0.0f; // 初期は非表示
 
         UIButton btn;
@@ -537,6 +546,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
                              .With<UIText>(clearText)
                              .Build();
     ownedEntities_.push_back(clearEntity);
+    pauseDimmableEntities.push_back(clearEntity);
     stageClearTextEntity_ = clearEntity;
 
     // ==========================================
@@ -555,6 +565,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     youImg.keepAspect = true;
     Entity youEnt = world.Create().With<UITransform>(youTr).With<UIImage>(youImg).Build();
     ownedEntities_.push_back(youEnt);
+    pauseDimmableEntities.push_back(youEnt);
 
     UITransform currDeathTr;
     currDeathTr.position = {youBaseX + cfg_GameUI_EndRankCurrentNumOffsetX.Get(), youBaseY + cfg_GameUI_EndRankCurrentNumOffsetY.Get()};
@@ -564,6 +575,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     currDeathText.formatId = "num";
     Entity currDeathEnt = world.Create().With<UITransform>(currDeathTr).With<UIText>(currDeathText).Build();
     ownedEntities_.push_back(currDeathEnt);
+    pauseDimmableEntities.push_back(currDeathEnt);
 
     UITransform currDeathRedTr;
     currDeathRedTr.position = {youBaseX + cfg_GameUI_EndRankCurrentDeathOffsetX.Get(), youBaseY + cfg_GameUI_EndRankCurrentDeathOffsetY.Get()};
@@ -573,6 +585,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     deathImg.keepAspect = true;
     Entity currDeathRedEnt = world.Create().With<UITransform>(currDeathRedTr).With<UIImage>(deathImg).Build();
     ownedEntities_.push_back(currDeathRedEnt);
+    pauseDimmableEntities.push_back(currDeathRedEnt);
 
 
     // 【右側】 Top 3 ランキング (1st 23 death ...)
@@ -607,6 +620,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         sufImg.keepAspect = true;
         Entity sufEnt = world.Create().With<UITransform>(sufTr).With<UIImage>(sufImg).Build();
         ownedEntities_.push_back(sufEnt);
+        pauseDimmableEntities.push_back(sufEnt);
 
         // 数値 (白・アウトライン付テキスト)
         UITransform topNumTr;
@@ -619,6 +633,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         topNumText.outlineThickness = cfg_GameUI_EndRankTopNumOutline.Get();
         Entity topNumEnt = world.Create().With<UITransform>(topNumTr).With<UIText>(topNumText).Build();
         ownedEntities_.push_back(topNumEnt);
+        pauseDimmableEntities.push_back(topNumEnt);
 
         // death (画像)  //EndRankだけどゲーム内のデス表示GameDeath
         UITransform suffixRedTr;
@@ -629,6 +644,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         suffixRedImg.keepAspect = true;
         Entity suffixRedEnt = world.Create().With<UITransform>(suffixRedTr).With<UIImage>(suffixRedImg).Build();
         ownedEntities_.push_back(suffixRedEnt);
+        pauseDimmableEntities.push_back(suffixRedEnt);
     }
     // ==========================================
 
@@ -665,6 +681,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         updater->pauseTitleImgSize_ = {cfg_GameUI_PauseTitleImageWidth.Get(), cfg_GameUI_PauseTitleImageHeight.Get()};
         updater->pauseLineImgSize_ = {cfg_GameUI_PauseLineImageWidth.Get(), cfg_GameUI_PauseLineImageHeight.Get()};
         updater->pauseSelectImgSize_ = {cfg_GameUI_PauseSelectImageWidth.Get(), cfg_GameUI_PauseSelectImageHeight.Get()};
+        updater->pauseDimmableEntities_ = pauseDimmableEntities;
     }
     ownedEntities_.push_back(uiUpdater);
 
