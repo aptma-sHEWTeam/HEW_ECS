@@ -11,6 +11,7 @@
 #include <sstream>
 #include <iomanip>
 #include "components/PlayerComponents.h"
+#include "config/ConfigVar.h"
 
 /**
  * @struct GameUIUpdater
@@ -51,6 +52,14 @@ struct GameUIUpdater : Behaviour {
     DirectX::XMFLOAT2 pauseTitleImgSize_{400.0f, 100.0f};
     DirectX::XMFLOAT2 pauseLineImgSize_{15.0f, 350.0f};
     DirectX::XMFLOAT2 pauseSelectImgSize_{320.0f, 40.0f}; // select.pngのサイズ指定
+    inline static ConfigVar<float> cfg_GameUIWarningThresholdSeconds{"Game.UI.Warning", "ThresholdSeconds", 3.0f, "ゲームUI: 警告表示を開始する残り時間(秒)"};
+    inline static ConfigVar<float> cfg_GameUIWarningPeriod{"Game.UI.Warning", "BlinkPeriod", 0.6f, "ゲームUI: 警告点滅周期(秒)"};
+    inline static ConfigVar<float> cfg_GameUIWarningOnTime{"Game.UI.Warning", "BlinkOnTime", 0.2f, "ゲームUI: 警告点滅の点灯時間(秒)"};
+    inline static ConfigVar<float> cfg_GameUIWarningOverlayAlpha{"Game.UI.Warning", "OverlayAlpha", 0.35f, "ゲームUI: 警告オーバーレイアルファ"};
+    inline static ConfigVar<float> cfg_GameUIStartChargeMaxTime{"Game.UI.StartChargeBar", "MaxChargeTime", 0.6f, "ゲームUI: チャージバー最大時間(秒)"};
+    inline static ConfigVar<float> cfg_GameUIStartChargeMaxWidth{"Game.UI.StartChargeBar", "MaxWidth", 250.0f, "ゲームUI: チャージバー最大幅"};
+    inline static ConfigVar<float> cfg_GameUIPauseSelectOffsetX{"Game.UI.Pause.Select", "HoverOffsetX", 20.0f, "ゲームUI: Pauseセレクト表示Xオフセット"};
+    inline static ConfigVar<float> cfg_GameUIPauseSelectOffsetY{"Game.UI.Pause.Select", "HoverOffsetY", 45.0f, "ゲームUI: Pauseセレクト表示Yオフセット"};
 
     void OnUpdate(World &w, Entity self, float dt) override {
         w.ForEach<GameStatus>([&](Entity e, GameStatus &stats) {
@@ -121,8 +130,8 @@ struct GameUIUpdater : Behaviour {
                 warningBlinkTimer_ = 0.0f;
             }
 
-            const float warningPeriod = 0.6f;
-            const float warningOnTime = 0.2f;
+            const float warningPeriod = cfg_GameUIWarningPeriod.Get();
+            const float warningOnTime = cfg_GameUIWarningOnTime.Get();
             while (warningBlinkTimer_ >= warningPeriod) {
                 warningBlinkTimer_ -= warningPeriod;
             }
@@ -130,7 +139,7 @@ struct GameUIUpdater : Behaviour {
 
             if (auto *warningPanel = w.TryGet<UIPanel>(warningOverlayEntity_)) {
                 warningPanel->visible = blinkOn;
-                warningPanel->color = {1.0f, 0.0f, 0.0f, blinkOn ? 0.35f : 0.0f};
+                warningPanel->color = {1.0f, 0.0f, 0.0f, blinkOn ? cfg_GameUIWarningOverlayAlpha.Get() : 0.0f};
             }
 
           /*  if (auto *warningText = w.TryGet<UIText>(warningTextEntity_)) {
@@ -153,9 +162,9 @@ struct GameUIUpdater : Behaviour {
                     if (stats.StartChack) {
                         barTr->size.x = 0.0f;
                     } else {
-                        float maxTime = 0.6f;
+                        const float maxTime = cfg_GameUIStartChargeMaxTime.Get();
                         float progress = std::clamp(pm.chargeTimer / maxTime, 0.0f, 1.0f);
-                        float maxWidth = 250.0f;
+                        const float maxWidth = cfg_GameUIStartChargeMaxWidth.Get();
                         barTr->size.x = maxWidth * progress;
                     }
                 }
@@ -239,8 +248,7 @@ struct GameUIUpdater : Behaviour {
                             // selectインジケーター位置更新
                             if (auto *selectTr = w.TryGet<UITransform>(pauseSelectIndicatorEntity_)) {
                                 if (auto *btnTr = w.TryGet<UITransform>(buttonEntity)) {
-                                    // 少し右、少し下に配置
-                                    selectTr->position = {btnTr->position.x + 20.0f, btnTr->position.y + 45.0f};
+                                    selectTr->position = {btnTr->position.x + cfg_GameUIPauseSelectOffsetX.Get(), btnTr->position.y + cfg_GameUIPauseSelectOffsetY.Get()};
                                 }
                             }
                         }
@@ -274,17 +282,13 @@ struct GameUIUpdater : Behaviour {
 
             if (auto *stageText = w.TryGet<UIText>(stageTextEntity_[0])) {
                 std::wstringstream ss;
-                // ss << 11;
                 ss << cachedRoomCount_;
-                //ss << L"Room : " << sp.currentRoom << L"/";
                 stageText->text = ss.str();
             }
 
             if (auto *stageText = w.TryGet<UIText>(stageTextEntity_[1])) {
                 std::wstringstream ss;
-                // ss << 1;
                 ss << sp.currentRoom;
-                //  ss << cachedRoomCount_;
                 stageText->text = ss.str();
             }
         });
@@ -293,11 +297,9 @@ struct GameUIUpdater : Behaviour {
     }
 
   private:
-    static constexpr float kWarningThresholdSeconds = 3.0f;
-
     static bool IsTimeWarningActive(float elapsedTime, bool timerRunning, bool isPaused) {
         return timerRunning && !isPaused && elapsedTime > 0.0f &&
-               elapsedTime <= kWarningThresholdSeconds;
+               elapsedTime <= cfg_GameUIWarningThresholdSeconds.Get();
     }
 
     static int CountRoomsInStage(int world, int stage) {

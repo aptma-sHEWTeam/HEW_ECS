@@ -246,6 +246,11 @@ class TitleScene : public IScene {
         zoomTimer_ = 0.0f;
         isUiVisible_ = true;
         isFading = true;
+        menuRumbleTimer_ = 0.0f;
+        menuRumbleActive_ = false;
+        if (auto *pad = ServiceLocator::TryGet<GamepadSystem>()) {
+            pad->SetVibration(0.0f, 0.0f);
+        }
         StartFadeInNormal(world);
     }
     //プレイヤーの仮描画
@@ -580,6 +585,7 @@ class TitleScene : public IScene {
                 sys.input_ = &input;
             }
         });
+        UpdateMenuRumble(deltaTime);
 
         bool upPressd = input.GetKeyDown(VK_UP);
         bool downPressd = input.GetKeyDown(VK_DOWN);
@@ -621,10 +627,14 @@ class TitleScene : public IScene {
         if (upPressd) {
             currentSelect = (currentSelect - 1 + 3) % 3;
             SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
+            TriggerMenuRumble(std::clamp(cfg_UIRumbleNavigateStrength.Get(), 0.0f, 1.0f),
+                              std::max(0.0f, cfg_UIRumbleNavigateDuration.Get()));
         }
         if (downPressd) {
             currentSelect = (currentSelect + 1) % 3;
             SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
+            TriggerMenuRumble(std::clamp(cfg_UIRumbleNavigateStrength.Get(), 0.0f, 1.0f),
+                              std::max(0.0f, cfg_UIRumbleNavigateDuration.Get()));
         }
 
        
@@ -724,6 +734,8 @@ class TitleScene : public IScene {
                 }
             }
             if (trigger) {
+                TriggerMenuRumble(std::clamp(cfg_UIRumbleSubmitStrength.Get(), 0.0f, 1.0f),
+                                  std::max(0.0f, cfg_UIRumbleSubmitDuration.Get()));
                 isTransitioning_ = true;
                 zoomTimer_ = 0.0f;
                 StartFadeOutNormal(world);
@@ -803,6 +815,7 @@ class TitleScene : public IScene {
     }
 
     void OnExit(World &world) override {
+        StopMenuRumble();
         world.ForEach<SceneOwnedTag>([&](Entity e, SceneOwnedTag &) {
             world.DestroyEntityWithCause(e, World::Cause::SceneUnload);
         });
@@ -841,6 +854,40 @@ class TitleScene : public IScene {
 
   private:
     struct SceneOwnedTag : IComponent {};
+
+    void TriggerMenuRumble(float strength, float duration) {
+        if (strength <= 0.0f || duration <= 0.0f) {
+            return;
+        }
+        auto *pad = ServiceLocator::TryGet<GamepadSystem>();
+        if (!pad) {
+            return;
+        }
+        pad->SetVibration(strength, strength);
+        menuRumbleTimer_ = std::max(menuRumbleTimer_, duration);
+        menuRumbleActive_ = true;
+    }
+
+    void UpdateMenuRumble(float dt) {
+        if (!menuRumbleActive_) {
+            return;
+        }
+        menuRumbleTimer_ = std::max(0.0f, menuRumbleTimer_ - std::max(0.0f, dt));
+        if (menuRumbleTimer_ > 0.0f) {
+            return;
+        }
+        StopMenuRumble();
+    }
+
+    void StopMenuRumble() {
+        menuRumbleTimer_ = 0.0f;
+        if (menuRumbleActive_) {
+            if (auto *pad = ServiceLocator::TryGet<GamepadSystem>()) {
+                pad->SetVibration(0.0f, 0.0f);
+            }
+        }
+        menuRumbleActive_ = false;
+    }
 
     bool UpdateCameraZoom(World &world, float deltaTime) {
         const float duration = 1.5f;
@@ -962,6 +1009,8 @@ class TitleScene : public IScene {
     bool stickDownPrev_ = false;
     bool dpadUpPrev_ = false;
     bool dpadDownPrev_ = false;
+    float menuRumbleTimer_ = 0.0f;
+    bool menuRumbleActive_ = false;
 
     bool fadeStart = false;
     bool isFading = false;

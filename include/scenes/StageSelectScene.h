@@ -420,6 +420,11 @@ class StageSelectScene : public IScene {
         isTransitioning_ = false;
         zoomTimer_ = 0.0f;
         inputProtectionTimer_ = 0.5f;
+        menuRumbleTimer_ = 0.0f;
+        menuRumbleActive_ = false;
+        if (auto *pad = ServiceLocator::TryGet<GamepadSystem>()) {
+            pad->SetVibration(0.0f, 0.0f);
+        }
 
         world.ForEach<StageProgress>([&](Entity, StageProgress &stats) {
             const int stage = std::clamp(stats.selectStage, 1, unlockedStageCount_);
@@ -565,6 +570,7 @@ class StageSelectScene : public IScene {
                 sys.input_ = &input;
             }
         });
+        UpdateMenuRumble(deltaTime);
 
         UpdateWorldTransitionFade(world);
         if (worldFadeState_ != WorldFadeState::None) {
@@ -617,6 +623,8 @@ class StageSelectScene : public IScene {
                 SOUND_SYS.PlaySE(cfg_EnterMP3Pass,false);
             }
             if (trigger) {
+                TriggerMenuRumble(std::clamp(cfg_UIRumbleSubmitStrength.Get(), 0.0f, 1.0f),
+                                  std::max(0.0f, cfg_UIRumbleSubmitDuration.Get()));
                 isTransitioning_ = true;
                 zoomTimer_ = 0.0f;
                 StartFadeOutNormal(world);
@@ -699,6 +707,8 @@ class StageSelectScene : public IScene {
             }
             if (backPressed && !isTransitioning_) {
                 SOUND_SYS.PlaySE(cfg_EnterMP3Pass,false);
+                TriggerMenuRumble(std::clamp(cfg_UIRumbleSubmitStrength.Get(), 0.0f, 1.0f),
+                                  std::max(0.0f, cfg_UIRumbleSubmitDuration.Get()));
                 BeginSceneFade(world, "Title");
                 return;
             }
@@ -709,6 +719,8 @@ class StageSelectScene : public IScene {
                     stats.selectStage++;
                     targetAngle_ -= DirectX::XM_2PI / std::max(unlockedStageCount_, 1);
                     SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
+                    TriggerMenuRumble(std::clamp(cfg_UIRumbleNavigateStrength.Get(), 0.0f, 1.0f),
+                                      std::max(0.0f, cfg_UIRumbleNavigateDuration.Get()));
                     if (worldNumber_ >= 1 && worldNumber_ <= 4) {
                         s_lastSelected[worldNumber_ - 1] = stats.selectStage;
                     }
@@ -719,6 +731,8 @@ class StageSelectScene : public IScene {
                     if (stats.worldCount != cfg_WorldCount.Get() &&
                         StageSave::IsWorldUnlocked(worldNumber_ + 1)) {
                         SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
+                        TriggerMenuRumble(std::clamp(cfg_UIRumbleNavigateStrength.Get(), 0.0f, 1.0f),
+                                          std::max(0.0f, cfg_UIRumbleNavigateDuration.Get()));
                         // 次のワールドへ
                         stats.IsWorldBack = false;
                         stats.IsWorldNext = true;
@@ -731,6 +745,8 @@ class StageSelectScene : public IScene {
                     stats.selectStage--;
                     targetAngle_ += DirectX::XM_2PI / std::max(unlockedStageCount_, 1);
                     SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
+                    TriggerMenuRumble(std::clamp(cfg_UIRumbleNavigateStrength.Get(), 0.0f, 1.0f),
+                                      std::max(0.0f, cfg_UIRumbleNavigateDuration.Get()));
                     if (worldNumber_ >= 1 && worldNumber_ <= 4) {
                         s_lastSelected[worldNumber_ - 1] = stats.selectStage;
                     }
@@ -739,6 +755,8 @@ class StageSelectScene : public IScene {
                 } else {
                     // 前のワールドへ
                     if (worldNumber_ > 1) {
+                        TriggerMenuRumble(std::clamp(cfg_UIRumbleNavigateStrength.Get(), 0.0f, 1.0f),
+                                          std::max(0.0f, cfg_UIRumbleNavigateDuration.Get()));
                         stats.IsWorldNext = false;
                         stats.IsWorldBack = true;
                         requestWorldTransition = TransitionDirection::Left;
@@ -968,6 +986,7 @@ class StageSelectScene : public IScene {
     }
 
     void OnExit(World &world) override {
+        StopMenuRumble();
         StopShootingStars();
         if (auto *resMgr = ServiceLocator::TryGet<ResourceManager>()) {
             resMgr->Clear();
@@ -1683,6 +1702,40 @@ class StageSelectScene : public IScene {
         return progress >= 1.0f;
     }
 
+    void TriggerMenuRumble(float strength, float duration) {
+        if (strength <= 0.0f || duration <= 0.0f) {
+            return;
+        }
+        auto *pad = ServiceLocator::TryGet<GamepadSystem>();
+        if (!pad) {
+            return;
+        }
+        pad->SetVibration(strength, strength);
+        menuRumbleTimer_ = std::max(menuRumbleTimer_, duration);
+        menuRumbleActive_ = true;
+    }
+
+    void UpdateMenuRumble(float dt) {
+        if (!menuRumbleActive_) {
+            return;
+        }
+        menuRumbleTimer_ = std::max(0.0f, menuRumbleTimer_ - std::max(0.0f, dt));
+        if (menuRumbleTimer_ > 0.0f) {
+            return;
+        }
+        StopMenuRumble();
+    }
+
+    void StopMenuRumble() {
+        menuRumbleTimer_ = 0.0f;
+        if (menuRumbleActive_) {
+            if (auto *pad = ServiceLocator::TryGet<GamepadSystem>()) {
+                pad->SetVibration(0.0f, 0.0f);
+            }
+        }
+        menuRumbleActive_ = false;
+    }
+
     static bool IsSkyboxTexturePathValid(const std::string &path) {
         return !path.empty();
     }
@@ -1704,6 +1757,8 @@ class StageSelectScene : public IScene {
     bool isTransitioning_ = false;
     float zoomTimer_ = 0.0f;
     float inputProtectionTimer_ = 0.0f;
+    float menuRumbleTimer_ = 0.0f;
+    bool menuRumbleActive_ = false;
 
     bool stickRightPrev_ = false;
     bool stickLeftPrev_ = false;

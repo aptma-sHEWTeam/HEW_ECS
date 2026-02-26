@@ -79,6 +79,11 @@ inline static ConfigVar<float> cfg_StickZoomAmount{"Camera.Stick", "StickZoomAmo
 inline static ConfigVar<float> cfg_StickZoomResponse{"Camera.Stick", "StickZoomResponse", 3.0f, "カメラズーム追従速度"};
 inline static ConfigVar<float> cfg_StickZoomTargetRatio{"Camera.Stick", "StickZoomTargetRatio", 0.3f, "プレイヤーへのカメラ寄り具合(0=寄らない,1=完全に寄る)"};
 inline static ConfigVar<float> cfg_StickZoomTargetSpeed{"Camera.Stick", "StickZoomTargetSpeed", 2.0f, "カメラターゲット補間速度"};
+inline static ConfigVar<float> cfg_ChargeHoldRumbleMin{"Gamepad.Rumble.ChargeHold", "Min", 0.080f, "チャージ中振動の最小強度"};
+inline static ConfigVar<float> cfg_ChargeHoldRumbleMax{"Gamepad.Rumble.ChargeHold", "Max", 0.240f, "チャージ中振動の最大強度"};
+inline static ConfigVar<float> cfg_ChargeHoldRumbleDuration{"Gamepad.Rumble.ChargeHold", "Duration", 0.080f, "チャージ中振動の継続時間"};
+inline static ConfigVar<float> cfg_StageEnterRumbleStrength{"Gamepad.Rumble.StageEnter", "Strength", 0.320f, "ステージ開始時振動強度"};
+inline static ConfigVar<float> cfg_StageEnterRumbleDuration{"Gamepad.Rumble.StageEnter", "Duration", 0.220f, "ステージ開始時振動継続時間"};
 // 追加: ステージクリア待機時間
 inline static ConfigVar<float> cfg_StageClearWait{"UI.StageClear", "WaitSeconds", 0.5f, "ステージクリア表示後にシーン遷移するまでの待機時間"};
 inline static ConfigVar<float> cfg_SkyboxSpeed{"Skybox", "Speed", 0.05f, "スカイボックスの回転速度(rad/sec)"};
@@ -177,10 +182,24 @@ class GameScene : public IScene {
         startIntroActive_ = false;
         startIntroElapsed_ = 0.0f;
         goalInCameraBlend_ = 0.0f;
+        TriggerGamepadRumble(std::clamp(cfg_StageEnterRumbleStrength.Get(), 0.0f, 1.0f),
+                             std::clamp(cfg_StageEnterRumbleStrength.Get(), 0.0f, 1.0f),
+                             std::max(0.0f, cfg_StageEnterRumbleDuration.Get()));
         screenFxClock_ = 0.0f;
         frameFxPriority_ = -1;
         screenFxSmoothedDt_ = 1.0f / 60.0f;
         screenFxNextAllowed_.fill(0.0f);
+        scenicMicroFlashCooldown_ = 0.0f;
+        scenicStateChromaticTimer_ = 0.0f;
+        scenicAmbientPulsePhase_ = 0.0f;
+        scenicSpeedLineBurst_ = 0.0f;
+        scenicSpeedLineBurstTimer_ = 0.0f;
+        scenicSpeedLineDirection_ = {0.0f, 1.0f};
+        scenicInputActive_ = false;
+        if (scenicFarParticleHandle_ != -1) {
+            EffekseerManager::GetInstance().StopEffectHandle(scenicFarParticleHandle_);
+            scenicFarParticleHandle_ = -1;
+        }
 
         // ステージクリア状態の初期化
         stageClearActive_ = false;
@@ -549,6 +568,7 @@ class GameScene : public IScene {
         // 遅延リスポーンのタイマーを更新
         UpdateDelayedRespawn(deltaTime * timeScale, world);
         UpdateChargeOverlay(world, deltaTime * timeScale);
+        UpdateChargeHoldRumble(world);
         UpdateDeathFade(world, deltaTime * timeScale);
 
         // カメラリアクションを更新
@@ -586,6 +606,7 @@ class GameScene : public IScene {
         //ゴールの見た目変更
         UpdateGoal(world);
         if (auto *renderer = ServiceLocator::TryGet<RenderSystem>()) {
+            UpdateScenicFX(world, input, deltaTime * timeScale);
             UpdateChargeChromaticFX(deltaTime * timeScale);
             renderer->UpdateScreenEffects(deltaTime * timeScale);
         }
@@ -649,6 +670,10 @@ class GameScene : public IScene {
         g_GameScene = nullptr;
         if (auto *renderer = ServiceLocator::TryGet<RenderSystem>()) {
             renderer->ClearScreenEffects();
+        }
+        if (scenicFarParticleHandle_ != -1) {
+            EffekseerManager::GetInstance().StopEffectHandle(scenicFarParticleHandle_);
+            scenicFarParticleHandle_ = -1;
         }
         startIntroActive_ = false;
         startIntroElapsed_ = 0.0f;
@@ -830,6 +855,12 @@ class GameScene : public IScene {
         startIntroActive_ = false;
         startIntroElapsed_ = 0.0f;
         goalInCameraBlend_ = 0.0f;
+        scenicMicroFlashCooldown_ = 0.0f;
+        scenicStateChromaticTimer_ = 0.0f;
+        scenicSpeedLineBurst_ = 0.0f;
+        scenicSpeedLineBurstTimer_ = 0.0f;
+        scenicSpeedLineDirection_ = {0.0f, 1.0f};
+        scenicInputActive_ = false;
         camera_.position = cameraPosition_;
         camera_.target = baseTarget_;
         camera_.fovY = baseFovY_;
@@ -893,6 +924,12 @@ class GameScene : public IScene {
                              chromaticDuration,
                              chromaticSampleOffset,
                              chromaticRadialScale);
+        const float scenicScale = 0.6f + 0.4f * chargeClamped;
+        TriggerScenicMicroFlash(std::max(0.0f, cfg_ScenicMicroFlashBoostIntensity.Get()) * scenicScale,
+                                std::max(0.0f, cfg_ScenicMicroFlashBoostDuration.Get()));
+        TriggerScenicSpeedLineBurst(world,
+                                    std::max(0.0f, cfg_ScenicSpeedLineBurstIntensity.Get()) * scenicScale,
+                                    std::max(0.0f, cfg_ScenicSpeedLineBurstDuration.Get()));
         float impulseIntensity = cfg_ChargeReleaseImpulseBaseIntensity.Get() + chargeClamped * cfg_ChargeReleaseImpulseChargeScale.Get();
         TriggerDirectionalImpulseFromVelocity(world,
                                               playerEntity_,
@@ -909,6 +946,7 @@ class GameScene : public IScene {
         PlayPlayerAnimation(world, AnimationConfig::Clips::PlayerChargeOut, false);
 
         SOUND_SYS.PlaySE(cfg_Fire1MP3Pass.Get(),true);
+        TriggerScenicSERipple(0.8f + 0.4f * chargeClamped);
     }
 
     void UpdateChargeChromaticFX(float dt) {
@@ -924,6 +962,36 @@ class GameScene : public IScene {
                                              refreshDuration,
                                              std::max(0.0f, cfg_ChargeHoldChromaticSampleOffset.Get()),
                                              std::max(0.0f, cfg_ChargeHoldChromaticRadialScale.Get()));
+    }
+
+    void UpdateChargeHoldRumble(World &world) {
+        if (pendingRespawn_ || stageClearActive_) {
+            return;
+        }
+        bool isPaused = false;
+        world.ForEach<GameStatus>([&](Entity, GameStatus &stats) {
+            if (stats.isPaused) {
+                isPaused = true;
+            }
+        });
+        if (isPaused) {
+            return;
+        }
+        if (!world.IsAlive(playerEntity_) || world.Has<GoalAttractor>(playerEntity_)) {
+            return;
+        }
+        auto *pad = ServiceLocator::TryGet<GamepadSystem>();
+        if (!pad || !pad->IsLeftStickCharging()) {
+            return;
+        }
+        float maxCharge = std::max(0.01f, cfg_ChargeMaxTime.Get());
+        float chargeAmount = std::clamp(pad->GetLeftStickChargeAmount(maxCharge), 0.0f, 1.0f);
+        float rumbleMin = std::clamp(cfg_ChargeHoldRumbleMin.Get(), 0.0f, 1.0f);
+        float rumbleMax = std::clamp(cfg_ChargeHoldRumbleMax.Get(), rumbleMin, 1.0f);
+        float strength = rumbleMin + (rumbleMax - rumbleMin) * chargeAmount;
+        TriggerGamepadRumble(strength,
+                             strength,
+                             std::max(0.0f, cfg_ChargeHoldRumbleDuration.Get()));
     }
 
     void UpdateDeathFade(World &world, float dt /*dt*/) {
@@ -1048,6 +1116,12 @@ class GameScene : public IScene {
                                  std::max(0.0f, cfg_BoostBurstChromaticDuration.Get()),
                                  std::max(0.0f, cfg_BoostBurstChromaticSampleOffset.Get()),
                                  std::max(0.0f, cfg_BoostBurstChromaticRadialScale.Get()));
+            TriggerScenicMicroFlash(std::max(0.0f, cfg_ScenicMicroFlashBoostIntensity.Get()) * scale,
+                                    std::max(0.0f, cfg_ScenicMicroFlashBoostDuration.Get()));
+            TriggerScenicSpeedLineBurst(world,
+                                        std::max(0.0f, cfg_ScenicSpeedLineBurstIntensity.Get()) * scale,
+                                        std::max(0.0f, cfg_ScenicSpeedLineBurstDuration.Get()));
+            TriggerScenicSERipple(0.8f + 0.2f * speedScale);
         }
 
         wasBoosting_ = boostingNow;
@@ -1312,6 +1386,11 @@ class GameScene : public IScene {
                              std::max(0.0f, cfg_WallHitChromaticDuration.Get()),
                              std::max(0.0f, cfg_WallHitChromaticSampleOffset.Get()),
                              std::max(0.0f, cfg_WallHitChromaticRadialScale.Get()));
+        TriggerScenicMicroFlash(std::max(0.0f, cfg_ScenicMicroFlashCollisionIntensity.Get()),
+                                std::max(0.0f, cfg_ScenicMicroFlashCollisionDuration.Get()));
+        TriggerScenicSpeedLineBurst(world,
+                                    std::max(0.0f, cfg_ScenicSpeedLineBurstIntensity.Get()),
+                                    std::max(0.0f, cfg_ScenicSpeedLineBurstDuration.Get()));
         TriggerDirectionalImpulseFromVelocity(world,
                                               player,
                                               std::max(0.0f, cfg_WallHitImpulseIntensity.Get()),
@@ -1319,6 +1398,7 @@ class GameScene : public IScene {
         TriggerGamepadRumble(std::clamp(cfg_WallHitRumbleStrength.Get(), 0.0f, 1.0f),
                              std::clamp(cfg_WallHitRumbleStrength.Get(), 0.0f, 1.0f),
                              std::max(0.0f, cfg_WallHitRumbleDuration.Get()));
+        TriggerScenicSERipple(1.0f);
 
         // 再生用フェードアニメーションを開始
         deathFadeTimer_ = cfg_DeathAnimationFadeTime;
@@ -1372,6 +1452,11 @@ class GameScene : public IScene {
                              std::max(0.0f, cfg_TimeUpChromaticDuration.Get()),
                              std::max(0.0f, cfg_TimeUpChromaticSampleOffset.Get()),
                              std::max(0.0f, cfg_TimeUpChromaticRadialScale.Get()));
+        TriggerScenicMicroFlash(std::max(0.0f, cfg_ScenicMicroFlashCollisionIntensity.Get()),
+                                std::max(0.0f, cfg_ScenicMicroFlashCollisionDuration.Get()));
+        TriggerScenicSpeedLineBurst(world,
+                                    std::max(0.0f, cfg_ScenicSpeedLineBurstIntensity.Get()),
+                                    std::max(0.0f, cfg_ScenicSpeedLineBurstDuration.Get()));
         TriggerDirectionalImpulseFromVelocity(world,
                                               player,
                                               std::max(0.0f, cfg_TimeUpImpulseIntensity.Get()),
@@ -1401,6 +1486,7 @@ class GameScene : public IScene {
 
         SOUND_SYS.PlaySE(cfg_DeathMP3Pass.Get(),false);
         SOUND_SYS.StopSE(cfg_DriftMP3Pass.Get());
+        TriggerScenicSERipple(1.0f);
 
         // デスカウント加算
         world.ForEach<GameStatus>([](Entity, GameStatus &s) { s.deathCount++; });
@@ -1560,9 +1646,11 @@ class GameScene : public IScene {
         float scale = 1.0f;
         const std::string preset = cfg_ScreenFxPreset.Get();
         if (preset == "Competitive") {
-            scale *= 0.72f;
+            scale *= std::clamp(cfg_ScenicPresetCompetitiveScale.Get(), 0.0f, 1.0f);
+        } else if (preset == "Stream") {
+            scale *= std::clamp(cfg_ScenicPresetStreamScale.Get(), 0.0f, 1.0f);
         } else if (preset == "Cinematic") {
-            scale *= 1.15f;
+            scale *= std::max(0.0f, cfg_ScenicPresetCinematicScale.Get());
         }
         const float fps = 1.0f / std::max(1e-4f, screenFxSmoothedDt_);
         const float lowFpsStart = std::max(1.0f, cfg_ScreenFxLowFpsStart.Get());
@@ -1574,7 +1662,289 @@ class GameScene : public IScene {
         if (isFading || stageClearActive_ || isStageSelectFadeActive_) {
             scale *= std::clamp(cfg_ScreenFxUiScale.Get(), 0.0f, 1.0f);
         }
-        return std::clamp(scale, 0.0f, 1.0f);
+        return std::clamp(scale, 0.0f, 1.25f);
+    }
+
+    float GetScenicPresentationScale() const {
+        return GetScreenFXBudgetScale();
+    }
+
+    bool IsScenicInputActive(InputSystem &input) const {
+        const bool keyboardActive =
+            input.GetKey('W') || input.GetKey('A') || input.GetKey('S') || input.GetKey('D') ||
+            input.GetKey(VK_UP) || input.GetKey(VK_DOWN) || input.GetKey(VK_LEFT) || input.GetKey(VK_RIGHT);
+        bool stickActive = false;
+        if (auto *pad = ServiceLocator::TryGet<GamepadSystem>()) {
+            const float gx = pad->GetLeftStickX();
+            const float gy = pad->GetLeftStickY();
+            const float mag = std::sqrt(gx * gx + gy * gy);
+            stickActive = mag >= std::max(0.0f, cfg_ScenicInputActiveThreshold.Get()) || pad->IsLeftStickCharging();
+        }
+        return keyboardActive || stickActive;
+    }
+
+    float GetScenicUrgency(World &world) const {
+        bool timerActive = false;
+        float timeRatio = 1.0f;
+        world.ForEach<GameStatus>([&](Entity, GameStatus &stats) {
+            if (!stats.timerRunning) {
+                return;
+            }
+            timerActive = true;
+            const float limit = std::max(0.01f, cfg_LimitTime.Get());
+            timeRatio = std::clamp(stats.elapsedTime / limit, 0.0f, 1.0f);
+        });
+        const float threshold = std::clamp(cfg_UrgencyFxThreshold.Get(), 0.05f, 1.0f);
+        if (!timerActive || timeRatio >= threshold) {
+            return 0.0f;
+        }
+        return std::clamp(1.0f - (timeRatio / threshold), 0.0f, 1.0f);
+    }
+
+    void TriggerScenicMicroFlash(float intensity, float duration) {
+        if (!cfg_ScenicLayerEnabled.Get() || !cfg_ScenicInstantEnabled.Get() || !cfg_ScenicMicroFlashEnabled.Get()) {
+            return;
+        }
+        if (scenicMicroFlashCooldown_ > 0.0f) {
+            return;
+        }
+        auto *renderer = ServiceLocator::TryGet<RenderSystem>();
+        if (!renderer) {
+            return;
+        }
+        const float presetScale = GetScenicPresentationScale();
+        const float finalIntensity = std::max(0.0f, intensity) * presetScale;
+        const float finalDuration = std::max(0.0f, duration);
+        if (finalIntensity <= 0.0f || finalDuration <= 0.0f) {
+            return;
+        }
+        renderer->TriggerMicroFlash(finalIntensity, finalDuration);
+        scenicMicroFlashCooldown_ = std::max(scenicMicroFlashCooldown_, std::max(0.0f, cfg_ScenicMicroFlashMinInterval.Get()));
+    }
+
+    void TriggerScenicSERipple(float intensityScale = 1.0f) {
+        if (!cfg_ScenicLayerEnabled.Get() || !cfg_ScenicInstantEnabled.Get() || !cfg_ScenicSERippleEnabled.Get()) {
+            return;
+        }
+        auto *renderer = ServiceLocator::TryGet<RenderSystem>();
+        if (!renderer) {
+            return;
+        }
+        const float presetScale = GetScenicPresentationScale();
+        const float intensity = std::max(0.0f, cfg_ScenicSERippleIntensity.Get()) * std::max(0.0f, intensityScale) * presetScale;
+        const float duration = std::max(0.0f, cfg_ScenicSERippleDuration.Get());
+        if (intensity <= 0.0f || duration <= 0.0f) {
+            return;
+        }
+        renderer->TriggerEmissionRipple(intensity, duration);
+    }
+
+    void TriggerScenicSpeedLineBurst(World &world, float intensity, float duration) {
+        if (!cfg_ScenicLayerEnabled.Get() || !cfg_ScenicInstantEnabled.Get() || !cfg_ScenicSpeedLineBurstEnabled.Get()) {
+            return;
+        }
+        const float presetScale = GetScenicPresentationScale();
+        const float finalIntensity = std::max(0.0f, intensity) * presetScale;
+        const float finalDuration = std::max(0.0f, duration);
+        if (finalIntensity <= 0.0f || finalDuration <= 0.0f) {
+            return;
+        }
+        float dirX = scenicSpeedLineDirection_.x;
+        float dirY = scenicSpeedLineDirection_.y;
+        if (TryGetVelocityDirection(world, playerEntity_, dirX, dirY)) {
+            scenicSpeedLineDirection_ = {dirX, dirY};
+        }
+        scenicSpeedLineBurst_ = std::max(scenicSpeedLineBurst_, finalIntensity);
+        scenicSpeedLineBurstTimer_ = std::max(scenicSpeedLineBurstTimer_, finalDuration);
+    }
+
+    void UpdateScenicAmbientParticles(World &world, float presetScale) {
+        const bool enabled = cfg_ScenicLayerEnabled.Get() &&
+                             cfg_ScenicAmbientEnabled.Get() &&
+                             cfg_ScenicFarParticlesEnabled.Get() &&
+                             presetScale > 1e-4f &&
+                             world.IsAlive(playerEntity_);
+        if (!enabled) {
+            if (scenicFarParticleHandle_ != -1) {
+                EffekseerManager::GetInstance().StopEffectHandle(scenicFarParticleHandle_);
+                scenicFarParticleHandle_ = -1;
+            }
+            return;
+        }
+        auto *playerTransform = world.TryGet<Transform>(playerEntity_);
+        if (!playerTransform) {
+            return;
+        }
+        DirectX::XMFLOAT3 particlePos = playerTransform->position;
+        particlePos.y += cfg_ScenicFarParticlesHeight.Get();
+        if (scenicFarParticleHandle_ == -1) {
+            auto handle = EffekseerManager::GetInstance().PlayEffectSafe("StarMedium", particlePos, {1.0f, 1.0f, 1.0f}, true);
+            scenicFarParticleHandle_ = handle.value_or(-1);
+        }
+        if (scenicFarParticleHandle_ != -1) {
+            EffekseerManager::GetInstance().SetEffectPosition(scenicFarParticleHandle_, particlePos);
+            const float scale = std::max(0.1f, cfg_ScenicFarParticlesScale.Get() * presetScale);
+            EffekseerManager::GetInstance().SetEffectScale(scenicFarParticleHandle_, {scale, scale, scale});
+        }
+    }
+
+    void UpdateScenicWallPulse(World &world, float dt, float presetScale) {
+        if (!cfg_ScenicLayerEnabled.Get() || !cfg_ScenicAmbientEnabled.Get() || !cfg_ScenicWallPulseEnabled.Get() || presetScale <= 1e-4f) {
+            world.ForEach<WallLightTag, PointLight>([](Entity, WallLightTag &, PointLight &light) {
+                light.intensity = 1.0f;
+            });
+            return;
+        }
+        scenicAmbientPulsePhase_ += std::max(0.0f, dt) * std::max(0.0f, cfg_ScenicWallPulseSpeed.Get());
+        const float pulse = (std::sin(scenicAmbientPulsePhase_ * DirectX::XM_2PI) + 1.0f) * 0.5f;
+        const float minIntensity = std::max(0.0f, cfg_ScenicWallPulseMin.Get());
+        const float maxIntensity = std::max(minIntensity, cfg_ScenicWallPulseMax.Get());
+        const float intensity = minIntensity + (maxIntensity - minIntensity) * pulse * std::clamp(presetScale, 0.0f, 1.0f);
+        world.ForEach<WallLightTag, PointLight>([&](Entity, WallLightTag &, PointLight &light) {
+            light.intensity = intensity;
+        });
+    }
+
+    void UpdateScenicDashBoardFlow(World &world, float flowScale) {
+        const float safeScale = std::max(0.1f, flowScale);
+        world.ForEach<DashBoardStatus>([&](Entity, DashBoardStatus &status) {
+            if (status.effectHandle == -1) {
+                return;
+            }
+            EffekseerManager::GetInstance().SetEffectScale(status.effectHandle, {safeScale, safeScale, safeScale});
+        });
+    }
+
+    void UpdateScenicFX(World &world, InputSystem &input, float dt) {
+        auto *renderer = ServiceLocator::TryGet<RenderSystem>();
+        if (!renderer) {
+            return;
+        }
+
+        const float safeDt = std::max(0.0f, dt);
+        scenicMicroFlashCooldown_ = std::max(0.0f, scenicMicroFlashCooldown_ - safeDt);
+        scenicStateChromaticTimer_ = std::max(0.0f, scenicStateChromaticTimer_ - safeDt);
+        scenicInputActive_ = IsScenicInputActive(input);
+
+        const float presetScale = GetScenicPresentationScale();
+        const bool scenicEnabled = cfg_ScenicLayerEnabled.Get() && presetScale > 1e-4f;
+        if (!scenicEnabled) {
+            renderer->SetScenicLayer(0.0f, 0.0f, 0.0f, std::clamp(cfg_ScenicCenterSafeRadius.Get(), 0.0f, 0.49f), 0.0f);
+            renderer->SetScenicMotion(0.0f, scenicSpeedLineDirection_.x, scenicSpeedLineDirection_.y);
+            UpdateScenicAmbientParticles(world, 0.0f);
+            UpdateScenicDashBoardFlow(world, 1.0f);
+            return;
+        }
+
+        UpdateScenicAmbientParticles(world, presetScale);
+
+        float urgency = GetScenicUrgency(world);
+        float boostFactor = 0.0f;
+        float speedFactor = 0.0f;
+        float dirX = scenicSpeedLineDirection_.x;
+        float dirY = scenicSpeedLineDirection_.y;
+        if (world.IsAlive(playerEntity_)) {
+            if (auto *v = world.TryGet<PlayerVelocity>(playerEntity_)) {
+                const float velLen = std::sqrt(v->velocity.x * v->velocity.x + v->velocity.y * v->velocity.y);
+                const float baseSpeed = std::max(0.001f, v->speed);
+                const float maxSpeed = std::max(baseSpeed, baseSpeed * std::max(1.0f, v->Acceleration));
+                speedFactor = std::clamp(velLen / std::max(0.001f, maxSpeed), 0.0f, 1.0f);
+                if (v->isBoosting) {
+                    const float boostRatio = std::max(0.0f, v->boostSpeed / baseSpeed);
+                    boostFactor = std::clamp(boostRatio - 1.0f, 0.0f, 1.0f);
+                }
+                if (velLen > 1e-5f) {
+                    dirX = v->velocity.x / velLen;
+                    dirY = v->velocity.y / velLen;
+                }
+            }
+        }
+        const float goalFactor = (world.IsAlive(playerEntity_) && world.Has<GoalAttractor>(playerEntity_)) ? 1.0f : 0.0f;
+        scenicSpeedLineDirection_ = {dirX, dirY};
+        const float stateBlend = std::clamp(std::max({urgency, boostFactor, goalFactor, speedFactor}), 0.0f, 1.0f);
+
+        float vignette = 0.0f;
+        float noise = 0.0f;
+        float colorTemp = 0.0f;
+        if (cfg_ScenicAmbientEnabled.Get() || cfg_ScenicStateEnabled.Get()) {
+            if (cfg_ScenicAmbientEnabled.Get()) {
+                noise = std::max(0.0f, cfg_ScenicAmbientNoiseIntensity.Get()) * presetScale;
+            }
+            if (cfg_ScenicStateEnabled.Get()) {
+                const float baseVignette = std::max(0.0f, cfg_ScenicStateVignetteBase.Get());
+                const float urgencyVignette = std::max(0.0f, cfg_ScenicStateVignetteUrgencyScale.Get()) * urgency;
+                vignette = (baseVignette + urgencyVignette) * presetScale;
+                colorTemp = urgency * cfg_ScenicStateWarmByUrgency.Get()
+                          - boostFactor * cfg_ScenicStateCoolByBoost.Get()
+                          - goalFactor * cfg_ScenicStateCoolByGoal.Get();
+            }
+        }
+        if (cfg_ScenicSuppressOnInput.Get() && scenicInputActive_) {
+            vignette *= 0.55f;
+            noise = 0.0f;
+        }
+        renderer->SetScenicLayer(vignette,
+                                 noise,
+                                 0.0f,
+                                 std::clamp(cfg_ScenicCenterSafeRadius.Get(), 0.0f, 0.49f),
+                                 std::clamp(colorTemp, -1.0f, 1.0f));
+
+        if (scenicSpeedLineBurstTimer_ > 0.0f) {
+            scenicSpeedLineBurstTimer_ = std::max(0.0f, scenicSpeedLineBurstTimer_ - safeDt);
+            scenicSpeedLineBurst_ *= std::exp(-8.0f * safeDt);
+            if (scenicSpeedLineBurstTimer_ <= 0.0f) {
+                scenicSpeedLineBurst_ = 0.0f;
+            }
+        } else {
+            scenicSpeedLineBurst_ = 0.0f;
+        }
+
+        float speedLine = 0.0f;
+        if (cfg_ScenicStateEnabled.Get()) {
+            const float baseLine = speedFactor
+                                 + boostFactor * std::max(0.0f, cfg_ScenicStateSpeedLineBoostScale.Get())
+                                 + urgency * std::max(0.0f, cfg_ScenicStateSpeedLineUrgencyScale.Get());
+            speedLine = std::min(std::max(0.0f, cfg_ScenicStateSpeedLineMax.Get()), std::max(0.0f, baseLine));
+            speedLine *= presetScale;
+        }
+        speedLine = std::clamp(speedLine + scenicSpeedLineBurst_, 0.0f, 1.0f);
+        renderer->SetScenicMotion(speedLine, scenicSpeedLineDirection_.x, scenicSpeedLineDirection_.y);
+
+        float floorFlowScale = 1.0f;
+        if (cfg_ScenicStateEnabled.Get()) {
+            const float flowMin = std::max(0.1f, cfg_ScenicFloorFlowMinScale.Get());
+            const float flowMax = std::max(flowMin, cfg_ScenicFloorFlowMaxScale.Get());
+            const float flowBlend = std::clamp(boostFactor * 0.65f + urgency * 0.35f + goalFactor * 0.45f, 0.0f, 1.0f);
+            floorFlowScale = flowMin + (flowMax - flowMin) * flowBlend;
+            floorFlowScale = std::max(floorFlowScale, 1.0f + scenicSpeedLineBurst_ * 0.8f);
+            floorFlowScale *= std::clamp(presetScale, 0.0f, 1.2f);
+        }
+        UpdateScenicDashBoardFlow(world, floorFlowScale);
+
+        if (cfg_ScenicAmbientEnabled.Get()) {
+            UpdateScenicWallPulse(world, safeDt, presetScale);
+        } else {
+            world.ForEach<WallLightTag, PointLight>([](Entity, WallLightTag &, PointLight &light) {
+                light.intensity = 1.0f;
+            });
+        }
+
+        if (cfg_ScenicStateEnabled.Get() &&
+            cfg_ScenicStateChromaticEnabled.Get() &&
+            !chargeChromaticActive_ &&
+            stateBlend > 0.08f &&
+            scenicStateChromaticTimer_ <= 0.0f) {
+            const float chromaticIntensity = std::max(0.0f, cfg_ScenicStateChromaticIntensity.Get()) * stateBlend * presetScale;
+            const float chromaticDuration = std::min(std::max(0.0f, cfg_ScenicStateChromaticDuration.Get()),
+                                                     std::max(0.01f, cfg_ScenicChromaticMaxDuration.Get()));
+            if (chromaticIntensity > 0.0f && chromaticDuration > 0.0f) {
+                renderer->TriggerChromaticAberration(chromaticIntensity,
+                                                     chromaticDuration,
+                                                     std::max(0.0f, cfg_ScenicStateChromaticSampleOffset.Get()),
+                                                     std::max(0.0f, cfg_ScenicStateChromaticRadialScale.Get()));
+            }
+            scenicStateChromaticTimer_ = std::max(0.01f, cfg_ScenicStateChromaticInterval.Get());
+        }
     }
 
     bool AcquireScreenFXEvent(ScreenFXEventType type) {
@@ -1612,22 +1982,23 @@ class GameScene : public IScene {
         }
 
         const float budgetScale = GetScreenFXBudgetScale();
-        const float maxShake = std::max(0.0f, cfg_ScreenFxMaxShake.Get());
+        const float maxShake = std::min(std::max(0.0f, cfg_ScreenFxMaxShake.Get()), std::max(0.0f, cfg_ScenicGuardMaxShake.Get()));
         const float maxZoom = std::max(0.0f, cfg_ScreenFxMaxZoom.Get());
         const float maxChromatic = std::max(0.0f, cfg_ScreenFxMaxChromatic.Get());
+        const float maxChromaticDuration = std::max(0.01f, cfg_ScenicChromaticMaxDuration.Get());
 
         const float finalShake = std::clamp(std::max(0.0f, shakeIntensity) * budgetScale, 0.0f, maxShake);
         const float finalZoom = std::clamp(std::max(0.0f, zoomAmount) * budgetScale, 0.0f, maxZoom);
         const float finalChromatic = std::clamp(std::max(0.0f, chromaticIntensity) * budgetScale, 0.0f, maxChromatic);
         const float finalShakeDuration = std::max(0.0f, shakeDuration);
         const float finalZoomDuration = std::max(0.0f, zoomDuration);
-        const float finalChromaticDuration = std::max(0.0f, chromaticDuration);
+        const float finalChromaticDuration = std::min(std::max(0.0f, chromaticDuration), maxChromaticDuration);
 
         if (finalShake > 0.0f && finalShakeDuration > 0.0f) {
             TriggerCameraShake(finalShake, finalShakeDuration);
         }
         if (finalZoom > 0.0f && finalZoomDuration > 0.0f) {
-            const bool isCollisionZoomEvent = (type == ScreenFXEventType::WallHit || type == ScreenFXEventType::TimeUp);
+            const bool isCollisionZoomEvent = (type == ScreenFXEventType::WallHit || type == ScreenFXEventType::TimeUp || type == ScreenFXEventType::GoalIn);
             if (isCollisionZoomEvent) {
                 TriggerCollisionZoomIn(finalZoom);
             } else {
@@ -1690,9 +2061,15 @@ class GameScene : public IScene {
     }
 
     void ApplyGoalInPlayerCamera(World &world, float dt, DirectX::XMFLOAT3 &cameraBasePos, DirectX::XMFLOAT3 &cameraBaseTarget, float &cameraBaseFov) {
+        bool goalTransitioning = false;
+        world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
+            if (sp.goalTransitioning) {
+                goalTransitioning = true;
+            }
+        });
         const bool goalCameraActive = cfg_GoalInPlayerCameraEnabled.Get() &&
                                       world.IsAlive(playerEntity_) &&
-                                      world.Has<GoalAttractor>(playerEntity_);
+                                      (world.Has<GoalAttractor>(playerEntity_) || goalTransitioning);
         const float targetBlend = goalCameraActive ? 1.0f : 0.0f;
         const float blendSpeed = std::max(0.0f, cfg_GoalInPlayerCameraBlendSpeed.Get());
         const float safeDt = std::max(0.0f, dt);
@@ -2023,6 +2400,7 @@ class GameScene : public IScene {
                 }
 
                 SOUND_SYS.PlaySE(cfg_SpeedUpMP3Pass.Get(),false);
+                TriggerScenicSERipple(0.7f);
 
                 Entity newStageEntity = world.Create().With<StageCreate>(pendingStageAdvance_.nextRoomPath).Build();
                 ownedEntities_.push_back(newStageEntity);
@@ -2033,12 +2411,17 @@ class GameScene : public IScene {
                 pendingStageAdvance_.stageBuilt = true;
                 StartFadeInNormal(world);
                 StartStartIntroCamera(world);
+                TriggerGamepadRumble(std::clamp(cfg_StageEnterRumbleStrength.Get(), 0.0f, 1.0f),
+                                     std::clamp(cfg_StageEnterRumbleStrength.Get(), 0.0f, 1.0f),
+                                     std::max(0.0f, cfg_StageEnterRumbleDuration.Get()));
             }
             return;
         }
 
         const bool fadeInFinished = anim && !anim->isPlaying && anim->isFinished && anim->playbackDirection < 0;
         if (fadeInFinished || stageAdvanceTimer_ >= waitDuration) {
+            collisionZoomOffset_ = 0.0f;
+            collisionFocusBlend_ = 0.0f;
             pendingStageAdvance_ = {};
             stageAdvanceTimer_ = 0.0f;
             ClearGoalTransitionFlag(world);
@@ -3323,6 +3706,11 @@ class GameScene : public IScene {
                 StartStartIntroCamera(world);
             }
             deathFadeVisible_ = false;
+            collisionZoomOffset_ = 0.0f;
+            collisionFocusBlend_ = 0.0f;
+            TriggerScenicMicroFlash(std::max(0.0f, cfg_ScenicMicroFlashLandingIntensity.Get()),
+                                    std::max(0.0f, cfg_ScenicMicroFlashLandingDuration.Get()));
+            TriggerScenicSERipple(0.7f);
             if (auto *playerStatus = world.TryGet<PlayerStatus>(playerEntity_)) {
                 UpdateWallHitState(*playerStatus, PlayerStatus::WallHitState::Idle, "RespawnComplete");
             }
@@ -3891,6 +4279,14 @@ class GameScene : public IScene {
     float screenFxSmoothedDt_ = 1.0f / 60.0f;
     int frameFxPriority_ = -1;
     std::array<float, static_cast<size_t>(ScreenFXEventType::Count)> screenFxNextAllowed_{};
+    float scenicMicroFlashCooldown_ = 0.0f;
+    float scenicStateChromaticTimer_ = 0.0f;
+    float scenicAmbientPulsePhase_ = 0.0f;
+    float scenicSpeedLineBurst_ = 0.0f;
+    float scenicSpeedLineBurstTimer_ = 0.0f;
+    DirectX::XMFLOAT2 scenicSpeedLineDirection_{0.0f, 1.0f};
+    int scenicFarParticleHandle_ = -1;
+    bool scenicInputActive_ = false;
 };
 
 // =========================================

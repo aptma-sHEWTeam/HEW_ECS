@@ -12,10 +12,16 @@
 #include "input/InputSystem.h"
 #include "input/GamepadSystem.h"
 #include "ecs/World.h"
+#include "config/ConfigVar.h"
 #include <DirectXMath.h>
 #include "app/ServiceLocator.h"
 #include <algorithm>
 #include <vector>
+
+inline ConfigVar<float> cfg_UIRumbleNavigateStrength{"Gamepad.Rumble.UI", "NavigateStrength", 0.180f, "UI選択移動時の振動強度"};
+inline ConfigVar<float> cfg_UIRumbleNavigateDuration{"Gamepad.Rumble.UI", "NavigateDuration", 0.070f, "UI選択移動時の振動継続時間"};
+inline ConfigVar<float> cfg_UIRumbleSubmitStrength{"Gamepad.Rumble.UI", "SubmitStrength", 0.320f, "UI決定時の振動強度"};
+inline ConfigVar<float> cfg_UIRumbleSubmitDuration{"Gamepad.Rumble.UI", "SubmitDuration", 0.120f, "UI決定時の振動継続時間"};
 
 /**
  * @struct UIRenderSystem
@@ -238,8 +244,11 @@ struct UIInteractionSystem : Behaviour {
     bool stickDownPrev_ = false;
     bool dpadUpPrev_ = false;
     bool dpadDownPrev_ = false;
+    float rumbleTimer_ = 0.0f;
+    bool rumbleActive_ = false;
 
     void OnUpdate(World &w, Entity self, float dt) override {
+        UpdateRumble(dt);
         if (!input_)
             return;
 
@@ -315,6 +324,7 @@ struct UIInteractionSystem : Behaviour {
         if (selectedIndex_ < -1 || selectedIndex_ >= buttonCount) {
             selectedIndex_ = -1;
         }
+        const int previousSelectedIndex = selectedIndex_;
 
         if (up) {
             if (selectedIndex_ < 0) {
@@ -334,6 +344,10 @@ struct UIInteractionSystem : Behaviour {
         if ((submitDown || submitHeld) && selectedIndex_ < 0) {
             selectedIndex_ = 0;
         }
+        if ((up || down) && selectedIndex_ != previousSelectedIndex && selectedIndex_ >= 0) {
+            TriggerRumblePulse(std::clamp(cfg_UIRumbleNavigateStrength.Get(), 0.0f, 1.0f),
+                               std::max(0.0f, cfg_UIRumbleNavigateDuration.Get()));
+        }
 
 
         for (size_t i = 0; i < buttons.size(); ++i) {
@@ -351,6 +365,8 @@ struct UIInteractionSystem : Behaviour {
         if (submitDown && selectedIndex_ >= 0 && selectedIndex_ < static_cast<int>(buttons.size())) {
             auto *b = w.TryGet<UIButton>(buttons[static_cast<size_t>(selectedIndex_)].e);
             if (b && b->enabled && b->onClick) {
+                TriggerRumblePulse(std::clamp(cfg_UIRumbleSubmitStrength.Get(), 0.0f, 1.0f),
+                                   std::max(0.0f, cfg_UIRumbleSubmitDuration.Get()));
                 b->onClick();
             }
         }
@@ -362,5 +378,34 @@ struct UIInteractionSystem : Behaviour {
     void SetScreenSize(float w, float h) {
         screenWidth_ = w;
         screenHeight_ = h;
+    }
+
+  private:
+    void TriggerRumblePulse(float strength, float duration) {
+        if (strength <= 0.0f || duration <= 0.0f) {
+            return;
+        }
+        auto *pad = ServiceLocator::TryGet<GamepadSystem>();
+        if (!pad) {
+            return;
+        }
+        pad->SetVibration(strength, strength);
+        rumbleTimer_ = std::max(rumbleTimer_, duration);
+        rumbleActive_ = true;
+    }
+
+    void UpdateRumble(float dt) {
+        if (!rumbleActive_) {
+            return;
+        }
+        rumbleTimer_ = std::max(0.0f, rumbleTimer_ - std::max(0.0f, dt));
+        if (rumbleTimer_ > 0.0f) {
+            return;
+        }
+        auto *pad = ServiceLocator::TryGet<GamepadSystem>();
+        if (pad) {
+            pad->SetVibration(0.0f, 0.0f);
+        }
+        rumbleActive_ = false;
     }
 };

@@ -90,6 +90,9 @@ struct RenderSystem {
         float paddingEnd[3] = {0.0f, 0.0f, 0.0f}; ///< 16バイト境界合わせ
         DirectX::XMFLOAT4 chromaticParams; ///< x:強度 y:オフセット z:半径倍率
         DirectX::XMFLOAT4 chromaticScreen; ///< x:幅 y:高さ
+        DirectX::XMFLOAT4 stylizeParams0; ///< x:ビネット y:ノイズ z:フォグ w:中心保護半径
+        DirectX::XMFLOAT4 stylizeParams1; ///< x:色温度 y:速度線 z:方向x w:方向y
+        DirectX::XMFLOAT4 stylizeParams2; ///< x:フラッシュ y:リップル z:時間 w:予約
     };
 
     /**
@@ -340,7 +343,7 @@ struct RenderSystem {
         intensity = std::max(0.0f, intensity);
         duration = std::max(0.0f, duration);
         if (intensity <= 0.0f || duration <= 0.0f) {
-            ClearScreenEffects();
+            ClearChromaticAberration();
             return;
         }
         chromaticStartIntensity_ = intensity;
@@ -350,21 +353,118 @@ struct RenderSystem {
         chromaticActive_ = true;
     }
 
+    void SetScenicLayer(float vignetteIntensity,
+                        float noiseIntensity,
+                        float fogIntensity,
+                        float centerSafeRadius,
+                        float colorTemperatureShift) {
+        vignetteIntensity_ = std::clamp(vignetteIntensity, 0.0f, 1.0f);
+        noiseIntensity_ = std::clamp(noiseIntensity, 0.0f, 1.0f);
+        fogIntensity_ = std::clamp(fogIntensity, 0.0f, 1.0f);
+        centerSafeRadius_ = std::clamp(centerSafeRadius, 0.0f, 0.49f);
+        colorTemperatureShift_ = std::clamp(colorTemperatureShift, -1.0f, 1.0f);
+    }
+
+    void SetScenicMotion(float speedLineIntensity, float dirX, float dirY) {
+        speedLineIntensity_ = std::clamp(speedLineIntensity, 0.0f, 1.0f);
+        const float len = std::sqrt(dirX * dirX + dirY * dirY);
+        if (len <= 1e-6f) {
+            speedLineDirection_ = {0.0f, 1.0f};
+            return;
+        }
+        speedLineDirection_ = {dirX / len, dirY / len};
+    }
+
+    void TriggerMicroFlash(float intensity, float duration) {
+        intensity = std::max(0.0f, intensity);
+        duration = std::max(0.0f, duration);
+        if (intensity <= 0.0f || duration <= 0.0f) {
+            return;
+        }
+        flashStartIntensity_ = intensity;
+        flashIntensityCurrent_ = intensity;
+        flashDuration_ = duration;
+        flashElapsed_ = 0.0f;
+        flashActive_ = true;
+    }
+
+    void TriggerEmissionRipple(float intensity, float duration) {
+        intensity = std::max(0.0f, intensity);
+        duration = std::max(0.0f, duration);
+        if (intensity <= 0.0f || duration <= 0.0f) {
+            return;
+        }
+        rippleStartIntensity_ = intensity;
+        rippleIntensityCurrent_ = intensity;
+        rippleDuration_ = duration;
+        rippleElapsed_ = 0.0f;
+        rippleActive_ = true;
+    }
+
     void UpdateScreenEffects(float dt) {
-        if (!chromaticActive_) {
-            return;
+        const float safeDt = std::max(0.0f, dt);
+        screenEffectTime_ += safeDt;
+
+        if (chromaticActive_) {
+            chromaticElapsed_ += safeDt;
+            if (chromaticElapsed_ >= chromaticDuration_) {
+                ClearChromaticAberration();
+            } else {
+                float t = chromaticElapsed_ / std::max(0.001f, chromaticDuration_);
+                float fade = 1.0f - t;
+                chromaticIntensityCurrent_ = chromaticStartIntensity_ * fade * fade;
+            }
         }
-        chromaticElapsed_ += std::max(0.0f, dt);
-        if (chromaticElapsed_ >= chromaticDuration_) {
-            ClearScreenEffects();
-            return;
+
+        if (flashActive_) {
+            flashElapsed_ += safeDt;
+            if (flashElapsed_ >= flashDuration_) {
+                flashActive_ = false;
+                flashIntensityCurrent_ = 0.0f;
+            } else {
+                const float t = flashElapsed_ / std::max(0.001f, flashDuration_);
+                const float fade = 1.0f - t;
+                flashIntensityCurrent_ = flashStartIntensity_ * fade;
+            }
         }
-        float t = chromaticElapsed_ / std::max(0.001f, chromaticDuration_);
-        float fade = 1.0f - t;
-        chromaticIntensityCurrent_ = chromaticStartIntensity_ * fade * fade;
+
+        if (rippleActive_) {
+            rippleElapsed_ += safeDt;
+            if (rippleElapsed_ >= rippleDuration_) {
+                rippleActive_ = false;
+                rippleIntensityCurrent_ = 0.0f;
+            } else {
+                const float t = rippleElapsed_ / std::max(0.001f, rippleDuration_);
+                const float fade = 1.0f - t;
+                rippleIntensityCurrent_ = rippleStartIntensity_ * fade * fade;
+            }
+        }
     }
 
     void ClearScreenEffects() {
+        ClearChromaticAberration();
+        flashActive_ = false;
+        rippleActive_ = false;
+        flashStartIntensity_ = 0.0f;
+        flashIntensityCurrent_ = 0.0f;
+        flashDuration_ = 0.0f;
+        flashElapsed_ = 0.0f;
+        rippleStartIntensity_ = 0.0f;
+        rippleIntensityCurrent_ = 0.0f;
+        rippleDuration_ = 0.0f;
+        rippleElapsed_ = 0.0f;
+        vignetteIntensity_ = 0.0f;
+        noiseIntensity_ = 0.0f;
+        fogIntensity_ = 0.0f;
+        centerSafeRadius_ = 0.20f;
+        colorTemperatureShift_ = 0.0f;
+        speedLineIntensity_ = 0.0f;
+        speedLineDirection_ = {0.0f, 1.0f};
+        screenEffectTime_ = 0.0f;
+    }
+
+  private:
+    void ClearChromaticAberration() {
         chromaticActive_ = false;
         chromaticStartIntensity_ = 0.0f;
         chromaticIntensityCurrent_ = 0.0f;
@@ -372,7 +472,6 @@ struct RenderSystem {
         chromaticElapsed_ = 0.0f;
     }
 
-  private:
     /**
      * @brief SRVが有効かチェック（AddRefでCOM参照カウントを確認）
      */
@@ -489,6 +588,24 @@ struct RenderSystem {
     float chromaticElapsed_ = 0.0f;
     float chromaticSampleOffset_ = 0.0f;
     float chromaticRadialScale_ = 0.0f;
+    bool flashActive_ = false;
+    float flashStartIntensity_ = 0.0f;
+    float flashIntensityCurrent_ = 0.0f;
+    float flashDuration_ = 0.0f;
+    float flashElapsed_ = 0.0f;
+    bool rippleActive_ = false;
+    float rippleStartIntensity_ = 0.0f;
+    float rippleIntensityCurrent_ = 0.0f;
+    float rippleDuration_ = 0.0f;
+    float rippleElapsed_ = 0.0f;
+    float vignetteIntensity_ = 0.0f;
+    float noiseIntensity_ = 0.0f;
+    float fogIntensity_ = 0.0f;
+    float centerSafeRadius_ = 0.20f;
+    float colorTemperatureShift_ = 0.0f;
+    float speedLineIntensity_ = 0.0f;
+    DirectX::XMFLOAT2 speedLineDirection_ = {0.0f, 1.0f};
+    float screenEffectTime_ = 0.0f;
 
     /**
      * @brief シェーダーのコンパイル
@@ -596,6 +713,9 @@ struct RenderSystem {
                 float3 gPaddingEnd;
                 float4 gChromaticParams;
                 float4 gChromaticScreen;
+                float4 gStylizeParams0;
+                float4 gStylizeParams1;
+                float4 gStylizeParams2;
             };
 
             cbuffer PerFrameLighting : register(b1) {
@@ -742,6 +862,63 @@ struct RenderSystem {
                 return color;
             }
 
+            float ComputePeripheryMask(float2 uv, float centerSafeRadius) {
+                float2 dist = abs(uv - float2(0.5, 0.5));
+                float edge = max(dist.x, dist.y);
+                float safe = saturate(centerSafeRadius);
+                float denom = max(1e-4, 0.5 - safe);
+                return saturate((edge - safe) / denom);
+            }
+
+            float Hash12(float2 p) {
+                float h = dot(p, float2(127.1, 311.7));
+                return frac(sin(h) * 43758.5453);
+            }
+
+            float3 ApplyStylizedLayer(float3 color, float2 fragPos, float2 screenSize) {
+                if (screenSize.x <= 1.0 || screenSize.y <= 1.0) {
+                    return color;
+                }
+
+                float2 uv = fragPos / screenSize;
+                float edgeMask = ComputePeripheryMask(uv, gStylizeParams0.w);
+
+                float vignette = saturate(gStylizeParams0.x) * edgeMask;
+                color *= (1.0 - vignette * 0.35);
+
+                float colorTemp = clamp(gStylizeParams1.x, -1.0, 1.0) * (0.35 + edgeMask * 0.65);
+                float3 tempTint = float3(1.0 + colorTemp * 0.14,
+                                         1.0 + colorTemp * 0.04,
+                                         1.0 - colorTemp * 0.14);
+                color *= saturate(tempTint);
+
+                float noiseSeed = Hash12(uv * screenSize * 0.5 + gStylizeParams2.z * float2(41.0, 17.0));
+                float signedNoise = (noiseSeed - 0.5) * 2.0;
+                color += signedNoise * saturate(gStylizeParams0.y) * edgeMask * 0.03;
+
+                float2 dir = float2(gStylizeParams1.z, gStylizeParams1.w);
+                float dirLen = length(dir);
+                if (dirLen > 1e-4) {
+                    dir /= dirLen;
+                } else {
+                    dir = float2(0.0, 1.0);
+                }
+                float2 perp = float2(-dir.y, dir.x);
+                float phase = dot(uv - float2(0.5, 0.5), perp) * 120.0 + gStylizeParams2.z * 35.0;
+                float streak = smoothstep(0.86, 1.0, abs(sin(phase)));
+                float speedLines = saturate(gStylizeParams1.y) * edgeMask * streak;
+                color += speedLines * 0.08;
+
+                float flash = saturate(gStylizeParams2.x);
+                color += flash * (0.10 + edgeMask * 0.10);
+
+                float ring = smoothstep(0.10, 0.0, abs(length(uv - float2(0.5, 0.5)) - 0.32));
+                float ripple = saturate(gStylizeParams2.y) * edgeMask * ring;
+                color += ripple * 0.12;
+
+                return saturate(color);
+            }
+
             float4 main(VSOut i) : SV_Target {
                 float3 normal = normalize(i.nrm);
                 if (gUseNormalMap > 0.5) {
@@ -779,6 +956,7 @@ struct RenderSystem {
                                                             gChromaticParams.x,
                                                             gChromaticParams.y,
                                                             gChromaticParams.z);
+                    unlitColor = ApplyStylizedLayer(unlitColor, i.pos.xy, gChromaticScreen.xy);
                     return float4(unlitColor, base.a);
                 }
 
@@ -811,6 +989,7 @@ struct RenderSystem {
                                                         gChromaticParams.x,
                                                         gChromaticParams.y,
                                                         gChromaticParams.z);
+                colorAccum = ApplyStylizedLayer(colorAccum, i.pos.xy, gChromaticScreen.xy);
 
                 return float4(colorAccum, base.a);
             }
@@ -1556,6 +1735,9 @@ struct RenderSystem {
         psCbuf.chromaticParams = DirectX::XMFLOAT4{chromaticIntensityCurrent_, chromaticSampleOffset_, chromaticRadialScale_, 0.0f};
         D3D11_VIEWPORT viewport = gfx.GetCurrentViewport();
         psCbuf.chromaticScreen = DirectX::XMFLOAT4{std::max(1.0f, viewport.Width), std::max(1.0f, viewport.Height), 0.0f, 0.0f};
+        psCbuf.stylizeParams0 = DirectX::XMFLOAT4{vignetteIntensity_, noiseIntensity_, fogIntensity_, centerSafeRadius_};
+        psCbuf.stylizeParams1 = DirectX::XMFLOAT4{colorTemperatureShift_, speedLineIntensity_, speedLineDirection_.x, speedLineDirection_.y};
+        psCbuf.stylizeParams2 = DirectX::XMFLOAT4{flashIntensityCurrent_, rippleIntensityCurrent_, screenEffectTime_, 0.0f};
 
         gfx.Ctx()->UpdateSubresource(psCb_.Get(), 0, nullptr, &psCbuf, 0, 0);
     }

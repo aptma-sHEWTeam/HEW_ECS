@@ -17,33 +17,142 @@
 #include <algorithm>
 
 inline static ConfigVar<float> cfg_FadeFrameTime{"Fade.Out", "FadeFrameTime", 0.01f, "フェードアウト1フレームの時間（秒）"};
+inline static ConfigVar<float> cfg_GameUI_HudFontSize{"Game.UI.TextFormat", "HudFontSize", 24.0f, "ゲームUI: HUDフォントサイズ"};
+inline static ConfigVar<float> cfg_GameUI_PauseFontSize{"Game.UI.TextFormat", "PauseFontSize", 72.0f, "ゲームUI: Pauseフォントサイズ"};
+inline static ConfigVar<float> cfg_GameUI_ButtonFontSize{"Game.UI.TextFormat", "ButtonFontSize", 20.0f, "ゲームUI: Buttonフォントサイズ"};
+inline static ConfigVar<float> cfg_GameUI_PanelFontSize{"Game.UI.TextFormat", "PanelFontSize", 200.0f, "ゲームUI: Panelフォントサイズ"};
+inline static ConfigVar<float> cfg_GameUI_TitleFontSize{"Game.UI.TextFormat", "TitleFontSize", 20.0f, "ゲームUI: Titleフォントサイズ"};
+inline static ConfigVar<float> cfg_GameUI_YouFontSize{"Game.UI.TextFormat", "YouFontSize", 45.0f, "ゲームUI: Youフォントサイズ"};
+inline static ConfigVar<float> cfg_GameUI_NumFontSize{"Game.UI.TextFormat", "NumFontSize", 75.0f, "ゲームUI: Numフォントサイズ"};
+inline static ConfigVar<float> cfg_GameUI_RoomNumberFontSize{"Game.UI.TextFormat", "RoomNumberFontSize", 55.0f, "ゲームUI: RoomNumberフォントサイズ"};
+inline static ConfigVar<float> cfg_GameUI_RedTextFontSize{"Game.UI.TextFormat", "RedTextFontSize", 30.0f, "ゲームUI: RedTextフォントサイズ"};
+inline static ConfigVar<float> cfg_GameUI_TopNumFontSize{"Game.UI.TextFormat", "TopNumFontSize", 55.0f, "ゲームUI: TopNumフォントサイズ"};
+inline static ConfigVar<float> cfg_GameUI_RankFontSize{"Game.UI.TextFormat", "RankFontSize", 35.0f, "ゲームUI: Rankフォントサイズ"};
+
+inline static ConfigVar<float> cfg_GameUI_TimePosX{"Game.UI.TimeText", "PosX", 78.0f, "ゲームUI: 時間表示X"};
+inline static ConfigVar<float> cfg_GameUI_TimePosY{"Game.UI.TimeText", "PosY", 68.0f, "ゲームUI: 時間表示Y"};
+inline static ConfigVar<float> cfg_GameUI_TimeWidth{"Game.UI.TimeText", "Width", 1000.0f, "ゲームUI: 時間表示幅"};
+inline static ConfigVar<float> cfg_GameUI_TimeHeight{"Game.UI.TimeText", "Height", 80.0f, "ゲームUI: 時間表示高さ"};
+inline static ConfigVar<float> cfg_GameUI_TimeFontSize{"Game.UI.TimeText", "FontSize", 36.0f, "ゲームUI: 時間表示フォントサイズ"};
+
+inline static ConfigVar<float> cfg_GameUI_TimerPosX{"Game.UI.TimerImage", "PosX", -869.0f, "ゲームUI: タイマー画像X"};
+inline static ConfigVar<float> cfg_GameUI_TimerPosY{"Game.UI.TimerImage", "PosY", -6.0f, "ゲームUI: タイマー画像Y"};
+inline static ConfigVar<float> cfg_GameUI_TimerWidth{"Game.UI.TimerImage", "Width", 2000.0f, "ゲームUI: タイマー画像幅"};
+inline static ConfigVar<float> cfg_GameUI_TimerHeight{"Game.UI.TimerImage", "Height", 200.0f, "ゲームUI: タイマー画像高さ"};
+inline static ConfigVar<int> cfg_GameUI_TimerFrameCount{"Game.UI.TimerImage", "FrameCount", 131, "ゲームUI: タイマー画像フレーム数"};
+inline static ConfigVar<float> cfg_GameUI_TimerFrameTime{"Game.UI.TimerImage", "FrameTime", 0.1f, "ゲームUI: タイマー画像フレーム時間"};
+inline static ConfigVar<int> cfg_GameUI_TimerColumns{"Game.UI.TimerImage", "Columns", 16, "ゲームUI: タイマー画像列数"};
+inline static ConfigVar<int> cfg_GameUI_TimerRows{"Game.UI.TimerImage", "Rows", 16, "ゲームUI: タイマー画像行数"};
+
+inline static ConfigVar<float> cfg_GameUI_WarningTextPosY{"Game.UI.WarningText", "PosY", -140.0f, "ゲームUI: 警告テキストY"};
+inline static ConfigVar<float> cfg_GameUI_WarningTextWidth{"Game.UI.WarningText", "Width", 800.0f, "ゲームUI: 警告テキスト幅"};
+inline static ConfigVar<float> cfg_GameUI_WarningTextHeight{"Game.UI.WarningText", "Height", 120.0f, "ゲームUI: 警告テキスト高さ"};
+
+inline static ConfigVar<float> cfg_GameUI_StartImagePosX{"Game.UI.StartImage", "PosX", 520.0f, "ゲームUI: スタート画像X"};
+inline static ConfigVar<float> cfg_GameUI_StartImagePosY{"Game.UI.StartImage", "PosY", 85.0f, "ゲームUI: スタート画像Y"};
+inline static ConfigVar<float> cfg_GameUI_StartImageWidth{"Game.UI.StartImage", "Width", 250.0f, "ゲームUI: スタート画像幅"};
+inline static ConfigVar<float> cfg_GameUI_StartImageHeight{"Game.UI.StartImage", "Height", 250.0f, "ゲームUI: スタート画像高さ"};
+
+inline static ConfigVar<float> cfg_GameUI_ChargeBarPosX{"Game.UI.StartChargeBar", "PosX", 520.0f, "ゲームUI: チャージバーX"};
+inline static ConfigVar<float> cfg_GameUI_ChargeBarPosY{"Game.UI.StartChargeBar", "PosY", 335.0f, "ゲームUI: チャージバーY"};
+inline static ConfigVar<float> cfg_GameUI_ChargeBarHeight{"Game.UI.StartChargeBar", "Height", 20.0f, "ゲームUI: チャージバー高さ"};
+
+inline static ConfigVar<float> cfg_GameUI_FpsPosX{"Game.UI.Debug.Fps", "PosX", -20.0f, "ゲームUI: FPS表示X"};
+inline static ConfigVar<float> cfg_GameUI_FpsPosY{"Game.UI.Debug.Fps", "PosY", 20.0f, "ゲームUI: FPS表示Y"};
+inline static ConfigVar<float> cfg_GameUI_FpsWidth{"Game.UI.Debug.Fps", "Width", 200.0f, "ゲームUI: FPS表示幅"};
+inline static ConfigVar<float> cfg_GameUI_FpsHeight{"Game.UI.Debug.Fps", "Height", 40.0f, "ゲームUI: FPS表示高さ"};
+
+inline static ConfigVar<float> cfg_GameUI_RoomImageRightMargin{"Game.UI.RoomImage", "RightMargin", 420.0f, "ゲームUI: 部屋番号画像 右マージン"};
+inline static ConfigVar<float> cfg_GameUI_RoomImagePosY{"Game.UI.RoomImage", "PosY", 42.0f, "ゲームUI: 部屋番号画像Y"};
+inline static ConfigVar<float> cfg_GameUI_RoomImageWidth{"Game.UI.RoomImage", "Width", 240.0f, "ゲームUI: 部屋番号画像幅"};
+inline static ConfigVar<float> cfg_GameUI_RoomImageHeight{"Game.UI.RoomImage", "Height", 96.0f, "ゲームUI: 部屋番号画像高さ"};
+
+inline static ConfigVar<float> cfg_GameUI_StageCounterRightMargin{"Game.UI.StageCounter", "RightMargin", 40.0f, "ゲームUI: ステージカウンタ 右マージン"};
+inline static ConfigVar<float> cfg_GameUI_StageCounterPosY{"Game.UI.StageCounter", "PosY", 65.0f, "ゲームUI: ステージカウンタY"};
+inline static ConfigVar<float> cfg_GameUI_StageCounterWidth{"Game.UI.StageCounter", "Width", 210.0f, "ゲームUI: ステージカウンタ幅"};
+inline static ConfigVar<float> cfg_GameUI_StageCounterHeight{"Game.UI.StageCounter", "Height", 100.0f, "ゲームUI: ステージカウンタ高さ"};
+inline static ConfigVar<float> cfg_GameUI_StageCounterSecondOffsetX{"Game.UI.StageCounter", "SecondOffsetX", 110.0f, "ゲームUI: ステージカウンタ2つ目のXオフセット"};
+inline static ConfigVar<float> cfg_GameUI_StageCounterColorR{"Game.UI.StageCounter", "ColorR", 0.0f, "ゲームUI: ステージカウンタ色R"};
+inline static ConfigVar<float> cfg_GameUI_StageCounterColorG{"Game.UI.StageCounter", "ColorG", 0.5f, "ゲームUI: ステージカウンタ色G"};
+inline static ConfigVar<float> cfg_GameUI_StageCounterColorB{"Game.UI.StageCounter", "ColorB", 1.0f, "ゲームUI: ステージカウンタ色B"};
+inline static ConfigVar<float> cfg_GameUI_StageCounterOutline{"Game.UI.StageCounter", "OutlineThickness", 1.0f, "ゲームUI: ステージカウンタアウトライン太さ"};
+
+inline static ConfigVar<float> cfg_GameUI_PauseTitlePosX{"Game.UI.Pause.Title", "PosX", 30.0f, "ゲームUI: PauseタイトルX"};
+inline static ConfigVar<float> cfg_GameUI_PauseTitlePosY{"Game.UI.Pause.Title", "PosY", -80.0f, "ゲームUI: PauseタイトルY"};
+inline static ConfigVar<float> cfg_GameUI_PauseLinePosX{"Game.UI.Pause.Line", "PosX", 40.0f, "ゲームUI: PauseラインX"};
+inline static ConfigVar<float> cfg_GameUI_PauseLinePosY{"Game.UI.Pause.Line", "PosY", 120.0f, "ゲームUI: PauseラインY"};
+inline static ConfigVar<float> cfg_GameUI_PauseButtonPosX{"Game.UI.Pause.Button", "PosX", 70.0f, "ゲームUI: PauseボタンX"};
+inline static ConfigVar<float> cfg_GameUI_PauseButtonStepY{"Game.UI.Pause.Button", "StepY", 80.0f, "ゲームUI: PauseボタンY間隔"};
+inline static ConfigVar<float> cfg_GameUI_PausePanelAlpha{"Game.UI.Pause.Panel", "Alpha", 0.55f, "ゲームUI: Pause背景アルファ"};
+inline static ConfigVar<float> cfg_GameUI_PauseMenuButtonWidth{"Game.UI.Pause.Button", "Width", 300.0f, "ゲームUI: Pauseボタン幅"};
+inline static ConfigVar<float> cfg_GameUI_PauseMenuButtonHeight{"Game.UI.Pause.Button", "Height", 50.0f, "ゲームUI: Pauseボタン高さ"};
+inline static ConfigVar<float> cfg_GameUI_PauseTitleImageWidth{"Game.UI.Pause.Title", "Width", 400.0f, "ゲームUI: Pauseタイトル幅"};
+inline static ConfigVar<float> cfg_GameUI_PauseTitleImageHeight{"Game.UI.Pause.Title", "Height", 100.0f, "ゲームUI: Pauseタイトル高さ"};
+inline static ConfigVar<float> cfg_GameUI_PauseLineImageWidth{"Game.UI.Pause.Line", "Width", 15.0f, "ゲームUI: Pauseライン幅"};
+inline static ConfigVar<float> cfg_GameUI_PauseLineImageHeight{"Game.UI.Pause.Line", "Height", 350.0f, "ゲームUI: Pauseライン高さ"};
+inline static ConfigVar<float> cfg_GameUI_PauseSelectImageWidth{"Game.UI.Pause.Select", "Width", 320.0f, "ゲームUI: Pauseセレクト画像幅"};
+inline static ConfigVar<float> cfg_GameUI_PauseSelectImageHeight{"Game.UI.Pause.Select", "Height", 40.0f, "ゲームUI: Pauseセレクト画像高さ"};
+
+inline static ConfigVar<float> cfg_GameUI_ClearTextPosY{"Game.UI.ClearText", "PosY", 140.0f, "ゲームUI: クリアテキストY"};
+inline static ConfigVar<float> cfg_GameUI_ClearTextWidth{"Game.UI.ClearText", "Width", 900.0f, "ゲームUI: クリアテキスト幅"};
+inline static ConfigVar<float> cfg_GameUI_ClearTextHeight{"Game.UI.ClearText", "Height", 140.0f, "ゲームUI: クリアテキスト高さ"};
+
+inline static ConfigVar<float> cfg_GameUI_EndRankYouBaseX{"Game.UI.EndRank.You", "BaseX", 80.0f, "ゲームUI: EndRank You基準X"};
+inline static ConfigVar<float> cfg_GameUI_EndRankYouBaseY{"Game.UI.EndRank.You", "BaseY", 220.0f, "ゲームUI: EndRank You基準Y"};
+inline static ConfigVar<float> cfg_GameUI_EndRankYouWidth{"Game.UI.EndRank.You", "Width", 80.0f, "ゲームUI: EndRank You幅"};
+inline static ConfigVar<float> cfg_GameUI_EndRankYouHeight{"Game.UI.EndRank.You", "Height", 40.0f, "ゲームUI: EndRank You高さ"};
+inline static ConfigVar<float> cfg_GameUI_EndRankCurrentNumOffsetX{"Game.UI.EndRank.You", "CurrentNumOffsetX", 90.0f, "ゲームUI: EndRank 現在デス数Xオフセット"};
+inline static ConfigVar<float> cfg_GameUI_EndRankCurrentNumOffsetY{"Game.UI.EndRank.You", "CurrentNumOffsetY", -30.0f, "ゲームUI: EndRank 現在デス数Yオフセット"};
+inline static ConfigVar<float> cfg_GameUI_EndRankCurrentNumWidth{"Game.UI.EndRank.You", "CurrentNumWidth", 120.0f, "ゲームUI: EndRank 現在デス数幅"};
+inline static ConfigVar<float> cfg_GameUI_EndRankCurrentNumHeight{"Game.UI.EndRank.You", "CurrentNumHeight", 100.0f, "ゲームUI: EndRank 現在デス数高さ"};
+inline static ConfigVar<float> cfg_GameUI_EndRankCurrentDeathOffsetX{"Game.UI.EndRank.You", "CurrentDeathOffsetX", 160.0f, "ゲームUI: EndRank death画像Xオフセット"};
+inline static ConfigVar<float> cfg_GameUI_EndRankCurrentDeathOffsetY{"Game.UI.EndRank.You", "CurrentDeathOffsetY", 5.0f, "ゲームUI: EndRank death画像Yオフセット"};
+inline static ConfigVar<float> cfg_GameUI_EndRankCurrentDeathWidth{"Game.UI.EndRank.You", "CurrentDeathWidth", 120.0f, "ゲームUI: EndRank death画像幅"};
+inline static ConfigVar<float> cfg_GameUI_EndRankCurrentDeathHeight{"Game.UI.EndRank.You", "CurrentDeathHeight", 35.0f, "ゲームUI: EndRank death画像高さ"};
+
+inline static ConfigVar<float> cfg_GameUI_EndRankRightMargin{"Game.UI.EndRank.Top", "RightMargin", 330.0f, "ゲームUI: EndRank右マージン"};
+inline static ConfigVar<float> cfg_GameUI_EndRankBaseY{"Game.UI.EndRank.Top", "BaseY", 220.0f, "ゲームUI: EndRank基準Y"};
+inline static ConfigVar<float> cfg_GameUI_EndRankStepY{"Game.UI.EndRank.Top", "StepY", 70.0f, "ゲームUI: EndRank行間隔"};
+inline static ConfigVar<float> cfg_GameUI_EndRankSuffixWidth{"Game.UI.EndRank.Top", "SuffixWidth", 80.0f, "ゲームUI: EndRank順位画像幅"};
+inline static ConfigVar<float> cfg_GameUI_EndRankSuffixHeight{"Game.UI.EndRank.Top", "SuffixHeight", 60.0f, "ゲームUI: EndRank順位画像高さ"};
+inline static ConfigVar<float> cfg_GameUI_EndRankTopNumOffsetX{"Game.UI.EndRank.Top", "TopNumOffsetX", 90.0f, "ゲームUI: EndRank上位数値Xオフセット"};
+inline static ConfigVar<float> cfg_GameUI_EndRankTopNumOffsetY{"Game.UI.EndRank.Top", "TopNumOffsetY", -25.0f, "ゲームUI: EndRank上位数値Yオフセット"};
+inline static ConfigVar<float> cfg_GameUI_EndRankTopNumWidth{"Game.UI.EndRank.Top", "TopNumWidth", 120.0f, "ゲームUI: EndRank上位数値幅"};
+inline static ConfigVar<float> cfg_GameUI_EndRankTopNumHeight{"Game.UI.EndRank.Top", "TopNumHeight", 80.0f, "ゲームUI: EndRank上位数値高さ"};
+inline static ConfigVar<float> cfg_GameUI_EndRankTopNumOutline{"Game.UI.EndRank.Top", "TopNumOutlineThickness", 1.0f, "ゲームUI: EndRank上位数値アウトライン太さ"};
+inline static ConfigVar<float> cfg_GameUI_EndRankDeathOffsetX{"Game.UI.EndRank.Top", "DeathOffsetX", 160.0f, "ゲームUI: EndRank death画像Xオフセット"};
+inline static ConfigVar<float> cfg_GameUI_EndRankDeathOffsetY{"Game.UI.EndRank.Top", "DeathOffsetY", 15.0f, "ゲームUI: EndRank death画像Yオフセット"};
+inline static ConfigVar<float> cfg_GameUI_EndRankDeathWidth{"Game.UI.EndRank.Top", "DeathWidth", 100.0f, "ゲームUI: EndRank death画像幅"};
+inline static ConfigVar<float> cfg_GameUI_EndRankDeathHeight{"Game.UI.EndRank.Top", "DeathHeight", 30.0f, "ゲームUI: EndRank death画像高さ"};
+
+inline static ConfigVar<float> cfg_GameUI_ChargeOverlayFrameTime{"Game.UI.Fade", "ChargeOverlayFrameTime", 0.5f, "ゲームUI: チャージ暗転フレーム時間"};
 
 void GameScene::CreateTextFormats() {
     TextSystem::TextFormat hudFormat;
-    hudFormat.fontSize = 24.0f;
+    hudFormat.fontSize = cfg_GameUI_HudFontSize.Get();
     hudFormat.fontFamily = L"Mamelon-5-Hi-Regular.otf";
     hudFormat.alignment = DWRITE_TEXT_ALIGNMENT_LEADING;
     textSystem_.CreateTextFormat("hud", hudFormat);
 
     TextSystem::TextFormat pauseFormat;
-    pauseFormat.fontSize = 72.0f;
+    pauseFormat.fontSize = cfg_GameUI_PauseFontSize.Get();
     pauseFormat.fontFamily = L"Mamelon-5-Hi-Regular.otf";
     pauseFormat.alignment = DWRITE_TEXT_ALIGNMENT_CENTER;
     pauseFormat.paragraphAlignment = DWRITE_PARAGRAPH_ALIGNMENT_CENTER;
     textSystem_.CreateTextFormat("pause", pauseFormat);
 
     TextSystem::TextFormat buttonFormat;
-    buttonFormat.fontSize = 20.0f;
+    buttonFormat.fontSize = cfg_GameUI_ButtonFontSize.Get();
     buttonFormat.alignment = DWRITE_TEXT_ALIGNMENT_CENTER;
     buttonFormat.paragraphAlignment = DWRITE_PARAGRAPH_ALIGNMENT_CENTER;
     textSystem_.CreateTextFormat("button", buttonFormat);
 
     TextSystem::TextFormat panelFormat;
-    panelFormat.fontSize = 200.0f;
+    panelFormat.fontSize = cfg_GameUI_PanelFontSize.Get();
     textSystem_.CreateTextFormat("panel", panelFormat);
 
     TextSystem::TextFormat titleFormat;
-    titleFormat.fontSize = 20.0f;
+    titleFormat.fontSize = cfg_GameUI_TitleFontSize.Get();
     titleFormat.fontFamily = L"Mamelon-5-Hi-Regular.otf";
     titleFormat.style = DWRITE_FONT_STYLE_ITALIC;
     titleFormat.alignment = DWRITE_TEXT_ALIGNMENT_JUSTIFIED;
@@ -52,27 +161,32 @@ void GameScene::CreateTextFormats() {
 
     // デス数・ランキング表示用
     TextSystem::TextFormat youFmt;
-    youFmt.fontSize = 45.0f;
+    youFmt.fontSize = cfg_GameUI_YouFontSize.Get();
     youFmt.fontFamily = L"Mamelon-5-Hi-Regular.otf";
     textSystem_.CreateTextFormat("you", youFmt);
 
     TextSystem::TextFormat numFmt;
-    numFmt.fontSize = 75.0f;
+    numFmt.fontSize = cfg_GameUI_NumFontSize.Get();
     numFmt.fontFamily = L"ShipporiMincho-Bold.ttf";
     textSystem_.CreateTextFormat("num", numFmt);
 
+    TextSystem::TextFormat roomNumFmt;
+    roomNumFmt.fontSize = cfg_GameUI_RoomNumberFontSize.Get();
+    roomNumFmt.fontFamily = L"ShipporiMincho-Bold.ttf";
+    textSystem_.CreateTextFormat("roomNumber", roomNumFmt);
+
     TextSystem::TextFormat redFmt;
-    redFmt.fontSize = 30.0f;
+    redFmt.fontSize = cfg_GameUI_RedTextFontSize.Get();
     redFmt.fontFamily = L"Mamelon-5-Hi-Regular.otf";
     textSystem_.CreateTextFormat("redText", redFmt);
 
     TextSystem::TextFormat topNumFmt;
-    topNumFmt.fontSize = 55.0f;
+    topNumFmt.fontSize = cfg_GameUI_TopNumFontSize.Get();
     topNumFmt.fontFamily = L"ShipporiMincho-Bold.ttf";
     textSystem_.CreateTextFormat("topNum", topNumFmt);
 
     TextSystem::TextFormat rankFmt;
-    rankFmt.fontSize = 35.0f;
+    rankFmt.fontSize = cfg_GameUI_RankFontSize.Get();
     rankFmt.fontFamily = L"Mamelon-5-Hi-Regular.otf";
     textSystem_.CreateTextFormat("rank", rankFmt);
 }
@@ -118,15 +232,15 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     ownedEntities_.push_back(scoreEntity);*/
 
     UITransform timeTransform;
-    timeTransform.position = {78.0f, 68.0f};
-    timeTransform.size = {1000.0f, 80.0f};
+    timeTransform.position = {cfg_GameUI_TimePosX.Get(), cfg_GameUI_TimePosY.Get()};
+    timeTransform.size = {cfg_GameUI_TimeWidth.Get(), cfg_GameUI_TimeHeight.Get()};
     timeTransform.anchor = {0.0f, 0.0f};
     timeTransform.pivot = {0.0f, 0.0f};
 
     UIText timeText{L"時間: 00:00"};
     timeText.color = {1.0f, 0.0f, 0.0f, 1.0f};
     timeText.formatId = "hud";
-    timeText.fontSize = 36.0f;
+    timeText.fontSize = cfg_GameUI_TimeFontSize.Get();
 
     Entity timeEntity = world.Create()
                             .With<UITransform>(timeTransform)
@@ -135,8 +249,8 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     ownedEntities_.push_back(timeEntity);
 
     UITransform timerImgTr;
-    timerImgTr.position = {-869.0f, -6.0f};
-    timerImgTr.size = {2000.0f, 200.0f};
+    timerImgTr.position = {cfg_GameUI_TimerPosX.Get(), cfg_GameUI_TimerPosY.Get()};
+    timerImgTr.size = {cfg_GameUI_TimerWidth.Get(), cfg_GameUI_TimerHeight.Get()};
     timerImgTr.anchor = {0.0f, 0.0f};
     timerImgTr.pivot = {0.0f, 0.0f};
 
@@ -145,10 +259,10 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     timerImg.keepAspect = true;
 
     SpriteSheetAnimation timerAnime;
-    timerAnime.frameCount = 131;
-    timerAnime.frameTime = 0.1f;
-    timerAnime.columns = 16;
-    timerAnime.rows = 16;
+    timerAnime.frameCount = cfg_GameUI_TimerFrameCount.Get();
+    timerAnime.frameTime = cfg_GameUI_TimerFrameTime.Get();
+    timerAnime.columns = cfg_GameUI_TimerColumns.Get();
+    timerAnime.rows = cfg_GameUI_TimerRows.Get();
 
     timerAnime.isLooping = true;
     timerAnime.isPlaying = true;
@@ -177,8 +291,8 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     ownedEntities_.push_back(warningOverlayEntity);
 
     UITransform warningTextTransform;
-    warningTextTransform.position = {0.0f, -140.0f};
-    warningTextTransform.size = {800.0f, 120.0f};
+    warningTextTransform.position = {0.0f, cfg_GameUI_WarningTextPosY.Get()};
+    warningTextTransform.size = {cfg_GameUI_WarningTextWidth.Get(), cfg_GameUI_WarningTextHeight.Get()};
     warningTextTransform.anchor = {0.5f, 0.5f};
     warningTextTransform.pivot = {0.5f, 0.5f};
 
@@ -193,8 +307,8 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     ownedEntities_.push_back(warningTextEntity);
 
     UITransform startImgTr;
-    startImgTr.position = {520.0f, 85.0f};
-    startImgTr.size = {250.0f, 250.0f};
+    startImgTr.position = {cfg_GameUI_StartImagePosX.Get(), cfg_GameUI_StartImagePosY.Get()};
+    startImgTr.size = {cfg_GameUI_StartImageWidth.Get(), cfg_GameUI_StartImageHeight.Get()};
     startImgTr.anchor = {0.0f, 0.0f};
     startImgTr.pivot = {0.0f, 0.0f};
 
@@ -209,8 +323,8 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     ownedEntities_.push_back(startImageEntity);
 
     UITransform barTr;
-    barTr.position = {520.0f, 335.0f};
-    barTr.size = {0.0f, 20.0f};
+    barTr.position = {cfg_GameUI_ChargeBarPosX.Get(), cfg_GameUI_ChargeBarPosY.Get()};
+    barTr.size = {0.0f, cfg_GameUI_ChargeBarHeight.Get()};
     barTr.anchor = {0.0f, 0.0f};
     barTr.pivot = {0.0f, 0.0f};
 
@@ -243,8 +357,8 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 
 #ifdef _DEBUG
     UITransform fpsTransform;
-    fpsTransform.position = {-20.0f, 20.0f};
-    fpsTransform.size = {200.0f, 40.0f};
+    fpsTransform.position = {cfg_GameUI_FpsPosX.Get(), cfg_GameUI_FpsPosY.Get()};
+    fpsTransform.size = {cfg_GameUI_FpsWidth.Get(), cfg_GameUI_FpsHeight.Get()};
     fpsTransform.anchor = {1.0f, 0.0f};
     fpsTransform.pivot = {1.0f, 0.0f};
 
@@ -260,8 +374,8 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 #endif // !_DEBUG
 
     UITransform roomImgTr;
-    roomImgTr.position = {screenWidth - 420.0f, 42.0f};
-    roomImgTr.size = {240.0f, 96.0f}; // サイズも調整
+    roomImgTr.position = {screenWidth - cfg_GameUI_RoomImageRightMargin.Get(), cfg_GameUI_RoomImagePosY.Get()};
+    roomImgTr.size = {cfg_GameUI_RoomImageWidth.Get(), cfg_GameUI_RoomImageHeight.Get()};
     roomImgTr.anchor = {0.0f, 0.0f};
     roomImgTr.pivot = {0.0f, 0.0f};
 
@@ -279,27 +393,26 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     UIText stageText[2];
 
     stageText[0].text = {L"Room : 0"};
-    stageText[0].color = {0.0f, 0.5f, 1.0f, 1.0f};
+    stageText[0].color = {cfg_GameUI_StageCounterColorR.Get(), cfg_GameUI_StageCounterColorG.Get(), cfg_GameUI_StageCounterColorB.Get(), 1.0f};
     stageText[0].formatId = "roomNumber";
     stageText[0].outlineColor = {1.0f, 1.0f, 1.0f, 1.0f};
-    stageText[0].outlineThickness = 1.0f;
+    stageText[0].outlineThickness = cfg_GameUI_StageCounterOutline.Get();
     stageText[0].fillTexturePath = L"./Assets/Textures/RoomNo/UI-2-color.png";
-    float stagetextSize0 = 3.9f * sizeof(stageText[0].text);
 
     stageText[1].text = {L"0"};
-    stageText[1].color = {0.0f, 0.5f, 1.0f, 1.0f};
+    stageText[1].color = {cfg_GameUI_StageCounterColorR.Get(), cfg_GameUI_StageCounterColorG.Get(), cfg_GameUI_StageCounterColorB.Get(), 1.0f};
     stageText[1].formatId = "roomNumber";
     stageText[1].outlineColor = {1.0f, 1.0f, 1.0f, 1.0f};
-    stageText[1].outlineThickness = 1.0f;
+    stageText[1].outlineThickness = cfg_GameUI_StageCounterOutline.Get();
     stageText[1].fillTexturePath = L"./Assets/Textures/RoomNo/UI-2-color.png";
 
     UITransform stageTransform[2];
-    stageTransform[0].position = {screenWidth - 60.0f, 65.0}; // トップ右に配置
-    stageTransform[0].size = {210.0f, 100.0f};
+    stageTransform[0].position = {screenWidth - cfg_GameUI_StageCounterRightMargin.Get(), cfg_GameUI_StageCounterPosY.Get()};
+    stageTransform[0].size = {cfg_GameUI_StageCounterWidth.Get(), cfg_GameUI_StageCounterHeight.Get()};
     stageTransform[0].anchor = {0.0f, 0.0f};
     stageTransform[0].pivot = {1.0f, 0.0f};
 
-    stageTransform[1].position = {stageTransform[0].position.x - 75.0f, stageTransform[0].position.y};
+    stageTransform[1].position = {stageTransform[0].position.x - cfg_GameUI_StageCounterSecondOffsetX.Get(), stageTransform[0].position.y};
     stageTransform[1].size = stageTransform[0].size;
     stageTransform[1].anchor = stageTransform[0].anchor;
     stageTransform[1].pivot = stageTransform[0].pivot;
@@ -315,7 +428,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     }
 
     UITransform pauseTransform;
-    pauseTransform.position = {30.0f, -80.0f}; // 左側の真ん中よりやや上に配置
+    pauseTransform.position = {cfg_GameUI_PauseTitlePosX.Get(), cfg_GameUI_PauseTitlePosY.Get()};
     pauseTransform.size = {0.0f, 0.0f}; // 表示時に拡大する
     pauseTransform.anchor = {0.0f, 0.5f};
     pauseTransform.pivot = {0.0f, 0.5f};
@@ -332,7 +445,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 
     // 縦線 LeftLin.png
     UITransform lineTr;
-    lineTr.position = {40.0f, 120.0f}; // PAUSEDの下あたりから
+    lineTr.position = {cfg_GameUI_PauseLinePosX.Get(), cfg_GameUI_PauseLinePosY.Get()};
     lineTr.size = {0.0f, 0.0f};       // isPaused時に展開
     lineTr.anchor = {0.0f, 0.5f};
     lineTr.pivot = {0.0f, 0.5f};
@@ -367,7 +480,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     pauseMenuPanelTr.pivot = {0.5f, 0.5f};
 
     UIPanel pauseMenuPanel;
-    pauseMenuPanel.color = {0.0f, 0.0f, 0.0f, 0.55f};
+    pauseMenuPanel.color = {0.0f, 0.0f, 0.0f, cfg_GameUI_PausePanelAlpha.Get()};
     pauseMenuPanel.visible = false;
     pauseMenuPanel.drawBeforeImages = true;
 
@@ -379,7 +492,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 
     auto createPauseButton = [&](const std::wstring &imagePath, float yOffset) {
         UITransform tr;
-        tr.position = {70.0f, yOffset}; // 線の右側
+        tr.position = {cfg_GameUI_PauseButtonPosX.Get(), yOffset};
         tr.size = {0.0f, 0.0f};
         tr.anchor = {0.0f, 0.5f};
         tr.pivot = {0.0f, 0.5f};
@@ -400,17 +513,18 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         return e;
     };
 
+    const float pauseButtonStepY = cfg_GameUI_PauseButtonStepY.Get();
     Entity pauseResumeBtn = createPauseButton(L"./Assets/Textures/UI/PausedUI/BackGame.png", 0.0f);
-    Entity pauseRetryBtn  = createPauseButton(L"./Assets/Textures/UI/PausedUI/Retray.png", 80.0f);
-    Entity pauseSelectBtn = createPauseButton(L"./Assets/Textures/UI/PausedUI/StageSelect.png", 160.0f);
-    Entity pauseTitleBtn  = createPauseButton(L"./Assets/Textures/UI/PausedUI/BackTitle.png", 240.0f);
+    Entity pauseRetryBtn  = createPauseButton(L"./Assets/Textures/UI/PausedUI/Retray.png", pauseButtonStepY);
+    Entity pauseSelectBtn = createPauseButton(L"./Assets/Textures/UI/PausedUI/StageSelect.png", pauseButtonStepY * 2.0f);
+    Entity pauseTitleBtn  = createPauseButton(L"./Assets/Textures/UI/PausedUI/BackTitle.png", pauseButtonStepY * 3.0f);
     Entity pauseOptionsBtn = Entity(); // 無効化
     Entity pauseQuitBtn = Entity();    // 無効化
 
     // 追加: ステージクリア表示（最初は非表示＝空文字）
     UITransform clearTransform;
-    clearTransform.position = {0.0f, 140.0f}; // 画面中央より少し下
-    clearTransform.size = {900.0f, 140.0f};
+    clearTransform.position = {0.0f, cfg_GameUI_ClearTextPosY.Get()};
+    clearTransform.size = {cfg_GameUI_ClearTextWidth.Get(), cfg_GameUI_ClearTextHeight.Get()};
     clearTransform.anchor = {0.5f, 0.5f};
     clearTransform.pivot = {0.5f, 0.5f};
 
@@ -430,12 +544,12 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     // ==========================================
     
     // 【左側】 You (画像) + デス数 (白) + death (画像)
-    float youBaseX = 40.0f;
-    float youBaseY = 170.0f;
+    const float youBaseX = cfg_GameUI_EndRankYouBaseX.Get();
+    const float youBaseY = cfg_GameUI_EndRankYouBaseY.Get();
 
     UITransform youTr;
     youTr.position = {youBaseX, youBaseY};
-    youTr.size = {80.0f, 40.0f}; // 画像サイズに合わせて調整可
+    youTr.size = {cfg_GameUI_EndRankYouWidth.Get(), cfg_GameUI_EndRankYouHeight.Get()};
     UIImage youImg{L"./Assets/Textures/UI/EndRankUI/You.png"};
     youImg.opacity = 1.0f;
     youImg.keepAspect = true;
@@ -443,8 +557,8 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     ownedEntities_.push_back(youEnt);
 
     UITransform currDeathTr;
-    currDeathTr.position = {youBaseX + 90.0f, youBaseY - 30.0f};
-    currDeathTr.size = {120.0f, 100.0f};
+    currDeathTr.position = {youBaseX + cfg_GameUI_EndRankCurrentNumOffsetX.Get(), youBaseY + cfg_GameUI_EndRankCurrentNumOffsetY.Get()};
+    currDeathTr.size = {cfg_GameUI_EndRankCurrentNumWidth.Get(), cfg_GameUI_EndRankCurrentNumHeight.Get()};
     UIText currDeathText{L"0"};
     currDeathText.color = {1.0f, 1.0f, 1.0f, 1.0f};
     currDeathText.formatId = "num";
@@ -452,8 +566,8 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     ownedEntities_.push_back(currDeathEnt);
 
     UITransform currDeathRedTr;
-    currDeathRedTr.position = {youBaseX + 160.0f, youBaseY + 5.0f};
-    currDeathRedTr.size = {120.0f, 35.0f}; // 画像サイズに合わせて調整可
+    currDeathRedTr.position = {youBaseX + cfg_GameUI_EndRankCurrentDeathOffsetX.Get(), youBaseY + cfg_GameUI_EndRankCurrentDeathOffsetY.Get()};
+    currDeathRedTr.size = {cfg_GameUI_EndRankCurrentDeathWidth.Get(), cfg_GameUI_EndRankCurrentDeathHeight.Get()};
     UIImage deathImg{L"./Assets/Textures/UI/EndRankUI/Death.png"};
     deathImg.opacity = 1.0f;
     deathImg.keepAspect = true;
@@ -462,9 +576,9 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 
 
     // 【右側】 Top 3 ランキング (1st 23 death ...)
-    float rankBaseX = screenWidth - 360.0f; 
-    float rankBaseY = 180.0f;
-    float yOffset = 70.0f;
+    const float rankBaseX = screenWidth - cfg_GameUI_EndRankRightMargin.Get();
+    const float rankBaseY = cfg_GameUI_EndRankBaseY.Get();
+    const float yOffset = cfg_GameUI_EndRankStepY.Get();
 
     int pss = 0;
     world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
@@ -487,7 +601,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         // 1st / 2nd / 3rd (画像)
         UITransform sufTr;
         sufTr.position = {rankBaseX, curY};
-        sufTr.size = {80.0f, 60.0f};
+        sufTr.size = {cfg_GameUI_EndRankSuffixWidth.Get(), cfg_GameUI_EndRankSuffixHeight.Get()};
         UIImage sufImg{suffixStrs[i]};
         sufImg.opacity = 1.0f;
         sufImg.keepAspect = true;
@@ -496,20 +610,20 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 
         // 数値 (白・アウトライン付テキスト)
         UITransform topNumTr;
-        topNumTr.position = {rankBaseX + 90.0f, curY - 25.0f};
-        topNumTr.size = {120.0f, 80.0f};
+        topNumTr.position = {rankBaseX + cfg_GameUI_EndRankTopNumOffsetX.Get(), curY + cfg_GameUI_EndRankTopNumOffsetY.Get()};
+        topNumTr.size = {cfg_GameUI_EndRankTopNumWidth.Get(), cfg_GameUI_EndRankTopNumHeight.Get()};
         UIText topNumText{topDeathLabels[i]};
         topNumText.color = {1.0f, 1.0f, 1.0f, 1.0f}; // 白字
         topNumText.formatId = "topNum";
         topNumText.outlineColor = {1.0f, 1.0f, 1.0f, 1.0f};
-        topNumText.outlineThickness = 1.0f;
+        topNumText.outlineThickness = cfg_GameUI_EndRankTopNumOutline.Get();
         Entity topNumEnt = world.Create().With<UITransform>(topNumTr).With<UIText>(topNumText).Build();
         ownedEntities_.push_back(topNumEnt);
 
         // death (画像)
         UITransform suffixRedTr;
-        suffixRedTr.position = {rankBaseX + 160.0f, curY + 15.0f};
-        suffixRedTr.size = {100.0f, 30.0f};
+        suffixRedTr.position = {rankBaseX + cfg_GameUI_EndRankDeathOffsetX.Get(), curY + cfg_GameUI_EndRankDeathOffsetY.Get()};
+        suffixRedTr.size = {cfg_GameUI_EndRankDeathWidth.Get(), cfg_GameUI_EndRankDeathHeight.Get()};
         UIImage suffixRedImg{L"./Assets/Textures/UI/EndRankUI/Death.png"};
         suffixRedImg.opacity = 1.0f;
         suffixRedImg.keepAspect = true;
@@ -547,9 +661,10 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         updater->pauseStageSelectButtonEntity_ = pauseSelectBtn;
         updater->pauseOptionsButtonEntity_ = pauseOptionsBtn;
         updater->pauseQuitButtonEntity_ = pauseQuitBtn;
-        updater->pauseMenuButtonSize_ = {300.0f, 50.0f}; // 画像ごとのサイズを大まかに
-        updater->pauseTitleImgSize_ = {400.0f, 100.0f};  // PAUSEDのサイズ
-        updater->pauseLineImgSize_ = {15.0f, 350.0f};    // LeftLinのサイズ
+        updater->pauseMenuButtonSize_ = {cfg_GameUI_PauseMenuButtonWidth.Get(), cfg_GameUI_PauseMenuButtonHeight.Get()};
+        updater->pauseTitleImgSize_ = {cfg_GameUI_PauseTitleImageWidth.Get(), cfg_GameUI_PauseTitleImageHeight.Get()};
+        updater->pauseLineImgSize_ = {cfg_GameUI_PauseLineImageWidth.Get(), cfg_GameUI_PauseLineImageHeight.Get()};
+        updater->pauseSelectImgSize_ = {cfg_GameUI_PauseSelectImageWidth.Get(), cfg_GameUI_PauseSelectImageHeight.Get()};
     }
     ownedEntities_.push_back(uiUpdater);
 
@@ -635,7 +750,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 
     UITransform FadeAnimation;
     FadeAnimation.position = {0.0f, 0.0f};
-    FadeAnimation.size = {1280.0f, 720.0f};
+    FadeAnimation.size = {screenWidth, screenHeight};
     FadeAnimation.anchor = {0.0f, 0.0f};
     FadeAnimation.pivot = {0.0f, 0.0f};
 
@@ -697,7 +812,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     chargeDesc.frameCount = 1;
     chargeDesc.columns = 1;
     chargeDesc.rows = 1;
-    chargeDesc.frameTime = 0.5f;
+    chargeDesc.frameTime = cfg_GameUI_ChargeOverlayFrameTime.Get();
     chargeDesc.loop = false;
     chargeDesc.playOnStart = false;
 
