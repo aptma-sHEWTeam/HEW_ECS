@@ -16,8 +16,10 @@
 #include <DirectXMath.h>
 #include <cstring>
 #include <cmath>
+#include <vector>
+#include <array>
 
-static constexpr int MAX_POINT_LIGHTS = 64;
+static constexpr int MAX_POINT_LIGHTS = 30;
 
 struct PointLightGPU {
     DirectX::XMFLOAT3 position;
@@ -138,34 +140,51 @@ public:
 
         // Collect and sort Point Lights
         struct LightCandidate {
+            Entity e;
             Transform* t;
             PointLight* pl;
             float distSq;
+            float score;
         };
         std::vector<LightCandidate> candidates;
         candidates.reserve(MAX_POINT_LIGHTS * 2);
+        std::array<Entity, MAX_POINT_LIGHTS> selectedEntities{};
 
-        world.ForEach<Transform, PointLight>([&](Entity, Transform& t, PointLight& pl) {
+        auto isSameEntity = [](const Entity& a, const Entity& b) {
+            return a.id == b.id && a.gen == b.gen;
+        };
+        auto wasSelectedLastFrame = [&](const Entity& e) {
+            for (int i = 0; i < previousSelectedLightCount_; ++i) {
+                if (isSameEntity(previousSelectedLights_[i], e)) {
+                    return true;
+                }
+            }
+            return false;
+        };
+        const float selectionHoldBiasSq = 64.0f;
+
+        world.ForEach<Transform, PointLight>([&](Entity e, Transform& t, PointLight& pl) {
             if (!pl.enabled) return;
             float dx = t.position.x - cameraPos.x;
             float dy = t.position.y - cameraPos.y;
             float dz = t.position.z - cameraPos.z;
             float distSq = dx*dx + dy*dy + dz*dz;
-            candidates.push_back({ &t, &pl, distSq });
+            const bool wasSelected = wasSelectedLastFrame(e);
+            const float score = distSq - (wasSelected ? selectionHoldBiasSq : 0.0f);
+            candidates.push_back({ e, &t, &pl, distSq, score });
         });
 
         // Sort by distance (ascending)
         std::sort(candidates.begin(), candidates.end(), [](const LightCandidate& a, const LightCandidate& b) {
-            return a.distSq < b.distSq;
+            if (a.score != b.score) return a.score < b.score;
+            if (a.distSq != b.distSq) return a.distSq < b.distSq;
+            if (a.e.id != b.e.id) return a.e.id < b.e.id;
+            return a.e.gen < b.e.gen;
         });
 
-        // Fill buffer with closest lights
-        int count = 0;
-        for (const auto& src : candidates) {
-            if (count >= MAX_POINT_LIGHTS) break;
-            
-            auto& dst = lightingData_.pointLights[count];
-              dst.position = ApplyPointLightOffset(src.t->position, *src.pl);
+        auto WriteLightToBuffer = [&](int index, const LightCandidate& src) {
+            auto& dst = lightingData_.pointLights[index];
+            dst.position = ApplyPointLightOffset(src.t->position, *src.pl);
             dst.range = src.pl->range;
             dst.color = src.pl->color;
             dst.intensity = src.pl->intensity;
@@ -173,14 +192,57 @@ public:
             dst.linearAtt = src.pl->linearAttenuation;
             dst.quadraticAtt = src.pl->quadraticAttenuation;
             dst.enabled = 1.0f;
+            selectedEntities[index] = src.e;
+        };
 
+        // Fill buffer with closest lights
+        int count = 0;
+        for (const auto& src : candidates) {
+            if (count >= MAX_POINT_LIGHTS) break;
+            WriteLightToBuffer(count, src);
             count++;
         }
         lightingData_.activePointLights = count;
         
         // Closest light casts shadow if exists
         if (count > 0) {
-            lightingData_.shadowLightIndex = 0;
+            int shadowIndex = -1;
+            if (hasPreviousShadowLight_) {
+                for (int i = 0; i < count; ++i) {
+                    if (isSameEntity(selectedEntities[i], previousShadowLight_)) {
+                        shadowIndex = i;
+                        break;
+                    }
+                }
+                if (shadowIndex < 0) {
+                    for (const auto& src : candidates) {
+                        if (!isSameEntity(src.e, previousShadowLight_)) {
+                            continue;
+                        }
+                        const int insertIndex = (count < MAX_POINT_LIGHTS) ? count : (MAX_POINT_LIGHTS - 1);
+                        WriteLightToBuffer(insertIndex, src);
+                        if (count < MAX_POINT_LIGHTS) {
+                            ++count;
+                            lightingData_.activePointLights = count;
+                        }
+                        shadowIndex = insertIndex;
+                        break;
+                    }
+                }
+            }
+            if (shadowIndex < 0) {
+                shadowIndex = 0;
+            }
+            lightingData_.shadowLightIndex = shadowIndex;
+            previousShadowLight_ = selectedEntities[shadowIndex];
+            hasPreviousShadowLight_ = true;
+        } else {
+            hasPreviousShadowLight_ = false;
+        }
+
+        previousSelectedLightCount_ = count;
+        for (int i = 0; i < count; ++i) {
+            previousSelectedLights_[i] = selectedEntities[i];
         }
     }
 
@@ -239,5 +301,9 @@ private:
     Microsoft::WRL::ComPtr<ID3D11Buffer> materialBuffer_;
     LightingBuffer lightingData_;
     MaterialBuffer materialData_;
+    std::array<Entity, MAX_POINT_LIGHTS> previousSelectedLights_{};
+    int previousSelectedLightCount_ = 0;
+    Entity previousShadowLight_{};
+    bool hasPreviousShadowLight_ = false;
     bool initialized_ = false;
 };

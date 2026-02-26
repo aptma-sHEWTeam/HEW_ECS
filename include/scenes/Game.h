@@ -90,6 +90,14 @@ inline static ConfigVar<float> cfg_SkyboxSpeed{"Skybox", "Speed", 0.05f, "スカ
 inline static ConfigVar<std::string> cfg_GameSkyboxModelPath{"Game.Skybox", "ModelPath", "Assets/Textures/Skybox/skybox.fbx", "ゲーム: Skybox モデルパス"};
 inline static ConfigVar<std::string> cfg_GameSkyboxTexturePath{"Game.Skybox", "TexturePath", "Assets/Textures/Skybox/Sky_Box.png", "ゲーム: Skybox テクスチャパス"};
 inline static ConfigVar<float> cfg_GameSkyboxScale{"Game.Skybox", "Scale", 200.0f, "ゲーム: Skybox スケール"};
+inline static ConfigVar<bool> cfg_ClearTimeRepdigitStarEnabled{"Game.ClearTimeRepdigitStar", "Enabled", true, "ゲーム: クリアタイムぞろ目時の流れ星演出を有効化"};
+inline static ConfigVar<float> cfg_ClearTimeRepdigitStarBehindDistance{"Game.ClearTimeRepdigitStar", "BehindDistance", 120.0f, "ゲーム: 流れ星をステージ奥に配置する距離"};
+inline static ConfigVar<float> cfg_ClearTimeRepdigitStarRightOffset{"Game.ClearTimeRepdigitStar", "RightOffset", 18.0f, "ゲーム: 流れ星の開始位置Xオフセット"};
+inline static ConfigVar<float> cfg_ClearTimeRepdigitStarUpOffset{"Game.ClearTimeRepdigitStar", "UpOffset", 14.0f, "ゲーム: 流れ星の開始位置Yオフセット"};
+inline static ConfigVar<float> cfg_ClearTimeRepdigitStarSpeedRight{"Game.ClearTimeRepdigitStar", "SpeedRight", 55.0f, "ゲーム: 流れ星の横方向速度"};
+inline static ConfigVar<float> cfg_ClearTimeRepdigitStarSpeedDown{"Game.ClearTimeRepdigitStar", "SpeedDown", 20.0f, "ゲーム: 流れ星の下方向速度"};
+inline static ConfigVar<float> cfg_ClearTimeRepdigitStarLifeSeconds{"Game.ClearTimeRepdigitStar", "LifeSeconds", 0.8f, "ゲーム: 流れ星の寿命(秒)"};
+inline static ConfigVar<float> cfg_ClearTimeRepdigitStarScale{"Game.ClearTimeRepdigitStar", "Scale", 1.15f, "ゲーム: 流れ星のスケール"};
 //プレイヤーが壁に衝突/タイムアップした時のフェード表示の遅延時間
 inline static ConfigVar<float> cfg_DeathAnimationFadeTime{"DeathFadeAnimation", "Time", 1.0f, "壁に衝突/タイムアップ時のフェード表示遅延時間"};
 
@@ -200,6 +208,7 @@ class GameScene : public IScene {
             EffekseerManager::GetInstance().StopEffectHandle(scenicFarParticleHandle_);
             scenicFarParticleHandle_ = -1;
         }
+        StopClearTimeRepdigitStar();
 
         // ステージクリア状態の初期化
         stageClearActive_ = false;
@@ -584,12 +593,12 @@ class GameScene : public IScene {
         UpdateSkyboxTexture(world);
         ApplyDashBoardShading(world);
         ChargCameraAction(world);
-        RenderingSystem::GetInstance().UpdateLights(world, camera_.position);
 
         // 時間切れチェック
             if (world.IsAlive(playerEntity_)) {
                 CheckTimeLimit(world, playerEntity_,cfg_LimitTime);
             }
+        UpdateClearTimeRepdigitStar(deltaTime);
         EffekseerManager::GetInstance().Update();
 
         // 振動タイマー管理
@@ -628,7 +637,7 @@ class GameScene : public IScene {
         auto *gfx = ServiceLocator::TryGet<GfxDevice>();
         if (!gfx) return;
 
-        // ライティング情報の更新
+        // ライティング情報の更新（このフレームの基準値を確定）
         RenderingSystem::GetInstance().UpdateLights(world, camera_.position);
 
         // シャドウレンダリング
@@ -681,6 +690,7 @@ class GameScene : public IScene {
             EffekseerManager::GetInstance().StopEffectHandle(scenicFarParticleHandle_);
             scenicFarParticleHandle_ = -1;
         }
+        StopClearTimeRepdigitStar();
         startIntroActive_ = false;
         startIntroElapsed_ = 0.0f;
         goalInCameraBlend_ = 0.0f;
@@ -1069,14 +1079,14 @@ class GameScene : public IScene {
         });
 
         const float safeDt = std::max(0.0f, dt);
-        const float baseFreq = 1.6f;
-        const float urgencyBoost = 3.8f;
+        const float baseFreq = 0.28f;
+        const float urgencyBoost = 0.90f;
         const float freq = baseFreq + urgency * urgencyBoost;
         const float phase = sirenTimer_ * freq * DirectX::XM_2PI;
         const float primary = (std::sinf(phase) + 1.0f) * 0.5f;
-        const float secondary = (std::sinf(phase * 1.92f + DirectX::XM_PIDIV2) + 1.0f) * 0.5f;
-        const float strobe = std::pow((std::sinf(phase * 3.4f) + 1.0f) * 0.5f, 3.0f);
-        const float blend = std::clamp(0.18f + primary * 0.36f + secondary * 0.22f + strobe * 0.24f + urgency * 0.18f, 0.0f, 1.0f);
+        const float secondary = (std::sinf(phase * 1.18f + DirectX::XM_PIDIV2) + 1.0f) * 0.5f;
+        const float strobe = std::pow((std::sinf(phase * 1.65f) + 1.0f) * 0.5f, 3.0f);
+        const float blend = std::clamp(0.12f + primary * 0.50f + secondary * 0.20f + strobe * 0.08f + urgency * 0.10f, 0.0f, 1.0f);
 
         const DirectX::XMFLOAT3 normalColor{1.0f, 0.7f, 0.5f};
         const DirectX::XMFLOAT3 urgentColor{1.0f, 0.1f, 0.1f};
@@ -1151,6 +1161,7 @@ class GameScene : public IScene {
     void UpdateUrgencyScreenFX(World &world, float dt) {
         if (!cfg_UrgencyFxEnabled.Get()) {
             urgencyPulseTimer_ = 0.0f;
+            SOUND_SYS.StopSE(cfg_SirenMP3Pass.Get());
             return;
         }
 
@@ -1168,13 +1179,17 @@ class GameScene : public IScene {
         float threshold = std::clamp(cfg_UrgencyFxThreshold.Get(), 0.05f, 1.0f);
         if (!timerActive || timeRatio >= threshold) {
             urgencyPulseTimer_ = 0.0f;
+            SOUND_SYS.StopSE(cfg_SirenMP3Pass.Get());
             return;
         }
 
         float urgency = std::clamp(1.0f - (timeRatio / threshold), 0.0f, 1.0f);
+        float panic = std::clamp((urgency - 0.45f) / 0.55f, 0.0f, 1.0f);
         float minInterval = std::max(0.01f, cfg_UrgencyFxPulseMinInterval.Get());
         float maxInterval = std::max(minInterval, cfg_UrgencyFxPulseMaxInterval.Get());
-        float pulseInterval = maxInterval + (minInterval - maxInterval) * urgency;
+        float pulseInterval = maxInterval + (minInterval - maxInterval) * std::pow(urgency, 1.25f);
+        pulseInterval *= 2.8f;
+        pulseInterval = std::max(0.80f, pulseInterval);
 
         urgencyPulseTimer_ += std::max(0.0f, dt);
         if (urgencyPulseTimer_ < pulseInterval) {
@@ -1184,11 +1199,11 @@ class GameScene : public IScene {
 
         float shakeMin = cfg_UrgencyFxShakeMinIntensity.Get();
         float shakeMax = cfg_UrgencyFxShakeMaxIntensity.Get();
-        float shakeIntensity = std::max(0.0f, shakeMin + (shakeMax - shakeMin) * urgency);
+        float shakeIntensity = std::max(0.0f, (shakeMin + (shakeMax - shakeMin) * urgency) * (1.0f + panic * 0.45f));
         float shakeDuration = std::max(0.0f, cfg_UrgencyFxShakeDuration.Get());
         float chromaMin = cfg_UrgencyFxChromaticMinIntensity.Get();
         float chromaMax = cfg_UrgencyFxChromaticMaxIntensity.Get();
-        float chromaticIntensity = std::max(0.0f, chromaMin + (chromaMax - chromaMin) * urgency);
+        float chromaticIntensity = std::max(0.0f, (chromaMin + (chromaMax - chromaMin) * urgency) * (1.0f + panic * 0.35f));
         TriggerScreenFXEvent(ScreenFXEventType::UrgencyPulse,
                              shakeIntensity,
                              shakeDuration,
@@ -1198,6 +1213,28 @@ class GameScene : public IScene {
                              std::max(0.0f, cfg_UrgencyFxChromaticDuration.Get()),
                              std::max(0.0f, cfg_UrgencyFxChromaticSampleOffset.Get()),
                              std::max(0.0f, cfg_UrgencyFxChromaticRadialScale.Get()));
+
+        TriggerScenicMicroFlash(std::max(0.0f, cfg_ScenicMicroFlashCollisionIntensity.Get()) * (0.35f + urgency * 0.95f),
+                                std::max(0.0f, cfg_ScenicMicroFlashCollisionDuration.Get()) * (0.55f + panic * 0.45f));
+        TriggerScenicSpeedLineBurst(world,
+                                    std::max(0.0f, cfg_ScenicSpeedLineBurstIntensity.Get()) * (0.30f + urgency * 1.10f),
+                                    std::max(0.0f, cfg_ScenicSpeedLineBurstDuration.Get()) * (0.85f + panic * 0.35f));
+        TriggerScenicSERipple(0.30f + urgency * 1.20f);
+
+        const float rumble = std::clamp(std::max(0.0f, cfg_WallHitRumbleStrength.Get()) * (0.15f + urgency * 0.55f), 0.0f, 1.0f);
+        const float rumbleDuration = std::max(0.0f, cfg_WallHitRumbleDuration.Get()) * (0.40f + panic * 0.45f);
+        TriggerGamepadRumble(rumble, rumble, rumbleDuration);
+
+        if (auto *renderer = ServiceLocator::TryGet<RenderSystem>()) {
+            const float crtIntensity = std::max(0.0f, cfg_WallHitCrtNoiseIntensity.Get()) * (0.20f + urgency * 0.75f);
+            const float crtDuration = std::max(0.0f, cfg_WallHitCrtNoiseDuration.Get()) * (0.45f + panic * 0.55f);
+            if (crtIntensity > 0.0f && crtDuration > 0.0f) {
+                renderer->TriggerCrtNoise(crtIntensity, crtDuration);
+            }
+        }
+        if (urgency >= 0.55f) {
+            SOUND_SYS.PlaySE(cfg_SirenMP3Pass.Get(), false);
+        }
     }
 
     static constexpr bool IsGoalCheatCombo(
@@ -1389,8 +1426,9 @@ class GameScene : public IScene {
                              std::max(0.0f, cfg_WallHitChromaticRadialScale.Get()));
         if (cfg_WallHitCrtNoiseEnabled.Get()) {
             if (auto *renderer = ServiceLocator::TryGet<RenderSystem>()) {
-                renderer->TriggerCrtNoise(std::max(0.0f, cfg_WallHitCrtNoiseIntensity.Get()),
-                                          std::max(0.0f, cfg_WallHitCrtNoiseDuration.Get()));
+                const float hitNoiseIntensity = std::clamp(std::max(0.0f, cfg_WallHitCrtNoiseIntensity.Get()) * 0.24f, 0.0f, 1.0f);
+                const float hitNoiseDuration = std::max(0.0f, cfg_WallHitCrtNoiseDuration.Get()) * 0.85f;
+                renderer->TriggerCrtNoise(hitNoiseIntensity, hitNoiseDuration);
             }
         }
         TriggerScenicMicroFlash(std::max(0.0f, cfg_ScenicMicroFlashCollisionIntensity.Get()),
@@ -2191,6 +2229,117 @@ class GameScene : public IScene {
     static float BuildSkyboxYawDeg(const Camera &cam, float rotationRad) {
         return GetCameraYawDeg(cam) + SkyboxRotationToDegrees(rotationRad);
     }
+
+    static bool IsRepdigitClearTime(float remainingTime) {
+        if (!std::isfinite(remainingTime) || remainingTime < 0.0f) {
+            return false;
+        }
+        const int seconds = static_cast<int>(remainingTime);
+        if (seconds < 0 || seconds >= 100) {
+            return false;
+        }
+        const float fractional = std::max(0.0f, remainingTime - static_cast<float>(seconds));
+        const int centiseconds = std::clamp(static_cast<int>(fractional * 100.0f), 0, 99);
+
+        const int d0 = seconds / 10;
+        const int d1 = seconds % 10;
+        const int d2 = centiseconds / 10;
+        const int d3 = centiseconds % 10;
+        return d0 == d1 && d1 == d2 && d2 == d3;
+    }
+
+    void StopClearTimeRepdigitStar() {
+        if (clearTimeRepdigitStarHandle_ >= 0) {
+            EffekseerManager::GetInstance().StopEffectHandle(clearTimeRepdigitStarHandle_);
+            clearTimeRepdigitStarHandle_ = -1;
+        }
+        clearTimeRepdigitStarAge_ = 0.0f;
+        clearTimeRepdigitStarLife_ = 0.0f;
+        clearTimeRepdigitStarVel_ = {0.0f, 0.0f, 0.0f};
+    }
+
+    void TriggerClearTimeRepdigitStar(World &world) {
+        if (!cfg_ClearTimeRepdigitStarEnabled.Get()) {
+            return;
+        }
+
+        float clearTime = -1.0f;
+        world.ForEach<GameStatus>([&](Entity, GameStatus &stats) {
+            clearTime = stats.elapsedTime;
+        });
+        if (!IsRepdigitClearTime(clearTime)) {
+            return;
+        }
+
+        DirectX::XMVECTOR camPos = DirectX::XMLoadFloat3(&camera_.position);
+        DirectX::XMVECTOR camTarget = DirectX::XMLoadFloat3(&camera_.target);
+        DirectX::XMVECTOR forward = DirectX::XMVectorSubtract(camTarget, camPos);
+        const float forwardLenSq = DirectX::XMVectorGetX(DirectX::XMVector3LengthSq(forward));
+        if (forwardLenSq <= 1e-6f) {
+            forward = DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f);
+        } else {
+            forward = DirectX::XMVector3Normalize(forward);
+        }
+
+        DirectX::XMVECTOR up = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+        DirectX::XMVECTOR right = DirectX::XMVector3Cross(up, forward);
+        const float rightLenSq = DirectX::XMVectorGetX(DirectX::XMVector3LengthSq(right));
+        if (rightLenSq <= 1e-6f) {
+            right = DirectX::XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f);
+        } else {
+            right = DirectX::XMVector3Normalize(right);
+        }
+        up = DirectX::XMVector3Normalize(DirectX::XMVector3Cross(forward, right));
+
+        DirectX::XMVECTOR start = DirectX::XMVectorAdd(
+            camTarget,
+            DirectX::XMVectorScale(forward, std::max(1.0f, cfg_ClearTimeRepdigitStarBehindDistance.Get())));
+        start = DirectX::XMVectorAdd(start, DirectX::XMVectorScale(right, cfg_ClearTimeRepdigitStarRightOffset.Get()));
+        start = DirectX::XMVectorAdd(start, DirectX::XMVectorScale(up, cfg_ClearTimeRepdigitStarUpOffset.Get()));
+
+        DirectX::XMFLOAT3 startPos{};
+        DirectX::XMStoreFloat3(&startPos, start);
+
+        DirectX::XMVECTOR velVec = DirectX::XMVectorAdd(
+            DirectX::XMVectorScale(right, -std::max(0.0f, cfg_ClearTimeRepdigitStarSpeedRight.Get())),
+            DirectX::XMVectorScale(up, -std::max(0.0f, cfg_ClearTimeRepdigitStarSpeedDown.Get())));
+        DirectX::XMFLOAT3 velocity{};
+        DirectX::XMStoreFloat3(&velocity, velVec);
+
+        const float scale = std::max(0.1f, cfg_ClearTimeRepdigitStarScale.Get());
+        StopClearTimeRepdigitStar();
+        auto handleOpt = EffekseerManager::GetInstance().PlayEffectSafe("StarBig", startPos, {scale, scale, scale}, false);
+        if (!handleOpt) {
+            return;
+        }
+
+        clearTimeRepdigitStarHandle_ = *handleOpt;
+        clearTimeRepdigitStarPos_ = startPos;
+        clearTimeRepdigitStarVel_ = velocity;
+        clearTimeRepdigitStarAge_ = 0.0f;
+        clearTimeRepdigitStarLife_ = std::max(0.05f, cfg_ClearTimeRepdigitStarLifeSeconds.Get());
+    }
+
+    void UpdateClearTimeRepdigitStar(float dt) {
+        if (clearTimeRepdigitStarHandle_ < 0) {
+            return;
+        }
+        const float safeDt = std::max(0.0f, dt);
+        if (safeDt <= 0.0f) {
+            return;
+        }
+
+        clearTimeRepdigitStarAge_ += safeDt;
+        clearTimeRepdigitStarPos_.x += clearTimeRepdigitStarVel_.x * safeDt;
+        clearTimeRepdigitStarPos_.y += clearTimeRepdigitStarVel_.y * safeDt;
+        clearTimeRepdigitStarPos_.z += clearTimeRepdigitStarVel_.z * safeDt;
+        EffekseerManager::GetInstance().SetEffectPosition(clearTimeRepdigitStarHandle_, clearTimeRepdigitStarPos_);
+
+        if (clearTimeRepdigitStarAge_ >= clearTimeRepdigitStarLife_) {
+            StopClearTimeRepdigitStar();
+        }
+    }
+
     struct StageAdvanceInfo {
         bool active = false;
         bool stageBuilt = false;
@@ -2367,6 +2516,7 @@ class GameScene : public IScene {
                              " nextRoom=" + std::to_string(nextRoomIndex));
                     stageClearActive_ = true;
                     stageClearTimer_ = 0.0f;
+                    TriggerClearTimeRepdigitStar(world);
 
                     world.ForEach<GameStatus>([](Entity, GameStatus &stats) {
                         stats.timerRunning = false;
@@ -3952,7 +4102,7 @@ class GameScene : public IScene {
             return;
         }
         const float scale = SanitizeSkyboxScale(cfg_GameSkyboxScale.Get());
-        const float yawDeg = BuildSkyboxYawDeg(camera_, skyboxRotation_);
+        const float yawDeg = SkyboxRotationToDegrees(skyboxRotation_);
         Transform transform{camera_.position, {0.0f, yawDeg, 0.0f}, {scale, scale, scale}};
 
         skyboxEntity_ = world.Create()
@@ -3970,7 +4120,7 @@ class GameScene : public IScene {
         if (auto *t = world.TryGet<Transform>(skyboxEntity_)) {
             const float scale = SanitizeSkyboxScale(cfg_GameSkyboxScale.Get());
             t->position = camera_.position;
-            t->rotation = {0.0f, SkyboxRotationToDegrees(0.0f), 0.0f};
+            t->rotation = {0.0f, SkyboxRotationToDegrees(skyboxRotation_), 0.0f};
             t->scale = {scale, scale, scale};
         }
     }
@@ -4317,6 +4467,11 @@ class GameScene : public IScene {
     float scenicSpeedLineBurstTimer_ = 0.0f;
     DirectX::XMFLOAT2 scenicSpeedLineDirection_{0.0f, 1.0f};
     int scenicFarParticleHandle_ = -1;
+    int clearTimeRepdigitStarHandle_ = -1;
+    DirectX::XMFLOAT3 clearTimeRepdigitStarPos_{0.0f, 0.0f, 0.0f};
+    DirectX::XMFLOAT3 clearTimeRepdigitStarVel_{0.0f, 0.0f, 0.0f};
+    float clearTimeRepdigitStarAge_ = 0.0f;
+    float clearTimeRepdigitStarLife_ = 0.0f;
     bool scenicInputActive_ = false;
     bool scenicPeripheralEnabled_ = false;
 };

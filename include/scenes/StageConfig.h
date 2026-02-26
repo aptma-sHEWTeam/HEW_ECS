@@ -49,8 +49,8 @@ inline ConfigVar<float> cfg_WallB{"Stage.Wall.Visual", "WallColorB", 1.0f, "壁�
 inline ConfigVar<float> cfg_AmbientR{"Lighting.Ambient", "ColorR", 0.15f, "環境光の色 R"};
 inline ConfigVar<float> cfg_AmbientG{"Lighting.Ambient", "ColorG", 0.15f, "環境光の色 G"};
 inline ConfigVar<float> cfg_AmbientB{"Lighting.Ambient", "ColorB", 0.20f, "環境光の色 B"};
-inline ConfigVar<float> cfg_AmbientIntensity{"Lighting.Ambient", "Intensity", 1.0f, "環境光の強さ"};
-inline ConfigVar<bool>  cfg_DirLightEnabled{"Lighting.Directional", "Enabled", true, "平行光の有効フラグ"};
+inline ConfigVar<float> cfg_AmbientIntensity{"Lighting.Ambient", "Intensity", 0.2, "環境光の強さ"};
+inline ConfigVar<bool>  cfg_DirLightEnabled{"Lighting.Directional", "Enabled", false, "平行光の有効フラグ"};
 inline ConfigVar<float> cfg_DirLightX{"Lighting.Directional", "DirX", 0.577f, "平行光の向き X"};
 inline ConfigVar<float> cfg_DirLightY{"Lighting.Directional", "DirY", -0.577f, "平行光の向き Y"};
 inline ConfigVar<float> cfg_DirLightZ{"Lighting.Directional", "DirZ", 0.577f, "平行光の向き Z"};

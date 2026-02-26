@@ -228,8 +228,7 @@ struct RenderSystem {
         // パイプラインステートの設定
         SetupPipeline(gfx);
 
-        // ライト情報の更新（統合レンダリングシステムに委譲）
-        RenderingSystem::GetInstance().UpdateLights(w, cam.position);
+        // ライト情報はシーン側で更新済みの値を使用
         RenderingSystem::GetInstance().BindLightBuffer(gfx.Ctx(), 1);
         RenderingSystem::GetInstance().BindMaterialBuffer(gfx.Ctx(), 2);
 
@@ -759,7 +758,7 @@ struct RenderSystem {
                 float3 gDirLightDir; float gDirLightEnabled;
                 float3 gDirLightColor; float gDirLightIntensity;
                 int gShadowLightIndex; float3 gPaddingLight;
-                PointLightGPU gPointLights[64];
+                PointLightGPU gPointLights[30];
             };
 
             cbuffer MaterialBuffer : register(b2) {
@@ -953,13 +952,18 @@ struct RenderSystem {
 
                 float crtNoise = saturate(gStylizeParams2.w);
                 if (crtNoise > 0.0001) {
-                    float grain = Hash12(uv * screenSize + gStylizeParams2.z * float2(97.0, 53.0));
-                    float grainSigned = (grain - 0.5) * 2.0;
-                    float scanline = sin((uv.y * screenSize.y + gStylizeParams2.z * 210.0) * 0.25);
+                    float2 coarseGrid = float2(48.0, 27.0);
+                    float2 coarseUV = floor(uv * coarseGrid) / coarseGrid;
+                    float blockNoise = Hash12(coarseUV + gStylizeParams2.z * float2(13.0, 7.0));
+                    float blockSigned = (blockNoise - 0.5) * 2.0;
+                    float scanline = sin((uv.y * screenSize.y + gStylizeParams2.z * 150.0) * 0.06);
                     float scanlineMask = 0.5 + 0.5 * scanline;
-                    float flicker = 0.82 + 0.18 * sin(gStylizeParams2.z * 160.0);
-                    color += grainSigned * crtNoise * 0.16;
-                    color *= 1.0 - crtNoise * 0.18 + scanlineMask * crtNoise * 0.14;
+                    float bandPhase = frac(uv.y * 8.0 + gStylizeParams2.z * 6.0);
+                    float bandMask = step(0.76, bandPhase);
+                    float flicker = 0.90 + 0.10 * sin(gStylizeParams2.z * 80.0);
+                    color += blockSigned * crtNoise * 0.10;
+                    color *= 1.0 - crtNoise * 0.10 + scanlineMask * crtNoise * 0.12;
+                    color += bandMask * crtNoise * 0.08;
                     color *= flicker;
                 }
 
@@ -1014,8 +1018,9 @@ struct RenderSystem {
                     colorAccum += ApplyDirectional(gDirLightDir, gDirLightColor, gDirLightIntensity, normal, viewDir, base.rgb, i.tan, i.bitan, gSpecularAttenuation, gSpecularEccentricity, gSpecularColor, gReflectionColor, gReflectance);
                 }
 
+                int pointLightCount = min(gActivePointLights, 30);
                 [unroll]
-                for (int idx = 0; idx < gActivePointLights; ++idx) {
+                for (int idx = 0; idx < pointLightCount; ++idx) {
                     float shadow = 1.0f;
                     if (idx == gShadowLightIndex) {
                         shadow = CalcShadow(i.worldPos, gPointLights[idx].position, gPointLights[idx].range);
