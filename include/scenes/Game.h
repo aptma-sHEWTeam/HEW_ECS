@@ -167,6 +167,9 @@ class GameScene : public IScene {
         }
         wasBoosting_ = false;
         wasGoalAttracting_ = false;
+        chargeChromaticActive_ = false;
+        collisionZoomOffset_ = 0.0f;
+        collisionFocusBlend_ = 0.0f;
         vibrationLeft_ = 0.0f;
         vibrationRight_ = 0.0f;
         vibrationTimer_ = 0.0f;
@@ -583,6 +586,7 @@ class GameScene : public IScene {
         //ゴールの見た目変更
         UpdateGoal(world);
         if (auto *renderer = ServiceLocator::TryGet<RenderSystem>()) {
+            UpdateChargeChromaticFX(deltaTime * timeScale);
             renderer->UpdateScreenEffects(deltaTime * timeScale);
         }
 
@@ -801,6 +805,14 @@ class GameScene : public IScene {
         zoomElapsed_ = 0.0f;
     }
 
+    void TriggerCollisionZoomIn(float zoomAmount) {
+        zoomAmount = std::max(0.0f, zoomAmount);
+        if (zoomAmount <= 0.0f) {
+            return;
+        }
+        collisionZoomOffset_ = std::min(collisionZoomOffset_, -zoomAmount);
+    }
+
     /**
      * @brief 現在のカメラリアクションをすべて停止
      */
@@ -813,6 +825,8 @@ class GameScene : public IScene {
         zoomElapsed_ = zoomTime_ = 0.0f;
         stickZoomTarget_ = 0.0f;
         stickZoomCurrent_ = 0.0f;
+        collisionZoomOffset_ = 0.0f;
+        collisionFocusBlend_ = 0.0f;
         startIntroActive_ = false;
         startIntroElapsed_ = 0.0f;
         goalInCameraBlend_ = 0.0f;
@@ -832,6 +846,7 @@ class GameScene : public IScene {
      */
     void ResetChargeState() {
         SetStickZoomActive(false);
+        chargeChromaticActive_ = false;
         chargeOverlayCurrent_ = 0.0f;
         chargeOverlayTarget_ = 0.0f;
         chargeOverlayVisible_ = false;
@@ -841,12 +856,14 @@ class GameScene : public IScene {
     void OnChargeStart(World &world) {
         // Disabled gray fade overlay on charge start
         // (previously set chargeOverlayTarget_ and chargeOverlayVisible_)
+        chargeChromaticActive_ = true;
         SetStickZoomActive(true);
         PlayPlayerAnimation(world, AnimationConfig::Clips::PlayerCharge, true);
 
         SOUND_SYS.PlaySE(cfg_DriftMP3Pass.Get(),false);
     }
     void OnChargeRelease(World &world, float chargeAmount01) {
+        chargeChromaticActive_ = false;
         SetStickZoomActive(false);
         // Disabled gray fade overlay on charge release
         // (previously adjusted chargeOverlayCurrent_/Target_/Visible here)
@@ -894,6 +911,21 @@ class GameScene : public IScene {
         SOUND_SYS.PlaySE(cfg_Fire1MP3Pass.Get(),true);
     }
 
+    void UpdateChargeChromaticFX(float dt) {
+        if (!chargeChromaticActive_ || !cfg_ChargeHoldChromaticEnabled.Get()) {
+            return;
+        }
+        auto *renderer = ServiceLocator::TryGet<RenderSystem>();
+        if (!renderer) {
+            return;
+        }
+        const float refreshDuration = std::max(std::max(0.0f, dt), std::max(0.0f, cfg_ChargeHoldChromaticRefreshDuration.Get()));
+        renderer->TriggerChromaticAberration(std::max(0.0f, cfg_ChargeHoldChromaticIntensity.Get()),
+                                             refreshDuration,
+                                             std::max(0.0f, cfg_ChargeHoldChromaticSampleOffset.Get()),
+                                             std::max(0.0f, cfg_ChargeHoldChromaticRadialScale.Get()));
+    }
+
     void UpdateDeathFade(World &world, float dt /*dt*/) {
 
         if (isDeathFadePending_) {
@@ -915,6 +947,8 @@ class GameScene : public IScene {
                 img->opacity = 1.0f;
             if (anim && anim->isFinished && !anim->isPlaying) {
                 deathFadeVisible_ = false;
+                collisionZoomOffset_ = 0.0f;
+                collisionFocusBlend_ = 0.0f;
                 if (img)
                     img->opacity = 0.0f;
             }
@@ -1593,7 +1627,12 @@ class GameScene : public IScene {
             TriggerCameraShake(finalShake, finalShakeDuration);
         }
         if (finalZoom > 0.0f && finalZoomDuration > 0.0f) {
-            TriggerCameraZoom(finalZoom, finalZoomDuration);
+            const bool isCollisionZoomEvent = (type == ScreenFXEventType::WallHit || type == ScreenFXEventType::TimeUp);
+            if (isCollisionZoomEvent) {
+                TriggerCollisionZoomIn(finalZoom);
+            } else {
+                TriggerCameraZoom(finalZoom, finalZoomDuration);
+            }
         }
         if (finalChromatic > 0.0f && finalChromaticDuration > 0.0f) {
             if (auto *renderer = ServiceLocator::TryGet<RenderSystem>()) {
@@ -1683,6 +1722,45 @@ class GameScene : public IScene {
         const float goalFovDeg = std::max(1.0f, cfg_GoalInPlayerCameraFovDegrees.Get());
         const float goalFovRad = DirectX::XMConvertToRadians(goalFovDeg);
         cameraBaseFov = cameraBaseFov + (goalFovRad - cameraBaseFov) * goalInCameraBlend_;
+    }
+
+    void ApplyCollisionZoomFocusCamera(World &world, float dt, DirectX::XMFLOAT3 &cameraBasePos, DirectX::XMFLOAT3 &cameraBaseTarget) {
+        const bool focusActive = cfg_CollisionFocusEnabled.Get() &&
+                                 collisionZoomOffset_ < -1e-4f &&
+                                 world.IsAlive(playerEntity_);
+        const float maxBlend = std::clamp(cfg_CollisionFocusMaxBlend.Get(), 0.0f, 1.0f);
+        const float targetBlend = focusActive ? maxBlend : 0.0f;
+        const float blendSpeed = std::max(0.0f, cfg_CollisionFocusBlendSpeed.Get());
+        const float safeDt = std::max(0.0f, dt);
+        const float blendLerp = 1.0f - std::exp(-blendSpeed * safeDt);
+        collisionFocusBlend_ += (targetBlend - collisionFocusBlend_) * blendLerp;
+        collisionFocusBlend_ = std::clamp(collisionFocusBlend_, 0.0f, 1.0f);
+        if (collisionFocusBlend_ <= 1e-4f) {
+            collisionFocusBlend_ = 0.0f;
+            return;
+        }
+
+        auto *playerTransform = world.TryGet<Transform>(playerEntity_);
+        if (!playerTransform) {
+            return;
+        }
+
+        const DirectX::XMFLOAT3 focusTarget{
+            playerTransform->position.x,
+            playerTransform->position.y + cfg_CollisionFocusLookAtYOffset.Get(),
+            playerTransform->position.z};
+        const DirectX::XMFLOAT3 relative{
+            cameraBasePos.x - cameraBaseTarget.x,
+            cameraBasePos.y - cameraBaseTarget.y,
+            cameraBasePos.z - cameraBaseTarget.z};
+        const float distanceScale = std::clamp(cfg_CollisionFocusDistanceScale.Get(), 0.1f, 1.0f);
+        const DirectX::XMFLOAT3 focusPos{
+            focusTarget.x + relative.x * distanceScale,
+            focusTarget.y + relative.y * distanceScale,
+            focusTarget.z + relative.z * distanceScale};
+
+        cameraBaseTarget = LerpFloat3(cameraBaseTarget, focusTarget, collisionFocusBlend_);
+        cameraBasePos = LerpFloat3(cameraBasePos, focusPos, collisionFocusBlend_);
     }
 
     static float GetCameraYawDeg(const Camera &cam) {
@@ -3437,10 +3515,11 @@ class GameScene : public IScene {
         float cameraBaseFov = baseFovY_;
         ApplyStartIntroCamera(dt, cameraBasePos, cameraBaseTarget, cameraBaseFov);
         ApplyGoalInPlayerCamera(world, dt, cameraBasePos, cameraBaseTarget, cameraBaseFov);
+        ApplyCollisionZoomFocusCamera(world, dt, cameraBasePos, cameraBaseTarget);
 
         camera_.position = {cameraBasePos.x + posOffset.x, cameraBasePos.y + posOffset.y, cameraBasePos.z + posOffset.z};
         camera_.target = {cameraBaseTarget.x + targetOffset.x, cameraBaseTarget.y + targetOffset.y, cameraBaseTarget.z + targetOffset.z};
-        camera_.fovY = std::clamp(cameraBaseFov + fovDelta + stickZoomDelta, DirectX::XM_PIDIV4 * 0.25f, DirectX::XM_PIDIV2 * 1.5f);
+        camera_.fovY = std::clamp(cameraBaseFov + fovDelta + collisionZoomOffset_ + stickZoomDelta, DirectX::XM_PIDIV4 * 0.25f, DirectX::XM_PIDIV2 * 1.5f);
         camera_.up = upVec;
 
         camera_.Proj = DirectX::XMMatrixPerspectiveFovLH(camera_.fovY, camera_.aspect, camera_.nearZ, camera_.farZ);
@@ -3768,6 +3847,8 @@ class GameScene : public IScene {
     float zoomAmount_ = 0.0f;
     float zoomTime_ = 0.0f;
     float zoomElapsed_ = 0.0f;
+    float collisionZoomOffset_ = 0.0f;
+    float collisionFocusBlend_ = 0.0f;
 
     // 遅延リスポーン用
     bool pendingRespawn_ = false;
@@ -3779,6 +3860,7 @@ class GameScene : public IScene {
     float chargeOverlayCurrent_ = 0.0f;
     float chargeOverlayTarget_ = 0.0f;
     bool chargeOverlayVisible_ = false;
+    bool chargeChromaticActive_ = false;
     bool deathFadeVisible_ = false;
     bool startFadeVisible_ = false;
     bool isStageSelectFadeActive_ = false;

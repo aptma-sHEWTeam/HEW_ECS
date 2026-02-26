@@ -722,6 +722,26 @@ struct RenderSystem {
                 return diffuse + specular;
             }
 
+            float3 ApplyChromaticToFinalColor(float3 color,
+                                              float2 fragPos,
+                                              float2 screenSize,
+                                              float intensity,
+                                              float sampleOffset,
+                                              float radialScale) {
+                if (intensity <= 0.0001 || sampleOffset <= 0.00001 || screenSize.x <= 1.0 || screenSize.y <= 1.0) {
+                    return color;
+                }
+                float2 screenUV = fragPos / screenSize;
+                float2 centerDir = screenUV - float2(0.5, 0.5);
+                float centerLen = length(centerDir);
+                float strength = saturate(intensity * (1.0 + centerLen * radialScale));
+                strength *= saturate(centerLen * 2.0);
+                float fringe = strength * sampleOffset * 40.0;
+                color.r = saturate(color.r + fringe);
+                color.b = saturate(color.b - fringe);
+                return color;
+            }
+
             float4 main(VSOut i) : SV_Target {
                 float3 normal = normalize(i.nrm);
                 if (gUseNormalMap > 0.5) {
@@ -752,7 +772,14 @@ struct RenderSystem {
 
                 // アンリットならライト計算スキップ
                 if (gUseLighting < 0.5) {
-                    return float4(base.rgb + gEmissiveColor * gEmissiveIntensity, base.a);
+                    float3 unlitColor = base.rgb + gEmissiveColor * gEmissiveIntensity;
+                    unlitColor = ApplyChromaticToFinalColor(unlitColor,
+                                                            i.pos.xy,
+                                                            gChromaticScreen.xy,
+                                                            gChromaticParams.x,
+                                                            gChromaticParams.y,
+                                                            gChromaticParams.z);
+                    return float4(unlitColor, base.a);
                 }
 
                 float3 colorAccum = base.rgb * gAmbientColor * gAmbientIntensity;
@@ -778,6 +805,12 @@ struct RenderSystem {
 
                 // emissive additive
                 colorAccum += gEmissiveColor * gEmissiveIntensity;
+                colorAccum = ApplyChromaticToFinalColor(colorAccum,
+                                                        i.pos.xy,
+                                                        gChromaticScreen.xy,
+                                                        gChromaticParams.x,
+                                                        gChromaticParams.y,
+                                                        gChromaticParams.z);
 
                 return float4(colorAccum, base.a);
             }

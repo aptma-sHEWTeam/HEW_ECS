@@ -91,9 +91,9 @@ inline ConfigVar<float> cfg_TimeUpRumbleStrength{"Camera.Reaction.TimeUp", "Rumb
 inline ConfigVar<float> cfg_TimeUpRumbleDuration{"Camera.Reaction.TimeUp", "RumbleDuration", 0.320f, "タイムアップ時振動継続時間"};
 
 /** @brief チャージ解放時シェイクの基本強度 */
-inline ConfigVar<float> cfg_ChargeReleaseShakeBaseIntensity{"Camera.Reaction.ChargeRelease", "ShakeBaseIntensity", 0.03f, "チャージ解放時シェイクの基本強度"};
+inline ConfigVar<float> cfg_ChargeReleaseShakeBaseIntensity{"Camera.Reaction.ChargeRelease", "ShakeBaseIntensity", 0.015f, "チャージ解放時シェイクの基本強度"};
 /** @brief チャージ量に応じて加算するシェイク強度 */
-inline ConfigVar<float> cfg_ChargeReleaseShakeChargeScale{"Camera.Reaction.ChargeRelease", "ShakeChargeScale", 0.12f, "チャージ量に応じて加算するシェイク強度"};
+inline ConfigVar<float> cfg_ChargeReleaseShakeChargeScale{"Camera.Reaction.ChargeRelease", "ShakeChargeScale", 0.060f, "チャージ量に応じて加算するシェイク強度"};
 /** @brief チャージ解放時シェイクの継続時間 */
 inline ConfigVar<float> cfg_ChargeReleaseShakeDuration{"Camera.Reaction.ChargeRelease", "ShakeDuration", 0.25f, "チャージ解放時シェイクの継続時間"};
 /** @brief チャージ解放時ズームの基本量 */
@@ -118,6 +118,16 @@ inline ConfigVar<float> cfg_ChargeReleaseChromaticDuration{"Camera.Reaction.Char
 inline ConfigVar<float> cfg_ChargeReleaseChromaticSampleOffset{"Camera.Reaction.ChargeRelease", "ChromaticSampleOffset", 0.006f, "色収差のUVオフセット量"};
 /** @brief 画面中心から離れるほど強める倍率 */
 inline ConfigVar<float> cfg_ChargeReleaseChromaticRadialScale{"Camera.Reaction.ChargeRelease", "ChromaticRadialScale", 1.5f, "画面中心から離れるほど強める倍率"};
+/** @brief チャージ中の持続色収差を有効化するフラグ */
+inline ConfigVar<bool> cfg_ChargeHoldChromaticEnabled{"Camera.Reaction.ChargeHold", "ChromaticEnabled", true, "チャージ中の持続色収差を有効化する"};
+/** @brief チャージ中の持続色収差強度 */
+inline ConfigVar<float> cfg_ChargeHoldChromaticIntensity{"Camera.Reaction.ChargeHold", "ChromaticIntensity", 0.06f, "チャージ中の持続色収差強度"};
+/** @brief チャージ中の持続色収差UVオフセット量 */
+inline ConfigVar<float> cfg_ChargeHoldChromaticSampleOffset{"Camera.Reaction.ChargeHold", "ChromaticSampleOffset", 0.004f, "チャージ中の持続色収差UVオフセット量"};
+/** @brief チャージ中の持続色収差の半径倍率 */
+inline ConfigVar<float> cfg_ChargeHoldChromaticRadialScale{"Camera.Reaction.ChargeHold", "ChromaticRadialScale", 1.2f, "チャージ中の持続色収差の半径倍率"};
+/** @brief チャージ中の持続色収差を維持する更新間隔(秒) */
+inline ConfigVar<float> cfg_ChargeHoldChromaticRefreshDuration{"Camera.Reaction.ChargeHold", "ChromaticRefreshDuration", 0.08f, "チャージ中の持続色収差を維持する更新間隔(秒)"};
 /** @brief チャージ解放時インパルスの基本強度 */
 inline ConfigVar<float> cfg_ChargeReleaseImpulseBaseIntensity{"Camera.Reaction.ChargeRelease", "ImpulseBaseIntensity", 0.060f, "チャージ解放時インパルスの基本強度"};
 /** @brief チャージ量に応じて加算するインパルス強度 */
@@ -134,7 +144,7 @@ inline ConfigVar<float> cfg_ChargeReleaseRumbleDuration{"Camera.Reaction.ChargeR
 /** @brief ブースト開始時演出の有効フラグ */
 inline ConfigVar<bool> cfg_BoostBurstEnabled{"Camera.Reaction.BoostBurst", "Enabled", true, "ブースト開始時の演出を有効化する"};
 /** @brief ブースト開始時シェイク強度 */
-inline ConfigVar<float> cfg_BoostBurstShakeIntensity{"Camera.Reaction.BoostBurst", "ShakeIntensity", 0.018f, "ブースト開始時シェイク強度"};
+inline ConfigVar<float> cfg_BoostBurstShakeIntensity{"Camera.Reaction.BoostBurst", "ShakeIntensity", 0.010f, "ブースト開始時シェイク強度"};
 /** @brief ブースト開始時シェイク継続時間 */
 inline ConfigVar<float> cfg_BoostBurstShakeDuration{"Camera.Reaction.BoostBurst", "ShakeDuration", 0.12f, "ブースト開始時シェイク継続時間"};
 /** @brief ブースト開始時色収差強度 */
@@ -202,6 +212,16 @@ inline ConfigVar<float> cfg_TimeUpZoomAmount{"Camera.Reaction.CollisionZoom", "T
 inline ConfigVar<float> cfg_TimeUpZoomDuration{"Camera.Reaction.CollisionZoom", "TimeUpZoomDuration", 0.20f, "タイムアップ時ズーム継続時間"};
 /** @brief 同時ズーム時の最大ズーム量 */
 inline ConfigVar<float> cfg_CollisionMaxConcurrentZoom{"Camera.Reaction.CollisionZoom", "MaxConcurrentZoom", 0.22f, "同時ズーム時の最大ズーム量"};
+/** @brief 衝突ズーム中のプレイヤー中心フレーミング有効フラグ */
+inline ConfigVar<bool> cfg_CollisionFocusEnabled{"Camera.Reaction.CollisionZoom", "FocusEnabled", true, "衝突ズーム中のプレイヤー中心フレーミングを有効化する"};
+/** @brief 衝突ズーム中のフレーミング補間速度 */
+inline ConfigVar<float> cfg_CollisionFocusBlendSpeed{"Camera.Reaction.CollisionZoom", "FocusBlendSpeed", 7.0f, "衝突ズーム中のフレーミング補間速度"};
+/** @brief 衝突ズーム中のプレイヤー注視Yオフセット */
+inline ConfigVar<float> cfg_CollisionFocusLookAtYOffset{"Camera.Reaction.CollisionZoom", "FocusLookAtYOffset", 1.0f, "衝突ズーム中のプレイヤー注視Yオフセット"};
+/** @brief 衝突ズーム中のカメラ距離縮小率 */
+inline ConfigVar<float> cfg_CollisionFocusDistanceScale{"Camera.Reaction.CollisionZoom", "FocusDistanceScale", 0.80f, "衝突ズーム中のカメラ距離縮小率"};
+/** @brief 衝突ズーム中の最大フレーミング寄り率 */
+inline ConfigVar<float> cfg_CollisionFocusMaxBlend{"Camera.Reaction.CollisionZoom", "FocusMaxBlend", 0.95f, "衝突ズーム中の最大フレーミング寄り率"};
 
 /** @brief ゴール吸引開始時演出の有効フラグ */
 inline ConfigVar<bool> cfg_GoalInFxEnabled{"Camera.Reaction.GoalIn", "Enabled", true, "ゴール吸引開始時演出を有効化する"};

@@ -249,10 +249,10 @@ struct GameUIUpdater : Behaviour {
             };
 
             // オプションと終了は無効化されているため何もしないか、仮のパスを与える
-            updateButtonVisible(pauseResumeButtonEntity_, L"./Assets/Textures/UI/PausedUI/BackGame.png", L"./Assets/Textures/UI/PausedUI/BackGame1.png");
-            updateButtonVisible(pauseRetryButtonEntity_, L"./Assets/Textures/UI/PausedUI/Retray.png", L"./Assets/Textures/UI/PausedUI/Retray1.png");
-            updateButtonVisible(pauseStageSelectButtonEntity_, L"./Assets/Textures/UI/PausedUI/StageSelect.png", L"./Assets/Textures/UI/PausedUI/StageSelect1.png");
-            updateButtonVisible(pauseTitleButtonEntity_, L"./Assets/Textures/UI/PausedUI/BackTitle.png", L"./Assets/Textures/UI/PausedUI/BackTitle1.png");
+            updateButtonVisible(pauseResumeButtonEntity_, L"./Assets/Textures/UI/PausedUI/BackGame1.png", L"./Assets/Textures/UI/PausedUI/BackGame.png");
+            updateButtonVisible(pauseRetryButtonEntity_, L"./Assets/Textures/UI/PausedUI/Retray1.png", L"./Assets/Textures/UI/PausedUI/Retray.png");
+            updateButtonVisible(pauseStageSelectButtonEntity_, L"./Assets/Textures/UI/PausedUI/StageSelect1.png", L"./Assets/Textures/UI/PausedUI/StageSelect.png");
+            updateButtonVisible(pauseTitleButtonEntity_, L"./Assets/Textures/UI/PausedUI/BackTitle1.png", L"./Assets/Textures/UI/PausedUI/BackTitle.png");
             
             // 選択インジケーターの表示更新
             if (auto *selectImg = w.TryGet<UIImage>(pauseSelectIndicatorEntity_)) {

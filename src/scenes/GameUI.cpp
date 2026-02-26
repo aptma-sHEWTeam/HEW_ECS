@@ -260,8 +260,8 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 #endif // !_DEBUG
 
     UITransform roomImgTr;
-    roomImgTr.position = {1030.0f, 42.0f};
-    roomImgTr.size = {200.0f, 80.0f};
+    roomImgTr.position = {screenWidth - 420.0f, 42.0f};
+    roomImgTr.size = {240.0f, 96.0f}; // サイズも調整
     roomImgTr.anchor = {0.0f, 0.0f};
     roomImgTr.pivot = {0.0f, 0.0f};
 
@@ -294,12 +294,12 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     stageText[1].fillTexturePath = L"./Assets/Textures/RoomNo/UI-2-color.png";
 
     UITransform stageTransform[2];
-    stageTransform[0].position = {1455.0f, 65.0};
+    stageTransform[0].position = {screenWidth - 60.0f, 65.0}; // トップ右に配置
     stageTransform[0].size = {210.0f, 100.0f};
     stageTransform[0].anchor = {0.0f, 0.0f};
     stageTransform[0].pivot = {1.0f, 0.0f};
 
-    stageTransform[1].position = {stageTransform[0].position.x - 65.0f, stageTransform[0].position.y};
+    stageTransform[1].position = {stageTransform[0].position.x - 75.0f, stageTransform[0].position.y};
     stageTransform[1].size = stageTransform[0].size;
     stageTransform[1].anchor = stageTransform[0].anchor;
     stageTransform[1].pivot = stageTransform[0].pivot;
@@ -315,7 +315,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     }
 
     UITransform pauseTransform;
-    pauseTransform.position = {60.0f, -120.0f}; // 左側の中央よりやや上
+    pauseTransform.position = {30.0f, -80.0f}; // 左側の真ん中よりやや上に配置
     pauseTransform.size = {0.0f, 0.0f}; // 表示時に拡大する
     pauseTransform.anchor = {0.0f, 0.5f};
     pauseTransform.pivot = {0.0f, 0.5f};
@@ -332,7 +332,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 
     // 縦線 LeftLin.png
     UITransform lineTr;
-    lineTr.position = {80.0f, 80.0f}; // ボタンの横
+    lineTr.position = {40.0f, 120.0f}; // PAUSEDの下あたりから
     lineTr.size = {0.0f, 0.0f};       // isPaused時に展開
     lineTr.anchor = {0.0f, 0.5f};
     lineTr.pivot = {0.0f, 0.5f};
@@ -379,7 +379,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 
     auto createPauseButton = [&](const std::wstring &imagePath, float yOffset) {
         UITransform tr;
-        tr.position = {120.0f, yOffset}; // 線の右側
+        tr.position = {70.0f, yOffset}; // 線の右側
         tr.size = {0.0f, 0.0f};
         tr.anchor = {0.0f, 0.5f};
         tr.pivot = {0.0f, 0.5f};
@@ -400,10 +400,10 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         return e;
     };
 
-    Entity pauseResumeBtn = createPauseButton(L"./Assets/Textures/UI/PausedUI/BackGame.png", -20.0f);
-    Entity pauseRetryBtn  = createPauseButton(L"./Assets/Textures/UI/PausedUI/Retray.png", 60.0f);
-    Entity pauseSelectBtn = createPauseButton(L"./Assets/Textures/UI/PausedUI/StageSelect.png", 140.0f);
-    Entity pauseTitleBtn  = createPauseButton(L"./Assets/Textures/UI/PausedUI/BackTitle.png", 220.0f);
+    Entity pauseResumeBtn = createPauseButton(L"./Assets/Textures/UI/PausedUI/BackGame.png", 0.0f);
+    Entity pauseRetryBtn  = createPauseButton(L"./Assets/Textures/UI/PausedUI/Retray.png", 80.0f);
+    Entity pauseSelectBtn = createPauseButton(L"./Assets/Textures/UI/PausedUI/StageSelect.png", 160.0f);
+    Entity pauseTitleBtn  = createPauseButton(L"./Assets/Textures/UI/PausedUI/BackTitle.png", 240.0f);
     Entity pauseOptionsBtn = Entity(); // 無効化
     Entity pauseQuitBtn = Entity();    // 無効化
 
@@ -430,12 +430,12 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     // ==========================================
     
     // 【左側】 You (画像) + デス数 (白) + death (画像)
-    float youBaseX = 120.0f;
-    float youBaseY = 240.0f;
+    float youBaseX = 40.0f;
+    float youBaseY = 170.0f;
 
     UITransform youTr;
     youTr.position = {youBaseX, youBaseY};
-    youTr.size = {120.0f, 60.0f}; // 画像サイズに合わせて調整可
+    youTr.size = {80.0f, 40.0f}; // 画像サイズに合わせて調整可
     UIImage youImg{L"./Assets/Textures/UI/EndRankUI/You.png"};
     youImg.opacity = 1.0f;
     youImg.keepAspect = true;
@@ -443,7 +443,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     ownedEntities_.push_back(youEnt);
 
     UITransform currDeathTr;
-    currDeathTr.position = {youBaseX + 130.0f, youBaseY - 30.0f};
+    currDeathTr.position = {youBaseX + 90.0f, youBaseY - 30.0f};
     currDeathTr.size = {120.0f, 100.0f};
     UIText currDeathText{L"0"};
     currDeathText.color = {1.0f, 1.0f, 1.0f, 1.0f};
@@ -452,8 +452,8 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     ownedEntities_.push_back(currDeathEnt);
 
     UITransform currDeathRedTr;
-    currDeathRedTr.position = {youBaseX + 220.0f, youBaseY + 5.0f};
-    currDeathRedTr.size = {160.0f, 50.0f}; // 画像サイズに合わせて調整可
+    currDeathRedTr.position = {youBaseX + 160.0f, youBaseY + 5.0f};
+    currDeathRedTr.size = {120.0f, 35.0f}; // 画像サイズに合わせて調整可
     UIImage deathImg{L"./Assets/Textures/UI/EndRankUI/Death.png"};
     deathImg.opacity = 1.0f;
     deathImg.keepAspect = true;
@@ -462,9 +462,9 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 
 
     // 【右側】 Top 3 ランキング (1st 23 death ...)
-    float rankBaseX = screenWidth - 350.0f; // もっと右に寄せる
-    float rankBaseY = 240.0f;
-    float yOffset = 85.0f;
+    float rankBaseX = screenWidth - 360.0f; 
+    float rankBaseY = 180.0f;
+    float yOffset = 70.0f;
 
     int pss = 0;
     world.ForEach<StageProgress>([&](Entity, StageProgress &sp) {
@@ -508,8 +508,8 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
 
         // death (画像)
         UITransform suffixRedTr;
-        suffixRedTr.position = {rankBaseX + 160.0f, curY + 5.0f};
-        suffixRedTr.size = {160.0f, 50.0f};
+        suffixRedTr.position = {rankBaseX + 160.0f, curY + 15.0f};
+        suffixRedTr.size = {100.0f, 30.0f};
         UIImage suffixRedImg{L"./Assets/Textures/UI/EndRankUI/Death.png"};
         suffixRedImg.opacity = 1.0f;
         suffixRedImg.keepAspect = true;
