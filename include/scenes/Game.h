@@ -85,6 +85,7 @@ inline static ConfigVar<float> cfg_ChargeHoldRumbleDuration{"Gamepad.Rumble.Char
 inline static ConfigVar<float> cfg_ChargeHoldRumbleOutputScale{"Gamepad.Rumble.ChargeHold", "OutputScale", 0.0020f, "チャージ中振動強度の最終倍率"};
 inline static ConfigVar<float> cfg_StageEnterRumbleStrength{"Gamepad.Rumble.StageEnter", "Strength", 0.320f, "ステージ開始時振動強度"};
 inline static ConfigVar<float> cfg_StageEnterRumbleDuration{"Gamepad.Rumble.StageEnter", "Duration", 0.000f, "ステージ開始時振動継続時間"};
+inline static ConfigVar<float> cfg_WallLightSirenSwitchInterval{"Game.WallLight.Siren", "SwitchInterval", 0.8f, "蛍光灯の赤白切替間隔(秒)"};
 inline static ConfigVar<float> cfg_UrgencyRumbleStrengthBaseScale{"Gamepad.Rumble.Urgency", "StrengthBaseScale", 0.150f, "切迫演出時振動強度の基本倍率"};
 inline static ConfigVar<float> cfg_UrgencyRumbleStrengthUrgencyScale{"Gamepad.Rumble.Urgency", "StrengthUrgencyScale", 0.550f, "切迫演出時振動強度の緊迫度倍率"};
 inline static ConfigVar<float> cfg_UrgencyRumbleDurationBaseScale{"Gamepad.Rumble.Urgency", "DurationBaseScale", 0.000f, "切迫演出時振動時間の基本倍率"};
@@ -1062,39 +1063,21 @@ class GameScene : public IScene {
 
     /**
      * @brief 蛍光灯を常時サイレン調で色変化させる
-     * @details 常時ゆらぎに加え、残り時間が少ないほど変化速度と赤寄りの強さを上げる。
+     * @details 白と赤を一定間隔で切り替える。
      */
     void UpdateWallLightSiren(World &world, float dt) {
-        float urgency = 0.0f;
-        world.ForEach<GameStatus>([&](Entity, GameStatus &stats) {
-            if (!stats.timerRunning || cfg_LimitTime.Get() <= 0.0f) return;
-            const float ratio = std::clamp(stats.elapsedTime / cfg_LimitTime.Get(), 0.0f, 1.0f);
-            urgency = std::max(urgency, ratio);
-        });
-
         const float safeDt = std::max(0.0f, dt);
-        const float baseFreq = 0.28f;
-        const float urgencyBoost = 0.90f;
-        const float freq = baseFreq + urgency * urgencyBoost;
-        const float phase = sirenTimer_ * freq * DirectX::XM_2PI;
-        const float primary = (std::sinf(phase) + 1.0f) * 0.5f;
-        const float secondary = (std::sinf(phase * 1.18f + DirectX::XM_PIDIV2) + 1.0f) * 0.5f;
-        const float strobe = std::pow((std::sinf(phase * 1.65f) + 1.0f) * 0.5f, 3.0f);
-        const float blend = std::clamp(0.12f + primary * 0.50f + secondary * 0.20f + strobe * 0.08f + urgency * 0.10f, 0.0f, 1.0f);
-
-        const DirectX::XMFLOAT3 normalColor{1.0f, 0.7f, 0.5f};
-        const DirectX::XMFLOAT3 urgentColor{1.0f, 0.1f, 0.1f};
-        const DirectX::XMFLOAT3 color{
-            normalColor.x + (urgentColor.x - normalColor.x) * blend,
-            normalColor.y + (urgentColor.y - normalColor.y) * blend,
-            normalColor.z + (urgentColor.z - normalColor.z) * blend
-        };
+        const float switchInterval = std::max(0.01f, cfg_WallLightSirenSwitchInterval.Get());
+        const float cycle = switchInterval * 2.0f;
+        sirenTimer_ = std::fmod(sirenTimer_ + safeDt, cycle);
+        const bool redPhase = (sirenTimer_ >= switchInterval);
+        const DirectX::XMFLOAT3 whiteColor{1.0f, 1.0f, 1.0f};
+        const DirectX::XMFLOAT3 redColor{1.0f, 0.1f, 0.1f};
+        const DirectX::XMFLOAT3 color = redPhase ? redColor : whiteColor;
 
         world.ForEach<WallLightTag, PointLight>([&](Entity, WallLightTag &, PointLight &light) {
             light.color = color;
         });
-
-        sirenTimer_ += safeDt;
     }
 
     void UpdateBoostBurstFX(World &world) {

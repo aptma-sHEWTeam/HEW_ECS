@@ -71,7 +71,8 @@ inline static ConfigVar<float> cfg_GameUI_StageCounterRightMargin{"Game.UI.Stage
 inline static ConfigVar<float> cfg_GameUI_StageCounterPosY{"Game.UI.StageCounter", "PosY", 65.0f, "ゲームUI: ステージカウンタY"};
 inline static ConfigVar<float> cfg_GameUI_StageCounterWidth{"Game.UI.StageCounter", "Width", 210.0f, "ゲームUI: ステージカウンタ幅"};
 inline static ConfigVar<float> cfg_GameUI_StageCounterHeight{"Game.UI.StageCounter", "Height", 100.0f, "ゲームUI: ステージカウンタ高さ"};
-inline static ConfigVar<float> cfg_GameUI_StageCounterSecondOffsetX{"Game.UI.StageCounter", "SecondOffsetX", 110.0f, "ゲームUI: ステージカウンタ2つ目のXオフセット"};
+inline static ConfigVar<float> cfg_GameUI_StageCounterSecondOffsetX{"Game.UI.StageCounter", "SecondOffsetX", 90.0f, "ゲームUI: ステージカウンタ2つ目のXオフセット"};
+inline static ConfigVar<float> cfg_GameUI_StageCounterSecondOffsetY{"Game.UI.StageCounter", "SecondOffsetY", -8.0f, "ゲームUI: ステージカウンタ2つ目のYオフセット"};
 inline static ConfigVar<float> cfg_GameUI_StageCounterColorR{"Game.UI.StageCounter", "ColorR", 0.0f, "ゲームUI: ステージカウンタ色R"};
 inline static ConfigVar<float> cfg_GameUI_StageCounterColorG{"Game.UI.StageCounter", "ColorG", 0.5f, "ゲームUI: ステージカウンタ色G"};
 inline static ConfigVar<float> cfg_GameUI_StageCounterColorB{"Game.UI.StageCounter", "ColorB", 1.0f, "ゲームUI: ステージカウンタ色B"};
@@ -419,7 +420,8 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     stageTransform[0].anchor = {0.0f, 0.0f};
     stageTransform[0].pivot = {1.0f, 0.0f};
 
-    stageTransform[1].position = {stageTransform[0].position.x - cfg_GameUI_StageCounterSecondOffsetX.Get(), stageTransform[0].position.y};
+    stageTransform[1].position = {stageTransform[0].position.x - cfg_GameUI_StageCounterSecondOffsetX.Get(),
+                                  stageTransform[0].position.y + cfg_GameUI_StageCounterSecondOffsetY.Get()};
     stageTransform[1].size = stageTransform[0].size;
     stageTransform[1].anchor = stageTransform[0].anchor;
     stageTransform[1].pivot = stageTransform[0].pivot;

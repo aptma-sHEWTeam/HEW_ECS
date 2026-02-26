@@ -213,9 +213,14 @@ class VideoScene : public IScene {
             if (!loopVideoPath_.empty()) {
                 StartLoopVideo();
                 // ループ再生を開始しても、このフレームは抜けない
-            }
-            // 動画本編が終わった後は、ループ中・非ループ中にかかわらず、ボタン入力で遷移
-            if (CheckExitInput(input)) {
+                // ループ再生中は入力で遷移
+                if (CheckExitInput(input)) {
+                    StartFadeInNormal(world);
+                    isFading = true;
+                    return;
+                }
+            } else {
+                // ループ動画がない場合は本編終了後に自動遷移
                 StartFadeInNormal(world);
                 isFading = true;
                 return;

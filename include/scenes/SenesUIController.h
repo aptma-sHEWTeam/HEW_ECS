@@ -243,7 +243,7 @@ struct GameUIUpdater : Behaviour {
 
             const bool showPauseMenu = stats.isPaused;
             if (auto *panel = w.TryGet<UIPanel>(pauseMenuPanelEntity_)) {
-                panel->visible = showPauseMenu;
+                panel->visible = false;
             }
 
             bool anyHovered = false;
