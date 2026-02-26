@@ -22,8 +22,8 @@ inline static ConfigVar<float> cfg_GameUI_PauseFontSize{"Game.UI.TextFormat", "P
 inline static ConfigVar<float> cfg_GameUI_ButtonFontSize{"Game.UI.TextFormat", "ButtonFontSize", 20.0f, "ゲームUI: Buttonフォントサイズ"};
 inline static ConfigVar<float> cfg_GameUI_PanelFontSize{"Game.UI.TextFormat", "PanelFontSize", 200.0f, "ゲームUI: Panelフォントサイズ"};
 inline static ConfigVar<float> cfg_GameUI_TitleFontSize{"Game.UI.TextFormat", "TitleFontSize", 20.0f, "ゲームUI: Titleフォントサイズ"};
-inline static ConfigVar<float> cfg_GameUI_YouFontSize{"Game.UI.TextFormat", "YouFontSize", 45.0f, "ゲームUI: Youフォントサイズ"};
-inline static ConfigVar<float> cfg_GameUI_NumFontSize{"Game.UI.TextFormat", "NumFontSize", 75.0f, "ゲームUI: Numフォントサイズ"};
+inline static ConfigVar<float> cfg_GameUI_YouFontSize{"Game.UI.TextFormat", "YouFontSize", 36.0f, "ゲームUI: Youフォントサイズ"};
+inline static ConfigVar<float> cfg_GameUI_NumFontSize{"Game.UI.TextFormat", "NumFontSize", 60.0f, "ゲームUI: Numフォントサイズ"};
 inline static ConfigVar<float> cfg_GameUI_RoomNumberFontSize{"Game.UI.TextFormat", "RoomNumberFontSize", 55.0f, "ゲームUI: RoomNumberフォントサイズ"};
 inline static ConfigVar<float> cfg_GameUI_RedTextFontSize{"Game.UI.TextFormat", "RedTextFontSize", 30.0f, "ゲームUI: RedTextフォントサイズ"};
 inline static ConfigVar<float> cfg_GameUI_TopNumFontSize{"Game.UI.TextFormat", "TopNumFontSize", 55.0f, "ゲームUI: TopNumフォントサイズ"};
@@ -54,8 +54,8 @@ inline static ConfigVar<float> cfg_GameUI_StartImageWidth{"Game.UI.StartImage", 
 inline static ConfigVar<float> cfg_GameUI_StartImageHeight{"Game.UI.StartImage", "Height", 250.0f, "ゲームUI: スタート画像高さ"};
 
 inline static ConfigVar<float> cfg_GameUI_ChargeBarPosX{"Game.UI.StartChargeBar", "PosX", 520.0f, "ゲームUI: チャージバーX"};
-inline static ConfigVar<float> cfg_GameUI_ChargeBarPosY{"Game.UI.StartChargeBar", "PosY", 335.0f, "ゲームUI: チャージバーY"};
-inline static ConfigVar<float> cfg_GameUI_ChargeBarHeight{"Game.UI.StartChargeBar", "Height", 20.0f, "ゲームUI: チャージバー高さ"};
+inline static ConfigVar<float> cfg_GameUI_ChargeBarPosY{"Game.UI.StartChargeBar", "PosY", 270.0f, "ゲームUI: チャージバーY"};
+inline static ConfigVar<float> cfg_GameUI_ChargeBarHeight{"Game.UI.StartChargeBar", "Height", 17.0f, "ゲームUI: チャージバー高さ"};
 
 inline static ConfigVar<float> cfg_GameUI_FpsPosX{"Game.UI.Debug.Fps", "PosX", -20.0f, "ゲームUI: FPS表示X"};
 inline static ConfigVar<float> cfg_GameUI_FpsPosY{"Game.UI.Debug.Fps", "PosY", 20.0f, "ゲームUI: FPS表示Y"};
@@ -77,17 +77,17 @@ inline static ConfigVar<float> cfg_GameUI_StageCounterColorG{"Game.UI.StageCount
 inline static ConfigVar<float> cfg_GameUI_StageCounterColorB{"Game.UI.StageCounter", "ColorB", 1.0f, "ゲームUI: ステージカウンタ色B"};
 inline static ConfigVar<float> cfg_GameUI_StageCounterOutline{"Game.UI.StageCounter", "OutlineThickness", 1.0f, "ゲームUI: ステージカウンタアウトライン太さ"};
 
-inline static ConfigVar<float> cfg_GameUI_PauseTitlePosX{"Game.UI.Pause.Title", "PosX", 30.0f, "ゲームUI: PauseタイトルX"};
-inline static ConfigVar<float> cfg_GameUI_PauseTitlePosY{"Game.UI.Pause.Title", "PosY", -80.0f, "ゲームUI: PauseタイトルY"};
-inline static ConfigVar<float> cfg_GameUI_PauseLinePosX{"Game.UI.Pause.Line", "PosX", 40.0f, "ゲームUI: PauseラインX"};
+inline static ConfigVar<float> cfg_GameUI_PauseTitlePosX{"Game.UI.Pause.Title", "PosX", 470.0f, "ゲームUI: PauseタイトルX"};
+inline static ConfigVar<float> cfg_GameUI_PauseTitlePosY{"Game.UI.Pause.Title", "PosY", -20.0f, "ゲームUI: PauseタイトルY"};
+inline static ConfigVar<float> cfg_GameUI_PauseLinePosX{"Game.UI.Pause.Line", "PosX", 50.0f, "ゲームUI: PauseラインX"};
 inline static ConfigVar<float> cfg_GameUI_PauseLinePosY{"Game.UI.Pause.Line", "PosY", 120.0f, "ゲームUI: PauseラインY"};
 inline static ConfigVar<float> cfg_GameUI_PauseButtonPosX{"Game.UI.Pause.Button", "PosX", 70.0f, "ゲームUI: PauseボタンX"};
 inline static ConfigVar<float> cfg_GameUI_PauseButtonStepY{"Game.UI.Pause.Button", "StepY", 80.0f, "ゲームUI: PauseボタンY間隔"};
 inline static ConfigVar<float> cfg_GameUI_PausePanelAlpha{"Game.UI.Pause.Panel", "Alpha", 0.55f, "ゲームUI: Pause背景アルファ"};
 inline static ConfigVar<float> cfg_GameUI_PauseMenuButtonWidth{"Game.UI.Pause.Button", "Width", 300.0f, "ゲームUI: Pauseボタン幅"};
 inline static ConfigVar<float> cfg_GameUI_PauseMenuButtonHeight{"Game.UI.Pause.Button", "Height", 50.0f, "ゲームUI: Pauseボタン高さ"};
-inline static ConfigVar<float> cfg_GameUI_PauseTitleImageWidth{"Game.UI.Pause.Title", "Width", 400.0f, "ゲームUI: Pauseタイトル幅"};
-inline static ConfigVar<float> cfg_GameUI_PauseTitleImageHeight{"Game.UI.Pause.Title", "Height", 100.0f, "ゲームUI: Pauseタイトル高さ"};
+inline static ConfigVar<float> cfg_GameUI_PauseTitleImageWidth{"Game.UI.Pause.Title", "Width", 360.0f, "ゲームUI: Pauseタイトル幅"};
+inline static ConfigVar<float> cfg_GameUI_PauseTitleImageHeight{"Game.UI.Pause.Title", "Height", 90.0f, "ゲームUI: Pauseタイトル高さ"};
 inline static ConfigVar<float> cfg_GameUI_PauseLineImageWidth{"Game.UI.Pause.Line", "Width", 15.0f, "ゲームUI: Pauseライン幅"};
 inline static ConfigVar<float> cfg_GameUI_PauseLineImageHeight{"Game.UI.Pause.Line", "Height", 350.0f, "ゲームUI: Pauseライン高さ"};
 inline static ConfigVar<float> cfg_GameUI_PauseSelectImageWidth{"Game.UI.Pause.Select", "Width", 320.0f, "ゲームUI: Pauseセレクト画像幅"};
@@ -97,12 +97,12 @@ inline static ConfigVar<float> cfg_GameUI_ClearTextPosY{"Game.UI.ClearText", "Po
 inline static ConfigVar<float> cfg_GameUI_ClearTextWidth{"Game.UI.ClearText", "Width", 900.0f, "ゲームUI: クリアテキスト幅"};
 inline static ConfigVar<float> cfg_GameUI_ClearTextHeight{"Game.UI.ClearText", "Height", 140.0f, "ゲームUI: クリアテキスト高さ"};
 
-inline static ConfigVar<float> cfg_GameUI_EndRankYouBaseX{"Game.UI.EndRank.You", "BaseX", 80.0f, "ゲームUI: EndRank You基準X"};
-inline static ConfigVar<float> cfg_GameUI_EndRankYouBaseY{"Game.UI.EndRank.You", "BaseY", 220.0f, "ゲームUI: EndRank You基準Y"};
+inline static ConfigVar<float> cfg_GameUI_EndRankYouBaseX{"Game.UI.EndRank.You", "BaseX", 50.0f, "ゲームUI: EndRank You基準X"};
+inline static ConfigVar<float> cfg_GameUI_EndRankYouBaseY{"Game.UI.EndRank.You", "BaseY", 200.0f, "ゲームUI: EndRank You基準Y"};
 inline static ConfigVar<float> cfg_GameUI_EndRankYouWidth{"Game.UI.EndRank.You", "Width", 80.0f, "ゲームUI: EndRank You幅"};
 inline static ConfigVar<float> cfg_GameUI_EndRankYouHeight{"Game.UI.EndRank.You", "Height", 40.0f, "ゲームUI: EndRank You高さ"};
-inline static ConfigVar<float> cfg_GameUI_EndRankCurrentNumOffsetX{"Game.UI.EndRank.You", "CurrentNumOffsetX", 90.0f, "ゲームUI: EndRank 現在デス数Xオフセット"};
-inline static ConfigVar<float> cfg_GameUI_EndRankCurrentNumOffsetY{"Game.UI.EndRank.You", "CurrentNumOffsetY", -30.0f, "ゲームUI: EndRank 現在デス数Yオフセット"};
+inline static ConfigVar<float> cfg_GameUI_EndRankCurrentNumOffsetX{"Game.UI.EndRank.You", "CurrentNumOffsetX", 140.0f, "ゲームUI: EndRank 現在デス数Xオフセット"};
+inline static ConfigVar<float> cfg_GameUI_EndRankCurrentNumOffsetY{"Game.UI.EndRank.You", "CurrentNumOffsetY", 0.0f, "ゲームUI: EndRank 現在デス数Yオフセット"};
 inline static ConfigVar<float> cfg_GameUI_EndRankCurrentNumWidth{"Game.UI.EndRank.You", "CurrentNumWidth", 120.0f, "ゲームUI: EndRank 現在デス数幅"};
 inline static ConfigVar<float> cfg_GameUI_EndRankCurrentNumHeight{"Game.UI.EndRank.You", "CurrentNumHeight", 100.0f, "ゲームUI: EndRank 現在デス数高さ"};
 inline static ConfigVar<float> cfg_GameUI_EndRankCurrentDeathOffsetX{"Game.UI.EndRank.You", "CurrentDeathOffsetX", 160.0f, "ゲームUI: EndRank death画像Xオフセット"};
@@ -110,15 +110,15 @@ inline static ConfigVar<float> cfg_GameUI_EndRankCurrentDeathOffsetY{"Game.UI.En
 inline static ConfigVar<float> cfg_GameUI_EndRankCurrentDeathWidth{"Game.UI.EndRank.You", "CurrentDeathWidth", 120.0f, "ゲームUI: EndRank death画像幅"};
 inline static ConfigVar<float> cfg_GameUI_EndRankCurrentDeathHeight{"Game.UI.EndRank.You", "CurrentDeathHeight", 35.0f, "ゲームUI: EndRank death画像高さ"};
 
-inline static ConfigVar<float> cfg_GameUI_EndRankRightMargin{"Game.UI.EndRank.Top", "RightMargin", 330.0f, "ゲームUI: EndRank右マージン"};
+inline static ConfigVar<float> cfg_GameUI_EndRankRightMargin{"Game.UI.EndRank.Top", "RightMargin", 200.0f, "ゲームUI: EndRank右マージン"};
 inline static ConfigVar<float> cfg_GameUI_EndRankBaseY{"Game.UI.EndRank.Top", "BaseY", 220.0f, "ゲームUI: EndRank基準Y"};
 inline static ConfigVar<float> cfg_GameUI_EndRankStepY{"Game.UI.EndRank.Top", "StepY", 70.0f, "ゲームUI: EndRank行間隔"};
-inline static ConfigVar<float> cfg_GameUI_EndRankSuffixWidth{"Game.UI.EndRank.Top", "SuffixWidth", 80.0f, "ゲームUI: EndRank順位画像幅"};
-inline static ConfigVar<float> cfg_GameUI_EndRankSuffixHeight{"Game.UI.EndRank.Top", "SuffixHeight", 60.0f, "ゲームUI: EndRank順位画像高さ"};
-inline static ConfigVar<float> cfg_GameUI_EndRankTopNumOffsetX{"Game.UI.EndRank.Top", "TopNumOffsetX", 90.0f, "ゲームUI: EndRank上位数値Xオフセット"};
-inline static ConfigVar<float> cfg_GameUI_EndRankTopNumOffsetY{"Game.UI.EndRank.Top", "TopNumOffsetY", -25.0f, "ゲームUI: EndRank上位数値Yオフセット"};
-inline static ConfigVar<float> cfg_GameUI_EndRankTopNumWidth{"Game.UI.EndRank.Top", "TopNumWidth", 120.0f, "ゲームUI: EndRank上位数値幅"};
-inline static ConfigVar<float> cfg_GameUI_EndRankTopNumHeight{"Game.UI.EndRank.Top", "TopNumHeight", 80.0f, "ゲームUI: EndRank上位数値高さ"};
+inline static ConfigVar<float> cfg_GameUI_EndRankSuffixWidth{"Game.UI.EndRank.Top", "SuffixWidth", 60.0f, "ゲームUI: EndRank順位画像幅"};
+inline static ConfigVar<float> cfg_GameUI_EndRankSuffixHeight{"Game.UI.EndRank.Top", "SuffixHeight", 50.0f, "ゲームUI: EndRank順位画像高さ"};
+inline static ConfigVar<float> cfg_GameUI_EndRankTopNumOffsetX{"Game.UI.EndRank.Top", "TopNumOffsetX", 120.0f, "ゲームUI: EndRank上位数値Xオフセット"};
+inline static ConfigVar<float> cfg_GameUI_EndRankTopNumOffsetY{"Game.UI.EndRank.Top", "TopNumOffsetY", -10.0f, "ゲームUI: EndRank上位数値Yオフセット"};
+inline static ConfigVar<float> cfg_GameUI_EndRankTopNumWidth{"Game.UI.EndRank.Top", "TopNumWidth", 80.0f, "ゲームUI: EndRank上位数値幅"};
+inline static ConfigVar<float> cfg_GameUI_EndRankTopNumHeight{"Game.UI.EndRank.Top", "TopNumHeight", 60.0f, "ゲームUI: EndRank上位数値高さ"};
 inline static ConfigVar<float> cfg_GameUI_EndRankTopNumOutline{"Game.UI.EndRank.Top", "TopNumOutlineThickness", 1.0f, "ゲームUI: EndRank上位数値アウトライン太さ"};
 inline static ConfigVar<float> cfg_GameUI_EndRankDeathOffsetX{"Game.UI.EndRank.Top", "DeathOffsetX", 160.0f, "ゲームUI: EndRank death画像Xオフセット"};
 inline static ConfigVar<float> cfg_GameUI_EndRankDeathOffsetY{"Game.UI.EndRank.Top", "DeathOffsetY", 15.0f, "ゲームUI: EndRank death画像Yオフセット"};
@@ -588,12 +588,12 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         pss = StageSave::GetLastSavedPss();
     }
     std::vector<int> topDeaths = StageSave::GetTopDeaths(pss);
-    std::wstring topDeathLabels[3] = {L"--", L"--", L"--"};
+    std::wstring topDeathLabels[3] = {L"-", L"-", L"-"};
     for (size_t i = 0; i < topDeaths.size() && i < 3; ++i) {
         topDeathLabels[i] = std::to_wstring(topDeaths[i]);
     }
 
-    std::wstring suffixStrs[] = { L"./Assets/Textures/UI/EndRankUI/1st.png", L"./Assets/Textures/UI/EndRankUI/2nd.png", L"./Assets/Textures/UI/EndRankUI/3rd.png" };
+    std::wstring suffixStrs[] = { L"./Assets/Textures/UI/StegeRankUI/1st.png", L"./Assets/Textures/UI/StegeRankUI/2nd.png", L"./Assets/Textures/UI/StegeRankUI/3rd.png" };
 
     for (size_t i = 0; i < 3; ++i) {
         float curY = rankBaseY + (i * yOffset);
@@ -613,14 +613,14 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         topNumTr.position = {rankBaseX + cfg_GameUI_EndRankTopNumOffsetX.Get(), curY + cfg_GameUI_EndRankTopNumOffsetY.Get()};
         topNumTr.size = {cfg_GameUI_EndRankTopNumWidth.Get(), cfg_GameUI_EndRankTopNumHeight.Get()};
         UIText topNumText{topDeathLabels[i]};
-        topNumText.color = {1.0f, 1.0f, 1.0f, 1.0f}; // 白字
+        topNumText.color = {0.0f, 0.0f, 0.0f, 1.0f}; // 白字
         topNumText.formatId = "topNum";
         topNumText.outlineColor = {1.0f, 1.0f, 1.0f, 1.0f};
         topNumText.outlineThickness = cfg_GameUI_EndRankTopNumOutline.Get();
         Entity topNumEnt = world.Create().With<UITransform>(topNumTr).With<UIText>(topNumText).Build();
         ownedEntities_.push_back(topNumEnt);
 
-        // death (画像)
+        // death (画像)  //EndRankだけどゲーム内のデス表示GameDeath
         UITransform suffixRedTr;
         suffixRedTr.position = {rankBaseX + cfg_GameUI_EndRankDeathOffsetX.Get(), curY + cfg_GameUI_EndRankDeathOffsetY.Get()};
         suffixRedTr.size = {cfg_GameUI_EndRankDeathWidth.Get(), cfg_GameUI_EndRankDeathHeight.Get()};
