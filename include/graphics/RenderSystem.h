@@ -228,7 +228,8 @@ struct RenderSystem {
         // パイプラインステートの設定
         SetupPipeline(gfx);
 
-        // ライト情報はシーン側で更新済みの値を使用
+        // ライト情報の更新（統合レンダリングシステムに委譲）
+        RenderingSystem::GetInstance().UpdateLights(w, cam.position);
         RenderingSystem::GetInstance().BindLightBuffer(gfx.Ctx(), 1);
         RenderingSystem::GetInstance().BindMaterialBuffer(gfx.Ctx(), 2);
 

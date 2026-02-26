@@ -791,7 +791,6 @@ class TitleScene : public IScene {
             return;
         try {
             auto &renderer = ServiceLocator::Get<RenderSystem>();
-            RenderingSystem::GetInstance().UpdateLights(world, camera_.position);
             //3Dオブジェクトを描画
             renderer.Render(world, camera_);
 

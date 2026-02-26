@@ -161,7 +161,7 @@ public:
             }
             return false;
         };
-        const float selectionHoldBiasSq = 64.0f;
+        const float selectionHoldBiasSq = 10000.0f;
 
         world.ForEach<Transform, PointLight>([&](Entity e, Transform& t, PointLight& pl) {
             if (!pl.enabled) return;

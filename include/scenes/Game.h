@@ -637,9 +637,6 @@ class GameScene : public IScene {
         auto *gfx = ServiceLocator::TryGet<GfxDevice>();
         if (!gfx) return;
 
-        // ライティング情報の更新（このフレームの基準値を確定）
-        RenderingSystem::GetInstance().UpdateLights(world, camera_.position);
-
         // シャドウレンダリング
         int shadowIdx = RenderingSystem::GetInstance().GetShadowLightIndex();
         try {
