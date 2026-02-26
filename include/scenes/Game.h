@@ -79,16 +79,16 @@ inline static ConfigVar<float> cfg_StickZoomAmount{"Camera.Stick", "StickZoomAmo
 inline static ConfigVar<float> cfg_StickZoomResponse{"Camera.Stick", "StickZoomResponse", 3.0f, "カメラズーム追従速度"};
 inline static ConfigVar<float> cfg_StickZoomTargetRatio{"Camera.Stick", "StickZoomTargetRatio", 0.3f, "プレイヤーへのカメラ寄り具合(0=寄らない,1=完全に寄る)"};
 inline static ConfigVar<float> cfg_StickZoomTargetSpeed{"Camera.Stick", "StickZoomTargetSpeed", 2.0f, "カメラターゲット補間速度"};
-inline static ConfigVar<float> cfg_ChargeHoldRumbleMin{"Gamepad.Rumble.ChargeHold", "Min", 0.080f, "チャージ中振動の最小強度"};
-inline static ConfigVar<float> cfg_ChargeHoldRumbleMax{"Gamepad.Rumble.ChargeHold", "Max", 0.240f, "チャージ中振動の最大強度"};
-inline static ConfigVar<float> cfg_ChargeHoldRumbleDuration{"Gamepad.Rumble.ChargeHold", "Duration", 0.080f, "チャージ中振動の継続時間"};
-inline static ConfigVar<float> cfg_ChargeHoldRumbleOutputScale{"Gamepad.Rumble.ChargeHold", "OutputScale", 0.500f, "チャージ中振動強度の最終倍率"};
+inline static ConfigVar<float> cfg_ChargeHoldRumbleMin{"Gamepad.Rumble.ChargeHold", "Min", 0.001f, "チャージ中振動の最小強度"};
+inline static ConfigVar<float> cfg_ChargeHoldRumbleMax{"Gamepad.Rumble.ChargeHold", "Max", 0.010f, "チャージ中振動の最大強度"};
+inline static ConfigVar<float> cfg_ChargeHoldRumbleDuration{"Gamepad.Rumble.ChargeHold", "Duration", 0.000f, "チャージ中振動の継続時間"};
+inline static ConfigVar<float> cfg_ChargeHoldRumbleOutputScale{"Gamepad.Rumble.ChargeHold", "OutputScale", 0.0020f, "チャージ中振動強度の最終倍率"};
 inline static ConfigVar<float> cfg_StageEnterRumbleStrength{"Gamepad.Rumble.StageEnter", "Strength", 0.320f, "ステージ開始時振動強度"};
-inline static ConfigVar<float> cfg_StageEnterRumbleDuration{"Gamepad.Rumble.StageEnter", "Duration", 0.220f, "ステージ開始時振動継続時間"};
+inline static ConfigVar<float> cfg_StageEnterRumbleDuration{"Gamepad.Rumble.StageEnter", "Duration", 0.000f, "ステージ開始時振動継続時間"};
 inline static ConfigVar<float> cfg_UrgencyRumbleStrengthBaseScale{"Gamepad.Rumble.Urgency", "StrengthBaseScale", 0.150f, "切迫演出時振動強度の基本倍率"};
 inline static ConfigVar<float> cfg_UrgencyRumbleStrengthUrgencyScale{"Gamepad.Rumble.Urgency", "StrengthUrgencyScale", 0.550f, "切迫演出時振動強度の緊迫度倍率"};
-inline static ConfigVar<float> cfg_UrgencyRumbleDurationBaseScale{"Gamepad.Rumble.Urgency", "DurationBaseScale", 0.400f, "切迫演出時振動時間の基本倍率"};
-inline static ConfigVar<float> cfg_UrgencyRumbleDurationPanicScale{"Gamepad.Rumble.Urgency", "DurationPanicScale", 0.450f, "切迫演出時振動時間のパニック倍率"};
+inline static ConfigVar<float> cfg_UrgencyRumbleDurationBaseScale{"Gamepad.Rumble.Urgency", "DurationBaseScale", 0.000f, "切迫演出時振動時間の基本倍率"};
+inline static ConfigVar<float> cfg_UrgencyRumbleDurationPanicScale{"Gamepad.Rumble.Urgency", "DurationPanicScale", 0.000f, "切迫演出時振動時間のパニック倍率"};
 // 追加: ステージクリア待機時間
 inline static ConfigVar<float> cfg_StageClearWait{"UI.StageClear", "WaitSeconds", 0.5f, "ステージクリア表示後にシーン遷移するまでの待機時間"};
 inline static ConfigVar<float> cfg_SkyboxSpeed{"Skybox", "Speed", 0.05f, "スカイボックスの回転速度(rad/sec)"};

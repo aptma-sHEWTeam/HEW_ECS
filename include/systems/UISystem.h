@@ -18,10 +18,10 @@
 #include <algorithm>
 #include <vector>
 
-inline ConfigVar<float> cfg_ControllerRumbleNavigateStrength{"Gamepad.Rumble.UI", "NavigateStrength", 0.180f, "UI選択時のコントローラー振動強度"};
-inline ConfigVar<float> cfg_ControllerRumbleNavigateDuration{"Gamepad.Rumble.UI", "NavigateDuration", 0.070f, "UI選択時のコントローラー振動継続時間"};
+inline ConfigVar<float> cfg_ControllerRumbleNavigateStrength{"Gamepad.Rumble.UI", "NavigateStrength", 0.020f, "UI選択時のコントローラー振動強度"};
+inline ConfigVar<float> cfg_ControllerRumbleNavigateDuration{"Gamepad.Rumble.UI", "NavigateDuration", 0.060f, "UI選択時のコントローラー振動継続時間"};
 inline ConfigVar<float> cfg_ControllerRumbleSubmitStrength{"Gamepad.Rumble.UI", "SubmitStrength", 0.320f, "UI決定時のコントローラー振動強度"};
-inline ConfigVar<float> cfg_ControllerRumbleSubmitDuration{"Gamepad.Rumble.UI", "SubmitDuration", 0.120f, "UI決定時のコントローラー振動継続時間"};
+inline ConfigVar<float> cfg_ControllerRumbleSubmitDuration{"Gamepad.Rumble.UI", "SubmitDuration", 0.100f, "UI決定時のコントローラー振動継続時間"};
 
 /**
  * @struct UIRenderSystem
