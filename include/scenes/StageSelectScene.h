@@ -623,8 +623,8 @@ class StageSelectScene : public IScene {
                 SOUND_SYS.PlaySE(cfg_EnterMP3Pass,false);
             }
             if (trigger) {
-                TriggerMenuRumble(std::clamp(cfg_UIRumbleSubmitStrength.Get(), 0.0f, 1.0f),
-                                  std::max(0.0f, cfg_UIRumbleSubmitDuration.Get()));
+                TriggerMenuRumble(std::clamp(cfg_ControllerRumbleSubmitStrength.Get(), 0.0f, 1.0f),
+                                  std::max(0.0f, cfg_ControllerRumbleSubmitDuration.Get()));
                 isTransitioning_ = true;
                 zoomTimer_ = 0.0f;
                 StartFadeOutNormal(world);
@@ -707,8 +707,8 @@ class StageSelectScene : public IScene {
             }
             if (backPressed && !isTransitioning_) {
                 SOUND_SYS.PlaySE(cfg_EnterMP3Pass,false);
-                TriggerMenuRumble(std::clamp(cfg_UIRumbleSubmitStrength.Get(), 0.0f, 1.0f),
-                                  std::max(0.0f, cfg_UIRumbleSubmitDuration.Get()));
+                TriggerMenuRumble(std::clamp(cfg_ControllerRumbleSubmitStrength.Get(), 0.0f, 1.0f),
+                                  std::max(0.0f, cfg_ControllerRumbleSubmitDuration.Get()));
                 BeginSceneFade(world, "Title");
                 return;
             }
@@ -719,8 +719,8 @@ class StageSelectScene : public IScene {
                     stats.selectStage++;
                     targetAngle_ -= DirectX::XM_2PI / std::max(unlockedStageCount_, 1);
                     SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
-                    TriggerMenuRumble(std::clamp(cfg_UIRumbleNavigateStrength.Get(), 0.0f, 1.0f),
-                                      std::max(0.0f, cfg_UIRumbleNavigateDuration.Get()));
+                    TriggerMenuRumble(std::clamp(cfg_ControllerRumbleNavigateStrength.Get(), 0.0f, 1.0f),
+                                      std::max(0.0f, cfg_ControllerRumbleNavigateDuration.Get()));
                     if (worldNumber_ >= 1 && worldNumber_ <= 4) {
                         s_lastSelected[worldNumber_ - 1] = stats.selectStage;
                     }
@@ -731,8 +731,8 @@ class StageSelectScene : public IScene {
                     if (stats.worldCount != cfg_WorldCount.Get() &&
                         StageSave::IsWorldUnlocked(worldNumber_ + 1)) {
                         SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
-                        TriggerMenuRumble(std::clamp(cfg_UIRumbleNavigateStrength.Get(), 0.0f, 1.0f),
-                                          std::max(0.0f, cfg_UIRumbleNavigateDuration.Get()));
+                        TriggerMenuRumble(std::clamp(cfg_ControllerRumbleNavigateStrength.Get(), 0.0f, 1.0f),
+                                          std::max(0.0f, cfg_ControllerRumbleNavigateDuration.Get()));
                         // 次のワールドへ
                         stats.IsWorldBack = false;
                         stats.IsWorldNext = true;
@@ -745,8 +745,8 @@ class StageSelectScene : public IScene {
                     stats.selectStage--;
                     targetAngle_ += DirectX::XM_2PI / std::max(unlockedStageCount_, 1);
                     SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
-                    TriggerMenuRumble(std::clamp(cfg_UIRumbleNavigateStrength.Get(), 0.0f, 1.0f),
-                                      std::max(0.0f, cfg_UIRumbleNavigateDuration.Get()));
+                    TriggerMenuRumble(std::clamp(cfg_ControllerRumbleNavigateStrength.Get(), 0.0f, 1.0f),
+                                      std::max(0.0f, cfg_ControllerRumbleNavigateDuration.Get()));
                     if (worldNumber_ >= 1 && worldNumber_ <= 4) {
                         s_lastSelected[worldNumber_ - 1] = stats.selectStage;
                     }
@@ -755,8 +755,8 @@ class StageSelectScene : public IScene {
                 } else {
                     // 前のワールドへ
                     if (worldNumber_ > 1) {
-                        TriggerMenuRumble(std::clamp(cfg_UIRumbleNavigateStrength.Get(), 0.0f, 1.0f),
-                                          std::max(0.0f, cfg_UIRumbleNavigateDuration.Get()));
+                        TriggerMenuRumble(std::clamp(cfg_ControllerRumbleNavigateStrength.Get(), 0.0f, 1.0f),
+                                          std::max(0.0f, cfg_ControllerRumbleNavigateDuration.Get()));
                         stats.IsWorldNext = false;
                         stats.IsWorldBack = true;
                         requestWorldTransition = TransitionDirection::Left;

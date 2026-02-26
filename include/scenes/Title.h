@@ -627,14 +627,14 @@ class TitleScene : public IScene {
         if (upPressd) {
             currentSelect = (currentSelect - 1 + 3) % 3;
             SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
-            TriggerMenuRumble(std::clamp(cfg_UIRumbleNavigateStrength.Get(), 0.0f, 1.0f),
-                              std::max(0.0f, cfg_UIRumbleNavigateDuration.Get()));
+            TriggerMenuRumble(std::clamp(cfg_ControllerRumbleNavigateStrength.Get(), 0.0f, 1.0f),
+                              std::max(0.0f, cfg_ControllerRumbleNavigateDuration.Get()));
         }
         if (downPressd) {
             currentSelect = (currentSelect + 1) % 3;
             SOUND_SYS.PlaySE(cfg_SelectMP3Pass,true);
-            TriggerMenuRumble(std::clamp(cfg_UIRumbleNavigateStrength.Get(), 0.0f, 1.0f),
-                              std::max(0.0f, cfg_UIRumbleNavigateDuration.Get()));
+            TriggerMenuRumble(std::clamp(cfg_ControllerRumbleNavigateStrength.Get(), 0.0f, 1.0f),
+                              std::max(0.0f, cfg_ControllerRumbleNavigateDuration.Get()));
         }
 
        
@@ -734,8 +734,8 @@ class TitleScene : public IScene {
                 }
             }
             if (trigger) {
-                TriggerMenuRumble(std::clamp(cfg_UIRumbleSubmitStrength.Get(), 0.0f, 1.0f),
-                                  std::max(0.0f, cfg_UIRumbleSubmitDuration.Get()));
+                TriggerMenuRumble(std::clamp(cfg_ControllerRumbleSubmitStrength.Get(), 0.0f, 1.0f),
+                                  std::max(0.0f, cfg_ControllerRumbleSubmitDuration.Get()));
                 isTransitioning_ = true;
                 zoomTimer_ = 0.0f;
                 StartFadeOutNormal(world);

@@ -149,6 +149,11 @@ class VideoScene : public IScene {
         isPlaying_ = true;
         loopPlaying_ = false;
         isFading = false;
+        menuRumbleTimer_ = 0.0f;
+        menuRumbleActive_ = false;
+        if (auto *pad = ServiceLocator::TryGet<GamepadSystem>()) {
+            pad->SetVibration(0.0f, 0.0f);
+        }
 
         DEBUGLOG(std::string("VideoScene: Video playback started - ") + videoPath_);
 
@@ -162,6 +167,7 @@ class VideoScene : public IScene {
     }
 
     void OnUpdate(World &world, InputSystem &input, float deltaTime) override {
+        UpdateMenuRumble(deltaTime);
         if (shouldExit_) {
             TransitionToNextScene(world);
             return;
@@ -201,7 +207,7 @@ class VideoScene : public IScene {
 
         // 動画終了後（ループ中、あるいはループなしの完了後）の待機処理
         if (!isPlaying_) {
-            if (!loopPlaying_ && !loopVideoPath_.empty()) {
+            if (!loopVideoPath_.empty()) {
                 StartLoopVideo();
                 // ループ再生を開始しても、このフレームは抜けない
             }
@@ -235,6 +241,7 @@ class VideoScene : public IScene {
 
     void OnExit(World &world) override {
         DEBUGLOG("VideoScene::OnExit()");
+        StopMenuRumble();
 
         player_.Stop();
         ShutdownRendering();
@@ -267,7 +274,7 @@ class VideoScene : public IScene {
             shouldExit_ = true;
             return;
         }
-        player_.SetLoop(true);
+        player_.SetLoop(false);
         player_.Play();
         isPlaying_ = true;
         loopPlaying_ = true;
@@ -492,6 +499,8 @@ class VideoScene : public IScene {
 
     bool CheckExitInput(InputSystem &input) {
         if (input.GetKeyDown(VK_RETURN) || input.GetKeyDown(VK_SPACE) || input.GetKeyDown(VK_ESCAPE)) {
+            TriggerMenuRumble(std::clamp(cfg_ControllerRumbleSubmitStrength.Get(), 0.0f, 1.0f),
+                              std::max(0.0f, cfg_ControllerRumbleSubmitDuration.Get()));
             return true;
         }
 
@@ -499,6 +508,8 @@ class VideoScene : public IScene {
         if (gamepad) {
             if (gamepad->GetAnyButtonDown({GamepadSystem::Button_A,
                                            GamepadSystem::Button_Start})) {
+                TriggerMenuRumble(std::clamp(cfg_ControllerRumbleSubmitStrength.Get(), 0.0f, 1.0f),
+                                  std::max(0.0f, cfg_ControllerRumbleSubmitDuration.Get()));
                 return true;
             }
         }
@@ -674,6 +685,40 @@ class VideoScene : public IScene {
         StartSpriteFade(world, fadeEntity_, 1, false);
     }
 
+    void TriggerMenuRumble(float strength, float duration) {
+        if (strength <= 0.0f || duration <= 0.0f) {
+            return;
+        }
+        auto *pad = ServiceLocator::TryGet<GamepadSystem>();
+        if (!pad) {
+            return;
+        }
+        pad->SetVibration(strength, strength);
+        menuRumbleTimer_ = std::max(menuRumbleTimer_, duration);
+        menuRumbleActive_ = true;
+    }
+
+    void UpdateMenuRumble(float dt) {
+        if (!menuRumbleActive_) {
+            return;
+        }
+        menuRumbleTimer_ = std::max(0.0f, menuRumbleTimer_ - std::max(0.0f, dt));
+        if (menuRumbleTimer_ > 0.0f) {
+            return;
+        }
+        StopMenuRumble();
+    }
+
+    void StopMenuRumble() {
+        menuRumbleTimer_ = 0.0f;
+        if (menuRumbleActive_) {
+            if (auto *pad = ServiceLocator::TryGet<GamepadSystem>()) {
+                pad->SetVibration(0.0f, 0.0f);
+            }
+        }
+        menuRumbleActive_ = false;
+    }
+
     void StartSpriteFade(World &world, Entity target, int direction, bool forceOpaque) {
         if (!world.IsAlive(target))
             return;
@@ -701,6 +746,8 @@ class VideoScene : public IScene {
     bool shouldExit_ = false;
     bool loopPlaying_ = false;
     bool isFading = false;
+    float menuRumbleTimer_ = 0.0f;
+    bool menuRumbleActive_ = false;
 
     Microsoft::WRL::ComPtr<ID3D11VertexShader> vertexShader_;
     Microsoft::WRL::ComPtr<ID3D11PixelShader> pixelShader_;

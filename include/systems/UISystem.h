@@ -18,10 +18,10 @@
 #include <algorithm>
 #include <vector>
 
-inline ConfigVar<float> cfg_UIRumbleNavigateStrength{"Gamepad.Rumble.UI", "NavigateStrength", 0.180f, "UI選択移動時の振動強度"};
-inline ConfigVar<float> cfg_UIRumbleNavigateDuration{"Gamepad.Rumble.UI", "NavigateDuration", 0.070f, "UI選択移動時の振動継続時間"};
-inline ConfigVar<float> cfg_UIRumbleSubmitStrength{"Gamepad.Rumble.UI", "SubmitStrength", 0.320f, "UI決定時の振動強度"};
-inline ConfigVar<float> cfg_UIRumbleSubmitDuration{"Gamepad.Rumble.UI", "SubmitDuration", 0.120f, "UI決定時の振動継続時間"};
+inline ConfigVar<float> cfg_ControllerRumbleNavigateStrength{"Gamepad.Rumble.UI", "NavigateStrength", 0.180f, "UI選択時のコントローラー振動強度"};
+inline ConfigVar<float> cfg_ControllerRumbleNavigateDuration{"Gamepad.Rumble.UI", "NavigateDuration", 0.070f, "UI選択時のコントローラー振動継続時間"};
+inline ConfigVar<float> cfg_ControllerRumbleSubmitStrength{"Gamepad.Rumble.UI", "SubmitStrength", 0.320f, "UI決定時のコントローラー振動強度"};
+inline ConfigVar<float> cfg_ControllerRumbleSubmitDuration{"Gamepad.Rumble.UI", "SubmitDuration", 0.120f, "UI決定時のコントローラー振動継続時間"};
 
 /**
  * @struct UIRenderSystem
@@ -345,8 +345,8 @@ struct UIInteractionSystem : Behaviour {
             selectedIndex_ = 0;
         }
         if ((up || down) && selectedIndex_ != previousSelectedIndex && selectedIndex_ >= 0) {
-            TriggerRumblePulse(std::clamp(cfg_UIRumbleNavigateStrength.Get(), 0.0f, 1.0f),
-                               std::max(0.0f, cfg_UIRumbleNavigateDuration.Get()));
+            TriggerRumblePulse(std::clamp(cfg_ControllerRumbleNavigateStrength.Get(), 0.0f, 1.0f),
+                               std::max(0.0f, cfg_ControllerRumbleNavigateDuration.Get()));
         }
 
 
@@ -365,8 +365,8 @@ struct UIInteractionSystem : Behaviour {
         if (submitDown && selectedIndex_ >= 0 && selectedIndex_ < static_cast<int>(buttons.size())) {
             auto *b = w.TryGet<UIButton>(buttons[static_cast<size_t>(selectedIndex_)].e);
             if (b && b->enabled && b->onClick) {
-                TriggerRumblePulse(std::clamp(cfg_UIRumbleSubmitStrength.Get(), 0.0f, 1.0f),
-                                   std::max(0.0f, cfg_UIRumbleSubmitDuration.Get()));
+                TriggerRumblePulse(std::clamp(cfg_ControllerRumbleSubmitStrength.Get(), 0.0f, 1.0f),
+                                   std::max(0.0f, cfg_ControllerRumbleSubmitDuration.Get()));
                 b->onClick();
             }
         }

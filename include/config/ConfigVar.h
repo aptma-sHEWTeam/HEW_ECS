@@ -1,9 +1,9 @@
-#pragma once
+ï»¿#pragma once
 #include <string>
 #include <functional>
 #include "ConfigManager.h"
 
-// ConfigVar ‚ğ”Ä—pƒŠƒXƒg‚ÉŠi”[‚·‚é‚½‚ß‚Ìƒx[ƒXƒCƒ“ƒ^[ƒtƒF[ƒX
+// ConfigVar ã‚’æ±ç”¨ãƒªã‚¹ãƒˆã«æ ¼ç´ã™ã‚‹ãŸã‚ã®ãƒ™ãƒ¼ã‚¹ã‚¤ãƒ³ã‚¿ãƒ¼ãƒ•ã‚§ãƒ¼ã‚¹
 class IConfigVar {
 public:
     virtual ~IConfigVar() = default;
@@ -14,7 +14,7 @@ public:
     virtual void SetValueFromBinary(const void* data) = 0;
     virtual void GetValueAsBinary(void* data) const = 0;
     virtual size_t GetBinarySize() const = 0;
-    // ƒIƒvƒVƒ‡ƒ“: TOML ƒRƒƒ“ƒg‚ğo—Í‚·‚éÛ‚Ég—p‚³‚ê‚é’Z‚¢à–¾
+    // ã‚ªãƒ—ã‚·ãƒ§ãƒ³: TOML ã‚³ãƒ¡ãƒ³ãƒˆã‚’å‡ºåŠ›ã™ã‚‹éš›ã«ä½¿ç”¨ã•ã‚Œã‚‹çŸ­ã„èª¬æ˜
     virtual std::string GetComment() const = 0;
 };
 
@@ -27,10 +27,10 @@ public:
         ConfigManager::Instance().Register(this);
     }
 
-    // T ‚Ö‚ÌˆÃ–Ù•ÏŠ·
+    // T ã¸ã®æš—é»™å¤‰æ›
     operator T() const { return m_Value; }
 
-    // ‘ã“ü‰‰Zq
+    // ä»£å…¥æ¼”ç®—å­
     ConfigVar<T>& operator=(const T& value) {
         m_Value = value;
         return *this;
@@ -38,7 +38,7 @@ public:
 
     T Get() const { return m_Value; }
 
-    // IConfigVar ‚ÌÀ‘•
+    // IConfigVar ã®å®Ÿè£…
     std::string GetSection() const override { return m_Section; }
     std::string GetName() const override { return m_Name; }
     std::string GetComment() const override { return m_Comment; }
@@ -67,7 +67,7 @@ public:
 
     void SetValueFromBinary(const void* data) override {
         if constexpr (std::is_same_v<T, std::string>) {
-            // Œ»İƒoƒCƒiƒŠ‚Å‚ÍƒTƒ|[ƒg‚³‚ê‚Ä‚¢‚È‚¢
+            // ç¾åœ¨ãƒã‚¤ãƒŠãƒªã§ã¯ã‚µãƒãƒ¼ãƒˆã•ã‚Œã¦ã„ãªã„
         } else {
             m_Value = *static_cast<const T*>(data);
         }

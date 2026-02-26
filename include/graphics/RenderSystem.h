@@ -92,7 +92,7 @@ struct RenderSystem {
         DirectX::XMFLOAT4 chromaticScreen; ///< x:幅 y:高さ
         DirectX::XMFLOAT4 stylizeParams0; ///< x:ビネット y:ノイズ z:フォグ w:中心保護半径
         DirectX::XMFLOAT4 stylizeParams1; ///< x:色温度 y:速度線 z:方向x w:方向y
-        DirectX::XMFLOAT4 stylizeParams2; ///< x:フラッシュ y:リップル z:時間 w:予約
+        DirectX::XMFLOAT4 stylizeParams2; ///< x:フラッシュ y:リップル z:時間 w:CRTノイズ
     };
 
     /**
@@ -401,6 +401,19 @@ struct RenderSystem {
         rippleActive_ = true;
     }
 
+    void TriggerCrtNoise(float intensity, float duration) {
+        intensity = std::max(0.0f, intensity);
+        duration = std::max(0.0f, duration);
+        if (intensity <= 0.0f || duration <= 0.0f) {
+            return;
+        }
+        crtNoiseStartIntensity_ = intensity;
+        crtNoiseIntensityCurrent_ = intensity;
+        crtNoiseDuration_ = duration;
+        crtNoiseElapsed_ = 0.0f;
+        crtNoiseActive_ = true;
+    }
+
     void UpdateScreenEffects(float dt) {
         const float safeDt = std::max(0.0f, dt);
         screenEffectTime_ += safeDt;
@@ -439,6 +452,18 @@ struct RenderSystem {
                 rippleIntensityCurrent_ = rippleStartIntensity_ * fade * fade;
             }
         }
+
+        if (crtNoiseActive_) {
+            crtNoiseElapsed_ += safeDt;
+            if (crtNoiseElapsed_ >= crtNoiseDuration_) {
+                crtNoiseActive_ = false;
+                crtNoiseIntensityCurrent_ = 0.0f;
+            } else {
+                const float t = crtNoiseElapsed_ / std::max(0.001f, crtNoiseDuration_);
+                const float fade = 1.0f - t;
+                crtNoiseIntensityCurrent_ = crtNoiseStartIntensity_ * fade;
+            }
+        }
     }
 
     void ClearScreenEffects() {
@@ -453,6 +478,11 @@ struct RenderSystem {
         rippleIntensityCurrent_ = 0.0f;
         rippleDuration_ = 0.0f;
         rippleElapsed_ = 0.0f;
+        crtNoiseActive_ = false;
+        crtNoiseStartIntensity_ = 0.0f;
+        crtNoiseIntensityCurrent_ = 0.0f;
+        crtNoiseDuration_ = 0.0f;
+        crtNoiseElapsed_ = 0.0f;
         vignetteIntensity_ = 0.0f;
         noiseIntensity_ = 0.0f;
         fogIntensity_ = 0.0f;
@@ -598,6 +628,11 @@ struct RenderSystem {
     float rippleIntensityCurrent_ = 0.0f;
     float rippleDuration_ = 0.0f;
     float rippleElapsed_ = 0.0f;
+    bool crtNoiseActive_ = false;
+    float crtNoiseStartIntensity_ = 0.0f;
+    float crtNoiseIntensityCurrent_ = 0.0f;
+    float crtNoiseDuration_ = 0.0f;
+    float crtNoiseElapsed_ = 0.0f;
     float vignetteIntensity_ = 0.0f;
     float noiseIntensity_ = 0.0f;
     float fogIntensity_ = 0.0f;
@@ -915,6 +950,18 @@ struct RenderSystem {
                 float ring = smoothstep(0.10, 0.0, abs(length(uv - float2(0.5, 0.5)) - 0.32));
                 float ripple = saturate(gStylizeParams2.y) * edgeMask * ring;
                 color += ripple * 0.12;
+
+                float crtNoise = saturate(gStylizeParams2.w);
+                if (crtNoise > 0.0001) {
+                    float grain = Hash12(uv * screenSize + gStylizeParams2.z * float2(97.0, 53.0));
+                    float grainSigned = (grain - 0.5) * 2.0;
+                    float scanline = sin((uv.y * screenSize.y + gStylizeParams2.z * 210.0) * 0.25);
+                    float scanlineMask = 0.5 + 0.5 * scanline;
+                    float flicker = 0.88 + 0.12 * sin(gStylizeParams2.z * 160.0);
+                    color += grainSigned * crtNoise * 0.10;
+                    color *= 1.0 - crtNoise * 0.12 + scanlineMask * crtNoise * 0.08;
+                    color *= flicker;
+                }
 
                 return saturate(color);
             }
@@ -1737,7 +1784,7 @@ struct RenderSystem {
         psCbuf.chromaticScreen = DirectX::XMFLOAT4{std::max(1.0f, viewport.Width), std::max(1.0f, viewport.Height), 0.0f, 0.0f};
         psCbuf.stylizeParams0 = DirectX::XMFLOAT4{vignetteIntensity_, noiseIntensity_, fogIntensity_, centerSafeRadius_};
         psCbuf.stylizeParams1 = DirectX::XMFLOAT4{colorTemperatureShift_, speedLineIntensity_, speedLineDirection_.x, speedLineDirection_.y};
-        psCbuf.stylizeParams2 = DirectX::XMFLOAT4{flashIntensityCurrent_, rippleIntensityCurrent_, screenEffectTime_, 0.0f};
+        psCbuf.stylizeParams2 = DirectX::XMFLOAT4{flashIntensityCurrent_, rippleIntensityCurrent_, screenEffectTime_, crtNoiseIntensityCurrent_};
 
         gfx.Ctx()->UpdateSubresource(psCb_.Get(), 0, nullptr, &psCbuf, 0, 0);
     }

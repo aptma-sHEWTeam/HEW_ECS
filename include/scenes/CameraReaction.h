@@ -35,7 +35,7 @@ inline ConfigVar<float> cfg_CameraShakeDecay{"Camera.Reaction.Shake", "ShakeDeca
 /** @brief カメラシェイクのランダム性の強さ。0で完全なsin波、1で完全なランダム */
 inline ConfigVar<float> cfg_CameraShakeRandomness{"Camera.Reaction.Shake", "ShakeRandomness", 0.3f, "カメラシェイクのランダム成分の強さ"};
 /** @brief カメラシェイク時のY軸方向の揺れのスケール（他軸との相対） */
-inline ConfigVar<float> cfg_CameraShakeYScale{"Camera.Reaction.Shake", "ShakeYScale", 0.5f, "カメラシェイクのY軸方向の揺れ量係数"};
+inline ConfigVar<float> cfg_CameraShakeYScale{"Camera.Reaction.Shake", "ShakeYScale", 0.32f, "カメラシェイクのY軸方向の揺れ量係数"};
 /** @brief カメラの衝撃（インパルス）効果の減衰率。大きいほど早く収まる */
 inline ConfigVar<float> cfg_CameraImpulseDecay{"Camera.Reaction.Impulse", "ImpulseDecay", 5.0f, "カメラインパルスの減衰速度"};
 /** @brief カメラのズームイン/アウト アニメーションの速度 */
@@ -47,9 +47,9 @@ inline ConfigVar<float> cfg_CameraFollowSmooth{"Camera.Reaction.Follow", "Follow
 // 壁衝突リスポーン用ConfigVars
 // =========================================
 /** @brief 壁衝突時のカメラシェイクの強さ */
-inline ConfigVar<float> cfg_WallHitShakeIntensity{"Camera.Reaction.WallHit", "WallHitShakeIntensity", 0.5f, "壁に衝突したときのカメラシェイク強度"};
+inline ConfigVar<float> cfg_WallHitShakeIntensity{"Camera.Reaction.WallHit", "WallHitShakeIntensity", 0.18f, "壁に衝突したときのカメラシェイク強度"};
 /** @brief 壁衝突時のカメラシェイクの持続時間 */
-inline ConfigVar<float> cfg_WallHitShakeDuration{"Camera.Reaction.WallHit", "WallHitShakeDuration", 0.3f, "壁に衝突したときのカメラシェイク継続時間"};
+inline ConfigVar<float> cfg_WallHitShakeDuration{"Camera.Reaction.WallHit", "WallHitShakeDuration", 0.22f, "壁に衝突したときのカメラシェイク継続時間"};
 /** @brief 壁衝突後、プレイヤーがリスポーンするまでの遅延時間 */
 inline ConfigVar<float> cfg_WallHitRespawnDelay{"Camera.Reaction.WallHit", "WallHitRespawnDelay", 1.0f, "壁衝突後にプレイヤーをリスポーンさせるまでの遅延時間"};
 /** @brief 壁衝突時色収差強度 */
@@ -70,9 +70,9 @@ inline ConfigVar<float> cfg_WallHitRumbleStrength{"Camera.Reaction.WallHit", "Wa
 inline ConfigVar<float> cfg_WallHitRumbleDuration{"Camera.Reaction.WallHit", "WallHitRumbleDuration", 0.280f, "壁衝突時振動継続時間"};
 
 /** @brief タイムアップ時シェイク強度 */
-inline ConfigVar<float> cfg_TimeUpShakeIntensity{"Camera.Reaction.TimeUp", "ShakeIntensity", 0.420f, "タイムアップ時シェイク強度"};
+inline ConfigVar<float> cfg_TimeUpShakeIntensity{"Camera.Reaction.TimeUp", "ShakeIntensity", 0.16f, "タイムアップ時シェイク強度"};
 /** @brief タイムアップ時シェイク継続時間 */
-inline ConfigVar<float> cfg_TimeUpShakeDuration{"Camera.Reaction.TimeUp", "ShakeDuration", 0.320f, "タイムアップ時シェイク継続時間"};
+inline ConfigVar<float> cfg_TimeUpShakeDuration{"Camera.Reaction.TimeUp", "ShakeDuration", 0.22f, "タイムアップ時シェイク継続時間"};
 /** @brief タイムアップ時色収差強度 */
 inline ConfigVar<float> cfg_TimeUpChromaticIntensity{"Camera.Reaction.TimeUp", "ChromaticIntensity", 0.180f, "タイムアップ時色収差強度"};
 /** @brief タイムアップ時色収差継続時間 */
@@ -118,6 +118,16 @@ inline ConfigVar<float> cfg_ChargeReleaseChromaticDuration{"Camera.Reaction.Char
 inline ConfigVar<float> cfg_ChargeReleaseChromaticSampleOffset{"Camera.Reaction.ChargeRelease", "ChromaticSampleOffset", 0.006f, "色収差のUVオフセット量"};
 /** @brief 画面中心から離れるほど強める倍率 */
 inline ConfigVar<float> cfg_ChargeReleaseChromaticRadialScale{"Camera.Reaction.ChargeRelease", "ChromaticRadialScale", 1.5f, "画面中心から離れるほど強める倍率"};
+/** @brief チャージ解放時にブラウン管ノイズを有効化するフラグ */
+inline ConfigVar<bool> cfg_ChargeReleaseCrtNoiseEnabled{"Camera.Reaction.ChargeRelease", "CrtNoiseEnabled", true, "チャージ解放時にブラウン管ノイズを有効化する"};
+/** @brief チャージ解放時ブラウン管ノイズの基本強度 */
+inline ConfigVar<float> cfg_ChargeReleaseCrtNoiseBaseIntensity{"Camera.Reaction.ChargeRelease", "CrtNoiseBaseIntensity", 0.18f, "チャージ解放時ブラウン管ノイズの基本強度"};
+/** @brief チャージ量に応じて加算するブラウン管ノイズ強度 */
+inline ConfigVar<float> cfg_ChargeReleaseCrtNoiseChargeScale{"Camera.Reaction.ChargeRelease", "CrtNoiseChargeScale", 0.28f, "チャージ量に応じて加算するブラウン管ノイズ強度"};
+/** @brief ブラウン管ノイズ強度の上限 */
+inline ConfigVar<float> cfg_ChargeReleaseCrtNoiseMaxIntensity{"Camera.Reaction.ChargeRelease", "CrtNoiseMaxIntensity", 0.52f, "ブラウン管ノイズ強度の上限"};
+/** @brief ブラウン管ノイズの継続時間 */
+inline ConfigVar<float> cfg_ChargeReleaseCrtNoiseDuration{"Camera.Reaction.ChargeRelease", "CrtNoiseDuration", 0.11f, "ブラウン管ノイズの継続時間"};
 /** @brief チャージ中の持続色収差を有効化するフラグ */
 inline ConfigVar<bool> cfg_ChargeHoldChromaticEnabled{"Camera.Reaction.ChargeHold", "ChromaticEnabled", true, "チャージ中の持続色収差を有効化する"};
 /** @brief チャージ中の持続色収差強度 */
@@ -144,7 +154,7 @@ inline ConfigVar<float> cfg_ChargeReleaseRumbleDuration{"Camera.Reaction.ChargeR
 /** @brief ブースト開始時演出の有効フラグ */
 inline ConfigVar<bool> cfg_BoostBurstEnabled{"Camera.Reaction.BoostBurst", "Enabled", true, "ブースト開始時の演出を有効化する"};
 /** @brief ブースト開始時シェイク強度 */
-inline ConfigVar<float> cfg_BoostBurstShakeIntensity{"Camera.Reaction.BoostBurst", "ShakeIntensity", 0.010f, "ブースト開始時シェイク強度"};
+inline ConfigVar<float> cfg_BoostBurstShakeIntensity{"Camera.Reaction.BoostBurst", "ShakeIntensity", 0.006f, "ブースト開始時シェイク強度"};
 /** @brief ブースト開始時シェイク継続時間 */
 inline ConfigVar<float> cfg_BoostBurstShakeDuration{"Camera.Reaction.BoostBurst", "ShakeDuration", 0.12f, "ブースト開始時シェイク継続時間"};
 /** @brief ブースト開始時色収差強度 */
@@ -167,9 +177,9 @@ inline ConfigVar<float> cfg_UrgencyFxPulseMinInterval{"Camera.Reaction.Urgency",
 /** @brief 切迫演出の最長パルス間隔 */
 inline ConfigVar<float> cfg_UrgencyFxPulseMaxInterval{"Camera.Reaction.Urgency", "PulseMaxInterval", 0.75f, "切迫演出の最長パルス間隔"};
 /** @brief 切迫演出シェイク最小強度 */
-inline ConfigVar<float> cfg_UrgencyFxShakeMinIntensity{"Camera.Reaction.Urgency", "ShakeMinIntensity", 0.010f, "切迫演出シェイク最小強度"};
+inline ConfigVar<float> cfg_UrgencyFxShakeMinIntensity{"Camera.Reaction.Urgency", "ShakeMinIntensity", 0.004f, "切迫演出シェイク最小強度"};
 /** @brief 切迫演出シェイク最大強度 */
-inline ConfigVar<float> cfg_UrgencyFxShakeMaxIntensity{"Camera.Reaction.Urgency", "ShakeMaxIntensity", 0.030f, "切迫演出シェイク最大強度"};
+inline ConfigVar<float> cfg_UrgencyFxShakeMaxIntensity{"Camera.Reaction.Urgency", "ShakeMaxIntensity", 0.012f, "切迫演出シェイク最大強度"};
 /** @brief 切迫演出シェイク継続時間 */
 inline ConfigVar<float> cfg_UrgencyFxShakeDuration{"Camera.Reaction.Urgency", "ShakeDuration", 0.10f, "切迫演出シェイク継続時間"};
 /** @brief 切迫演出色収差最小強度 */
@@ -267,7 +277,7 @@ inline ConfigVar<float> cfg_ScreenFxLowFpsMinScale{"Camera.Reaction.ScreenFXDire
 /** @brief UI/フェード中の演出係数 */
 inline ConfigVar<float> cfg_ScreenFxUiScale{"Camera.Reaction.ScreenFXDirector", "UiScale", 0.70f, "UI/フェード中の演出係数"};
 /** @brief 演出ごとの最大シェイク量 */
-inline ConfigVar<float> cfg_ScreenFxMaxShake{"Camera.Reaction.ScreenFXDirector", "MaxShake", 0.08f, "演出ごとの最大シェイク量"};
+inline ConfigVar<float> cfg_ScreenFxMaxShake{"Camera.Reaction.ScreenFXDirector", "MaxShake", 0.025f, "演出ごとの最大シェイク量"};
 /** @brief 演出ごとの最大ズーム量 */
 inline ConfigVar<float> cfg_ScreenFxMaxZoom{"Camera.Reaction.ScreenFXDirector", "MaxZoom", 0.22f, "演出ごとの最大ズーム量"};
 /** @brief 演出ごとの最大色収差量 */
@@ -391,4 +401,4 @@ inline ConfigVar<float> cfg_ScenicSERippleDuration{"Camera.Reaction.ScenicInstan
 /** @brief 色収差の最大継続時間（短時間制限） */
 inline ConfigVar<float> cfg_ScenicChromaticMaxDuration{"Camera.Reaction.ScenicGuard", "ChromaticMaxDuration", 0.20f, "色収差継続時間の上限"};
 /** @brief シェイク上限（小振幅固定） */
-inline ConfigVar<float> cfg_ScenicGuardMaxShake{"Camera.Reaction.ScenicGuard", "MaxShake", 0.05f, "シェイクを小振幅に制限する上限値"};
+inline ConfigVar<float> cfg_ScenicGuardMaxShake{"Camera.Reaction.ScenicGuard", "MaxShake", 0.018f, "シェイクを小振幅に制限する上限値"};
