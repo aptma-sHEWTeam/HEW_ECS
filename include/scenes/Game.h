@@ -1071,8 +1071,8 @@ class GameScene : public IScene {
         const float cycle = switchInterval * 2.0f;
         sirenTimer_ = std::fmod(sirenTimer_ + safeDt, cycle);
         const bool redPhase = (sirenTimer_ >= switchInterval);
-        const DirectX::XMFLOAT3 whiteColor{1.0f, 1.0f, 1.0f};
-        const DirectX::XMFLOAT3 redColor{1.0f, 0.1f, 0.1f};
+        const DirectX::XMFLOAT3 whiteColor{0.7f, 0.7f, 0.6f};
+        const DirectX::XMFLOAT3 redColor{0.8f, 0.1f, 0.1f};
         const DirectX::XMFLOAT3 color = redPhase ? redColor : whiteColor;
 
         world.ForEach<WallLightTag, PointLight>([&](Entity, WallLightTag &, PointLight &light) {

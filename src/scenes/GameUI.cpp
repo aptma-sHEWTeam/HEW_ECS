@@ -62,17 +62,17 @@ inline static ConfigVar<float> cfg_GameUI_FpsPosY{"Game.UI.Debug.Fps", "PosY", 2
 inline static ConfigVar<float> cfg_GameUI_FpsWidth{"Game.UI.Debug.Fps", "Width", 200.0f, "ゲームUI: FPS表示幅"};
 inline static ConfigVar<float> cfg_GameUI_FpsHeight{"Game.UI.Debug.Fps", "Height", 40.0f, "ゲームUI: FPS表示高さ"};
 
-inline static ConfigVar<float> cfg_GameUI_RoomImageRightMargin{"Game.UI.RoomImage", "RightMargin", 420.0f, "ゲームUI: 部屋番号画像 右マージン"};
+inline static ConfigVar<float> cfg_GameUI_RoomImageRightMargin{"Game.UI.RoomImage", "RightMargin", 230.0f, "ゲームUI: 部屋番号画像 右マージン"};
 inline static ConfigVar<float> cfg_GameUI_RoomImagePosY{"Game.UI.RoomImage", "PosY", 42.0f, "ゲームUI: 部屋番号画像Y"};
-inline static ConfigVar<float> cfg_GameUI_RoomImageWidth{"Game.UI.RoomImage", "Width", 240.0f, "ゲームUI: 部屋番号画像幅"};
-inline static ConfigVar<float> cfg_GameUI_RoomImageHeight{"Game.UI.RoomImage", "Height", 96.0f, "ゲームUI: 部屋番号画像高さ"};
+inline static ConfigVar<float> cfg_GameUI_RoomImageWidth{"Game.UI.RoomImage", "Width", 200.0f, "ゲームUI: 部屋番号画像幅"};//80,32 20,8, 5,2
+inline static ConfigVar<float> cfg_GameUI_RoomImageHeight{"Game.UI.RoomImage", "Height", 80.0f, "ゲームUI: 部屋番号画像高さ"};
 
-inline static ConfigVar<float> cfg_GameUI_StageCounterRightMargin{"Game.UI.StageCounter", "RightMargin", 40.0f, "ゲームUI: ステージカウンタ 右マージン"};
-inline static ConfigVar<float> cfg_GameUI_StageCounterPosY{"Game.UI.StageCounter", "PosY", 65.0f, "ゲームUI: ステージカウンタY"};
-inline static ConfigVar<float> cfg_GameUI_StageCounterWidth{"Game.UI.StageCounter", "Width", 210.0f, "ゲームUI: ステージカウンタ幅"};
-inline static ConfigVar<float> cfg_GameUI_StageCounterHeight{"Game.UI.StageCounter", "Height", 100.0f, "ゲームUI: ステージカウンタ高さ"};
-inline static ConfigVar<float> cfg_GameUI_StageCounterSecondOffsetX{"Game.UI.StageCounter", "SecondOffsetX", 90.0f, "ゲームUI: ステージカウンタ2つ目のXオフセット"};
-inline static ConfigVar<float> cfg_GameUI_StageCounterSecondOffsetY{"Game.UI.StageCounter", "SecondOffsetY", -8.0f, "ゲームUI: ステージカウンタ2つ目のYオフセット"};
+inline static ConfigVar<float> cfg_GameUI_StageCounterRightMargin{"Game.UI.StageCounter", "RightMargin", -140.0f, "ゲームUI: ステージカウンタ 右マージン"};
+inline static ConfigVar<float> cfg_GameUI_StageCounterPosY{"Game.UI.StageCounter", "PosY", 40.0f, "ゲームUI: ステージカウンタY"};
+inline static ConfigVar<float> cfg_GameUI_StageCounterWidth{"Game.UI.StageCounter", "Width", 170.0f, "ゲームUI: ステージカウンタ幅"};
+inline static ConfigVar<float> cfg_GameUI_StageCounterHeight{"Game.UI.StageCounter", "Height", 80.0f, "ゲームUI: ステージカウンタ高さ"};
+inline static ConfigVar<float> cfg_GameUI_StageCounterSecondOffsetX{"Game.UI.StageCounter", "SecondOffsetX", 50.0f, "ゲームUI: ステージカウンタ2つ目のXオフセット"};
+inline static ConfigVar<float> cfg_GameUI_StageCounterSecondOffsetY{"Game.UI.StageCounter", "SecondOffsetY", 0.0f, "ゲームUI: ステージカウンタ2つ目のYオフセット"};
 inline static ConfigVar<float> cfg_GameUI_StageCounterColorR{"Game.UI.StageCounter", "ColorR", 0.0f, "ゲームUI: ステージカウンタ色R"};
 inline static ConfigVar<float> cfg_GameUI_StageCounterColorG{"Game.UI.StageCounter", "ColorG", 0.5f, "ゲームUI: ステージカウンタ色G"};
 inline static ConfigVar<float> cfg_GameUI_StageCounterColorB{"Game.UI.StageCounter", "ColorB", 1.0f, "ゲームUI: ステージカウンタ色B"};
@@ -80,7 +80,7 @@ inline static ConfigVar<float> cfg_GameUI_StageCounterOutline{"Game.UI.StageCoun
 
 inline static ConfigVar<float> cfg_GameUI_PauseTitlePosX{"Game.UI.Pause.Title", "PosX", 470.0f, "ゲームUI: PauseタイトルX"};
 inline static ConfigVar<float> cfg_GameUI_PauseTitlePosY{"Game.UI.Pause.Title", "PosY", -20.0f, "ゲームUI: PauseタイトルY"};
-inline static ConfigVar<float> cfg_GameUI_PauseLinePosX{"Game.UI.Pause.Line", "PosX", 60.0f, "ゲームUI: PauseラインX"};
+inline static ConfigVar<float> cfg_GameUI_PauseLinePosX{"Game.UI.Pause.Line", "PosX", 50.0f, "ゲームUI: PauseラインX"};
 inline static ConfigVar<float> cfg_GameUI_PauseLinePosY{"Game.UI.Pause.Line", "PosY", 120.0f, "ゲームUI: PauseラインY"};
 inline static ConfigVar<float> cfg_GameUI_PauseButtonPosX{"Game.UI.Pause.Button", "PosX", 70.0f, "ゲームUI: PauseボタンX"};
 inline static ConfigVar<float> cfg_GameUI_PauseButtonStepY{"Game.UI.Pause.Button", "StepY", 80.0f, "ゲームUI: PauseボタンY間隔"};
