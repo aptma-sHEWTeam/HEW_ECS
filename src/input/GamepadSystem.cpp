@@ -173,6 +173,46 @@ HANDLE OpenDualSenseHidHandle(unsigned short vid, unsigned short pid) {
     return foundHandle;
 }
 
+bool TryWriteDualSenseReport(HANDLE handle, const unsigned char *data, size_t size, DWORD *errorOut) {
+    DWORD written = 0;
+    if (WriteFile(handle, data, static_cast<DWORD>(size), &written, nullptr) == TRUE &&
+        written == static_cast<DWORD>(size)) {
+        if (errorOut) {
+            *errorOut = ERROR_SUCCESS;
+        }
+        return true;
+    }
+
+    const DWORD writeError = GetLastError();
+    auto *mutableData = const_cast<unsigned char *>(data);
+    if (HidD_SetOutputReport(handle, mutableData, static_cast<ULONG>(size)) == TRUE) {
+        if (errorOut) {
+            *errorOut = ERROR_SUCCESS;
+        }
+        return true;
+    }
+
+    if (errorOut) {
+        const DWORD hidError = GetLastError();
+        *errorOut = (hidError != ERROR_SUCCESS) ? hidError : writeError;
+    }
+    return false;
+}
+
+void FinalizeDualSenseBtReport(std::vector<unsigned char> &report) {
+    if (report.size() < 78) {
+        return;
+    }
+    std::vector<unsigned char> crcInput((report.size() - 4) + 1, 0);
+    crcInput[0] = 0xA2;
+    memcpy(crcInput.data() + 1, report.data(), report.size() - 4);
+    const uint32_t crc = ComputeCrc32(crcInput.data(), crcInput.size());
+    report[report.size() - 4] = static_cast<unsigned char>(crc & 0xFFu);
+    report[report.size() - 3] = static_cast<unsigned char>((crc >> 8) & 0xFFu);
+    report[report.size() - 2] = static_cast<unsigned char>((crc >> 16) & 0xFFu);
+    report[report.size() - 1] = static_cast<unsigned char>((crc >> 24) & 0xFFu);
+}
+
 bool SendDualSenseHidVibration(HANDLE handle, float leftMotor, float rightMotor, DWORD *lastErrorOut) {
     if (lastErrorOut) {
         *lastErrorOut = ERROR_SUCCESS;
@@ -204,46 +244,80 @@ bool SendDualSenseHidVibration(HANDLE handle, float leftMotor, float rightMotor,
 
     const unsigned char weakMotor = static_cast<unsigned char>(std::clamp(rightMotor, 0.0f, 1.0f) * 255.0f);
     const unsigned char strongMotor = static_cast<unsigned char>(std::clamp(leftMotor, 0.0f, 1.0f) * 255.0f);
+    DWORD lastSendError = ERROR_NOT_SUPPORTED;
 
-    std::vector<unsigned char> report(static_cast<size_t>(caps.OutputReportByteLength), 0);
-    if (report.size() >= 78) {
-        report[0] = 0x31;
-        report[1] = 0x02;
-        report[2] = 0x03;
-        report[3] = 0x00;
-        report[4] = 0x00;
-        report[5] = weakMotor;
-        report[6] = strongMotor;
+    auto trySend = [&](const std::vector<unsigned char> &packet) {
+        DWORD sendError = ERROR_SUCCESS;
+        if (TryWriteDualSenseReport(handle, packet.data(), packet.size(), &sendError)) {
+            lastSendError = ERROR_SUCCESS;
+            return true;
+        }
+        lastSendError = sendError;
+        return false;
+    };
 
-        std::vector<unsigned char> crcInput((report.size() - 4) + 1, 0);
-        crcInput[0] = 0xA2;
-        memcpy(crcInput.data() + 1, report.data(), report.size() - 4);
-        const uint32_t crc = ComputeCrc32(crcInput.data(), crcInput.size());
-        report[report.size() - 4] = static_cast<unsigned char>(crc & 0xFFu);
-        report[report.size() - 3] = static_cast<unsigned char>((crc >> 8) & 0xFFu);
-        report[report.size() - 2] = static_cast<unsigned char>((crc >> 16) & 0xFFu);
-        report[report.size() - 1] = static_cast<unsigned char>((crc >> 24) & 0xFFu);
-    } else {
-        report[0] = 0x02;
-        report[1] = 0x03;
-        report[2] = 0x00;
-        report[3] = weakMotor;
-        report[4] = strongMotor;
+    if (caps.OutputReportByteLength >= 78) {
+        std::vector<unsigned char> btPacket(static_cast<size_t>(caps.OutputReportByteLength), 0);
+        btPacket[0] = 0x31;
+        btPacket[1] = 0x02;
+        btPacket[2] = 0xFF;
+        btPacket[3] = 0x04;
+        btPacket[6] = weakMotor;
+        btPacket[7] = strongMotor;
+        FinalizeDualSenseBtReport(btPacket);
+        if (trySend(btPacket)) {
+            return true;
+        }
+
+        std::vector<unsigned char> btLegacy(static_cast<size_t>(caps.OutputReportByteLength), 0);
+        btLegacy[0] = 0x31;
+        btLegacy[1] = 0x02;
+        btLegacy[2] = 0x03;
+        btLegacy[3] = 0x00;
+        btLegacy[5] = weakMotor;
+        btLegacy[6] = strongMotor;
+        FinalizeDualSenseBtReport(btLegacy);
+        if (trySend(btLegacy)) {
+            return true;
+        }
     }
 
-    DWORD written = 0;
-    if (WriteFile(handle, report.data(), static_cast<DWORD>(report.size()), &written, nullptr) == TRUE) {
+    if (caps.OutputReportByteLength >= 7) {
+        std::vector<unsigned char> usbPacket(static_cast<size_t>(caps.OutputReportByteLength), 0);
+        usbPacket[0] = 0x02;
+        usbPacket[1] = 0xFF;
+        usbPacket[2] = 0x0F;
+        usbPacket[4] = weakMotor;
+        usbPacket[5] = strongMotor;
+        if (trySend(usbPacket)) {
+            return true;
+        }
+    }
+
+    std::vector<unsigned char> btFixed(78, 0);
+    btFixed[0] = 0x31;
+    btFixed[1] = 0x02;
+    btFixed[2] = 0xFF;
+    btFixed[3] = 0x04;
+    btFixed[6] = weakMotor;
+    btFixed[7] = strongMotor;
+    FinalizeDualSenseBtReport(btFixed);
+    if (trySend(btFixed)) {
         return true;
     }
-    const DWORD writeError = GetLastError();
 
-    if (HidD_SetOutputReport(handle, report.data(), static_cast<ULONG>(report.size())) == TRUE) {
+    std::vector<unsigned char> usbFixed(64, 0);
+    usbFixed[0] = 0x02;
+    usbFixed[1] = 0xFF;
+    usbFixed[2] = 0x0F;
+    usbFixed[4] = weakMotor;
+    usbFixed[5] = strongMotor;
+    if (trySend(usbFixed)) {
         return true;
     }
 
     if (lastErrorOut) {
-        const DWORD hidError = GetLastError();
-        *lastErrorOut = (hidError != ERROR_SUCCESS) ? hidError : writeError;
+        *lastErrorOut = lastSendError;
     }
     return false;
 }
@@ -758,9 +832,13 @@ void GamepadSystem::UpdateDInput(int index) {
         usedDualSenseHidFallback = true;
         return true;
     };
+    HRESULT hr = S_OK;
+    if (tryDualSenseHidFallback(js)) {
+        goto DINPUT_STATE_READY;
+    }
 
     // デバイスを取得
-    HRESULT hr = pad.dinputDevice->Poll();
+    hr = pad.dinputDevice->Poll();
     if (FAILED(hr)) {
         HRESULT acquireHr = pad.dinputDevice->Acquire();
         if (FAILED(acquireHr)) {
@@ -840,7 +918,12 @@ DINPUT_STATE_READY:
         static int hidFallbackLogCount = 0;
         if (hidFallbackLogCount < 10) {
             std::ostringstream oss;
-            oss << "DInput[" << index << "]: DualSense HID入力フォールバックを使用";
+            oss << "DInput[" << index << "]: DualSense HID入力を使用"
+                << " LX=" << js.lX
+                << " LY=" << js.lY
+                << " RX=" << js.lRx
+                << " RY=" << js.lRy
+                << " Btn0=" << ((js.rgbButtons[0] & 0x80) ? 1 : 0);
             DEBUGLOG_CATEGORY(DebugLog::Category::Input, oss.str());
             hidFallbackLogCount++;
         }

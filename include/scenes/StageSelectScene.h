@@ -426,21 +426,6 @@ class StageSelectScene : public IScene {
             pad->SetVibration(0.0f, 0.0f);
         }
 
-        world.ForEach<StageProgress>([&](Entity, StageProgress &stats) {
-            const int stage = std::clamp(stats.selectStage, 1, unlockedStageCount_);
-            const float step = DirectX::XM_2PI / static_cast<float>(std::max(unlockedStageCount_, 1));
-            targetAngle_ = -step * static_cast<float>(stage - 1);
-            currentAngle_ = targetAngle_;
-            skyboxYawDeg_ = DirectX::XMConvertToDegrees(currentAngle_);
-            if (worldNumber_ >= 1 && worldNumber_ <= 4) {
-                s_lastSelected[worldNumber_ - 1] = stage;
-            }
-            DEBUGLOG("[StageSelect] Init camera angle world=" + std::to_string(worldNumber_) +
-                     " stage=" + std::to_string(stage) +
-                     " unlocked=" + std::to_string(unlockedStageCount_) +
-                     " angle=" + std::to_string(currentAngle_));
-        });
-
         if (cfg_DirLightEnabled.Get()) {
             Entity dirLight = world.Create().With<DirectionalLight>().Build();
             if (auto *light = world.TryGet<DirectionalLight>(dirLight)) {
@@ -494,13 +479,30 @@ class StageSelectScene : public IScene {
             }
         }
         // 解放済みステージ数で上書き（maxStage_は変えない。選択制限は別途行う）
-        unlockedStageCount_ = unlockedCount;
+        unlockedStageCount_ = std::max(unlockedCount, 1);
+
+        world.ForEach<StageProgress>([&](Entity, StageProgress &stats) {
+            const int stage = std::clamp(stats.selectStage, 1, unlockedStageCount_);
+            stats.selectStage = stage;
+            stats.currentStage = stage;
+            const float step = DirectX::XM_2PI / static_cast<float>(std::max(unlockedStageCount_, 1));
+            targetAngle_ = -step * static_cast<float>(stage - 1);
+            currentAngle_ = targetAngle_;
+            skyboxYawDeg_ = DirectX::XMConvertToDegrees(currentAngle_);
+            if (worldNumber_ >= 1 && worldNumber_ <= 4) {
+                s_lastSelected[worldNumber_ - 1] = stage;
+            }
+            DEBUGLOG("[StageSelect] Init camera angle world=" + std::to_string(worldNumber_) +
+                     " stage=" + std::to_string(stage) +
+                     " unlocked=" + std::to_string(unlockedStageCount_) +
+                     " angle=" + std::to_string(currentAngle_));
+        });
 
         std::string fallbackPath = cfg_StationFallbackModelPath.Get();
         const float radius = cfg_StationRadius.Get();
         // 解放済みステージのみStationモデルを生成
-        for (int i = 0; i < unlockedCount; ++i) {
-            float angle = static_cast<float>(i) * DirectX::XM_2PI / static_cast<float>(std::max(unlockedCount, 1));
+        for (int i = 0; i < unlockedStageCount_; ++i) {
+            float angle = static_cast<float>(i) * DirectX::XM_2PI / static_cast<float>(std::max(unlockedStageCount_, 1));
             float x = cosf(angle) * radius;
             float z = sinf(angle) * radius;
 
@@ -512,6 +514,7 @@ class StageSelectScene : public IScene {
 
             CreateObject(world, {x, 0.0f, z}, modelPath);
         }
+        UpdateStationTransforms(world, camera_.position);
 
         //2DUI
         UITransform FadeAnimation;
