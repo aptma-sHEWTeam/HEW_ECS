@@ -67,7 +67,7 @@ inline static ConfigVar<float> cfg_GameUI_RoomImagePosY{"Game.UI.RoomImage", "Po
 inline static ConfigVar<float> cfg_GameUI_RoomImageWidth{"Game.UI.RoomImage", "Width", 200.0f, "ゲームUI: 部屋番号画像幅"};//80,32 20,8, 5,2
 inline static ConfigVar<float> cfg_GameUI_RoomImageHeight{"Game.UI.RoomImage", "Height", 80.0f, "ゲームUI: 部屋番号画像高さ"};
 
-inline static ConfigVar<float> cfg_GameUI_StageCounterRightMargin{"Game.UI.StageCounter", "RightMargin", -140.0f, "ゲームUI: ステージカウンタ 右マージン"};
+inline static ConfigVar<float> cfg_GameUI_StageCounterRightMargin{"Game.UI.StageCounter", "RightMargin", 0.0f, "ゲームUI: ステージカウンタ 右マージン"};
 inline static ConfigVar<float> cfg_GameUI_StageCounterPosY{"Game.UI.StageCounter", "PosY", 40.0f, "ゲームUI: ステージカウンタY"};
 inline static ConfigVar<float> cfg_GameUI_StageCounterWidth{"Game.UI.StageCounter", "Width", 170.0f, "ゲームUI: ステージカウンタ幅"};
 inline static ConfigVar<float> cfg_GameUI_StageCounterHeight{"Game.UI.StageCounter", "Height", 80.0f, "ゲームUI: ステージカウンタ高さ"};
