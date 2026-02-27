@@ -558,24 +558,30 @@ struct PlayerMovement : Behaviour {
             bool releasedLocal = (wasCharging_ && !chargingNowLocal);
             if (releasedSys || releasedLocal) {
                 float chargeAmount = gamepad_->GetLeftStickChargeAmount(chargeMaxTime);
-                int count = angleFilled ? PlayerConstants::ANGLE_HISTORY_SIZE : angleIndex;
-              
+                DirectX::XMFLOAT2 boostDir = lastStickDir_;
+                float dirLen = std::sqrt(boostDir.x * boostDir.x + boostDir.y * boostDir.y);
+               
                 SOUND_SYS.StopSE(cfg_DriftMP3Pass);
 
-                if (count > 0) {
-                    float avgRad = std::atan2f(sumSin / count, sumCos / count);
-                    float dirX = std::cosf(avgRad); float dirY = std::sinf(avgRad);
-                    float dirLen = std::sqrt(dirX * dirX + dirY * dirY);
-                    if (dirLen > PlayerConstants::EPSILON) {
-                        DirectX::XMFLOAT2 boostDir{dirX / dirLen, dirY / dirLen};
-                        float maxBoost = v->speed * v->Acceleration;
-                        v->StartBoost(boostDir, maxBoost);
-
-                        // ブースト直後は入力をブロックする
-                        postBoostInputBlockTimer_ = cfg_PostBoostInputBlock.Get();
-                        v->isRotate = false;
-                        isCharging_ = false; v->isDecelerating = false;
+                if (dirLen <= PlayerConstants::EPSILON) {
+                    int count = angleFilled ? PlayerConstants::ANGLE_HISTORY_SIZE : angleIndex;
+                    if (count > 0) {
+                        float avgRad = std::atan2f(sumSin / count, sumCos / count);
+                        boostDir.x = std::cosf(avgRad);
+                        boostDir.y = std::sinf(avgRad);
+                        dirLen = std::sqrt(boostDir.x * boostDir.x + boostDir.y * boostDir.y);
                     }
+                }
+                if (dirLen > PlayerConstants::EPSILON) {
+                    boostDir.x /= dirLen;
+                    boostDir.y /= dirLen;
+                    float maxBoost = v->speed * v->Acceleration;
+                    v->StartBoost(boostDir, maxBoost);
+
+                    // ブースト直後は入力をブロックする
+                    postBoostInputBlockTimer_ = cfg_PostBoostInputBlock.Get();
+                    v->isRotate = false;
+                    isCharging_ = false; v->isDecelerating = false;
                 }
                 chargeTimer = 0.0f;
                 releaseTimer = 0.0f;

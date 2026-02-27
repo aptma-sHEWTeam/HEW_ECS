@@ -102,11 +102,11 @@ inline static ConfigVar<float> cfg_GameUI_EndRankYouBaseX{"Game.UI.EndRank.You",
 inline static ConfigVar<float> cfg_GameUI_EndRankYouBaseY{"Game.UI.EndRank.You", "BaseY", 200.0f, "ゲームUI: EndRank You基準Y"};
 inline static ConfigVar<float> cfg_GameUI_EndRankYouWidth{"Game.UI.EndRank.You", "Width", 80.0f, "ゲームUI: EndRank You幅"};
 inline static ConfigVar<float> cfg_GameUI_EndRankYouHeight{"Game.UI.EndRank.You", "Height", 40.0f, "ゲームUI: EndRank You高さ"};
-inline static ConfigVar<float> cfg_GameUI_EndRankCurrentNumOffsetX{"Game.UI.EndRank.You", "CurrentNumOffsetX", 140.0f, "ゲームUI: EndRank 現在デス数Xオフセット"};
+inline static ConfigVar<float> cfg_GameUI_EndRankCurrentNumOffsetX{"Game.UI.EndRank.You", "CurrentNumOffsetX", 120.0f, "ゲームUI: EndRank 現在デス数Xオフセット"};
 inline static ConfigVar<float> cfg_GameUI_EndRankCurrentNumOffsetY{"Game.UI.EndRank.You", "CurrentNumOffsetY", 0.0f, "ゲームUI: EndRank 現在デス数Yオフセット"};
 inline static ConfigVar<float> cfg_GameUI_EndRankCurrentNumWidth{"Game.UI.EndRank.You", "CurrentNumWidth", 120.0f, "ゲームUI: EndRank 現在デス数幅"};
 inline static ConfigVar<float> cfg_GameUI_EndRankCurrentNumHeight{"Game.UI.EndRank.You", "CurrentNumHeight", 100.0f, "ゲームUI: EndRank 現在デス数高さ"};
-inline static ConfigVar<float> cfg_GameUI_EndRankCurrentDeathOffsetX{"Game.UI.EndRank.You", "CurrentDeathOffsetX", 160.0f, "ゲームUI: EndRank death画像Xオフセット"};
+inline static ConfigVar<float> cfg_GameUI_EndRankCurrentDeathOffsetX{"Game.UI.EndRank.You", "CurrentDeathOffsetX", 170.0f, "ゲームUI: EndRank death画像Xオフセット"};
 inline static ConfigVar<float> cfg_GameUI_EndRankCurrentDeathOffsetY{"Game.UI.EndRank.You", "CurrentDeathOffsetY", 5.0f, "ゲームUI: EndRank death画像Yオフセット"};
 inline static ConfigVar<float> cfg_GameUI_EndRankCurrentDeathWidth{"Game.UI.EndRank.You", "CurrentDeathWidth", 120.0f, "ゲームUI: EndRank death画像幅"};
 inline static ConfigVar<float> cfg_GameUI_EndRankCurrentDeathHeight{"Game.UI.EndRank.You", "CurrentDeathHeight", 35.0f, "ゲームUI: EndRank death画像高さ"};
@@ -169,11 +169,13 @@ void GameScene::CreateTextFormats() {
     TextSystem::TextFormat numFmt;
     numFmt.fontSize = cfg_GameUI_NumFontSize.Get();
     numFmt.fontFamily = L"ShipporiMincho-Bold.ttf";
+    numFmt.alignment = DWRITE_TEXT_ALIGNMENT_TRAILING;
     textSystem_.CreateTextFormat("num", numFmt);
 
     TextSystem::TextFormat roomNumFmt;
     roomNumFmt.fontSize = cfg_GameUI_RoomNumberFontSize.Get();
     roomNumFmt.fontFamily = L"ShipporiMincho-Bold.ttf";
+    roomNumFmt.alignment = DWRITE_TEXT_ALIGNMENT_TRAILING;
     textSystem_.CreateTextFormat("roomNumber", roomNumFmt);
 
     TextSystem::TextFormat redFmt;
@@ -184,6 +186,7 @@ void GameScene::CreateTextFormats() {
     TextSystem::TextFormat topNumFmt;
     topNumFmt.fontSize = cfg_GameUI_TopNumFontSize.Get();
     topNumFmt.fontFamily = L"ShipporiMincho-Bold.ttf";
+    topNumFmt.alignment = DWRITE_TEXT_ALIGNMENT_TRAILING;
     textSystem_.CreateTextFormat("topNum", topNumFmt);
 
     TextSystem::TextFormat rankFmt;
@@ -574,6 +577,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
     UITransform currDeathTr;
     currDeathTr.position = {youBaseX + cfg_GameUI_EndRankCurrentNumOffsetX.Get(), youBaseY + cfg_GameUI_EndRankCurrentNumOffsetY.Get()};
     currDeathTr.size = {cfg_GameUI_EndRankCurrentNumWidth.Get(), cfg_GameUI_EndRankCurrentNumHeight.Get()};
+    currDeathTr.pivot = {1.0f, 0.5f};
     UIText currDeathText{L"0"};
     currDeathText.color = {1.0f, 1.0f, 1.0f, 1.0f};
     currDeathText.formatId = "num";
@@ -630,6 +634,7 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         UITransform topNumTr;
         topNumTr.position = {rankBaseX + cfg_GameUI_EndRankTopNumOffsetX.Get(), curY + cfg_GameUI_EndRankTopNumOffsetY.Get()};
         topNumTr.size = {cfg_GameUI_EndRankTopNumWidth.Get(), cfg_GameUI_EndRankTopNumHeight.Get()};
+        topNumTr.pivot = {1.0f, 0.5f};
         UIText topNumText{topDeathLabels[i]};
         topNumText.color = {0.0f, 0.0f, 0.0f, 1.0f}; // 白字
         topNumText.formatId = "topNum";

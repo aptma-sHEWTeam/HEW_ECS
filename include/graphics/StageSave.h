@@ -6,6 +6,7 @@
 #include <map>
 #include <sstream>
 #include <string>
+#include <vector>
 
 inline int GetPssNumber(int world, int stageInWorld) {
     static const int pssTable[4][6] = {
@@ -28,6 +29,7 @@ struct StageClearData {
     int lastStage = 1;   // 最後にプレイしていたステージ (1-based)
     std::map<int, int> deathCounts; // PSS番号 → 直近のデス回数（互換用）
     std::map<int, std::vector<int>> topDeaths; // PSS番号 → トップ3のデス回数
+    std::map<int, std::vector<int>> outOfRankDeaths; // PSS番号 → ランキング外のデス回数（収集用）
     int lastSavedPss = 0;           // 最後に保存したPSS（VideoScene表示用）
     int lastSavedDeaths = 0;        // 最後に保存したデス回数（VideoScene表示用）
     bool isNewRecord = false;       // 今回のプレイが新記録だったか
@@ -109,6 +111,7 @@ class StageSave {
         s_data.lastStage = 1;
         s_data.deathCounts.clear();
         s_data.topDeaths.clear();
+        s_data.outOfRankDeaths.clear();
         s_data.lastSavedPss = 0;
         s_data.lastSavedDeaths = 0;
         s_data.isNewRecord = false;
@@ -153,11 +156,19 @@ class StageSave {
         s_data.lastSavedDeaths = count;
 
         auto &tops = s_data.topDeaths[pss];
+        std::sort(tops.begin(), tops.end());
+        if (tops.size() > 3) {
+            tops.resize(3);
+        }
         s_data.isNewRecord = false;
 
         // 今回の記録が1位かどうか判定（未プレイ、または1位以上の記録を出したか）
         if (tops.empty() || count <= tops.front()) {
             s_data.isNewRecord = true;
+        }
+
+        if (tops.size() >= 3 && count > tops.back()) {
+            s_data.outOfRankDeaths[pss].push_back(count);
         }
 
         tops.push_back(count);
@@ -236,7 +247,7 @@ class StageSave {
         ofs << std::to_string(s_data.lastStage) << "\n";
     }
 
-    /// デスカウントファイルを保存（pss:count,top1,top2,top3 形式）
+    /// デスカウントファイルを保存（pss:count,top1,top2,top3|out1,out2... 形式）
     static inline void SaveDeathCounts() {
         std::filesystem::create_directories("Assets/Save");
         std::ofstream ofs("Assets/Save/deaths.txt", std::ios::out);
@@ -249,6 +260,14 @@ class StageSave {
                     ofs << "," << td;
                 }
             }
+            auto outIt = s_data.outOfRankDeaths.find(pss);
+            if (outIt != s_data.outOfRankDeaths.end() && !outIt->second.empty()) {
+                ofs << "|";
+                for (size_t i = 0; i < outIt->second.size(); ++i) {
+                    if (i > 0) ofs << ",";
+                    ofs << outIt->second[i];
+                }
+            }
             ofs << "\n";
         }
     }
@@ -259,6 +278,7 @@ class StageSave {
         if (!ifs) return;
         s_data.deathCounts.clear();
         s_data.topDeaths.clear();
+        s_data.outOfRankDeaths.clear();
         std::string line;
         while (std::getline(ifs, line)) {
             auto colonPos = line.find(':');
@@ -268,23 +288,44 @@ class StageSave {
                 if (pss <= 0) continue;
 
                 std::string dataPart = line.substr(colonPos + 1);
-                auto commaPos = dataPart.find(',');
+                std::string rankPart = dataPart;
+                std::string outOfRankPart;
+                auto pipePos = dataPart.find('|');
+                if (pipePos != std::string::npos) {
+                    rankPart = dataPart.substr(0, pipePos);
+                    outOfRankPart = dataPart.substr(pipePos + 1);
+                }
+
+                auto commaPos = rankPart.find(',');
                 
                 if (commaPos == std::string::npos) {
                     // 古いフォーマット: pss:count
-                    int count = std::stoi(dataPart);
+                    int count = std::stoi(rankPart);
                     s_data.deathCounts[pss] = count;
                     s_data.topDeaths[pss].push_back(count);
                 } else {
                     // 新しいフォーマット: pss:count,top1,top2,top3
-                    int count = std::stoi(dataPart.substr(0, commaPos));
+                    int count = std::stoi(rankPart.substr(0, commaPos));
                     s_data.deathCounts[pss] = count;
 
-                    std::string topStr = dataPart.substr(commaPos + 1);
+                    std::string topStr = rankPart.substr(commaPos + 1);
                     std::stringstream ss(topStr);
                     std::string token;
                     while (std::getline(ss, token, ',')) {
                         s_data.topDeaths[pss].push_back(std::stoi(token));
+                    }
+                }
+                auto &tops = s_data.topDeaths[pss];
+                std::sort(tops.begin(), tops.end());
+                if (tops.size() > 3) {
+                    tops.resize(3);
+                }
+                if (!outOfRankPart.empty()) {
+                    std::stringstream outSS(outOfRankPart);
+                    std::string token;
+                    while (std::getline(outSS, token, ',')) {
+                        if (token.empty()) continue;
+                        s_data.outOfRankDeaths[pss].push_back(std::stoi(token));
                     }
                 }
             } catch (...) {}
