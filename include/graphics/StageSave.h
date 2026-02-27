@@ -104,21 +104,13 @@ class StageSave {
         Save();
     }
 
-    /// データ削除（全フィールドをリセット）
+    /// 進行データ削除（デス記録は保持）
     static inline void Delete() {
         s_data.maxClearedPss = 0;
         s_data.lastWorld = 1;
         s_data.lastStage = 1;
-        s_data.deathCounts.clear();
-        s_data.topDeaths.clear();
-        s_data.outOfRankDeaths.clear();
-        s_data.lastSavedPss = 0;
-        s_data.lastSavedDeaths = 0;
-        s_data.isNewRecord = false;
         if (std::filesystem::exists("Assets/Save/stage.txt"))
             std::filesystem::remove("Assets/Save/stage.txt");
-        if (std::filesystem::exists("Assets/Save/deaths.txt"))
-            std::filesystem::remove("Assets/Save/deaths.txt");
     }
 
     /// 指定ワールドが解放済みか判定
