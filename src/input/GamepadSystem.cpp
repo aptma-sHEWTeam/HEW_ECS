@@ -248,6 +248,82 @@ bool SendDualSenseHidVibration(HANDLE handle, float leftMotor, float rightMotor,
     return false;
 }
 
+DWORD DualSenseHatToPov(unsigned char hat) {
+    switch (hat & 0x0F) {
+        case 0: return 0;
+        case 1: return 4500;
+        case 2: return 9000;
+        case 3: return 13500;
+        case 4: return 18000;
+        case 5: return 22500;
+        case 6: return 27000;
+        case 7: return 31500;
+        default: return 0xFFFFFFFF;
+    }
+}
+
+bool ReadDualSenseHidState(HANDLE handle, DIJOYSTATE2 *stateOut) {
+    if (stateOut == nullptr || handle == nullptr || handle == INVALID_HANDLE_VALUE) {
+        return false;
+    }
+
+    const unsigned char *reportData = nullptr;
+    size_t payloadOffset = 0;
+
+    unsigned char btReport[78]{};
+    unsigned char usbReport[64]{};
+    btReport[0] = 0x31;
+    if (HidD_GetInputReport(handle, btReport, static_cast<ULONG>(sizeof(btReport))) == TRUE) {
+        reportData = btReport;
+        payloadOffset = 2;
+    } else {
+        usbReport[0] = 0x01;
+        if (HidD_GetInputReport(handle, usbReport, static_cast<ULONG>(sizeof(usbReport))) != TRUE) {
+            return false;
+        }
+        reportData = usbReport;
+        payloadOffset = 1;
+    }
+
+    auto axis8ToAxis16 = [](unsigned char value) -> LONG {
+        return static_cast<LONG>(static_cast<unsigned int>(value) * 257u);
+    };
+
+    DIJOYSTATE2 state{};
+    state.lX = axis8ToAxis16(reportData[payloadOffset + 0]);
+    state.lY = axis8ToAxis16(reportData[payloadOffset + 1]);
+    state.lRx = axis8ToAxis16(reportData[payloadOffset + 2]);
+    state.lRy = axis8ToAxis16(reportData[payloadOffset + 3]);
+    state.lZ = axis8ToAxis16(reportData[payloadOffset + 4]);
+    state.lRz = axis8ToAxis16(reportData[payloadOffset + 5]);
+
+    const unsigned char buttons0 = reportData[payloadOffset + 7];
+    const unsigned char buttons1 = reportData[payloadOffset + 8];
+    const unsigned char buttons2 = reportData[payloadOffset + 9];
+
+    state.rgdwPOV[0] = DualSenseHatToPov(buttons0 & 0x0F);
+
+    if ((buttons0 & 0x10) != 0) state.rgbButtons[0] = 0x80;
+    if ((buttons0 & 0x20) != 0) state.rgbButtons[1] = 0x80;
+    if ((buttons0 & 0x40) != 0) state.rgbButtons[2] = 0x80;
+    if ((buttons0 & 0x80) != 0) state.rgbButtons[3] = 0x80;
+
+    if ((buttons1 & 0x01) != 0) state.rgbButtons[4] = 0x80;
+    if ((buttons1 & 0x02) != 0) state.rgbButtons[5] = 0x80;
+    if ((buttons1 & 0x04) != 0) state.rgbButtons[6] = 0x80;
+    if ((buttons1 & 0x08) != 0) state.rgbButtons[7] = 0x80;
+    if ((buttons1 & 0x10) != 0) state.rgbButtons[8] = 0x80;
+    if ((buttons1 & 0x20) != 0) state.rgbButtons[9] = 0x80;
+    if ((buttons1 & 0x40) != 0) state.rgbButtons[10] = 0x80;
+    if ((buttons1 & 0x80) != 0) state.rgbButtons[11] = 0x80;
+
+    if ((buttons2 & 0x01) != 0) state.rgbButtons[12] = 0x80;
+    if ((buttons2 & 0x02) != 0) state.rgbButtons[13] = 0x80;
+
+    *stateOut = state;
+    return true;
+}
+
 BOOL CALLBACK EnumForceFeedbackAxesCallback(const DIDEVICEOBJECTINSTANCE *lpddoi, LPVOID pvRef) {
     if (!lpddoi || !pvRef) {
         return DIENUM_STOP;
@@ -651,6 +727,37 @@ void GamepadSystem::UpdateDInput(int index) {
     static int acquireFailureLogCount = 0;
     static int stateFailureLogCount = 0;
 #endif
+    static int transientFailureFrames[MAX_GAMEPADS] = {0};
+    auto resetTransientFailure = [&]() {
+        transientFailureFrames[index] = 0;
+    };
+    auto isTransientDInputError = [](HRESULT error) {
+        return error == DIERR_INPUTLOST || error == DIERR_NOTACQUIRED || error == DIERR_OTHERAPPHASPRIO;
+    };
+    auto handleDInputFailure = [&](HRESULT error) {
+        if (!isTransientDInputError(error)) {
+            resetTransientFailure();
+            releaseDInputSlot();
+            return;
+        }
+        pad.connected = false;
+        if (++transientFailureFrames[index] >= 120) {
+            transientFailureFrames[index] = 0;
+            releaseDInputSlot();
+        }
+    };
+    DIJOYSTATE2 js{};
+    bool usedDualSenseHidFallback = false;
+    auto tryDualSenseHidFallback = [&](DIJOYSTATE2 &stateOut) {
+        if (pad.dualSenseHidHandle == INVALID_HANDLE_VALUE || pad.dualSenseHidHandle == nullptr) {
+            return false;
+        }
+        if (!ReadDualSenseHidState(pad.dualSenseHidHandle, &stateOut)) {
+            return false;
+        }
+        usedDualSenseHidFallback = true;
+        return true;
+    };
 
     // デバイスを取得
     HRESULT hr = pad.dinputDevice->Poll();
@@ -665,11 +772,10 @@ void GamepadSystem::UpdateDInput(int index) {
                 acquireFailureLogCount++;
             }
 #endif
-            if (acquireHr == DIERR_DEVICENOTREG || acquireHr == DIERR_NOTINITIALIZED || acquireHr == HRESULT_FROM_WIN32(ERROR_READ_FAULT)) {
-                releaseDInputSlot();
-                return;
+            if (tryDualSenseHidFallback(js)) {
+                goto DINPUT_STATE_READY;
             }
-            pad.connected = false;
+            handleDInputFailure(acquireHr);
             return;
         }
         hr = pad.dinputDevice->Poll();
@@ -682,12 +788,14 @@ void GamepadSystem::UpdateDInput(int index) {
                 stateFailureLogCount++;
             }
 #endif
-            pad.connected = false;
+            if (tryDualSenseHidFallback(js)) {
+                goto DINPUT_STATE_READY;
+            }
+            handleDInputFailure(hr);
             return;
         }
     }
 
-    DIJOYSTATE2 js{};
     hr = pad.dinputDevice->GetDeviceState(sizeof(DIJOYSTATE2), &js);
     if (FAILED(hr) && (hr == DIERR_INPUTLOST || hr == DIERR_NOTACQUIRED)) {
         HRESULT reacquireHr = pad.dinputDevice->Acquire();
@@ -716,17 +824,27 @@ void GamepadSystem::UpdateDInput(int index) {
             stateFailureLogCount++;
         }
 #endif
-        if (hr == DIERR_DEVICENOTREG || hr == DIERR_NOTINITIALIZED || hr == HRESULT_FROM_WIN32(ERROR_READ_FAULT)) {
-            releaseDInputSlot();
-            return;
+        if (tryDualSenseHidFallback(js)) {
+            goto DINPUT_STATE_READY;
         }
-        pad.connected = false;
+        handleDInputFailure(hr);
         return;
     }
 
+DINPUT_STATE_READY:
+    resetTransientFailure();
     pad.connected = true;
 
 #ifdef _DEBUG
+    if (usedDualSenseHidFallback) {
+        static int hidFallbackLogCount = 0;
+        if (hidFallbackLogCount < 10) {
+            std::ostringstream oss;
+            oss << "DInput[" << index << "]: DualSense HID入力フォールバックを使用";
+            DEBUGLOG_CATEGORY(DebugLog::Category::Input, oss.str());
+            hidFallbackLogCount++;
+        }
+    }
     static int debugFrameCounter = 0;
     static int debugInterval = 60; //1秒ごと
     bool shouldDebugLog = (debugFrameCounter % debugInterval == 0);

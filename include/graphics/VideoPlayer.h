@@ -279,8 +279,12 @@ public:
         }
         frameTimer_ -= interval;
 
+        constexpr int kMaxReadSamplesPerUpdate = 8;
+        int readSamples = 0;
+
         // フレームを読み込み (VIDEO/AUDIOどちらも来る可能性あり)
-        while (true) {
+        while (readSamples < kMaxReadSamplesPerUpdate) {
+            ++readSamples;
             DWORD streamIndex = 0;
             DWORD streamFlags = 0;
             LONGLONG timestamp = 0;
@@ -407,7 +411,10 @@ public:
                 return true; // 1フレーム更新完了
             }
         }
-        
+
+        // ビデオフレームを取得できなかった場合は、このフレームでの時間消費を戻して再試行しやすくする
+        frameTimer_ += interval;
+
         return true; 
         // 従来のReadSample呼び出しを削除して、上のループに置き換えるため
         // 下記のコードは削除対象範囲に含める

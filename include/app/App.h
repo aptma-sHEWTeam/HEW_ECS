@@ -79,6 +79,7 @@ struct App {
     // Windows関連
     HWND hwnd_ = nullptr;         ///< メインウィンドウのハンドル
     bool isWindowFocused_ = true; ///< ウィンドウがフォーカスされているかどうか
+    bool isCursorHidden_ = false; ///< マウスカーソルが非表示かどうか
 
     // DirectX11システム
     GfxDevice gfx_;              ///< グラフィックスデバイス
@@ -527,6 +528,23 @@ struct App {
     }
 
   private:
+    void SetCursorHidden(bool hide) {
+        if (isCursorHidden_ == hide) {
+            return;
+        }
+
+        if (hide) {
+            while (ShowCursor(FALSE) >= 0) {}
+            isCursorHidden_ = true;
+            DEBUGLOG_CATEGORY(DebugLog::Category::System, "マウスカーソルを非表示にしました");
+            return;
+        }
+
+        while (ShowCursor(TRUE) < 0) {}
+        isCursorHidden_ = false;
+        DEBUGLOG_CATEGORY(DebugLog::Category::System, "マウスカーソルを表示に戻しました");
+    }
+
 #if ENABLE_DEBUG_VISUALS
     void UpdateDebugCamera(float deltaTime) {
         const float moveSpeed = 10.0f;
@@ -572,6 +590,7 @@ struct App {
      */
     void Shutdown() {
         DEBUGLOG_CATEGORY(DebugLog::Category::System, "App::Shutdown() - クリーンアップ開始");
+        SetCursorHidden(false);
 
         // Phase 0: すべてのシステムを停止（新規Spawn無効化）
         DEBUGLOG_CATEGORY(DebugLog::Category::System, "Phase 0: すべてのシステムを停止（新規Spawn無効化）");
@@ -1034,9 +1053,11 @@ struct App {
             case WM_ACTIVATE:
                 if (LOWORD(wp) == WA_INACTIVE) {
                     isWindowFocused_ = false;
+                    SetCursorHidden(false);
                     DEBUGLOG_CATEGORY(DebugLog::Category::System, "ウィンドウがフォーカスを失いました - 入力と更新を停止");
                 } else {
                     isWindowFocused_ = true;
+                    SetCursorHidden(true);
                     DEBUGLOG_CATEGORY(DebugLog::Category::System, "ウィンドウがフォーカスを取得しました - 入力と更新を再開");
                 }
                 return 0;

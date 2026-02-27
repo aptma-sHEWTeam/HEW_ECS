@@ -121,6 +121,12 @@ inline static ConfigVar<float> cfg_GameUI_EndRankTopNumOffsetY{"Game.UI.EndRank.
 inline static ConfigVar<float> cfg_GameUI_EndRankTopNumWidth{"Game.UI.EndRank.Top", "TopNumWidth", 80.0f, "ゲームUI: EndRank上位数値幅"};
 inline static ConfigVar<float> cfg_GameUI_EndRankTopNumHeight{"Game.UI.EndRank.Top", "TopNumHeight", 60.0f, "ゲームUI: EndRank上位数値高さ"};
 inline static ConfigVar<float> cfg_GameUI_EndRankTopNumOutline{"Game.UI.EndRank.Top", "TopNumOutlineThickness", 1.0f, "ゲームUI: EndRank上位数値アウトライン太さ"};
+inline static ConfigVar<float> cfg_GameUI_EndRankTopNumColorR{"Game.UI.EndRank.Top", "TopNumColorR", 0.0f, "ゲームUI: EndRank上位数値色R"};
+inline static ConfigVar<float> cfg_GameUI_EndRankTopNumColorG{"Game.UI.EndRank.Top", "TopNumColorG", 0.0f, "ゲームUI: EndRank上位数値色G"};
+inline static ConfigVar<float> cfg_GameUI_EndRankTopNumColorB{"Game.UI.EndRank.Top", "TopNumColorB", 0.0f, "ゲームUI: EndRank上位数値色B"};
+inline static ConfigVar<float> cfg_GameUI_EndRankTopNumOutlineColorR{"Game.UI.EndRank.Top", "TopNumOutlineColorR", 1.0f, "ゲームUI: EndRank上位数値アウトライン色R"};
+inline static ConfigVar<float> cfg_GameUI_EndRankTopNumOutlineColorG{"Game.UI.EndRank.Top", "TopNumOutlineColorG", 1.0f, "ゲームUI: EndRank上位数値アウトライン色G"};
+inline static ConfigVar<float> cfg_GameUI_EndRankTopNumOutlineColorB{"Game.UI.EndRank.Top", "TopNumOutlineColorB", 1.0f, "ゲームUI: EndRank上位数値アウトライン色B"};
 inline static ConfigVar<float> cfg_GameUI_EndRankDeathOffsetX{"Game.UI.EndRank.Top", "DeathOffsetX", 160.0f, "ゲームUI: EndRank death画像Xオフセット"};
 inline static ConfigVar<float> cfg_GameUI_EndRankDeathOffsetY{"Game.UI.EndRank.Top", "DeathOffsetY", 15.0f, "ゲームUI: EndRank death画像Yオフセット"};
 inline static ConfigVar<float> cfg_GameUI_EndRankDeathWidth{"Game.UI.EndRank.Top", "DeathWidth", 100.0f, "ゲームUI: EndRank death画像幅"};
@@ -636,9 +642,9 @@ void GameScene::CreateUI(World &world, float screenWidth, float screenHeight) {
         topNumTr.size = {cfg_GameUI_EndRankTopNumWidth.Get(), cfg_GameUI_EndRankTopNumHeight.Get()};
         topNumTr.pivot = {1.0f, 0.5f};
         UIText topNumText{topDeathLabels[i]};
-        topNumText.color = {0.0f, 0.0f, 0.0f, 1.0f}; // 白字
+        topNumText.color = {cfg_GameUI_EndRankTopNumColorR.Get(), cfg_GameUI_EndRankTopNumColorG.Get(), cfg_GameUI_EndRankTopNumColorB.Get(), 1.0f}; // 白字
         topNumText.formatId = "topNum";
-        topNumText.outlineColor = {1.0f, 1.0f, 1.0f, 1.0f};
+        topNumText.outlineColor = {cfg_GameUI_EndRankTopNumOutlineColorR.Get(), cfg_GameUI_EndRankTopNumOutlineColorG.Get(), cfg_GameUI_EndRankTopNumOutlineColorB.Get(), 1.0f};
         topNumText.outlineThickness = cfg_GameUI_EndRankTopNumOutline.Get();
         Entity topNumEnt = world.Create().With<UITransform>(topNumTr).With<UIText>(topNumText).Build();
         ownedEntities_.push_back(topNumEnt);

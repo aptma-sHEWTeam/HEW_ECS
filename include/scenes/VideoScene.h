@@ -31,6 +31,12 @@ inline static ConfigVar<std::string> cfg_VideoPath{"Video.Clear", "FilePath", "A
 inline static ConfigVar<std::string> cfg_VideoLoopPath{"Video.Clear", "LoopFilePath", "Assets/Textures/Still/gameclear_loop.mov", "ゲームクリア後ループ再生のパス"};
 inline static ConfigVar<std::string> cfg_VideoNextScene{"Video.Clear", "NextScene", "World1_StageSelect", "動画再生後の遷移先シーン"};
 inline static ConfigVar<bool> cfg_VideoSkipEnabled{"Video.Clear", "SkipEnabled", true, "動画スキップを許可するか"};
+inline static ConfigVar<float> cfg_VideoRankTopNumColorR{"Video.Clear.Rank.Top", "NumColorR", 0.0f, "リザルト: ランキングデス数色R"};
+inline static ConfigVar<float> cfg_VideoRankTopNumColorG{"Video.Clear.Rank.Top", "NumColorG", 0.0f, "リザルト: ランキングデス数色G"};
+inline static ConfigVar<float> cfg_VideoRankTopNumColorB{"Video.Clear.Rank.Top", "NumColorB", 0.0f, "リザルト: ランキングデス数色B"};
+inline static ConfigVar<float> cfg_VideoRankTopNumOutlineColorR{"Video.Clear.Rank.Top", "NumOutlineColorR", 1.0f, "リザルト: ランキングデス数アウトライン色R"};
+inline static ConfigVar<float> cfg_VideoRankTopNumOutlineColorG{"Video.Clear.Rank.Top", "NumOutlineColorG", 1.0f, "リザルト: ランキングデス数アウトライン色G"};
+inline static ConfigVar<float> cfg_VideoRankTopNumOutlineColorB{"Video.Clear.Rank.Top", "NumOutlineColorB", 1.0f, "リザルト: ランキングデス数アウトライン色B"};
 
 /**
  * @class VideoScene
@@ -469,8 +475,8 @@ class VideoScene : public IScene {
             topNumTr.pivot = {0.0f, 0.0f};
 
             UIText topNumText{std::to_wstring(topDeaths[i])};
-            topNumText.color = {0.0f, 0.0f, 0.0f, 0.0f}; // 黒字（透明）
-            topNumText.outlineColor = {1.0f, 1.0f, 1.0f, 0.0f}; // 白いアウトライン
+            topNumText.color = {cfg_VideoRankTopNumColorR.Get(), cfg_VideoRankTopNumColorG.Get(), cfg_VideoRankTopNumColorB.Get(), 0.0f}; // 黒字（透明）
+            topNumText.outlineColor = {cfg_VideoRankTopNumOutlineColorR.Get(), cfg_VideoRankTopNumOutlineColorG.Get(), cfg_VideoRankTopNumOutlineColorB.Get(), 0.0f}; // 白いアウトライン
             topNumText.outlineThickness = 2.5f; 
             topNumText.formatId = "topNum";
             Entity topNumEnt = world.Create().With<UITransform>(topNumTr).With<UIText>(topNumText).Build();

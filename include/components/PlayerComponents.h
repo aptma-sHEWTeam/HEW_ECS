@@ -452,18 +452,18 @@ struct PlayerMovement : Behaviour {
                         });
                         SOUND_SYS.StopSE(cfg_DriftMP3Pass.Get()); // Stop charge sound
                         return;
-                        if (isCharging_) {
-                            GameScene_OnChargeRelease(w, 0.0f);
-                            SOUND_SYS.StopSE(cfg_DriftMP3Pass.Get()); // Stop charge sound
-                        }
-                        isCharging_ = false;
-                        if (currentEffectState != EffectState::Idle && currentEffectState != EffectState::MaxCharge) {
-                            SwitchEffect(w, self, EffectState::Idle);
-                        }
-                        t->position.x = startPos.x;
-                        shake = 0.0f;
-                        chargeTimer = 0.0f;
                     }
+                    if (isCharging_) {
+                        GameScene_OnChargeRelease(w, 0.0f);
+                        SOUND_SYS.StopSE(cfg_DriftMP3Pass.Get()); // Stop charge sound
+                    }
+                    isCharging_ = false;
+                    if (currentEffectState != EffectState::Idle && currentEffectState != EffectState::MaxCharge) {
+                        SwitchEffect(w, self, EffectState::Idle);
+                    }
+                    t->position.x = startPos.x;
+                    shake = 0.0f;
+                    chargeTimer = 0.0f;
                 }
             }
             restoreCollisionRadius();
